@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Departments — PSE PDMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/></head><body>
+<script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/app.js"></script>
+<script>
+PDMS.mountShell('departments');
+const D=PDMS_DATA;const I=PDMS.icon;
+document.getElementById('content').innerHTML = `
+  <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Departments</span></div>
+    <h1 class="page-title">Departments</h1><div class="page-sub">Organizational structure and performance</div></div>
+    <button class="btn btn-primary" onclick="PDMS.modal('New Department','<div class=&quot;form-row&quot;><label>Department Name</label><input/></div><div class=&quot;form-row&quot;><label>Head</label><input/></div>','<button class=&quot;btn btn-primary&quot; data-close>Create</button>')">${I('plus')} New Department</button></div>
+  <div class="grid grid-3">
+    ${D.departments.map(d=>{const perf=Math.floor(Math.random()*40+55);return `
+      <div class="card"><div class="card-body">
+        <div class="flex items-center gap-3 mb-3">
+          <div style="width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:var(--gradient);color:#fff;font-weight:800;font-size:18px">${d.name.split(' ').map(w=>w[0]).slice(0,2).join('')}</div>
+          <div><div class="font-bold">${PDMS.esc(d.name)}</div><div class="text-sm text-muted">${PDMS.esc(d.id)} • Led by ${PDMS.esc(d.head)}</div></div>
+        </div>
+        <div class="flex gap-4 mb-3">
+          <div><div class="text-sm text-muted">Members</div><div class="font-bold">${d.count}</div></div>
+          <div><div class="text-sm text-muted">Active Projects</div><div class="font-bold">${Math.floor(Math.random()*15+3)}</div></div>
+          <div><div class="text-sm text-muted">Performance</div><div class="font-bold">${perf}%</div></div>
+        </div>
+        <div class="progress"><div class="bar" style="width:${perf}%"></div></div>
+      </div></div>`;}).join('')}
+  </div>
+`;
+</script></body></html>

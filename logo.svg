@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="400" height="120" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title>Panoramic Synergy Enterprises Ltd Logo</title>
+  <desc>Blue PSE mark with Panoramic Synergy text and purple accent tagline.</desc>
+  <defs>
+    <linearGradient id="gradBlue" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#1d3c88"/>
+      <stop offset="100%" stop-color="#253c8f"/>
+    </linearGradient>
+    <linearGradient id="gradPurple" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="120" height="120" rx="24" fill="url(#gradBlue)"/>
+  <text x="16" y="80" fill="#fff" font-family="Inter, system-ui, sans-serif" font-size="66" font-weight="800">PSE</text>
+  <text x="140" y="44" fill="#18315e" font-family="Inter, system-ui, sans-serif" font-size="36" font-weight="800">PANORAMIC</text>
+  <text x="140" y="84" fill="#18315e" font-family="Inter, system-ui, sans-serif" font-size="36" font-weight="800">SYNERGY</text>
+  <rect x="140" y="92" width="232" height="20" rx="10" fill="url(#gradPurple)"/>
+  <text x="150" y="108" fill="#fff" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="700">Business &amp; Technology Solutions</text>
+</svg>

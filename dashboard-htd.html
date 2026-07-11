@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HTD Dashboard — PSE PDMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/></head><body>
+<script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/app.js"></script>
+<script>
+PDMS.mountShell('dashboard');
+const D=PDMS_DATA;const I=PDMS.icon;
+document.getElementById('content').innerHTML=`
+  <div class="page-head"><div><div class="breadcrumbs"><span>Dashboard</span><span>HTD</span></div>
+    <h1 class="page-title">Head of Technical Delivery</h1><div class="page-sub">Portfolio-wide delivery health and assignments</div></div>
+    <button class="btn btn-primary">${I('plus')} Assign Project</button></div>
+  <div class="grid grid-4 mb-4">
+    ${[['Active','48','primary'],['At Risk','7','warn'],['Delayed','5','info'],['Delivered YTD','214','success']].map(([k,v,c])=>`
+      <div class="stat i-${c}"><div class="label">${k}</div><div class="value">${v}</div><div class="icon-wrap">${I('briefcase')}</div></div>`).join('')}
+  </div>
+  <div class="grid" style="grid-template-columns:2fr 1fr;gap:20px">
+    <div class="card"><div class="card-head"><div class="card-title">Delivery Health by Department</div></div>
+      <div class="card-body"><div class="chart-wrap" style="height:280px"><canvas id="c1"></canvas></div></div></div>
+    <div class="card"><div class="card-head"><div class="card-title">Escalations</div></div>
+      <div class="card-body" style="padding:8px 20px">${D.projects.filter(p=>p.priority==='Critical').slice(0,6).map(p=>`
+        <div class="activity"><div class="a-icon">${I('zap')}</div>
+        <div><div class="font-semi text-sm">${PDMS.esc(p.name)}</div><div class="a-time">${PDMS.esc(p.client)} • ${p.progress}% complete</div></div></div>`).join('')}</div></div>
+  </div>`;
+PDMS.charts.line(document.getElementById('c1'),[[10,18,25,30,42,55,60,68,72,78,85,92]],['J','F','M','A','M','J','J','A','S','O','N','D'],['#4f46e5']);
+</script></body></html>

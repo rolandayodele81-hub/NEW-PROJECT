@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Admin Dashboard — PSE PDMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/></head><body>
+<script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/app.js"></script>
+<script>
+PDMS.mountShell('dashboard');
+const D=PDMS_DATA;const I=PDMS.icon;
+document.getElementById('content').innerHTML=`
+  <div class="page-head"><div><div class="breadcrumbs"><span>Dashboard</span><span>General Admin</span></div>
+    <h1 class="page-title">General Admin</h1><div class="page-sub">System, roles, security and audits</div></div></div>
+  <div class="grid grid-4 mb-4">
+    ${[['Users','${D.users.length}','primary','users'],['Roles','${D.roles.length}','purple','shield'],['Depts','${D.departments.length}','info','building'],['Audit Events','${D.activities.length}','warn','activity']]
+      .map(a=>{const[k,v,c,i]=a;return `<div class="stat i-${c}"><div class="label">${k}</div><div class="value">${eval(v)}</div><div class="icon-wrap">${I(i)}</div></div>`}).join('')}
+  </div>
+  <div class="grid grid-2">
+    <div class="card"><div class="card-head"><div class="card-title">Recent Audit Events</div><a href="activity.html" class="btn btn-secondary btn-sm">View all</a></div>
+      <div class="card-body" style="padding:8px 20px">${D.activities.slice(0,7).map(a=>`
+        <div class="activity"><div class="a-icon">${I('activity')}</div>
+          <div><div class="a-text"><b>${PDMS.esc(a.user)}</b> ${PDMS.esc(a.action)} <b>${PDMS.esc(a.target)}</b></div><div class="a-time">${a.time}</div></div></div>`).join('')}</div></div>
+    <div class="card"><div class="card-head"><div class="card-title">System Health</div></div><div class="card-body">
+      ${[['API Uptime',99.9],['Database Health',98.5],['Storage Used',62],['Active Sessions',44]].map(([k,v])=>`
+        <div class="mb-3"><div class="flex justify-between mb-2"><span class="font-semi text-sm">${k}</span><span class="font-bold">${v}${typeof v==='number'&&v<=100?'%':''}</span></div><div class="progress"><div class="bar" style="width:${v}%"></div></div></div>`).join('')}
+    </div></div>
+  </div>`;
+</script></body></html>

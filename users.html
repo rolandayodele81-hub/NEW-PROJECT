@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Users — PSE PDMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/></head><body>
+<script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/app.js"></script>
+<script>
+PDMS.mountShell('users');
+const D=PDMS_DATA;const I=PDMS.icon;
+document.getElementById('content').innerHTML = `
+  <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Users</span></div>
+    <h1 class="page-title">Users & Staff</h1><div class="page-sub">Manage employees, roles and access</div></div>
+    <div class="flex gap-2"><button class="btn btn-primary" onclick="newUser()">${I('user-plus')} Add User</button></div></div>
+  <div class="grid grid-4 mb-4">
+    <div class="stat i-primary"><div class="label">Total Users</div><div class="value">${D.users.length}</div><div class="icon-wrap">${I('users')}</div></div>
+    <div class="stat i-success"><div class="label">Active</div><div class="value">${D.users.filter(u=>u.status==='Active').length}</div><div class="icon-wrap">${I('check')}</div></div>
+    <div class="stat i-warn"><div class="label">On Leave</div><div class="value">${D.users.filter(u=>u.status==='On Leave').length}</div><div class="icon-wrap">${I('clock')}</div></div>
+    <div class="stat i-info"><div class="label">Suspended</div><div class="value">${D.users.filter(u=>u.status==='Suspended').length}</div><div class="icon-wrap">${I('shield')}</div></div>
+  </div>
+  <div id="tbl" class="table-wrap"></div>
+`;
+PDMS.renderTable(document.getElementById('tbl'),{
+  columns:[
+    {key:'name',label:'User',render:r=>`<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.name)}</div><div><div class="font-semi">${PDMS.esc(r.name)}</div><div class="text-sm text-muted">${PDMS.esc(r.email)}</div></div></div>`},
+    {key:'role',label:'Role',render:r=>`<span class="badge badge-primary">${r.role}</span>`},
+    {key:'dept',label:'Department'},
+    {key:'status',label:'Status',render:r=>`<span class="badge badge-${r.status==='Active'?'success':r.status==='Suspended'?'danger':'warn'}">${r.status}</span>`},
+    {key:'availability',label:'Availability',render:r=>`<span class="badge badge-${r.availability==='Available'?'success':'warn'} dot">${r.availability}</span>`},
+    {key:'workload',label:'Workload',render:r=>`<div class="progress-inline"><div class="progress"><div class="bar" style="width:${r.workload}%"></div></div><span class="pct">${r.workload}%</span></div>`},
+    {key:'joined',label:'Joined'},
+    {key:'actions',label:'Actions',render:r=>`<div class="flex gap-2"><button class="btn btn-secondary btn-sm" onclick="editU('${r.id}')">Edit</button><button class="btn btn-ghost btn-sm" onclick="PDMS.toast('${r.status==='Active'?'Suspended':'Activated'}','${PDMS.esc(r.name)} ${r.status==='Active'?'suspended':'activated'}','warn')">${r.status==='Active'?'Suspend':'Activate'}</button></div>`}
+  ],
+  rows:D.users, pageSize:10, searchKeys:['name','email','role','dept'],
+  filterOptions:[{key:'role',label:'Role',options:D.roles},{key:'status',label:'Status',options:['Active','Suspended','On Leave']}]
+});
+function newUser(){
+  PDMS.modal('Create User',`<div class="form-grid"><div class="form-row"><label>Full Name</label><input/></div><div class="form-row"><label>Email</label><input type="email"/></div><div class="form-row"><label>Role</label><select>${D.roles.map(r=>`<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Department</label><select>${D.departments.map(d=>`<option>${d.name}</option>`).join('')}</select></div></div>`,
+    `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" onclick="this.closest('.modal-backdrop').remove();PDMS.toast('User created','New user added','success')">Create</button>`);
+}
+function editU(id){PDMS.toast('Editing','User editor opened','success');}
+window.newUser=newUser;window.editU=editU;
+</script></body></html>

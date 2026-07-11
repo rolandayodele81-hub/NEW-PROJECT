@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Reports — PSE PDMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/></head><body>
+<script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/app.js"></script>
+<script>
+PDMS.mountShell('reports');
+const D=PDMS_DATA;const I=PDMS.icon;
+document.getElementById('content').innerHTML=`
+  <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Reports</span></div>
+    <h1 class="page-title">Reports & Analytics</h1><div class="page-sub">Insights across delivery, resources and performance</div></div>
+    <div class="flex gap-2"><select class="select"><option>Last 30 days</option><option>This quarter</option><option>Year to date</option></select><button class="btn btn-primary">${I('download')} Export</button></div></div>
+  <div class="grid grid-4 mb-4">
+    ${[['Daily','12'],['Weekly','54'],['Monthly','214'],['Quarterly','612']].map(([k,v],i)=>`
+      <div class="stat i-${['primary','success','warn','info'][i]}"><div class="label">${k} Deliveries</div><div class="value">${v}</div><div class="delta up">${I('trending')} On target</div><div class="icon-wrap">${I('chart')}</div></div>`).join('')}
+  </div>
+  <div class="grid grid-2 mb-4">
+    <div class="card"><div class="card-head"><div class="card-title">Delivery Performance Trend</div></div><div class="card-body"><div class="chart-wrap" style="height:280px"><canvas id="c1"></canvas></div></div></div>
+    <div class="card"><div class="card-head"><div class="card-title">Resource Utilization</div></div><div class="card-body"><div class="chart-wrap" style="height:280px"><canvas id="c2"></canvas></div></div></div>
+  </div>
+  <div class="grid grid-3">
+    ${['Department Report','Project Report','Consultant Report','Delivery Report','Performance Report','Resource Utilization'].map((r,i)=>`
+      <div class="card"><div class="card-body flex items-center gap-3">
+        <div style="width:48px;height:48px;border-radius:12px;background:var(--primary-50);color:var(--primary);display:grid;place-items:center">${I('chart')}</div>
+        <div style="flex:1"><div class="font-bold">${r}</div><div class="text-sm text-muted">Updated ${['1h','2h','5h','1d','1d','2d'][i]} ago</div></div>
+        <button class="btn btn-secondary btn-sm">Open</button>
+      </div></div>`).join('')}
+  </div>
+`;
+PDMS.charts.line(document.getElementById('c1'),[[20,35,45,42,58,64,72,68,80,88,92,100],[15,28,40,38,50,58,65,62,72,80,85,92]],['J','F','M','A','M','J','J','A','S','O','N','D'],['#4f46e5','#10b981']);
+PDMS.charts.bar(document.getElementById('c2'),[65,78,55,89,72,60,84],['Eng','Design','QA','PM','Sales','Ops','HR'],'#06b6d4');
+</script></body></html>

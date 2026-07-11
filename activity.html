@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Activity Logs — PSE PDMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/></head><body>
+<script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/app.js"></script>
+<script>
+PDMS.mountShell('activity');
+const D=PDMS_DATA;const I=PDMS.icon;
+document.getElementById('content').innerHTML=`
+  <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Activity Logs</span></div>
+    <h1 class="page-title">Activity Logs</h1><div class="page-sub">Full audit trail of every action across the platform</div></div>
+    <button class="btn btn-secondary">${I('download')} Export</button></div>
+  <div id="tbl" class="table-wrap"></div>`;
+PDMS.renderTable(document.getElementById('tbl'),{
+  columns:[
+    {key:'user',label:'User',render:r=>`<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.user)}</div><div><div class="font-semi">${PDMS.esc(r.user)}</div><div class="text-sm text-muted">${PDMS.esc(r.role)}</div></div></div>`},
+    {key:'action',label:'Action'},
+    {key:'target',label:'Target'},
+    {key:'time',label:'When'}
+  ],rows:D.activities,pageSize:15,searchKeys:['user','action','target']
+});
+</script></body></html>

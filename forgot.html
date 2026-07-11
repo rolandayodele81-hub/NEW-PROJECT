@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>PSE PDMS — Reset Password</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/></head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-brand">
+    <div class="brand"><div class="brand-logo" style="width:44px;height:44px"><img src="/logo.svg" alt="Panoramic Synergy Logo"/></div><div><div class="brand-name" style="font-size:18px">Panoramic Synergy</div><div class="brand-sub" style="opacity:.8">Enterprise Delivery Platform</div></div></div>
+    <div><h1>Regain access to your workspace.</h1><p>We'll send a secure reset link to your registered work email.</p></div>
+    <div style="font-size:12px;opacity:.7">© 2025 Panoramic Synergy Enterprises</div>
+  </div>
+  <div class="auth-form-wrap">
+    <form class="auth-form" id="fp">
+      <h2>Forgot password</h2>
+      <p class="sub">Enter your email address to receive reset instructions.</p>
+      <div class="form-row"><label>Work email</label><input type="email" required placeholder="you@panoramicsynergy.com"/></div>
+      <button class="btn btn-primary w-full" style="justify-content:center" type="submit">Send reset link</button>
+      <p class="text-sm text-muted text-center mt-3"><a href="login.html" style="color:var(--primary);font-weight:600">← Back to sign in</a></p>
+    </form>
+  </div>
+</div>
+<script src="js/data.js"></script><script src="js/utils.js"></script>
+<script>
+document.getElementById('fp').addEventListener('submit',e=>{e.preventDefault();PDMS.toast('Email sent','Check your inbox for reset instructions','success');});
+</script>
+</body></html>

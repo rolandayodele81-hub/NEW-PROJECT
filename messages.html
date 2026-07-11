@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Messages — PSE PDMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/></head><body>
+<script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/app.js"></script>
+<script>
+PDMS.mountShell('messages');
+const D=PDMS_DATA;const I=PDMS.icon;
+let active = D.threads[0];
+document.getElementById('content').innerHTML=`
+  <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Messages</span></div>
+    <h1 class="page-title">Messages</h1><div class="page-sub">Internal messaging and project chats</div></div>
+    <button class="btn btn-primary">${I('plus')} New Message</button></div>
+  <div class="chat-wrap">
+    <div class="chat-list">
+      <div class="chat-search"><input id="chatSearch" placeholder="Search messages..."/></div>
+      <div id="threads"></div>
+    </div>
+    <div class="chat-main" id="chatMain"></div>
+  </div>`;
+function renderThreads(q){
+  const list = D.threads.filter(t=>!q||t.user.name.toLowerCase().includes(q));
+  document.getElementById('threads').innerHTML = list.map(t=>`
+    <div class="chat-item ${t.id===active.id?'active':''}" data-id="${t.id}">
+      <div class="avatar">${PDMS.initials(t.user.name)}</div>
+      <div class="ci-body">
+        <div class="ci-name">${PDMS.esc(t.user.name)}<span class="ci-time">${t.messages[t.messages.length-1].time}</span></div>
+        <div class="ci-msg">${PDMS.esc(t.last)}</div>
+      </div>
+      ${t.unread?`<span class="ci-unread">${t.unread}</span>`:''}
+    </div>`).join('');
+  document.querySelectorAll('.chat-item').forEach(el=>el.onclick=()=>{active=D.threads.find(t=>t.id===el.dataset.id);renderThreads(q);renderChat();});
+}
+function renderChat(){
+  document.getElementById('chatMain').innerHTML=`
+    <div class="chat-head"><div class="avatar">${PDMS.initials(active.user.name)}</div><div><div class="font-semi">${PDMS.esc(active.user.name)}</div><div class="text-sm text-muted">${PDMS.esc(active.user.role)} • Online</div></div></div>
+    <div class="chat-msgs" id="msgs">${active.messages.map(m=>`<div class="msg ${m.from==='me'?'mine':''}">${PDMS.esc(m.text)}<div class="mt">${m.time}</div></div>`).join('')}</div>
+    <div class="chat-input"><input id="mi" placeholder="Type a message..."/><button class="btn btn-secondary btn-sm">😊</button><button class="btn btn-primary btn-sm" id="send">${I('send')}</button></div>`;
+  const send=()=>{const i=document.getElementById('mi');if(!i.value.trim())return;active.messages.push({from:'me',text:i.value,time:'now'});i.value='';renderChat();};
+  document.getElementById('send').onclick=send;
+  document.getElementById('mi').onkeydown=e=>{if(e.key==='Enter')send();};
+  const box=document.getElementById('msgs');box.scrollTop=box.scrollHeight;
+}
+document.getElementById('chatSearch').oninput=e=>renderThreads(e.target.value.toLowerCase());
+renderThreads('');renderChat();
+</script></body></html>

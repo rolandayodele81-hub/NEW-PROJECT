@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Profile — PSE PDMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/></head><body>
+<script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/app.js"></script>
+<script>
+PDMS.mountShell('profile');
+const u=PDMS.getUser();const I=PDMS.icon;
+document.getElementById('content').innerHTML=`
+  <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Profile</span></div>
+    <h1 class="page-title">My Profile</h1><div class="page-sub">Personal information and preferences</div></div></div>
+  <div class="grid" style="grid-template-columns:340px 1fr;gap:20px">
+    <div class="card"><div class="card-body text-center">
+      <div class="avatar avatar-lg" style="margin:8px auto 12px">${PDMS.initials(u.name)}</div>
+      <div class="font-bold" style="font-size:18px">${PDMS.esc(u.name)}</div>
+      <div class="text-muted mb-3">${PDMS.esc(u.email)}</div>
+      <div><span class="badge badge-primary">${PDMS.esc(u.role)}</span></div>
+      <div class="grid grid-2 mt-4" style="gap:12px">
+        <div><div class="font-bold">24</div><div class="text-sm text-muted">Projects</div></div>
+        <div><div class="font-bold">98%</div><div class="text-sm text-muted">On-time</div></div>
+      </div>
+    </div></div>
+    <div class="card"><div class="card-head"><div class="card-title">Personal Information</div></div>
+      <div class="card-body"><div class="form-grid">
+        <div class="form-row"><label>Full Name</label><input value="${PDMS.esc(u.name)}"/></div>
+        <div class="form-row"><label>Email</label><input value="${PDMS.esc(u.email)}"/></div>
+        <div class="form-row"><label>Phone</label><input value="+234 806 5551234"/></div>
+        <div class="form-row"><label>Department</label><input value="Head of Technical Delivery"/></div>
+      </div>
+      <div class="form-row"><label>Bio</label><textarea rows="3">Senior enterprise leader focused on delivering complex programs at scale.</textarea></div>
+      <button class="btn btn-primary" onclick="PDMS.toast('Saved','Profile updated','success')">Save Changes</button>
+      </div>
+    </div>
+  </div>`;
+</script></body></html>

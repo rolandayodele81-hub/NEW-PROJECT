@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Clients — PSE PDMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/></head><body>
+<script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/app.js"></script>
+<script>
+PDMS.mountShell('clients');
+const D=PDMS_DATA;const I=PDMS.icon;
+document.getElementById('content').innerHTML=`
+  <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Clients</span></div>
+    <h1 class="page-title">Clients</h1><div class="page-sub">Enterprise partners and account overview</div></div>
+    <button class="btn btn-primary">${I('plus')} New Client</button></div>
+  <div class="grid grid-3">${D.clients.map(c=>`
+    <div class="card"><div class="card-body">
+      <div class="flex items-center gap-3 mb-3">
+        <div style="width:52px;height:52px;border-radius:14px;background:var(--gradient-2);color:#fff;display:grid;place-items:center;font-weight:800">${c.name.split(' ').map(w=>w[0]).slice(0,2).join('')}</div>
+        <div style="flex:1"><div class="font-bold">${PDMS.esc(c.name)}</div><div class="text-sm text-muted">${PDMS.esc(c.industry)}</div></div>
+        <span class="badge badge-primary">${c.projects} projects</span>
+      </div>
+      <div class="text-sm text-muted mb-2">${PDMS.esc(c.contact)} • ${PDMS.esc(c.email)}</div>
+      <div class="flex justify-between items-center mt-3 pt-3" style="border-top:1px solid var(--border)">
+        <div><div class="text-sm text-muted">Revenue</div><div class="font-bold">${PDMS.money(c.revenue)}</div></div>
+        <button class="btn btn-secondary btn-sm">View</button>
+      </div>
+    </div></div>`).join('')}</div>`;
+</script></body></html>
