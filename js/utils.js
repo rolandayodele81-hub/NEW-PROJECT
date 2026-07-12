@@ -60,9 +60,44 @@
     try{ return JSON.parse(localStorage.getItem('pdms-user'))||null; }catch(e){return null;}
   };
   PDMS.setUser = function(u){ localStorage.setItem('pdms-user',JSON.stringify(u)); };
+  PDMS.getUsers = function(){
+    try{
+      const users = JSON.parse(localStorage.getItem('pdms-users'))||[];
+      if(!Array.isArray(users) || users.length===0){
+        const defaultUsers = (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.users) && window.PDMS_DATA.users.length>0)
+          ? window.PDMS_DATA.users
+          : [{ id:'U001', name:'General Admin', email:'admin@pse.com', password:'admin123', role:'General Admin', adminId:'ADM-1234', dept:'Executive', status:'Active', availability:'Available', workload:10, phone:'+1234567890', joined:'2026-01-15' }];
+        localStorage.setItem('pdms-users', JSON.stringify(defaultUsers));
+        return defaultUsers;
+      }
+      return users;
+    }catch(e){ return []; }
+  };
+  PDMS.saveUsers = function(users){ localStorage.setItem('pdms-users',JSON.stringify(users)); };
+  PDMS.findUserByEmail = function(email){
+    const e = String(email||'').trim().toLowerCase();
+    return PDMS.getUsers().find(u=>String(u.email||'').trim().toLowerCase()===e);
+  };
+  PDMS.generateAdminId = function(){
+    return 'ADM-'+Math.floor(1000+Math.random()*9000);
+  };
+  PDMS.authenticate = function(email,password,adminId){
+    const user = PDMS.findUserByEmail(email);
+    if(!user) return null;
+    if(user.password!==password) return null;
+    if(user.role==='General Admin'){
+      if(!adminId || String(user.adminId||'').trim()!==String(adminId).trim()) return null;
+    }
+    return user;
+  };
+  PDMS.isAdmin = function(){ const user = PDMS.getUser(); return user && user.role==='General Admin'; };
+  PDMS.requireAdmin = function(){ if(!PDMS.isAdmin()) location.href='dashboard.html'; };
+  PDMS.saveData = function(key, value){ localStorage.setItem('pdms-'+key, JSON.stringify(value)); };
   PDMS.logout = function(){ localStorage.removeItem('pdms-user'); location.href='login.html'; };
   PDMS.requireAuth = function(){
-    if(!PDMS.getUser()) location.href='login.html';
+    const user = PDMS.getUser();
+    if(!user){ location.href='login.html'; return null; }
+    return user;
   };
 
   // Toast

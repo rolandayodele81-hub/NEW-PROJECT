@@ -21,8 +21,8 @@ const inProgress = D.projects.filter(p=>p.status==='In Progress').length;
 const today = new Date().toISOString().slice(0,10);
 const week = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
 const delayed = D.projects.filter(p=>p.due<today && !['Completed','Closed','Cancelled'].includes(p.status)).length;
-const dueToday = D.projects.filter(p=>p.due===today).length || 4;
-const dueWeek = D.projects.filter(p=>p.due>=today && p.due<=week).length || 12;
+const dueToday = D.projects.filter(p=>p.due===today).length;
+const dueWeek = D.projects.filter(p=>p.due>=today && p.due<=week).length;
 const avail = D.consultants.filter(c=>c.availability==='Available').length;
 const busy = D.consultants.length - avail;
 
@@ -32,7 +32,7 @@ content.innerHTML = `
     <div>
       <div class="breadcrumbs"><span>Home</span><span>Dashboard</span></div>
       <h1 class="page-title">Good day, ${PDMS.esc(user.name.split(' ')[0])} 👋</h1>
-      <div class="page-sub">Here's what's happening across Panoramic Synergy today.</div>
+      <div class="page-sub">Here's what's happening across your workspace today.</div>
     </div>
     <div class="flex gap-2">
       <a class="btn btn-secondary" href="reports.html">${I('chart')} Reports</a>

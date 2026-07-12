@@ -15,10 +15,10 @@ content.innerHTML = `
     <div class="flex gap-2"><button class="btn btn-secondary" id="viewToggle">${I('folder')} Kanban View</button><button class="btn btn-primary" id="newProj">${I('plus')} New Project</button></div>
   </div>
   <div class="grid grid-4 mb-4">
-    <div class="stat i-primary"><div class="label">Total</div><div class="value">${D.projects.length}</div><div class="icon-wrap">${I('folder')}</div></div>
-    <div class="stat i-warn"><div class="label">In Progress</div><div class="value">${D.projects.filter(p=>p.status==='In Progress').length}</div><div class="icon-wrap">${I('activity')}</div></div>
-    <div class="stat i-success"><div class="label">Completed</div><div class="value">${D.projects.filter(p=>p.status==='Completed').length}</div><div class="icon-wrap">${I('check')}</div></div>
-    <div class="stat i-info"><div class="label">Incoming</div><div class="value">${D.projects.filter(p=>p.status==='Incoming').length}</div><div class="icon-wrap">${I('zap')}</div></div>
+    <div class="stat i-primary"><div class="label">Total</div><div class="value" id="stat-total">${D.projects.length}</div><div class="icon-wrap">${I('folder')}</div></div>
+    <div class="stat i-warn"><div class="label">In Progress</div><div class="value" id="stat-inprogress">${D.projects.filter(p=>p.status==='In Progress').length}</div><div class="icon-wrap">${I('activity')}</div></div>
+    <div class="stat i-success"><div class="label">Completed</div><div class="value" id="stat-completed">${D.projects.filter(p=>p.status==='Completed').length}</div><div class="icon-wrap">${I('check')}</div></div>
+    <div class="stat i-info"><div class="label">Incoming</div><div class="value" id="stat-incoming">${D.projects.filter(p=>p.status==='Incoming').length}</div><div class="icon-wrap">${I('zap')}</div></div>
   </div>
   <div id="listView" class="table-wrap"></div>
   <div id="kanbanView" class="hidden"></div>
@@ -33,46 +33,115 @@ const columns = [
   {key:'status',label:'Status',render:r=>`<span class="badge badge-${D.statusColors[r.status]}">${r.status}</span>`},
   {key:'progress',label:'Progress',render:r=>`<div class="progress-inline"><div class="progress"><div class="bar" style="width:${r.progress}%"></div></div><span class="pct">${r.progress}%</span></div>`},
   {key:'due',label:'Due'},
-  {key:'budget',label:'Budget',render:r=>PDMS.money(r.budget)}
+  {key:'budget',label:'Budget',render:r=>PDMS.money(r.budget)},
+  {key:'actions',label:'Actions',render:r=>`<button class="btn btn-secondary btn-sm" onclick="editProject('${r.id}')">Edit</button>`}
 ];
-PDMS.renderTable(document.getElementById('listView'),{
-  columns, rows:D.projects, pageSize:12,
-  searchKeys:['id','name','client','pm','status','type'],
-  filterOptions:[
-    {key:'status',label:'Status',options:D.statuses},
-    {key:'priority',label:'Priority',options:D.priorities}
-  ]
-});
-
 // Kanban
 const kanbanStatuses = ['Incoming','In Progress','Awaiting Review','Completed'];
-document.getElementById('kanbanView').innerHTML = `<div class="kanban">${kanbanStatuses.map(s=>`
-  <div class="kb-col"><div class="kb-head"><span class="kb-title">${s}</span><span class="badge badge-muted">${D.projects.filter(p=>p.status===s).length}</span></div>
-    ${D.projects.filter(p=>p.status===s).slice(0,8).map(p=>`<div class="kb-card" onclick="location.href='project-details.html?id=${p.id}'">
-      <div class="t">${PDMS.esc(p.name)}</div>
-      <div class="progress mb-2"><div class="bar" style="width:${p.progress}%"></div></div>
-      <div class="m"><span class="badge ${D.prioColors[p.priority]}">${p.priority}</span><span>${p.due}</span></div>
-    </div>`).join('')}
-  </div>`).join('')}</div>`;
-
+function renderStats(){
+  document.getElementById('stat-total').textContent = D.projects.length;
+  document.getElementById('stat-inprogress').textContent = D.projects.filter(p=>p.status==='In Progress').length;
+  document.getElementById('stat-completed').textContent = D.projects.filter(p=>p.status==='Completed').length;
+  document.getElementById('stat-incoming').textContent = D.projects.filter(p=>p.status==='Incoming').length;
+}
+function renderProjects(){
+  renderStats();
+  PDMS.renderTable(document.getElementById('listView'),{
+    columns, rows:D.projects, pageSize:12,
+    searchKeys:['id','name','client','pm','status','type'],
+    filterOptions:[
+      {key:'status',label:'Status',options:D.statuses},
+      {key:'priority',label:'Priority',options:D.priorities}
+    ]
+  });
+  document.getElementById('kanbanView').innerHTML = `<div class="kanban">${kanbanStatuses.map(s=>`
+    <div class="kb-col"><div class="kb-head"><span class="kb-title">${s}</span><span class="badge badge-muted">${D.projects.filter(p=>p.status===s).length}</span></div>
+      ${D.projects.filter(p=>p.status===s).slice(0,8).map(p=>`<div class="kb-card" onclick="location.href='project-details.html?id=${p.id}'">
+        <div class="t">${PDMS.esc(p.name)}</div>
+        <div class="progress mb-2"><div class="bar" style="width:${p.progress}%"></div></div>
+        <div class="m"><span class="badge ${D.prioColors[p.priority]}">${p.priority}</span><span>${p.due}</span></div>
+      </div>`).join('')}
+    </div>`).join('')}</div>`;
+}
+renderProjects();
 document.getElementById('viewToggle').onclick = ()=>{
   const lv=document.getElementById('listView'),kv=document.getElementById('kanbanView');
   lv.classList.toggle('hidden');kv.classList.toggle('hidden');
   document.getElementById('viewToggle').innerHTML = (lv.classList.contains('hidden')?I('folder')+' Table View':I('folder')+' Kanban View');
 };
+
 document.getElementById('newProj').onclick = ()=>{
-  PDMS.modal('Create New Project',`
+  const modal = PDMS.modal('Create New Project',`
     <div class="form-grid">
-      <div class="form-row"><label>Project Name</label><input placeholder="e.g. Falcon Migration"/></div>
-      <div class="form-row"><label>Client</label><select>${D.clients.map(c=>`<option>${c.name}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Type</label><select><option>Software Development</option><option>Consulting</option><option>Infrastructure</option></select></div>
-      <div class="form-row"><label>Priority</label><select>${D.priorities.map(p=>`<option>${p}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Start Date</label><input type="date"/></div>
-      <div class="form-row"><label>Due Date</label><input type="date"/></div>
-      <div class="form-row"><label>Budget (USD)</label><input type="number" placeholder="250000"/></div>
-      <div class="form-row"><label>Department</label><select>${D.departments.map(d=>`<option>${d.name}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Project Name</label><input id="newProjName" placeholder="e.g. Falcon Migration"/></div>
+      <div class="form-row"><label>Client</label><select id="newProjClient">${D.clients.map(c=>`<option>${c.name}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Type</label><select id="newProjType"><option>Software Development</option><option>Consulting</option><option>Infrastructure</option></select></div>
+      <div class="form-row"><label>Priority</label><select id="newProjPriority">${D.priorities.map(p=>`<option>${p}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Start Date</label><input id="newProjStart" type="date"/></div>
+      <div class="form-row"><label>Due Date</label><input id="newProjDue" type="date"/></div>
+      <div class="form-row"><label>Budget (USD)</label><input id="newProjBudget" type="number" placeholder="250000"/></div>
+      <div class="form-row"><label>Department</label><select id="newProjDept">${D.departments.map(d=>`<option>${d.name}</option>`).join('')}</select></div>
     </div>
-    <div class="form-row"><label>Description</label><textarea rows="3" placeholder="Scope, goals, deliverables..."></textarea></div>
-  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" onclick="this.closest('.modal-backdrop').remove();PDMS.toast('Project created','New project added to pipeline','success')">Create Project</button>`);
+    <div class="form-row"><label>Description</label><textarea id="newProjDesc" rows="3" placeholder="Scope, goals, deliverables..."></textarea></div>
+  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createProjectBtn">Create Project</button>`);
+  modal.querySelector('#createProjectBtn').onclick = function(){
+    const name = modal.querySelector('#newProjName').value.trim();
+    const client = modal.querySelector('#newProjClient').value;
+    const type = modal.querySelector('#newProjType').value;
+    const priority = modal.querySelector('#newProjPriority').value;
+    const start = modal.querySelector('#newProjStart').value;
+    const due = modal.querySelector('#newProjDue').value;
+    const budget = Number(modal.querySelector('#newProjBudget').value)||0;
+    const dept = modal.querySelector('#newProjDept').value;
+    const desc = modal.querySelector('#newProjDesc').value.trim();
+    if(!name || !client){
+      PDMS.toast('Missing project info','Project name and client are required','error');
+      return;
+    }
+    const id = 'PSE-'+Math.floor(1000+Math.random()*8999);
+    D.projects.unshift({
+      id, name, client, type, dept, sales:'Sales Team', pm:'TBD', lead:'TBD', consultants:[],
+      priority, budget, status:'Incoming', progress:0, start:start||'', due:due||'', completion:null,
+      description:desc, files:0, remarks:0
+    });
+    PDMS.saveData('projects', D.projects);
+    modal.remove();
+    PDMS.toast('Project created','New project added to pipeline','success');
+    renderProjects();
+  };
 };
+
+function editProject(id){
+  const project = D.projects.find(p=>p.id===id);
+  if(!project){ return; }
+  const modal = PDMS.modal('Edit Project',`
+    <div class="form-grid">
+      <div class="form-row"><label>Project Name</label><input id="editProjName" value="${PDMS.esc(project.name)}"/></div>
+      <div class="form-row"><label>Client</label><select id="editProjClient">${D.clients.map(c=>`<option value="${PDMS.esc(c.name)}"${c.name===project.client?' selected':''}>${PDMS.esc(c.name)}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Type</label><select id="editProjType"><option${project.type==='Software Development'?' selected':''}>Software Development</option><option${project.type==='Consulting'?' selected':''}>Consulting</option><option${project.type==='Infrastructure'?' selected':''}>Infrastructure</option></select></div>
+      <div class="form-row"><label>Priority</label><select id="editProjPriority">${D.priorities.map(p=>`<option${p===project.priority?' selected':''}>${p}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Start Date</label><input id="editProjStart" type="date" value="${PDMS.esc(project.start)}"/></div>
+      <div class="form-row"><label>Due Date</label><input id="editProjDue" type="date" value="${PDMS.esc(project.due)}"/></div>
+      <div class="form-row"><label>Budget (USD)</label><input id="editProjBudget" type="number" value="${project.budget}"/></div>
+      <div class="form-row"><label>Department</label><select id="editProjDept">${D.departments.map(d=>`<option${d.name===project.dept?' selected':''}>${PDMS.esc(d.name)}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row"><label>Description</label><textarea id="editProjDesc" rows="3">${PDMS.esc(project.description)}</textarea></div>
+  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveProjectChangesBtn">Save changes</button>`);
+  modal.querySelector('#saveProjectChangesBtn').onclick = function(){
+    project.name = modal.querySelector('#editProjName').value.trim();
+    project.client = modal.querySelector('#editProjClient').value;
+    project.type = modal.querySelector('#editProjType').value;
+    project.priority = modal.querySelector('#editProjPriority').value;
+    project.start = modal.querySelector('#editProjStart').value;
+    project.due = modal.querySelector('#editProjDue').value;
+    project.budget = Number(modal.querySelector('#editProjBudget').value)||0;
+    project.dept = modal.querySelector('#editProjDept').value;
+    project.description = modal.querySelector('#editProjDesc').value.trim();
+    PDMS.saveData('projects', D.projects);
+    modal.remove();
+    PDMS.toast('Project updated','Project details were saved','success');
+    renderProjects();
+  };
+}
+window.editProject = editProject;
 </script></body></html>

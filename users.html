@@ -19,24 +19,63 @@ document.getElementById('content').innerHTML = `
   </div>
   <div id="tbl" class="table-wrap"></div>
 `;
-PDMS.renderTable(document.getElementById('tbl'),{
-  columns:[
-    {key:'name',label:'User',render:r=>`<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.name)}</div><div><div class="font-semi">${PDMS.esc(r.name)}</div><div class="text-sm text-muted">${PDMS.esc(r.email)}</div></div></div>`},
-    {key:'role',label:'Role',render:r=>`<span class="badge badge-primary">${r.role}</span>`},
-    {key:'dept',label:'Department'},
-    {key:'status',label:'Status',render:r=>`<span class="badge badge-${r.status==='Active'?'success':r.status==='Suspended'?'danger':'warn'}">${r.status}</span>`},
-    {key:'availability',label:'Availability',render:r=>`<span class="badge badge-${r.availability==='Available'?'success':'warn'} dot">${r.availability}</span>`},
-    {key:'workload',label:'Workload',render:r=>`<div class="progress-inline"><div class="progress"><div class="bar" style="width:${r.workload}%"></div></div><span class="pct">${r.workload}%</span></div>`},
-    {key:'joined',label:'Joined'},
-    {key:'actions',label:'Actions',render:r=>`<div class="flex gap-2"><button class="btn btn-secondary btn-sm" onclick="editU('${r.id}')">Edit</button><button class="btn btn-ghost btn-sm" onclick="PDMS.toast('${r.status==='Active'?'Suspended':'Activated'}','${PDMS.esc(r.name)} ${r.status==='Active'?'suspended':'activated'}','warn')">${r.status==='Active'?'Suspend':'Activate'}</button></div>`}
-  ],
-  rows:D.users, pageSize:10, searchKeys:['name','email','role','dept'],
-  filterOptions:[{key:'role',label:'Role',options:D.roles},{key:'status',label:'Status',options:['Active','Suspended','On Leave']}]
-});
-function newUser(){
-  PDMS.modal('Create User',`<div class="form-grid"><div class="form-row"><label>Full Name</label><input/></div><div class="form-row"><label>Email</label><input type="email"/></div><div class="form-row"><label>Role</label><select>${D.roles.map(r=>`<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Department</label><select>${D.departments.map(d=>`<option>${d.name}</option>`).join('')}</select></div></div>`,
-    `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" onclick="this.closest('.modal-backdrop').remove();PDMS.toast('User created','New user added','success')">Create</button>`);
+function renderUsers(){
+  document.getElementById('tbl').innerHTML = '';
+  PDMS.renderTable(document.getElementById('tbl'),{
+    columns:[
+      {key:'name',label:'User',render:r=>`<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.name)}</div><div><div class="font-semi">${PDMS.esc(r.name)}</div><div class="text-sm text-muted">${PDMS.esc(r.email)}</div></div></div>`},
+      {key:'role',label:'Role',render:r=>`<span class="badge badge-primary">${r.role}</span>`},
+      {key:'dept',label:'Department'},
+      {key:'status',label:'Status',render:r=>`<span class="badge badge-${r.status==='Active'?'success':r.status==='Suspended'?'danger':'warn'}">${r.status}</span>`},
+      {key:'availability',label:'Availability',render:r=>`<span class="badge badge-${r.availability==='Available'?'success':'warn'} dot">${r.availability}</span>`},
+      {key:'workload',label:'Workload',render:r=>`<div class="progress-inline"><div class="progress"><div class="bar" style="width:${r.workload}%"></div></div><span class="pct">${r.workload}%</span></div>`},
+      {key:'joined',label:'Joined'},
+      {key:'actions',label:'Actions',render:r=>`<div class="flex gap-2"><button class="btn btn-secondary btn-sm" onclick="editU('${r.id}')">Edit</button><button class="btn btn-ghost btn-sm" onclick="toggleUserStatus('${r.id}')">${r.status==='Active'?'Suspend':'Activate'}</button></div>`}
+    ],
+    rows:D.users, pageSize:10, searchKeys:['name','email','role','dept'],
+    filterOptions:[{key:'role',label:'Role',options:D.roles},{key:'status',label:'Status',options:['Active','Suspended','On Leave']}]
+  });
 }
-function editU(id){PDMS.toast('Editing','User editor opened','success');}
+
+function saveUsers(){
+  PDMS.saveData('users', D.users);
+}
+
+function newUser(){
+  const modal = PDMS.modal('Create User',`<div class="form-grid"><div class="form-row"><label>Full Name</label><input id="newUserName"/></div><div class="form-row"><label>Email</label><input id="newUserEmail" type="email"/></div><div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.map(r=>`<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Department</label><select id="newUserDept">${D.departments.map(d=>`<option>${d.name}</option>`).join('')}</select></div></div>`,
+    `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">Create</button>`);
+  modal.querySelector('#createUserBtn').onclick = function(){
+    const name = modal.querySelector('#newUserName').value.trim();
+    const email = modal.querySelector('#newUserEmail').value.trim().toLowerCase();
+    const role = modal.querySelector('#newUserRole').value;
+    const dept = modal.querySelector('#newUserDept').value;
+    if(!name || !email){
+      PDMS.toast('Missing user info','Name and email are required','error');
+      return;
+    }
+    const id = 'U'+Math.floor(1000+Math.random()*8999);
+    D.users.unshift({
+      id, name, email, role, dept, status:'Active', availability:'Available', workload:0, phone:'', joined:new Date().toISOString().slice(0,10)
+    });
+    saveUsers();
+    modal.remove();
+    PDMS.toast('User created','New user added','success');
+    renderUsers();
+  };
+}
+
+function toggleUserStatus(id){
+  const user = D.users.find(u=>u.id===id);
+  if(!user) return;
+  user.status = user.status==='Active'?'Suspended':'Active';
+  saveUsers();
+  PDMS.toast('Status updated',`${user.name} is now ${user.status}`,'success');
+  renderUsers();
+}
+
+function editU(id){
+  PDMS.toast('Editing','User editor opened','success');
+}
 window.newUser=newUser;window.editU=editU;
+renderUsers();
 </script></body></html>

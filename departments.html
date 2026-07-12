@@ -10,7 +10,7 @@ const D=PDMS_DATA;const I=PDMS.icon;
 document.getElementById('content').innerHTML = `
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Departments</span></div>
     <h1 class="page-title">Departments</h1><div class="page-sub">Organizational structure and performance</div></div>
-    <button class="btn btn-primary" onclick="PDMS.modal('New Department','<div class=&quot;form-row&quot;><label>Department Name</label><input/></div><div class=&quot;form-row&quot;><label>Head</label><input/></div>','<button class=&quot;btn btn-primary&quot; data-close>Create</button>')">${I('plus')} New Department</button></div>
+    <button class="btn btn-primary" onclick="openDepartmentModal()">${I('plus')} New Department</button></div>
   <div class="grid grid-3">
     ${D.departments.map(d=>{const perf=Math.floor(Math.random()*40+55);return `
       <div class="card"><div class="card-body">
@@ -27,4 +27,22 @@ document.getElementById('content').innerHTML = `
       </div></div>`;}).join('')}
   </div>
 `;
+
+function openDepartmentModal(){
+  const modal = PDMS.modal('New Department',`<div class="form-row"><label>Department Name</label><input id="newDeptName"/></div><div class="form-row"><label>Head</label><input id="newDeptHead"/></div>`,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveDepartmentBtn">Create</button>`);
+  modal.querySelector('#saveDepartmentBtn').onclick = function(){
+    const name = modal.querySelector('#newDeptName').value.trim();
+    const head = modal.querySelector('#newDeptHead').value.trim();
+    if(!name || !head){
+      PDMS.toast('Missing info','Department name and head are required','error');
+      return;
+    }
+    const id = 'D'+Math.floor(1000+Math.random()*8999);
+    D.departments.unshift({id, name, head, count:0, color:'primary'});
+    PDMS.saveData('departments', D.departments);
+    modal.remove();
+    PDMS.toast('Department created','New department saved','success');
+    location.reload();
+  };
+}
 </script></body></html>

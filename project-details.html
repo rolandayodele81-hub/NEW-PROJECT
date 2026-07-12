@@ -7,12 +7,22 @@
 <script>
 PDMS.mountShell('projects');
 const D = PDMS_DATA; const I = PDMS.icon;
-const id = new URLSearchParams(location.search).get('id') || D.projects[0].id;
-const p = D.projects.find(x=>x.id===id) || D.projects[0];
-const tasks = D.tasksFor(p.id);
-const done = tasks.filter(t=>t.status==='Completed').length;
+const hasProjects = Array.isArray(D.projects) && D.projects.length > 0;
+const id = hasProjects ? new URLSearchParams(location.search).get('id') || D.projects[0].id : null;
+const p = hasProjects ? D.projects.find(x=>x.id===id) || D.projects[0] : null;
 
-document.getElementById('content').innerHTML = `
+if(!p){
+  document.getElementById('content').innerHTML = `
+    <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Projects</span></div>
+      <h1 class="page-title">No Project Data</h1><div class="page-sub">You currently do not have any project records.</div></div>
+      <div class="flex gap-2"><a class="btn btn-primary" href="projects.html">Open Projects</a></div></div>
+    <div class="card"><div class="card-body"><p class="text-muted">Add your own project data in <code>js/data.js</code> or use the template structure to populate this app.</p></div></div>
+  `;
+} else {
+  const tasks = D.tasksFor(p.id);
+  const done = tasks.filter(t=>t.status==='Completed').length;
+
+  document.getElementById('content').innerHTML = `
   <div class="page-head">
     <div><div class="breadcrumbs"><span><a href="projects.html">Projects</a></span><span>${p.id}</span></div>
       <h1 class="page-title">${PDMS.esc(p.name)}</h1><div class="page-sub">${PDMS.esc(p.client)} • ${PDMS.esc(p.type)}</div></div>

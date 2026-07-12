@@ -465,6 +465,35 @@ canvas{max-width:100%;display:block}
   .panel{right:8px;left:8px;width:auto}
 }
 
+.login-page{background: radial-gradient(circle at top left, rgba(139,92,246,.16), transparent 25%), linear-gradient(180deg,#070819 0%,#160f34 100%);}
+.login-page body{background:transparent;}
+.login-page .auth-wrap{min-height:100vh;display:grid;grid-template-columns:1.1fr .9fr;}
+@media(max-width:900px){.login-page .auth-wrap{grid-template-columns:1fr}.login-page .auth-brand{display:none}}
+.login-page .auth-brand{background:linear-gradient(180deg,rgba(124,58,237,.95),rgba(99,102,241,.95));color:#f8f8ff;padding:64px 50px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;box-shadow:0 40px 120px rgba(15,23,42,.25);}
+.login-page .auth-brand::before,.login-page .auth-brand::after{content:'';position:absolute;border-radius:50%;background:rgba(255,255,255,.1);}
+.login-page .auth-brand::before{width:360px;height:360px;top:-120px;right:-100px;}
+.login-page .auth-brand::after{width:240px;height:240px;bottom:-80px;left:-60px;}
+.login-page .auth-brand > *{position:relative;z-index:1}
+.login-page .auth-brand h1{font-size:42px;font-weight:800;letter-spacing:-1px;line-height:1.05;margin-top:24px;color:#fff;}
+.login-page .auth-brand p{font-size:16px;opacity:.95;margin-top:18px;max-width:420px;line-height:1.75;}
+.login-page .auth-features .f{font-size:14px;color:rgba(255,255,255,.92);}
+.login-page .auth-features .fi{width:38px;height:38px;background:rgba(255,255,255,.14);border-radius:12px;display:grid;place-items:center;flex-shrink:0;color:#fff;font-weight:700;}
+.login-page .auth-form-wrap{display:grid;place-items:center;padding:40px 24px;background:transparent;}
+.login-page .auth-form{width:100%;max-width:420px;background:rgba(255,255,255,.05);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.12);box-shadow:0 40px 120px rgba(15,23,42,.18);border-radius:28px;padding:36px;}
+.login-page .auth-form .auth-actions{margin-bottom:22px;}
+.login-page .auth-form h2{font-size:30px;font-weight:800;color:#fff;margin-bottom:6px;}
+.login-page .auth-form .sub{color:rgba(255,255,255,.68);margin-bottom:28px;}
+.login-page .form-row label{color:rgba(255,255,255,.75);}
+.login-page .form-row input,.login-page .form-row select,.login-page .form-row textarea{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;padding:14px 14px;border-radius:14px;width:100%;}
+.login-page .form-row input::placeholder,.login-page .form-row textarea::placeholder{color:rgba(255,255,255,.5);}
+.login-page .form-row input:focus,.login-page .form-row select:focus,.login-page .form-row textarea:focus{outline:none;border-color:rgba(255,255,255,.4);box-shadow:0 0 0 4px rgba(167,139,250,.14);}
+.login-page .btn-primary{background:linear-gradient(135deg,#ffffff 10%,#a855f7 110%);color:#140e3d;box-shadow:0 22px 40px rgba(133,77,255,.2);}
+.login-page .btn-primary:hover{transform:translateY(-1px);}
+.login-page .btn-secondary{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.16);}
+.login-page .btn-secondary:hover{background:rgba(255,255,255,.12);}
+.login-page .auth-empty{color:rgba(255,255,255,.68);}
+.login-page .form-actions a{color:#ede7ff;font-weight:600;}
+
 /* Utility */
 .flex{display:flex}.flex-col{flex-direction:column}.items-center{align-items:center}
 .justify-between{justify-content:space-between}.justify-center{justify-content:center}

@@ -10,7 +10,7 @@ const D=PDMS_DATA;const I=PDMS.icon;
 document.getElementById('content').innerHTML=`
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Clients</span></div>
     <h1 class="page-title">Clients</h1><div class="page-sub">Enterprise partners and account overview</div></div>
-    <button class="btn btn-primary">${I('plus')} New Client</button></div>
+    <button class="btn btn-primary" onclick="openClientModal()">${I('plus')} New Client</button></div>
   <div class="grid grid-3">${D.clients.map(c=>`
     <div class="card"><div class="card-body">
       <div class="flex items-center gap-3 mb-3">
@@ -24,4 +24,34 @@ document.getElementById('content').innerHTML=`
         <button class="btn btn-secondary btn-sm">View</button>
       </div>
     </div></div>`).join('')}</div>`;
+function openClientModal(){
+  const modal = PDMS.modal('New Client',`
+    <div class="form-row"><label>Client Name</label><input id="newClientName"/></div>
+    <div class="form-row"><label>Industry</label><input id="newClientIndustry"/></div>
+    <div class="form-row"><label>Contact</label><input id="newClientContact"/></div>
+    <div class="form-row"><label>Email</label><input id="newClientEmail" type="email"/></div>
+    <div class="form-row"><label>Phone</label><input id="newClientPhone"/></div>
+    <div class="form-row"><label>Projects</label><input id="newClientProjects" type="number" value="0"/></div>
+    <div class="form-row"><label>Revenue</label><input id="newClientRevenue" type="number" value="0"/></div>
+  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveClientBtn">Create Client</button>`);
+  modal.querySelector('#saveClientBtn').onclick = function(){
+    const name = modal.querySelector('#newClientName').value.trim();
+    const industry = modal.querySelector('#newClientIndustry').value.trim();
+    const contact = modal.querySelector('#newClientContact').value.trim();
+    const email = modal.querySelector('#newClientEmail').value.trim().toLowerCase();
+    const phone = modal.querySelector('#newClientPhone').value.trim();
+    const projects = Number(modal.querySelector('#newClientProjects').value)||0;
+    const revenue = Number(modal.querySelector('#newClientRevenue').value)||0;
+    if(!name || !industry){
+      PDMS.toast('Missing info','Client name and industry are required','error');
+      return;
+    }
+    const id = 'C'+Math.floor(1000+Math.random()*8999);
+    D.clients.unshift({id,name,industry,contact,email,phone,projects,revenue});
+    PDMS.saveData('clients', D.clients);
+    modal.remove();
+    PDMS.toast('Client created','New client added','success');
+    location.reload();
+  };
+}
 </script></body></html>

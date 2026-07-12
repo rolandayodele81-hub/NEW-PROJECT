@@ -9,59 +9,119 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css"/>
 </head>
-<body>
+<body class="login-page">
 <div class="auth-wrap">
   <div class="auth-brand">
-    <div class="brand"><div class="brand-logo" style="width:44px;height:44px"><img src="/logo.svg" alt="Panoramic Synergy Logo"/></div><div><div class="brand-name" style="font-size:18px">Panoramic Synergy</div><div class="brand-sub" style="opacity:.8">Enterprise Delivery Platform</div></div></div>
+    <div class="brand"><div class="brand-logo" style="width:44px;height:44px"><img src="/logo.svg" alt="PSE PDMS Logo"/></div><div><div class="brand-name" style="font-size:18px">PSE PDMS</div><div class="brand-sub" style="opacity:.8">Project Delivery Platform</div></div></div>
     <div>
       <h1>Deliver every project with clarity, speed, and control.</h1>
-      <p>The complete project delivery operating system built for HR, HTD, COO, PMs, Sales and Consultants — all in one place.</p>
+      <p>The complete project delivery platform for your organization.</p>
       <div class="auth-features">
         <div class="f"><div class="fi">✓</div><div>Real-time visibility across 100+ live engagements</div></div>
         <div class="f"><div class="fi">✓</div><div>Role-based access for eight enterprise personas</div></div>
         <div class="f"><div class="fi">✓</div><div>Beautiful reporting, messaging, and audit logs</div></div>
       </div>
     </div>
-    <div style="font-size:12px;opacity:.7">© 2025 Panoramic Synergy Enterprises</div>
+    <div style="font-size:12px;opacity:.7">© 2026 PSE PDMS</div>
   </div>
   <div class="auth-form-wrap">
-    <form class="auth-form" id="loginForm">
-      <h2>Welcome back</h2>
-      <p class="sub">Sign in to your PSE workspace to continue.</p>
-
-      <div class="form-row"><label>Sign in as</label>
-        <div class="roles" id="roleRoles"></div>
+    <div class="auth-form">
+      <div class="auth-actions" style="display:flex;justify-content:flex-end;padding-bottom:16px;">
+        <button type="button" class="btn btn-secondary" id="signupBtn">Create account</button>
       </div>
-      <div class="form-row"><label>Work email</label><input type="email" id="email" value="roland.okafor@panoramicsynergy.com" required/></div>
-      <div class="form-row"><label>Password</label><input type="password" id="password" value="pse-demo" required/></div>
-      <div class="flex justify-between items-center mb-3">
-        <label class="flex items-center gap-2 text-sm text-muted"><input type="checkbox" checked/> Remember me</label>
-        <a href="forgot.html" class="text-sm" style="color:var(--primary);font-weight:600">Forgot password?</a>
+      <div id="authBox">
+        <div class="auth-empty" style="padding:24px 0;color:var(--text-muted)">Please choose an action above.</div>
       </div>
-      <button class="btn btn-primary w-full" style="justify-content:center" type="submit">Sign in to PDMS</button>
-      <p class="text-sm text-muted text-center mt-3">Demo access — pick any role above to preview the tailored workspace.</p>
-    </form>
+    </div>
   </div>
 </div>
 <script src="js/data.js"></script>
 <script src="js/utils.js"></script>
 <script>
-const roles = ['General Admin','HR','HTD','COO','Lead PM','Project Manager','Consultant','Sales'];
-const box = document.getElementById('roleRoles');
-let selected = 'HTD';
-function renderRoles(){
-  box.innerHTML = roles.map(r=>'<div class="role-chip '+(r===selected?'active':'')+'" data-r="'+r+'">'+r+'</div>').join('');
-  box.querySelectorAll('.role-chip').forEach(c=>c.onclick=()=>{selected=c.dataset.r;renderRoles();});
+const ROLES = ['General Admin','HR','HTD','COO','Lead PM','Project Manager','Consultant','Sales'];
+const authBox = document.getElementById('authBox');
+const signupBtn = document.getElementById('signupBtn');
+
+function renderSignupForm() {
+  authBox.innerHTML = `
+    <div class="auth-logo">PSE</div>
+    <form id="signupForm">
+      <div class="form-row"><label>Full name</label><input type="text" id="signupName" placeholder="John Doe" required/></div>
+      <div class="form-row"><label>Work email</label><input type="email" id="signupEmail" placeholder="name@company.com" required/></div>
+      <div class="form-row"><label>Password</label><input type="password" id="signupPassword" placeholder="Enter a strong password" required/></div>
+      <div class="form-row"><label>Role</label><select id="signupRole">${ROLES.map(r=>`<option value="${r}">${r}</option>`).join('')}</select></div>
+      <button class="btn btn-primary w-full" type="submit">Create account</button>
+      <div class="form-actions"><a href="#" id="switchToLogin">Already have an account? Sign in</a></div>
+    </form>
+  `;
+  document.getElementById('signupForm').addEventListener('submit', handleSignup);
+  document.getElementById('switchToLogin').addEventListener('click', e=>{ e.preventDefault(); renderLoginForm(); });
 }
-renderRoles();
-document.getElementById('loginForm').addEventListener('submit',e=>{
-  e.preventDefault();
-  const email = document.getElementById('email').value;
-  const name = selected==='HTD'?'Roland Okafor':email.split('@')[0].split('.').map(s=>s[0].toUpperCase()+s.slice(1)).join(' ');
-  PDMS.setUser({name, email, role:selected, avatar:PDMS.initials(name)});
-  PDMS.toast('Welcome','Signing you in...','success');
+
+function renderLoginForm() {
+  authBox.innerHTML = `
+    <div class="auth-logo">PSE</div>
+    <form id="loginForm">
+      <div class="form-row"><label>Work email</label><input type="email" id="email" placeholder="name@company.com" required/></div>
+      <div class="form-row"><label>Password</label><input type="password" id="password" placeholder="Enter your password" required/></div>
+      <div class="form-row"><label>Admin ID <span style="font-weight:400;font-size:12px;color:var(--text-muted)">(required for General Admin only)</span></label><input type="text" id="adminId" placeholder="ADM-1234"/></div>
+      <button class="btn btn-primary w-full" type="submit">Sign in</button>
+      <div class="form-actions"><a href="forgot.html">Forgot password?</a></div>
+    </form>
+  `;
+  document.getElementById('loginForm').addEventListener('submit', handleLogin);
+}
+
+function handleLogin(event) {
+  event.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const adminId = document.getElementById('adminId').value.trim();
+  const user = PDMS.authenticate(email,password,adminId);
+  if(!user){
+    PDMS.toast('Authentication failed','Invalid login credentials. Admins must also provide their Admin ID.','error');
+    return;
+  }
+  const {password:pwd, ...account} = user;
+  PDMS.setUser(account);
+  PDMS.toast('Welcome','Logging you in...','success');
   setTimeout(()=>location.href='dashboard.html',600);
-});
+}
+
+function handleSignup(event) {
+  event.preventDefault();
+  const name = document.getElementById('signupName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim().toLowerCase();
+  const password = document.getElementById('signupPassword').value;
+  const role = document.getElementById('signupRole').value;
+
+  if(!name || !email || !password){
+    PDMS.toast('Missing information','Please complete all fields','error');
+    return;
+  }
+  if(PDMS.findUserByEmail(email)){
+    PDMS.toast('Account exists','Use a different email or login instead','error');
+    return;
+  }
+  const users = PDMS.getUsers();
+  const account = {
+    name,
+    email,
+    password,
+    role,
+    avatar: PDMS.initials(name)
+  };
+  if(role==='General Admin'){
+    account.adminId = PDMS.generateAdminId();
+  }
+  users.push(account);
+  PDMS.saveUsers(users);
+  PDMS.toast('Account created', role==='General Admin' ? `Admin ID: ${account.adminId}` :  role==='General Admin' ? `Admin ID: ${account.adminId}` : 'You may now sign in','success');
+  setTimeout(()=>renderLoginForm(),600);
+}
+
+signupBtn.addEventListener('click', renderSignupForm);
+renderLoginForm();
 </script>
 </body>
 </html>
