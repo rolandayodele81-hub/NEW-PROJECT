@@ -3,7 +3,7 @@
 <title>Clients — PSE PDMS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css"/></head><body>
-<script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/app.js"></script>
+<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/app.js"></script>
 <script>
 PDMS.mountShell('clients');
 const D=PDMS_DATA;const I=PDMS.icon;
@@ -46,12 +46,11 @@ function openClientModal(){
       PDMS.toast('Missing info','Client name and industry are required','error');
       return;
     }
-    const id = 'C'+Math.floor(1000+Math.random()*8999);
-    D.clients.unshift({id,name,industry,contact,email,phone,projects,revenue});
-    PDMS.saveData('clients', D.clients);
-    modal.remove();
-    PDMS.toast('Client created','New client added','success');
-    location.reload();
+    PDMS.api.create('clients',{name,industry,contact,email,phone,projects,revenue}).then(()=>{
+      modal.remove();
+      PDMS.toast('Client created','New client added','success');
+      location.reload();
+    }).catch(err=>PDMS.toast('Error',err.message||'Could not create client','error'));
   };
 }
 </script></body></html>

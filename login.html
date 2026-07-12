@@ -35,8 +35,9 @@
     </div>
   </div>
 </div>
-<script src="js/data.js"></script>
+<script src="js/config.js"></script>
 <script src="js/utils.js"></script>
+<script src="js/api.js"></script>
 <script>
 const ROLES = ['General Admin','HR','HTD','COO','Lead PM','Project Manager','Consultant','Sales'];
 const authBox = document.getElementById('authBox');
@@ -72,23 +73,22 @@ function renderLoginForm() {
   document.getElementById('loginForm').addEventListener('submit', handleLogin);
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
   const adminId = document.getElementById('adminId').value.trim();
-  const user = PDMS.authenticate(email,password,adminId);
-  if(!user){
-    PDMS.toast('Authentication failed','Invalid login credentials. Admins must also provide their Admin ID.','error');
-    return;
+  try{
+    const user = await PDMS.authenticate(email,password,adminId);
+    PDMS.setUser(user);
+    PDMS.toast('Welcome','Logging you in...','success');
+    setTimeout(()=>location.href='dashboard.html',600);
+  }catch(err){
+    PDMS.toast('Authentication failed',err.message||'Invalid login credentials. Admins must also provide their Admin ID.','error');
   }
-  const {password:pwd, ...account} = user;
-  PDMS.setUser(account);
-  PDMS.toast('Welcome','Logging you in...','success');
-  setTimeout(()=>location.href='dashboard.html',600);
 }
 
-function handleSignup(event) {
+async function handleSignup(event) {
   event.preventDefault();
   const name = document.getElementById('signupName').value.trim();
   const email = document.getElementById('signupEmail').value.trim().toLowerCase();
@@ -99,25 +99,29 @@ function handleSignup(event) {
     PDMS.toast('Missing information','Please complete all fields','error');
     return;
   }
-  if(PDMS.findUserByEmail(email)){
-    PDMS.toast('Account exists','Use a different email or login instead','error');
-    return;
+  try{
+    const account = await PDMS.registerUser({ name, email, password, role, avatar: PDMS.initials(name) });
+    PDMS.setUser(account);
+    if(account.role==='General Admin'){
+      showAdminIdModal(account.adminId);
+    }else{
+      PDMS.toast('Account created','Logging you in...','success');
+      setTimeout(()=>location.href='dashboard.html',600);
+    }
+  }catch(err){
+    PDMS.toast('Could not create account',err.message||'Use a different email or login instead','error');
   }
-  const users = PDMS.getUsers();
-  const account = {
-    name,
-    email,
-    password,
-    role,
-    avatar: PDMS.initials(name)
-  };
-  if(role==='General Admin'){
-    account.adminId = PDMS.generateAdminId();
-  }
-  users.push(account);
-  PDMS.saveUsers(users);
-  PDMS.toast('Account created', role==='General Admin' ? `Admin ID: ${account.adminId}` :  role==='General Admin' ? `Admin ID: ${account.adminId}` : 'You may now sign in','success');
-  setTimeout(()=>renderLoginForm(),600);
+}
+
+function showAdminIdModal(adminId){
+  const modal = PDMS.modal('Account created',`
+    <p class="text-sm text-muted" style="margin-bottom:16px">Save this Admin ID — you'll need it every time you sign in as General Admin.</p>
+    <div style="text-align:center;padding:18px;background:var(--surface-2);border:1px dashed var(--border);border-radius:10px;font-size:22px;font-weight:800;letter-spacing:1px;color:var(--primary)">${PDMS.esc(adminId)}</div>
+  `,`<button class="btn btn-primary w-full" id="adminIdOk">Continue to dashboard</button>`);
+  modal.querySelector('.modal').classList.add('modal-sm');
+  const goToDashboard = ()=>{ modal.remove(); location.href='dashboard.html'; };
+  const autoRedirect = setTimeout(goToDashboard,6000);
+  modal.querySelector('#adminIdOk').onclick = ()=>{ clearTimeout(autoRedirect); goToDashboard(); };
 }
 
 signupBtn.addEventListener('click', renderSignupForm);

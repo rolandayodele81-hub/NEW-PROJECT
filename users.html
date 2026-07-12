@@ -3,7 +3,7 @@
 <title>Users — PSE PDMS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css"/></head><body>
-<script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/app.js"></script>
+<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/app.js"></script>
 <script>
 PDMS.mountShell('users');
 const D=PDMS_DATA;const I=PDMS.icon;
@@ -37,10 +37,6 @@ function renderUsers(){
   });
 }
 
-function saveUsers(){
-  PDMS.saveData('users', D.users);
-}
-
 function newUser(){
   const modal = PDMS.modal('Create User',`<div class="form-grid"><div class="form-row"><label>Full Name</label><input id="newUserName"/></div><div class="form-row"><label>Email</label><input id="newUserEmail" type="email"/></div><div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.map(r=>`<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Department</label><select id="newUserDept">${D.departments.map(d=>`<option>${d.name}</option>`).join('')}</select></div></div>`,
     `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">Create</button>`);
@@ -53,24 +49,25 @@ function newUser(){
       PDMS.toast('Missing user info','Name and email are required','error');
       return;
     }
-    const id = 'U'+Math.floor(1000+Math.random()*8999);
-    D.users.unshift({
-      id, name, email, role, dept, status:'Active', availability:'Available', workload:0, phone:'', joined:new Date().toISOString().slice(0,10)
-    });
-    saveUsers();
-    modal.remove();
-    PDMS.toast('User created','New user added','success');
-    renderUsers();
+    const record = { name, email, role, dept, status:'Active', availability:'Available', workload:0, phone:'', joined:new Date().toISOString().slice(0,10) };
+    PDMS.api.create('users',record).then(saved=>{
+      D.users.unshift(saved);
+      modal.remove();
+      PDMS.toast('User created','New user added','success');
+      renderUsers();
+    }).catch(err=>PDMS.toast('Error',err.message||'Could not create user','error'));
   };
 }
 
 function toggleUserStatus(id){
   const user = D.users.find(u=>u.id===id);
   if(!user) return;
-  user.status = user.status==='Active'?'Suspended':'Active';
-  saveUsers();
-  PDMS.toast('Status updated',`${user.name} is now ${user.status}`,'success');
-  renderUsers();
+  const nextStatus = user.status==='Active'?'Suspended':'Active';
+  PDMS.api.update('users',id,{status:nextStatus}).then(saved=>{
+    Object.assign(user,saved);
+    PDMS.toast('Status updated',`${user.name} is now ${user.status}`,'success');
+    renderUsers();
+  }).catch(err=>PDMS.toast('Error',err.message||'Could not update user','error'));
 }
 
 function editU(id){

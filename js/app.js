@@ -81,7 +81,7 @@
 
     document.getElementById('hamburger').onclick = ()=>document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('themeToggle').onclick = PDMS.toggleTheme;
-    document.getElementById('logoutBtn').onclick = ()=>{ PDMS.toast('Signed out','See you again!','success'); setTimeout(PDMS.logout,600); };
+    document.getElementById('logoutBtn').onclick = confirmLogout;
     document.getElementById('notifBtn').onclick = ()=>togglePanel('notif');
     document.getElementById('msgBtn').onclick = ()=>togglePanel('msg');
     document.getElementById('globalSearch').addEventListener('keydown',e=>{
@@ -90,6 +90,19 @@
     renderNotifPanel();
     renderMsgPanel();
   };
+
+  function confirmLogout(){
+    const modal = PDMS.modal('Log out?',
+      '<p class="text-sm text-muted">Are you sure you want to log out of PSE PDMS?</p>',
+      '<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmLogoutBtn">Log out</button>'
+    );
+    modal.querySelector('.modal').classList.add('modal-sm');
+    modal.querySelector('#confirmLogoutBtn').onclick = ()=>{
+      modal.remove();
+      PDMS.toast('Signed out','See you again!','success');
+      setTimeout(PDMS.logout,600);
+    };
+  }
 
   function togglePanel(which){
     const other = which==='notif'?'msg':'notif';

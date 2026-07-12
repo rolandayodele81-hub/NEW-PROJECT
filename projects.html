@@ -3,7 +3,7 @@
 <title>Projects — PSE PDMS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css"/></head><body>
-<script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/app.js"></script>
+<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/app.js"></script>
 <script>
 PDMS.mountShell('projects');
 const D = PDMS_DATA; const I = PDMS.icon;
@@ -98,16 +98,17 @@ document.getElementById('newProj').onclick = ()=>{
       PDMS.toast('Missing project info','Project name and client are required','error');
       return;
     }
-    const id = 'PSE-'+Math.floor(1000+Math.random()*8999);
-    D.projects.unshift({
-      id, name, client, type, dept, sales:'Sales Team', pm:'TBD', lead:'TBD', consultants:[],
+    const record = {
+      name, client, type, dept, sales:'Sales Team', pm:'TBD', lead:'TBD', consultants:[],
       priority, budget, status:'Incoming', progress:0, start:start||'', due:due||'', completion:null,
       description:desc, files:0, remarks:0
-    });
-    PDMS.saveData('projects', D.projects);
-    modal.remove();
-    PDMS.toast('Project created','New project added to pipeline','success');
-    renderProjects();
+    };
+    PDMS.api.create('projects',record).then(saved=>{
+      D.projects.unshift(saved);
+      modal.remove();
+      PDMS.toast('Project created','New project added to pipeline','success');
+      renderProjects();
+    }).catch(err=>PDMS.toast('Error',err.message||'Could not create project','error'));
   };
 };
 
@@ -128,19 +129,23 @@ function editProject(id){
     <div class="form-row"><label>Description</label><textarea id="editProjDesc" rows="3">${PDMS.esc(project.description)}</textarea></div>
   `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveProjectChangesBtn">Save changes</button>`);
   modal.querySelector('#saveProjectChangesBtn').onclick = function(){
-    project.name = modal.querySelector('#editProjName').value.trim();
-    project.client = modal.querySelector('#editProjClient').value;
-    project.type = modal.querySelector('#editProjType').value;
-    project.priority = modal.querySelector('#editProjPriority').value;
-    project.start = modal.querySelector('#editProjStart').value;
-    project.due = modal.querySelector('#editProjDue').value;
-    project.budget = Number(modal.querySelector('#editProjBudget').value)||0;
-    project.dept = modal.querySelector('#editProjDept').value;
-    project.description = modal.querySelector('#editProjDesc').value.trim();
-    PDMS.saveData('projects', D.projects);
-    modal.remove();
-    PDMS.toast('Project updated','Project details were saved','success');
-    renderProjects();
+    const patch = {
+      name:modal.querySelector('#editProjName').value.trim(),
+      client:modal.querySelector('#editProjClient').value,
+      type:modal.querySelector('#editProjType').value,
+      priority:modal.querySelector('#editProjPriority').value,
+      start:modal.querySelector('#editProjStart').value,
+      due:modal.querySelector('#editProjDue').value,
+      budget:Number(modal.querySelector('#editProjBudget').value)||0,
+      dept:modal.querySelector('#editProjDept').value,
+      description:modal.querySelector('#editProjDesc').value.trim()
+    };
+    PDMS.api.update('projects',project.id,patch).then(saved=>{
+      Object.assign(project,saved);
+      modal.remove();
+      PDMS.toast('Project updated','Project details were saved','success');
+      renderProjects();
+    }).catch(err=>PDMS.toast('Error',err.message||'Could not update project','error'));
   };
 }
 window.editProject = editProject;
