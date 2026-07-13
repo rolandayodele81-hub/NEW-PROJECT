@@ -24,7 +24,7 @@
     create: (resource, record) => post('create', { resource, record }),
     update: (resource, id, patch) => post('update', { resource, id, patch }),
     remove: (resource, id) => post('remove', { resource, id }),
-    login: (email, password, adminId) => post('login', { email, password, adminId }),
+    login: (email, password) => post('login', { email, password }),
     register: (account) => post('register', { account })
   };
 })(window);

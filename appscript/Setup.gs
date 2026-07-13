@@ -16,10 +16,10 @@ function initializeSheets() {
       ]
     },
     Users: {
-      headers: ['id', 'name', 'email', 'passwordHash', 'role', 'adminId', 'dept', 'status', 'availability', 'workload', 'phone', 'joined'],
+      headers: ['id', 'name', 'email', 'passwordHash', 'role', 'dept', 'status', 'availability', 'workload', 'phone', 'joined'],
       textColumns: ['joined'],
       rows: [
-        ['U001', 'General Admin', 'admin@pse.com', hashPassword_('admin123'), 'General Admin', 'ADM-1234', 'Executive', 'Active', 'Available', 10, '+1234567890', '2026-01-15']
+        ['U001', 'General Admin', 'admin@pse.com', hashPassword_('admin123'), 'General Admin', 'Executive', 'Active', 'Available', 10, '+1234567890', '2026-01-15']
       ]
     },
     Consultants: {

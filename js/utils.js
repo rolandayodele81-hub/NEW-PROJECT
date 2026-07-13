@@ -68,7 +68,7 @@
     return PDMS.getUsers().find(u=>String(u.email||'').trim().toLowerCase()===e);
   };
   // Both return Promises — the backend hashes/verifies passwords, the client never sees a hash.
-  PDMS.authenticate = function(email,password,adminId){ return PDMS.api.login(email,password,adminId); };
+  PDMS.authenticate = function(email,password){ return PDMS.api.login(email,password); };
   PDMS.registerUser = function(account){ return PDMS.api.register(account); };
   PDMS.isAdmin = function(){ const user = PDMS.getUser(); return user && user.role==='General Admin'; };
   PDMS.requireAdmin = function(){ if(!PDMS.isAdmin()) location.href='dashboard.html'; };

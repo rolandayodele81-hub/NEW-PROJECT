@@ -30,7 +30,7 @@ function doPost(e) {
       case 'remove':
         return jsonOutput_({ ok: true, data: Repository.remove(body.resource, body.id) });
       case 'login': {
-        var user = Auth.login(body.email, body.password, body.adminId);
+        var user = Auth.login(body.email, body.password);
         return user
           ? jsonOutput_({ ok: true, data: user })
           : jsonOutput_({ ok: false, error: 'Invalid login credentials' });

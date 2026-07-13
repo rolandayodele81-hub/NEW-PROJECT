@@ -33,12 +33,9 @@ function findUserByEmail_(email) {
 }
 
 var Auth = {
-  login: function (email, password, adminId) {
+  login: function (email, password) {
     var user = findUserByEmail_(email);
     if (!user || user.passwordHash !== hashPassword_(password)) return null;
-    if (user.role === 'General Admin') {
-      if (!adminId || String(user.adminId || '').trim() !== String(adminId).trim()) return null;
-    }
     return stripExcluded_(user, ['passwordHash']);
   },
 
@@ -53,9 +50,6 @@ var Auth = {
     record.availability = record.availability || 'Available';
     record.workload = record.workload || 0;
     record.joined = record.joined || new Date().toISOString().slice(0, 10);
-    if (record.role === 'General Admin' && !record.adminId) {
-      record.adminId = 'ADM-' + Math.floor(1000 + Math.random() * 9000);
-    }
     var saved = Repository.insert('users', record);
     return stripExcluded_(saved, ['passwordHash']);
   }

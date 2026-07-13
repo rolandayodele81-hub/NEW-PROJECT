@@ -31,7 +31,7 @@
     { id:'D03', name:'Sales', head:'Naomi Chen', count:9, color:'info' }
   ]);
   const users = loadCollection('users', [
-    { id:'U001', name:'General Admin', email:'admin@pse.com', password:'admin123', role:'General Admin', adminId:'ADM-1234', dept:'Executive', status:'Active', availability:'Available', workload:10, phone:'+1234567890', joined:'2026-01-15' }
+    { id:'U001', name:'General Admin', email:'admin@pse.com', password:'admin123', role:'General Admin', dept:'Executive', status:'Active', availability:'Available', workload:10, phone:'+1234567890', joined:'2026-01-15' }
   ]);
   const consultants = loadCollection('consultants', [
     { id:'C001', name:'Mark Smith', email:'mark@company.com', role:'Consultant', dept:'Engineering', status:'Active', availability:'Available', workload:32, phone:'+1234567890', joined:'2026-03-12', specialty:'Cloud Architect', rate:150, projects:3, rating:'4.8' }
