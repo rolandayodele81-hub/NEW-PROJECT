@@ -7,7 +7,7 @@
 function doGet(e) {
   try {
     var action = String((e.parameter || {}).action || 'list').toLowerCase();
-    if (action === 'bootstrap') return bootstrapScript_();
+    if (action === 'bootstrap') return jsonOutput_({ ok: true, data: bootstrapData_() });
     if (action === 'list') return jsonOutput_({ ok: true, data: Repository.list(e.parameter.resource) });
     if (action === 'get') return jsonOutput_({ ok: true, data: Repository.find(e.parameter.resource, e.parameter.id) });
     return jsonOutput_({ ok: false, error: 'Unknown action: ' + action });
@@ -51,17 +51,11 @@ function jsonOutput_(payload) {
   return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);
 }
 
-/**
- * Returns `window.PDMS_REMOTE = {...}` as executable JS so it can be loaded
- * via a plain <script src> tag and populate the global before js/data.js runs
- * — no fetch/await required on the page.
- */
-function bootstrapScript_() {
+function bootstrapData_() {
   var data = {};
   Object.keys(ENTITIES).forEach(function (key) {
     var cfg = ENTITIES[key];
     data[key] = Repository.list(key).map(function (r) { return stripExcluded_(r, cfg.publicExclude); });
   });
-  var js = 'window.PDMS_REMOTE = ' + JSON.stringify(data) + ';';
-  return ContentService.createTextOutput(js).setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return data;
 }

@@ -7,6 +7,7 @@
 <script>
 PDMS.mountShell('dashboard');
 const D=PDMS_DATA;const I=PDMS.icon;
+function render(){
 document.getElementById('content').innerHTML=`
   <div class="page-head"><div><div class="breadcrumbs"><span>Dashboard</span><span>General Admin</span></div>
     <h1 class="page-title">General Admin</h1><div class="page-sub">System, roles, security and audits</div></div></div>
@@ -24,4 +25,6 @@ document.getElementById('content').innerHTML=`
         <div class="mb-3"><div class="flex justify-between mb-2"><span class="font-semi text-sm">${k}</span><span class="font-bold">${v}${typeof v==='number'&&v<=100?'%':''}</span></div><div class="progress"><div class="bar" style="width:${v}%"></div></div></div>`).join('')}
     </div></div>
   </div>`;
+}
+PDMS.onRefresh(render);
 </script></body></html>

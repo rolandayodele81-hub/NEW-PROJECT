@@ -7,6 +7,7 @@
 <script>
 PDMS.mountShell('dashboard');
 const D=PDMS_DATA;const I=PDMS.icon;
+function render(){
 document.getElementById('content').innerHTML=`
   <div class="page-head"><div><div class="breadcrumbs"><span>Dashboard</span><span>Sales</span></div>
     <h1 class="page-title">Sales Dashboard</h1><div class="page-sub">Pipeline, incoming deals and client health</div></div>
@@ -25,4 +26,6 @@ document.getElementById('content').innerHTML=`
           <div class="font-bold">${PDMS.money(c.revenue)}</div></div>`).join('')}</div></div>
   </div>`;
 PDMS.charts.line(document.getElementById('c1'),[[400,550,720,680,890,950,1100,1050,1250,1400,1350,1500]],['J','F','M','A','M','J','J','A','S','O','N','D'],['#f59e0b']);
+}
+PDMS.onRefresh(render);
 </script></body></html>

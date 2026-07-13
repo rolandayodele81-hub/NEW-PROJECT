@@ -72,11 +72,18 @@
   PDMS.registerUser = function(account){ return PDMS.api.register(account); };
   PDMS.isAdmin = function(){ const user = PDMS.getUser(); return user && user.role==='General Admin'; };
   PDMS.requireAdmin = function(){ if(!PDMS.isAdmin()) location.href='dashboard.html'; };
-  PDMS.logout = function(){ localStorage.removeItem('pdms-user'); location.href='login.html'; };
+  PDMS.logout = function(){ localStorage.removeItem('pdms-user'); location.href='index.html'; };
   PDMS.requireAuth = function(){
     const user = PDMS.getUser();
-    if(!user){ location.href='login.html'; return null; }
+    if(!user){ location.href='index.html'; return null; }
     return user;
+  };
+
+  // Renders immediately with whatever's available (cached or seed data),
+  // then re-renders whenever js/config.js's background fetch lands fresh data.
+  PDMS.onRefresh = function(renderFn){
+    renderFn();
+    document.addEventListener('pdms:refresh', renderFn);
   };
 
   // Toast

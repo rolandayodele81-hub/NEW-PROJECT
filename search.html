@@ -9,6 +9,8 @@ PDMS.mountShell('');
 const D=PDMS_DATA;
 const q = (new URLSearchParams(location.search).get('q')||'').toLowerCase();
 const match = (s)=>String(s).toLowerCase().includes(q);
+
+function render(){
 const projects=D.projects.filter(p=>match(p.name)||match(p.id)||match(p.client)).slice(0,10);
 const users=D.users.filter(u=>match(u.name)||match(u.email)).slice(0,10);
 const clients=D.clients.filter(c=>match(c.name)).slice(0,10);
@@ -25,4 +27,6 @@ document.getElementById('content').innerHTML=`
     <div class="card"><div class="card-head"><div class="card-title">Clients (${clients.length})</div></div><div class="card-body" style="padding:6px 20px">${clients.map(c=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="font-semi">${PDMS.esc(c.name)}</div><div class="text-sm text-muted">${PDMS.esc(c.industry)}</div></div>`).join('')||'<div class="text-muted">None</div>'}</div></div>
     <div class="card"><div class="card-head"><div class="card-title">Consultants (${consultants.length})</div></div><div class="card-body" style="padding:6px 20px">${consultants.map(c=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="font-semi">${PDMS.esc(c.name)}</div><div class="text-sm text-muted">${PDMS.esc(c.specialty)}</div></div>`).join('')||'<div class="text-muted">None</div>'}</div></div>
   </div>`;
+}
+PDMS.onRefresh(render);
 </script></body></html>

@@ -7,6 +7,7 @@
 <script>
 PDMS.mountShell('reports');
 const D=PDMS_DATA;const I=PDMS.icon;
+function render(){
 document.getElementById('content').innerHTML=`
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Reports</span></div>
     <h1 class="page-title">Reports & Analytics</h1><div class="page-sub">Insights across delivery, resources and performance</div></div>
@@ -30,4 +31,6 @@ document.getElementById('content').innerHTML=`
 `;
 PDMS.charts.line(document.getElementById('c1'),[[20,35,45,42,58,64,72,68,80,88,92,100],[15,28,40,38,50,58,65,62,72,80,85,92]],['J','F','M','A','M','J','J','A','S','O','N','D'],['#4f46e5','#10b981']);
 PDMS.charts.bar(document.getElementById('c2'),[65,78,55,89,72,60,84],['Eng','Design','QA','PM','Sales','Ops','HR'],'#06b6d4');
+}
+PDMS.onRefresh(render);
 </script></body></html>

@@ -7,9 +7,12 @@
 <script>
 PDMS.mountShell('projects');
 const D = PDMS_DATA; const I = PDMS.icon;
+let p, tasks, done;
+
+function render(){
 const hasProjects = Array.isArray(D.projects) && D.projects.length > 0;
 const id = hasProjects ? new URLSearchParams(location.search).get('id') || D.projects[0].id : null;
-const p = hasProjects ? D.projects.find(x=>x.id===id) || D.projects[0] : null;
+p = hasProjects ? D.projects.find(x=>x.id===id) || D.projects[0] : null;
 
 if(!p){
   document.getElementById('content').innerHTML = `
@@ -19,8 +22,8 @@ if(!p){
     <div class="card"><div class="card-body"><p class="text-muted">Add your own project data in <code>js/data.js</code> or use the template structure to populate this app.</p></div></div>
   `;
 } else {
-  const tasks = D.tasksFor(p.id);
-  const done = tasks.filter(t=>t.status==='Completed').length;
+  tasks = D.tasksFor(p.id);
+  done = tasks.filter(t=>t.status==='Completed').length;
 
   document.getElementById('content').innerHTML = `
   <div class="page-head">
@@ -98,6 +101,9 @@ if(!p){
     </div>
   </div>
 `;
+}
+}
+PDMS.onRefresh(render);
 
 function addRemark(){
   PDMS.modal('Add Remark',`<div class="form-row"><label>Your remark</label><textarea rows="4" placeholder="Type your remark..."></textarea></div>`,

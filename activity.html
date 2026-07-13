@@ -7,6 +7,7 @@
 <script>
 PDMS.mountShell('activity');
 const D=PDMS_DATA;const I=PDMS.icon;
+function render(){
 document.getElementById('content').innerHTML=`
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Activity Logs</span></div>
     <h1 class="page-title">Activity Logs</h1><div class="page-sub">Full audit trail of every action across the platform</div></div>
@@ -20,4 +21,6 @@ PDMS.renderTable(document.getElementById('tbl'),{
     {key:'time',label:'When'}
   ],rows:D.activities,pageSize:15,searchKeys:['user','action','target']
 });
+}
+PDMS.onRefresh(render);
 </script></body></html>

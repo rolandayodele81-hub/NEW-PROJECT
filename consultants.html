@@ -7,6 +7,7 @@
 <script>
 PDMS.mountShell('consultants');
 const D=PDMS_DATA;const I=PDMS.icon;
+function render(){
 document.getElementById('content').innerHTML=`
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Consultants</span></div>
     <h1 class="page-title">Consultants</h1><div class="page-sub">Resource pool availability and specialties</div></div></div>
@@ -29,4 +30,6 @@ PDMS.renderTable(document.getElementById('tbl'),{
   ],rows:D.consultants,pageSize:10,searchKeys:['name','specialty'],
   filterOptions:[{key:'availability',label:'Availability',options:['Available','Busy']}]
 });
+}
+PDMS.onRefresh(render);
 </script></body></html>

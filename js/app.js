@@ -53,7 +53,7 @@
     '<div class="app">'+
       '<aside class="sidebar" id="sidebar">'+
         '<div class="sidebar-header">'+
-          '<div class="brand"><div class="brand-logo"><img src="/logo.svg" alt="PSE PDMS Logo"/></div><div><div class="brand-name">PSE</div><div class="brand-sub">Project Delivery</div></div></div>'+ 
+          '<div class="brand"><div class="brand-logo"><img src="/images/pse-logo.png" alt="PSE PDMS Logo"/></div></div>'+
         '</div>'+
         '<nav class="nav">'+navHtml+'</nav>'+
         '<div class="sidebar-footer">'+

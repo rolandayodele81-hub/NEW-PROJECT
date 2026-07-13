@@ -7,9 +7,10 @@
 <script>
 PDMS.mountShell('timeline');
 const D=PDMS_DATA;const I=PDMS.icon;
-const projects = D.projects.slice(0,20);
 const days = 30;
 const today = new Date();
+function render(){
+const projects = D.projects.slice(0,20);
 document.getElementById('content').innerHTML = `
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Timeline</span></div>
     <h1 class="page-title">Project Timeline</h1><div class="page-sub">Gantt-style view of all active engagements</div></div></div>
@@ -31,4 +32,6 @@ document.getElementById('content').innerHTML = `
     </div></div>
   </div>
 `;
+}
+PDMS.onRefresh(render);
 </script></body></html>

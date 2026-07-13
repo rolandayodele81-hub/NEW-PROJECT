@@ -63,7 +63,7 @@ function renderProjects(){
       </div>`).join('')}
     </div>`).join('')}</div>`;
 }
-renderProjects();
+PDMS.onRefresh(renderProjects);
 document.getElementById('viewToggle').onclick = ()=>{
   const lv=document.getElementById('listView'),kv=document.getElementById('kanbanView');
   lv.classList.toggle('hidden');kv.classList.toggle('hidden');

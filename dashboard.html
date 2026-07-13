@@ -17,6 +17,7 @@ const user = PDMS.getUser();
 const D = PDMS_DATA;
 const I = PDMS.icon;
 
+function renderDashboard(){
 const total = D.projects.length;
 const completed = D.projects.filter(p=>p.status==='Completed').length;
 const inProgress = D.projects.filter(p=>p.status==='In Progress').length;
@@ -139,5 +140,7 @@ document.getElementById('row3').innerHTML = `
     }</div>
   </div>
 `;
+}
+PDMS.onRefresh(renderDashboard);
 </script>
 </body></html>

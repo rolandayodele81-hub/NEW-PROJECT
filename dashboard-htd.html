@@ -7,6 +7,7 @@
 <script>
 PDMS.mountShell('dashboard');
 const D=PDMS_DATA;const I=PDMS.icon;
+function render(){
 document.getElementById('content').innerHTML=`
   <div class="page-head"><div><div class="breadcrumbs"><span>Dashboard</span><span>HTD</span></div>
     <h1 class="page-title">Head of Technical Delivery</h1><div class="page-sub">Portfolio-wide delivery health and assignments</div></div>
@@ -24,4 +25,6 @@ document.getElementById('content').innerHTML=`
         <div><div class="font-semi text-sm">${PDMS.esc(p.name)}</div><div class="a-time">${PDMS.esc(p.client)} • ${p.progress}% complete</div></div></div>`).join('')}</div></div>
   </div>`;
 PDMS.charts.line(document.getElementById('c1'),[[10,18,25,30,42,55,60,68,72,78,85,92]],['J','F','M','A','M','J','J','A','S','O','N','D'],['#4f46e5']);
+}
+PDMS.onRefresh(render);
 </script></body></html>

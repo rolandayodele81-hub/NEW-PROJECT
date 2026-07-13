@@ -7,6 +7,7 @@
 <script>
 PDMS.mountShell('clients');
 const D=PDMS_DATA;const I=PDMS.icon;
+function render(){
 document.getElementById('content').innerHTML=`
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Clients</span></div>
     <h1 class="page-title">Clients</h1><div class="page-sub">Enterprise partners and account overview</div></div>
@@ -24,6 +25,8 @@ document.getElementById('content').innerHTML=`
         <button class="btn btn-secondary btn-sm">View</button>
       </div>
     </div></div>`).join('')}</div>`;
+}
+PDMS.onRefresh(render);
 function openClientModal(){
   const modal = PDMS.modal('New Client',`
     <div class="form-row"><label>Client Name</label><input id="newClientName"/></div>

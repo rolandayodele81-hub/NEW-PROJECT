@@ -7,6 +7,7 @@
 <script>
 PDMS.mountShell('departments');
 const D=PDMS_DATA;const I=PDMS.icon;
+function render(){
 document.getElementById('content').innerHTML = `
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Departments</span></div>
     <h1 class="page-title">Departments</h1><div class="page-sub">Organizational structure and performance</div></div>
@@ -27,6 +28,8 @@ document.getElementById('content').innerHTML = `
       </div></div>`;}).join('')}
   </div>
 `;
+}
+PDMS.onRefresh(render);
 
 function openDepartmentModal(){
   const modal = PDMS.modal('New Department',`<div class="form-row"><label>Department Name</label><input id="newDeptName"/></div><div class="form-row"><label>Head</label><input id="newDeptHead"/></div>`,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveDepartmentBtn">Create</button>`);

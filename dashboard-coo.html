@@ -7,6 +7,7 @@
 <script>
 PDMS.mountShell('dashboard');
 const D=PDMS_DATA;const I=PDMS.icon;
+function render(){
 document.getElementById('content').innerHTML=`
   <div class="page-head"><div><div class="breadcrumbs"><span>Dashboard</span><span>COO</span></div>
     <h1 class="page-title">Chief Operating Officer</h1><div class="page-sub">Enterprise-wide operations command center</div></div></div>
@@ -22,4 +23,6 @@ document.getElementById('content').innerHTML=`
     </div></div>
   </div>`;
 PDMS.charts.bar(document.getElementById('c1'),[1200,900,1600,2100,1400,800,1900],['Eng','Design','Ops','PM','Sales','QA','Cloud'],'#10b981');
+}
+PDMS.onRefresh(render);
 </script></body></html>

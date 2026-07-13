@@ -7,6 +7,7 @@
 <script>
 PDMS.mountShell('notifications');
 const D=PDMS_DATA;const I=PDMS.icon;
+function render(){
 document.getElementById('content').innerHTML=`
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Notifications</span></div>
     <h1 class="page-title">Notifications</h1><div class="page-sub">${D.notifications.filter(n=>n.unread).length} unread</div></div>
@@ -15,4 +16,6 @@ document.getElementById('content').innerHTML=`
     ${D.notifications.map(n=>`<div class="notif ${n.unread?'unread':''}"><div class="n-icon">${I(n.icon)}</div>
       <div style="flex:1"><div class="n-title">${PDMS.esc(n.title)}</div><div class="n-msg">${PDMS.esc(n.msg)}</div><div class="n-time">${n.time}</div></div></div>`).join('')}
   </div></div>`;
+}
+PDMS.onRefresh(render);
 </script></body></html>

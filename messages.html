@@ -43,5 +43,8 @@ function renderChat(){
   const box=document.getElementById('msgs');box.scrollTop=box.scrollHeight;
 }
 document.getElementById('chatSearch').oninput=e=>renderThreads(e.target.value.toLowerCase());
-renderThreads('');renderChat();
+PDMS.onRefresh(()=>{
+  active = D.threads.find(t=>t.id===active.id) || D.threads[0];
+  renderThreads('');renderChat();
+});
 </script></body></html>

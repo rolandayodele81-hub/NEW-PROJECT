@@ -1,28 +1,72 @@
 <!DOCTYPE html>
-<html lang="en"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>PSE PDMS — Reset Password</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css"/></head>
-<body>
-<div class="auth-wrap">
-  <div class="auth-brand">
-    <div class="brand"><div class="brand-logo" style="width:44px;height:44px"><img src="/logo.svg" alt="PSE PDMS Logo"/></div><div><div class="brand-name" style="font-size:18px">PSE PDMS</div><div class="brand-sub" style="opacity:.8">Project Delivery Platform</div></div></div>
-    <div><h1>Regain access to your workspace.</h1><p>We'll send a secure reset link to your registered work email.</p></div>
-    <div style="font-size:12px;opacity:.7">© 2026 PSE PDMS</div>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PSE PDMS — Reset Password</title>
+  <meta name="description" content="Reset your PSE PDMS password securely." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body class="login-page">
+  <div class="auth-wrap">
+    <!-- Left brand panel — identical to login -->
+    <div class="auth-brand">
+      <div class="brand">
+        <div class="brand-logo" style="height:64px"><img src="/images/pse-logo.png" alt="PSE PDMS Logo" /></div>
+      </div>
+      <div>
+        <h1>Regain access to your workspace.</h1>
+        <p>We'll send a secure reset link straight to your registered work email.</p>
+        <div class="auth-features">
+          <div class="f">
+            <div class="fi">✓</div>
+            <div>Secure, time-limited reset link</div>
+          </div>
+          <div class="f">
+            <div class="fi">✓</div>
+            <div>No password stored in plain text</div>
+          </div>
+          <div class="f">
+            <div class="fi">✓</div>
+            <div>Back to sign in in seconds</div>
+          </div>
+        </div>
+      </div>
+      <footer>© 2026 PSE PDMS</footer>
+    </div>
+
+    <!-- Right panel — deep navy blue, same as login -->
+    <div class="auth-form-wrap">
+      <div class="auth-form">
+        <h2>Forgot password?</h2>
+        <p class="sub">Enter your work email and we'll send reset instructions.</p>
+
+        <form id="fp">
+          <div class="form-row">
+            <label>Work email</label>
+            <input type="email" id="fpEmail" placeholder="you@company.com" required />
+          </div>
+          <button class="btn btn-primary w-full" style="justify-content:center" type="submit" id="sendResetBtn">
+            Send reset link
+          </button>
+          <div class="form-actions" style="margin-top:16px;text-align:center;">
+            <a href="index.html">← Back to sign in</a>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
-  <div class="auth-form-wrap">
-    <form class="auth-form" id="fp">
-      <h2>Forgot password</h2>
-      <p class="sub">Enter your email address to receive reset instructions.</p>
-      <div class="form-row"><label>Work email</label><input type="email" required placeholder="you@company.com"/></div>
-      <button class="btn btn-primary w-full" style="justify-content:center" type="submit">Send reset link</button>
-      <p class="text-sm text-muted text-center mt-3"><a href="login.html" style="color:var(--primary);font-weight:600">← Back to sign in</a></p>
-    </form>
-  </div>
-</div>
-<script src="js/data.js"></script><script src="js/utils.js"></script>
-<script>
-document.getElementById('fp').addEventListener('submit',e=>{e.preventDefault();PDMS.toast('Email sent','Check your inbox for reset instructions','success');});
-</script>
-</body></html>
+
+  <script src="js/utils.js"></script>
+  <script>
+    document.getElementById('fp').addEventListener('submit', e => {
+      e.preventDefault();
+      PDMS.toast('Email sent', 'Check your inbox for reset instructions', 'success');
+    });
+  </script>
+</body>
+</html>

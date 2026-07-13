@@ -7,6 +7,7 @@
 <script>
 PDMS.mountShell('dashboard');
 const D=PDMS_DATA;const I=PDMS.icon;
+function render(){
 document.getElementById('content').innerHTML=`
   <div class="page-head"><div><div class="breadcrumbs"><span>Dashboard</span><span>HR</span></div>
     <h1 class="page-title">HR Dashboard</h1><div class="page-sub">People operations, availability and workload</div></div>
@@ -29,4 +30,6 @@ document.getElementById('content').innerHTML=`
         </div>`).join('')}</div></div>
   </div>`;
 PDMS.charts.bar(document.getElementById('c1'),[45,72,58,89,66,50,84],['HR','HTD','COO','PM','Sales','Consultants','Eng'],'#8b5cf6');
+}
+PDMS.onRefresh(render);
 </script></body></html>
