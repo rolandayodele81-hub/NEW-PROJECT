@@ -6,13 +6,13 @@
     {section:'Main',items:[
       {id:'dashboard',label:'Dashboard',icon:'dashboard',href:'dashboard.html',roles:'*'},
       {id:'projects',label:'Projects',icon:'folder',href:'projects.html',roles:'*',badge:'12'},
-      {id:'timeline',label:'Project Timeline',icon:'activity',href:'timeline.html',roles:['HTD','COO','Lead PM','Project Manager','General Admin']},
+      {id:'timeline',label:'Project Timeline',icon:'activity',href:'timeline.html',roles:['HTD','COO','Project Manager','General Admin']},
     ]},
     {section:'Management',items:[
       {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR','General Admin','HTD','COO']},
       {id:'departments',label:'Departments',icon:'building',href:'departments.html',roles:['HR','General Admin','COO','HTD']},
-      {id:'consultants',label:'Consultants',icon:'briefcase',href:'consultants.html',roles:['HR','HTD','COO','Lead PM','Project Manager']},
-      {id:'clients',label:'Clients',icon:'globe',href:'clients.html',roles:['Sales','COO','HTD','General Admin','Lead PM']},
+      {id:'consultants',label:'Consultants',icon:'briefcase',href:'consultants.html',roles:['HR','HTD','COO','Project Manager']},
+      {id:'clients',label:'Clients',icon:'globe',href:'clients.html',roles:['Sales','COO','HTD','General Admin']},
     ]},
     {section:'Insights',items:[
       {id:'reports',label:'Reports',icon:'chart',href:'reports.html',roles:'*'},
@@ -45,7 +45,10 @@
       const items = s.items.filter(it=>canSee(it,role));
       if(!items.length) return '';
       return '<div class="nav-section"><div class="nav-title">'+s.section+'</div>'+
-        items.map(it=>'<a class="nav-item '+(activeId===it.id?'active':'')+'" href="'+it.href+'">'+I(it.icon)+'<span>'+it.label+'</span>'+(it.badge?'<span class="badge">'+it.badge+'</span>':'')+'</a>').join('')+
+        items.map(it=>{
+          const href = it.id==='dashboard' ? PDMS.dashboardFor(user) : it.href;
+          return '<a class="nav-item '+(activeId===it.id?'active':'')+'" href="'+href+'">'+I(it.icon)+'<span>'+it.label+'</span>'+(it.badge?'<span class="badge">'+it.badge+'</span>':'')+'</a>';
+        }).join('')+
       '</div>';
     }).join('');
 

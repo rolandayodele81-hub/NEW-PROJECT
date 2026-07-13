@@ -3,7 +3,7 @@
 <title>Projects — PSE PDMS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css"/></head><body>
-<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/app.js"></script>
+<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
 <script>
 PDMS.mountShell('projects');
 const D = PDMS_DATA; const I = PDMS.icon;
@@ -12,7 +12,7 @@ content.innerHTML = `
   <div class="page-head">
     <div><div class="breadcrumbs"><span>Home</span><span>Projects</span></div>
       <h1 class="page-title">Projects</h1><div class="page-sub">Manage all engagements across the organization</div></div>
-    <div class="flex gap-2"><button class="btn btn-secondary" id="viewToggle">${I('folder')} Kanban View</button><button class="btn btn-primary" id="newProj">${I('plus')} New Project</button></div>
+    <div class="flex gap-2"><button class="btn btn-secondary" id="viewToggle">${I('folder')} Kanban View</button>${PDMS.can('Create Project')?`<button class="btn btn-primary" id="newProj">${I('plus')} New Project</button>`:''}</div>
   </div>
   <div class="grid grid-4 mb-4">
     <div class="stat i-primary"><div class="label">Total</div><div class="value" id="stat-total">${D.projects.length}</div><div class="icon-wrap">${I('folder')}</div></div>
@@ -34,7 +34,12 @@ const columns = [
   {key:'progress',label:'Progress',render:r=>`<div class="progress-inline"><div class="progress"><div class="bar" style="width:${r.progress}%"></div></div><span class="pct">${r.progress}%</span></div>`},
   {key:'due',label:'Due'},
   {key:'budget',label:'Budget',render:r=>PDMS.money(r.budget)},
-  {key:'actions',label:'Actions',render:r=>`<button class="btn btn-secondary btn-sm" onclick="editProject('${r.id}')">Edit</button>`}
+  {key:'actions',label:'Actions',render:r=>{
+    const btns=[];
+    if(r.status==='Incoming' && PDMS.canChangeStatus(r.status,'Confirmed')) btns.push(`<button class="btn btn-primary btn-sm" onclick="confirmProject('${r.id}')">Confirm</button>`);
+    if(PDMS.can('Assign Project')) btns.push(`<button class="btn btn-secondary btn-sm" onclick="editProject('${r.id}')">Edit</button>`);
+    return `<div class="flex gap-2">${btns.join('')}</div>`;
+  }}
 ];
 // Kanban
 const kanbanStatuses = ['Incoming','In Progress','Awaiting Review','Completed'];
@@ -70,7 +75,18 @@ document.getElementById('viewToggle').onclick = ()=>{
   document.getElementById('viewToggle').innerHTML = (lv.classList.contains('hidden')?I('folder')+' Table View':I('folder')+' Kanban View');
 };
 
-document.getElementById('newProj').onclick = ()=>{
+function confirmProject(id){
+  const project = D.projects.find(p=>p.id===id);
+  if(!project) return;
+  PDMS.api.update('projects',id,{status:'Confirmed'}).then(saved=>{
+    Object.assign(project,saved);
+    PDMS.toast('Project confirmed','Status moved to Confirmed','success');
+    renderProjects();
+  }).catch(err=>PDMS.toast('Error',err.message||'Could not confirm project','error'));
+}
+window.confirmProject = confirmProject;
+
+if(document.getElementById('newProj')) document.getElementById('newProj').onclick = ()=>{
   const modal = PDMS.modal('Create New Project',`
     <div class="form-grid">
       <div class="form-row"><label>Project Name</label><input id="newProjName" placeholder="e.g. Falcon Migration"/></div>

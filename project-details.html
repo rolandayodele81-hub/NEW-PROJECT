@@ -3,7 +3,7 @@
 <title>Project Details — PSE PDMS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css"/></head><body>
-<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/app.js"></script>
+<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
 <script>
 PDMS.mountShell('projects');
 const D = PDMS_DATA; const I = PDMS.icon;
@@ -30,9 +30,9 @@ if(!p){
     <div><div class="breadcrumbs"><span><a href="projects.html">Projects</a></span><span>${p.id}</span></div>
       <h1 class="page-title">${PDMS.esc(p.name)}</h1><div class="page-sub">${PDMS.esc(p.client)} • ${PDMS.esc(p.type)}</div></div>
     <div class="flex gap-2">
-      <button class="btn btn-secondary" onclick="addRemark()">${I('message')} Add Remark</button>
+      ${PDMS.can('Add Remarks')?`<button class="btn btn-secondary" onclick="addRemark()">${I('message')} Add Remark</button>`:''}
       <button class="btn btn-secondary" onclick="uploadDel()">${I('upload')} Upload</button>
-      <button class="btn btn-primary" onclick="changeStatus()">${I('refresh')} Change Status</button>
+      ${(PDMS.can('Change Status')||(PDMS.can('Confirm Project')&&p.status==='Incoming'))?`<button class="btn btn-primary" onclick="changeStatus()">${I('refresh')} Change Status</button>`:''}
     </div>
   </div>
 
@@ -54,7 +54,7 @@ if(!p){
 
   <div class="grid" style="grid-template-columns:2fr 1fr;gap:20px">
     <div class="flex flex-col gap-4">
-      <div class="card"><div class="card-head"><div class="card-title">Tasks (${done}/${tasks.length})</div><button class="btn btn-primary btn-sm" onclick="newTask()">${I('plus')} New Task</button></div>
+      <div class="card"><div class="card-head"><div class="card-title">Tasks (${done}/${tasks.length})</div>${PDMS.can('Assign Project')?`<button class="btn btn-primary btn-sm" onclick="newTask()">${I('plus')} New Task</button>`:''}</div>
         <div class="card-body" style="padding:8px 0">${tasks.map(t=>`
           <div style="padding:10px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:center">
             <div style="width:22px;height:22px;border-radius:6px;display:grid;place-items:center;background:${t.status==='Completed'?'var(--success)':'var(--surface-2)'};color:${t.status==='Completed'?'#fff':'var(--text-muted)'}">${I('check')}</div>
@@ -89,7 +89,7 @@ if(!p){
           <div class="mb-3"><div class="text-sm text-muted">Project Lead</div><div class="flex items-center gap-2 mt-2"><div class="avatar avatar-sm">${PDMS.initials(p.lead)}</div><div class="font-semi">${PDMS.esc(p.lead)}</div></div></div>
           <div class="mb-3"><div class="text-sm text-muted">Sales Representative</div><div class="flex items-center gap-2 mt-2"><div class="avatar avatar-sm">${PDMS.initials(p.sales)}</div><div class="font-semi">${PDMS.esc(p.sales)}</div></div></div>
           <div><div class="text-sm text-muted mb-2">Consultants (${p.consultants.length})</div>${p.consultants.map(c=>`<div class="flex items-center gap-2 mb-2"><div class="avatar avatar-sm">${PDMS.initials(c)}</div><div class="text-sm">${PDMS.esc(c)}</div></div>`).join('')}</div>
-          <button class="btn btn-secondary w-full mt-2" style="justify-content:center" onclick="PDMS.toast('Assignment','Consultant assignment opened','success')">${I('user-plus')} Assign Consultant</button>
+          ${PDMS.can('Assign Consultant')?`<button class="btn btn-secondary w-full mt-2" style="justify-content:center" onclick="PDMS.toast('Assignment','Consultant assignment opened','success')">${I('user-plus')} Assign Consultant</button>`:''}
         </div>
       </div>
       <div class="card"><div class="card-head"><div class="card-title">Remarks & Notes</div></div>
@@ -114,8 +114,22 @@ function uploadDel(){
     `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" onclick="this.closest('.modal-backdrop').remove();PDMS.toast('Uploaded','Deliverable uploaded successfully','success')">Upload</button>`);
 }
 function changeStatus(){
-  PDMS.modal('Change Project Status',`<div class="form-row"><label>New Status</label><select id="ns">${D.statuses.map(s=>`<option ${s===p.status?'selected':''}>${s}</option>`).join('')}</select></div>`,
-    `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" onclick="this.closest('.modal-backdrop').remove();PDMS.toast('Status updated','Project status has been updated','success')">Update</button>`);
+  const options = PDMS.can('Change Status') ? D.statuses : D.statuses.filter(s=>s===p.status||PDMS.canChangeStatus(p.status,s));
+  const modal = PDMS.modal('Change Project Status',`<div class="form-row"><label>New Status</label><select id="ns">${options.map(s=>`<option ${s===p.status?'selected':''}>${s}</option>`).join('')}</select></div>`,
+    `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveStatusBtn">Update</button>`);
+  modal.querySelector('#saveStatusBtn').onclick = function(){
+    const newStatus = modal.querySelector('#ns').value;
+    if(!PDMS.canChangeStatus(p.status,newStatus)){
+      PDMS.toast('Not allowed',"You don't have permission to set this status",'error');
+      return;
+    }
+    PDMS.api.update('projects',p.id,{status:newStatus}).then(saved=>{
+      Object.assign(p,saved);
+      modal.remove();
+      PDMS.toast('Status updated','Project status has been updated','success');
+      render();
+    }).catch(err=>PDMS.toast('Error',err.message||'Could not update status','error'));
+  };
 }
 function newTask(){
   PDMS.modal('Create Task',`<div class="form-row"><label>Task title</label><input/></div><div class="form-grid"><div class="form-row"><label>Assignee</label><select>${D.users.slice(0,10).map(u=>`<option>${u.name}</option>`).join('')}</select></div><div class="form-row"><label>Due date</label><input type="date"/></div></div>`,

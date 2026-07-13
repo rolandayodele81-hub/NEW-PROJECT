@@ -2,7 +2,7 @@
    PSE PDMS - Data Schema
    ============================================ */
 (function(global){
-  const roles = ['General Admin','HR','HTD','COO','Lead PM','Project Manager','Consultant','Sales'];
+  const roles = ['General Admin','HR','HTD','COO','Project Manager','Consultant','Sales'];
   const types = ['Infrastructure','Software Development','Consulting','Digital Transformation','Cloud Migration','ERP Implementation','Cybersecurity','Data Analytics','Mobile App','Web Platform'];
   const priorities = ['Critical','High','Medium','Low'];
   const statuses = ['Incoming','Approved','Assigned','Planning','In Progress','Awaiting Review','Revision','Completed','Closed','Cancelled'];
