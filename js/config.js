@@ -9,8 +9,7 @@
   var CACHE_KEY = 'pdms-cache';
 
   try {
-    var cached = localStorage.getItem(CACHE_KEY);
-    if (cached) global.PDMS_REMOTE = JSON.parse(cached);
+    // Bypassing localStorage cache to ensure we always retrieve directly from the Google Sheet
   } catch (e) { /* corrupt cache — fall through to seed data */ }
 
   global.PDMS_REFRESH = function () {
