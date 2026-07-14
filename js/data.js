@@ -25,32 +25,14 @@
     return Array.isArray(remote) ? remote : (fallback||[]);
   }
 
-  const departments = loadCollection('departments', [
-    { id:'D01', name:'Human Resources', head:'Alice Park', count:12, color:'primary' },
-    { id:'D02', name:'Engineering', head:'Marcus Lee', count:28, color:'success' },
-    { id:'D03', name:'Sales', head:'Naomi Chen', count:9, color:'info' }
-  ]);
-  const users = loadCollection('users', [
-    { id:'U001', name:'General Admin', email:'admin@pse.com', password:'admin123', role:'General Admin', dept:'Executive', status:'Active', availability:'Available', workload:10, phone:'+1234567890', joined:'2026-01-15' }
-  ]);
-  const consultants = loadCollection('consultants', [
-    { id:'C001', name:'Mark Smith', email:'mark@company.com', role:'Consultant', dept:'Engineering', status:'Active', availability:'Available', workload:32, phone:'+1234567890', joined:'2026-03-12', specialty:'Cloud Architect', rate:150, projects:3, rating:'4.8' }
-  ]);
-  const clients = loadCollection('clients', [
-    { id:'CL001', name:'Acme Corp', industry:'Banking', contact:'Jane Doe', email:'contact@acme.com', phone:'+1234567890', projects:5, revenue:250000 }
-  ]);
-  const projects = loadCollection('projects', [
-    { id:'PSE-1001', name:'Alpha Platform', client:'Acme Corp', type:'Software Development', dept:'Engineering', sales:'Alice Johnson', pm:'John Smith', lead:'Emily Clark', consultants:['Mark Smith'], priority:'High', budget:350000, status:'In Progress', progress:45, start:'2026-04-01', due:'2026-09-01', completion:null, description:'Project description goes here.', files:4, remarks:2 }
-  ]);
-  const notifications = loadCollection('notifications', [
-    { id:'N001', title:'New project request', msg:'A client has submitted a new project intake.', icon:'activity', time:'2h ago', unread:true }
-  ]);
-  const threads = loadCollection('threads', [
-    { id:'T001', user:{name:'Jane Doe'}, messages:[{from:'me',text:'Can you share the latest update?',time:'1h ago'}], unread:1, last:'Can you share the latest update?' }
-  ]);
-  const activities = loadCollection('activities', [
-    { id:'A001', user:'General Admin', role:'General Admin', action:'created', target:'Alpha Platform', time:'2h ago' }
-  ]);
+  const departments = loadCollection('departments', []);
+  const users = loadCollection('users', []);
+  const consultants = loadCollection('consultants', []);
+  const clients = loadCollection('clients', []);
+  const projects = loadCollection('projects', []);
+  const notifications = loadCollection('notifications', []);
+  const threads = loadCollection('threads', []);
+  const activities = loadCollection('activities', []);
 
   // Example record templates for guidance:
   // departments: { id:'D01', name:'Human Resources', head:'Name Surname', count:12, color:'primary' }
