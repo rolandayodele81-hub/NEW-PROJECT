@@ -314,6 +314,6 @@
     ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
   }
   function getCss(v){
-    return getComputedStyle(document.documentElement).getPropertyValue(v).trim()||'#4f46e5';
+    return getComputedStyle(document.documentElement).getPropertyValue(v).trim()||'#1d3c88';
   }
 })(window);

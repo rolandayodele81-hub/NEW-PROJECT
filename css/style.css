@@ -33,6 +33,10 @@
   --gradient: linear-gradient(135deg, #1d3c88 0%, #8b5cf6 50%, #ec4899 100%);
   --gradient-2: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
   --gradient-3: linear-gradient(135deg, #1d3c88 0%, #8b5cf6 100%);
+  /* Ring component theme tokens */
+  --ring-bg: #ffffff;
+  --ring-text: #1d3c88;
+  --ring-text-on-hero: #ffffff;
 }
 [data-theme="dark"] {
   --bg: #0b1020;
@@ -47,6 +51,9 @@
   --primary-50: #0d1b3f;
   --shadow: 0 4px 20px rgba(0,0,0,.4);
   --shadow-lg: 0 20px 50px rgba(0,0,0,.5);
+  /* Ring component dark-mode overrides */
+  --ring-bg: #131a2e;
+  --ring-text: #e6ecff;
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -274,9 +281,16 @@ img{max-width:100%;display:block}
   color:#1d3c88;font-weight:800;font-size:20px;flex-shrink:0;box-shadow:inset 0 0 0 10px rgba(255,255,255,.15);
 }
 .hero-ring span{display:block;text-align:center;line-height:1.05}
-.hero-card-title{font-size:15px;font-weight:700}
-.hero-card-text{font-size:12px;line-height:1.5;margin-top:6px;color:rgba(255,255,255,.86)}
-.hero-card-foot{margin-top:10px;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.72)}
+.hero-card-title{font-size:15px;font-weight:700;color:var(--text)}
+.hero-card-text{font-size:12px;line-height:1.5;margin-top:6px;color:var(--text-muted)}
+.hero-card-foot{margin-top:10px;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--text-muted)}
+/* Inside hero banners, these are always on dark gradient — override to white */
+[class*="-hero"] .hero-card-title{color:#fff}
+[class*="-hero"] .hero-card-text{color:rgba(255,255,255,.86)}
+[class*="-hero"] .hero-card-foot{color:rgba(255,255,255,.72)}
+.admin-hero .hero-card-title{color:#fff}
+.admin-hero .hero-card-text{color:rgba(255,255,255,.86)}
+.admin-hero .hero-card-foot{color:rgba(255,255,255,.72)}
 .admin-stat{background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(248,250,252,.96));box-shadow:var(--shadow-sm)}
 .admin-panel .card-body{padding-top:16px}
 .permission-chips{display:flex;flex-wrap:wrap;gap:10px}
@@ -307,11 +321,11 @@ img{max-width:100%;display:block}
 .momentum-bar{width:100%;max-width:24px;border-radius:999px 999px 6px 6px;background:linear-gradient(180deg,var(--primary),var(--accent));animation:barRise .9s ease forwards;transform-origin:bottom}
 .momentum-labels{display:grid;grid-template-columns:repeat(6,1fr);font-size:11px;color:var(--text-muted);text-align:center}
 .resource-ring-wrap{display:flex;align-items:center;gap:16px}
-.resource-ring-wrap .ring{box-shadow:inset 0 0 0 10px rgba(79,70,229,.08)}
+.resource-ring-wrap .ring{box-shadow:inset 0 0 0 10px rgba(29,60,136,.08)}
 
 /* Dark mode adjustments for admin dashboard */
-[data-theme="dark"] .chip{background:linear-gradient(90deg,rgba(79,70,229,.28),rgba(6,182,212,.28));color:#e0e7ff;border-color:rgba(79,70,229,.3)}
-[data-theme="dark"] .chip::before{color:#a5f3fc}
+[data-theme="dark"] .chip{background:linear-gradient(90deg,rgba(29,60,136,.28),rgba(139,92,246,.28));color:#e0e7ff;border-color:rgba(29,60,136,.3)}
+[data-theme="dark"] .chip::before{color:#c084fc}
 [data-theme="dark"] .action-item strong{color:var(--text);font-weight:700}
 [data-theme="dark"] .animated-card{background:linear-gradient(145deg,rgba(19,26,46,.8),rgba(15,21,38,.9))}
 [data-theme="dark"] .pulse-name{color:var(--text)}
@@ -401,9 +415,17 @@ table.data tbody tr:last-child td{border-bottom:none}
 }
 .ring::before{
   content:"";position:absolute;inset:var(--th);
-  border-radius:50%;background:var(--surface);
+  border-radius:50%;background:var(--ring-bg);
 }
-.ring .ring-val{position:relative;font-weight:700;font-size:16px}
+/* Value label inherits --ring-text; hero overrides with data-ring-on-hero */
+.ring .ring-val{
+  position:relative;font-weight:700;font-size:16px;
+  color:var(--ring-text);
+  text-shadow:none;
+}
+/* Rings placed inside gradient hero banners declare this on the ring element */
+.ring[data-on-hero]::before{ background:rgba(0,0,0,.35); }
+.ring[data-on-hero] .ring-val{ color:#ffffff; }
 
 /* Avatars group */
 .avatars{display:flex}
