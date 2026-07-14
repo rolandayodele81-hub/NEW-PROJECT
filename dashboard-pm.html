@@ -2,28 +2,316 @@
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>PM Dashboard — PSE PDMS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css"/></head><body>
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+.pm-hero {
+  display: grid;
+  grid-template-columns: 1.3fr 0.7fr;
+  gap: 20px;
+  padding: 24px 26px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #090d16 0%, #1d3c88 50%, #8b5cf6 75%, #ec4899 100%);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(29, 60, 136, 0.25);
+  margin-bottom: 24px;
+}
+.pm-hero::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10% auto auto;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 70%);
+  filter: blur(10px);
+  animation: drift 8s ease-in-out infinite alternate;
+}
+.pm-hero-copy { position: relative; z-index: 1; }
+.pm-hero-card {
+  position: relative; z-index: 1; display: flex; align-items: center; gap: 16px; padding: 18px; border-radius: 20px;
+  background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.pm-select {
+  font-size: 12px;
+  padding: 4px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  max-width: 140px;
+}
+@keyframes drift{from{transform:translate3d(0,0,0)}to{transform:translate3d(-20px,-10px,0)}}
+@media(max-width:900px){
+  .pm-hero { grid-template-columns: 1fr; }
+  .pm-hero-card { margin-top: 8px; }
+}
+</style>
+</head><body>
 <script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
 <script>
 PDMS.mountShell('dashboard');
 const D=PDMS_DATA;const I=PDMS.icon;
+
 function render(){
-const my = D.projects.slice(0,8);
-document.getElementById('content').innerHTML=`
-  <div class="page-head"><div><div class="breadcrumbs"><span>Dashboard</span><span>Project Management</span></div>
-    <h1 class="page-title">Project Management</h1><div class="page-sub">Your active engagements and tasks</div></div></div>
-  <div class="grid grid-4 mb-4">
-    ${[['My Projects','12','primary'],['Tasks Due','24','warn'],['On Track','9','success'],['At Risk','3','info']].map(([k,v,c])=>`
-      <div class="stat i-${c}"><div class="label">${k}</div><div class="value">${v}</div><div class="icon-wrap">${I('briefcase')}</div></div>`).join('')}
-  </div>
-  <div class="card"><div class="card-head"><div class="card-title">My Active Projects</div><a class="btn btn-secondary btn-sm" href="projects.html">View all</a></div>
-    <div class="card-body" style="padding:0">${my.map(p=>`
-      <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:16px;align-items:center">
-        <div class="ring" style="--p:${p.progress};--sz:52px;--th:6px"><span class="ring-val" style="font-size:12px">${p.progress}%</span></div>
-        <div style="flex:1"><div class="font-semi"><a href="project-details.html?id=${p.id}" style="color:inherit">${PDMS.esc(p.name)}</a></div><div class="text-sm text-muted">${PDMS.esc(p.client)} • Due ${p.due}</div></div>
-        <span class="badge ${D.prioColors[p.priority]}">${p.priority}</span>
-        <span class="badge badge-${D.statusColors[p.status]}">${p.status}</span>
-      </div>`).join('')}</div></div>`;
+  const user = PDMS.getUser() || { name: 'Project Manager' };
+  
+  // Dynamic filter for PM
+  let myProjects = D.projects.filter(p => p.pm === user.name);
+  let isFiltered = true;
+  if (myProjects.length === 0) {
+    myProjects = D.projects;
+    isFiltered = false;
+  }
+  
+  const totalMyProjects = myProjects.length;
+  const inProgressCount = myProjects.filter(p=>p.status==='In Progress').length;
+  const atRiskCount = myProjects.filter(p=>p.priority==='Critical').length;
+  
+  // Available consultants
+  const totalConsultants = D.consultants.length;
+  const availableConsultants = D.consultants.filter(c=>c.availability==='Available').length;
+  
+  // Average progress
+  const avgProgress = Math.round(myProjects.reduce((acc, curr) => acc + (curr.progress || 0), 0) / Math.max(totalMyProjects, 1));
+  
+  // Lead list for dropdown
+  const leadsList = D.users.filter(u=>u.role==='Project Manager' || u.role==='Consultant').map(u=>u.name).concat(['TBD']);
+
+  document.getElementById('content').innerHTML=`
+    <div class="pm-hero">
+      <div class="pm-hero-copy">
+        <div class="hero-pill">Project Management • Delivery Operations</div>
+        <h1 class="page-title" style="font-size:30px;line-height:1.1;margin-top:10px">Project Delivery Hub</h1>
+        <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9);margin-top:8px">Assign project leads, manage consultant alignments, update delivery statuses, and add progress remarks.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="projects.html">${I('folder')} Active Projects</a>
+          <a class="btn btn-secondary" href="consultants.html" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18)">${I('users')} View Resources</a>
+        </div>
+      </div>
+      <div class="pm-hero-card">
+        <div class="ring" style="--p:${avgProgress};--sz:92px;--th:8px;--c:#3b82f6"><span class="ring-val" style="color:#fff">${avgProgress}%</span></div>
+        <div>
+          <div class="hero-card-title">Average Progress</div>
+          <div class="hero-card-text">Completion progress of projects in your portfolio.</div>
+          <div class="hero-card-foot">Tracked & Logged</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-4 mb-4">
+      <div class="stat i-primary">
+        <div class="label">${isFiltered ? 'My Active Projects' : 'Active Projects'}</div>
+        <div class="value">${totalMyProjects}</div>
+        <div class="delta up">Assigned to portfolio</div>
+        <div class="icon-wrap">${I('folder')}</div>
+      </div>
+      <div class="stat i-success">
+        <div class="label">In Progress</div>
+        <div class="value">${inProgressCount}</div>
+        <div class="delta up">Under development</div>
+        <div class="icon-wrap">${I('check')}</div>
+      </div>
+      <div class="stat i-warn">
+        <div class="label">At Risk</div>
+        <div class="value">${atRiskCount}</div>
+        <div class="delta down">Critical alerts</div>
+        <div class="icon-wrap">${I('zap')}</div>
+      </div>
+      <div class="stat i-info">
+        <div class="label">Available Resources</div>
+        <div class="value">${availableConsultants}</div>
+        <div class="delta up">Bench capacity</div>
+        <div class="icon-wrap">${I('briefcase')}</div>
+      </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 2.1fr 0.9fr; gap: 20px">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">${isFiltered ? 'My Managed Portfolios' : 'All Enterprise Portfolios (PM Access)'}</div>
+            <div class="card-sub">PM control: Assign leads, allocate consultants, update statuses, and log remarks.</div>
+          </div>
+          <span class="badge badge-primary">PM Authority</span>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div style="overflow-x:auto">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Project Name</th>
+                  <th>Status</th>
+                  <th>Project Lead</th>
+                  <th>Staff Consultants</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${myProjects.map(p=>`
+                  <tr>
+                    <td>
+                      <div>
+                        <a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a>
+                        <div class="font-bold text-sm">${PDMS.esc(p.name)}</div>
+                        <div class="text-sm text-muted">Client: ${PDMS.esc(p.client)} • PM: ${PDMS.esc(p.pm)}</div>
+                      </div>
+                    </td>
+                    <td>
+                      <select class="pm-select" onchange="updateProjectField('${p.id}', 'status', this.value)">
+                        ${D.statuses.map(s=>`<option value="${s}" ${s===p.status?'selected':''}>${s}</option>`).join('')}
+                      </select>
+                    </td>
+                    <td>
+                      <select class="pm-select" onchange="updateProjectField('${p.id}', 'lead', this.value)">
+                        ${leadsList.map(ld=>`<option value="${ld}" ${ld===p.lead?'selected':''}>${PDMS.esc(ld)}</option>`).join('')}
+                      </select>
+                    </td>
+                    <td>
+                      <div style="display:flex;flex-wrap:wrap;gap:4px;max-width:200px">
+                        ${(p.consultants||[]).map(c=>`<span class="badge badge-info" style="font-size:10px">${PDMS.esc(c)}</span>`).join('')}
+                        ${(p.consultants||[]).length===0?'<span class="text-muted text-sm">None</span>':''}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="flex gap-2">
+                        <button class="btn btn-secondary btn-sm" onclick="manageConsultants('${p.id}')">Staff</button>
+                        <button class="btn btn-ghost btn-sm" onclick="addRemark('${p.id}')">${I('message')}</button>
+                      </div>
+                    </td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-4">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Consultant Bench (Capacity Check)</div>
+          </div>
+          <div class="card-body" style="padding:8px 20px">
+            ${D.consultants.slice(0,6).map(c=>`
+              <div class="flex items-center gap-3" style="padding:10px 0;border-bottom:1px solid var(--border)">
+                <div class="avatar avatar-sm">${PDMS.initials(c.name)}</div>
+                <div style="flex:1">
+                  <div class="font-semi text-sm">${PDMS.esc(c.name)}</div>
+                  <div class="text-sm text-muted">${PDMS.esc(c.specialty)}</div>
+                </div>
+                <div>
+                  <span class="badge badge-${c.availability==='Available'?'success':'warn'}">${PDMS.esc(c.availability)}</span>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Recent Delivery Actions</div>
+          </div>
+          <div class="card-body" style="padding:8px 20px">
+            ${D.activities.filter(a=>a.action.includes('assign') || a.action.includes('status')).slice(0, 4).map(a=>`
+              <div class="activity">
+                <div class="a-icon">${I('activity')}</div>
+                <div>
+                  <div class="a-text"><b>${PDMS.esc(a.user)}</b> ${PDMS.esc(a.action)} <b>${PDMS.esc(a.target)}</b></div>
+                  <div class="a-time">${a.time}</div>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }
+
+function updateProjectField(projectId, field, value) {
+  const project = D.projects.find(p=>p.id===projectId);
+  if(!project) return;
+  
+  const patch = {};
+  patch[field] = value;
+  
+  PDMS.api.update('projects', projectId, patch).then(saved => {
+    Object.assign(project, saved);
+    PDMS.toast('Project updated', `${projectId} ${field} set to ${value}`, 'success');
+    render();
+  }).catch(err => PDMS.toast('Error', err.message || 'Could not update project allocation', 'error'));
+}
+
+function manageConsultants(projectId) {
+  const project = D.projects.find(p=>p.id===projectId);
+  if(!project) return;
+  
+  const current = project.consultants || [];
+  const listHtml = D.consultants.map(c => {
+    const checked = current.includes(c.name) ? 'checked' : '';
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <input type="checkbox" id="c-${c.id}" value="${PDMS.esc(c.name)}" ${checked} style="width:16px;height:16px"/>
+        <label for="c-${c.id}" class="flex items-center gap-2" style="cursor:pointer;flex:1">
+          <div class="avatar avatar-sm">${PDMS.initials(c.name)}</div>
+          <div>
+            <div class="font-semi text-sm">${PDMS.esc(c.name)}</div>
+            <div class="text-sm text-muted">${PDMS.esc(c.specialty)} · Load: ${c.workload}%</div>
+          </div>
+        </label>
+      </div>`;
+  }).join('');
+  
+  const modal = PDMS.modal(`Staff Consultants to ${project.id}`, `
+    <div style="max-height:300px;overflow-y:auto;padding-right:8px">
+      ${listHtml}
+    </div>
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveStaffBtn">${I('check')} Save Allocation</button>`);
+  
+  modal.querySelector('#saveStaffBtn').onclick = function() {
+    const selected = [];
+    modal.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+      selected.push(cb.value);
+    });
+    
+    PDMS.api.update('projects', projectId, { consultants: selected }).then(saved => {
+      Object.assign(project, saved);
+      modal.remove();
+      PDMS.toast('Consultants assigned', `Staff alignment saved for ${projectId}`, 'success');
+      render();
+    }).catch(err => PDMS.toast('Error', err.message || 'Could not save consultants', 'error'));
+  };
+}
+
+function addRemark(projectId) {
+  const project = D.projects.find(p=>p.id===projectId);
+  if(!project) return;
+  
+  const modal = PDMS.modal(`Add remark to ${project.name}`, `
+    <div class="form-row">
+      <label>Your remark</label>
+      <textarea id="remarkText" rows="4" placeholder="Type your project status updates or notes..."></textarea>
+    </div>
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveRemarkBtn">Post Remark</button>`);
+  
+  modal.querySelector('#saveRemarkBtn').onclick = function() {
+    const remark = modal.querySelector('#remarkText').value.trim();
+    if(!remark) {
+      PDMS.toast('Empty remark', 'Remark content cannot be empty', 'error');
+      return;
+    }
+    // PDMS allows adding remarks directly.
+    PDMS.api.update('projects', projectId, { remarks: (project.remarks || 0) + 1 }).then(saved => {
+      Object.assign(project, saved);
+      modal.remove();
+      PDMS.toast('Remark posted', 'Your remark was logged in project timeline', 'success');
+      render();
+    }).catch(err => PDMS.toast('Error', err.message || 'Could not save remark', 'error'));
+  };
+}
+
+window.updateProjectField = updateProjectField;
+window.manageConsultants = manageConsultants;
+window.addRemark = addRemark;
+
 PDMS.onRefresh(render);
 </script></body></html>
