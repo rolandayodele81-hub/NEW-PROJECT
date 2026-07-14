@@ -7,24 +7,174 @@
 <script>
 PDMS.mountShell('dashboard');
 const D=PDMS_DATA;const I=PDMS.icon;
+const capabilities = [
+  'Onboard User','Create Project','Assign Project','Assign PM','Assign Lead','Assign Consultant',
+  'Reassign Project','Reassign Consultant','Change Status','Close Project','Add Remarks','View Reports',
+  'Manage Permissions','Confirm Project','View Resources'
+];
+
 function render(){
-document.getElementById('content').innerHTML=`
-  <div class="page-head"><div><div class="breadcrumbs"><span>Dashboard</span><span>General Admin</span></div>
-    <h1 class="page-title">General Admin</h1><div class="page-sub">System, roles, security and audits</div></div></div>
-  <div class="grid grid-4 mb-4">
-    ${[['Users','${D.users.length}','primary','users'],['Roles','${D.roles.length}','purple','shield'],['Depts','${D.departments.length}','info','building'],['Audit Events','${D.activities.length}','warn','activity']]
-      .map(a=>{const[k,v,c,i]=a;return `<div class="stat i-${c}"><div class="label">${k}</div><div class="value">${eval(v)}</div><div class="icon-wrap">${I(i)}</div></div>`}).join('')}
-  </div>
-  <div class="grid grid-2">
-    <div class="card"><div class="card-head"><div class="card-title">Recent Audit Events</div><a href="activity.html" class="btn btn-secondary btn-sm">View all</a></div>
-      <div class="card-body" style="padding:8px 20px">${D.activities.slice(0,7).map(a=>`
-        <div class="activity"><div class="a-icon">${I('activity')}</div>
-          <div><div class="a-text"><b>${PDMS.esc(a.user)}</b> ${PDMS.esc(a.action)} <b>${PDMS.esc(a.target)}</b></div><div class="a-time">${a.time}</div></div></div>`).join('')}</div></div>
-    <div class="card"><div class="card-head"><div class="card-title">System Health</div></div><div class="card-body">
-      ${[['API Uptime',99.9],['Database Health',98.5],['Storage Used',62],['Active Sessions',44]].map(([k,v])=>`
-        <div class="mb-3"><div class="flex justify-between mb-2"><span class="font-semi text-sm">${k}</span><span class="font-bold">${v}${typeof v==='number'&&v<=100?'%':''}</span></div><div class="progress"><div class="bar" style="width:${v}%"></div></div></div>`).join('')}
-    </div></div>
-  </div>`;
+  const metrics = [
+    {label:'Users', value:D.users.length, icon:'users', color:'primary'},
+    {label:'Projects', value:D.projects.length, icon:'folder', color:'success'},
+    {label:'Departments', value:D.departments.length, icon:'building', color:'info'},
+    {label:'Audit Events', value:D.activities.length, icon:'activity', color:'purple'}
+  ];
+  const availableConsultants = D.consultants.filter(c=>c.availability==='Available').length;
+  const readiness = Math.round((availableConsultants / Math.max(D.consultants.length, 1)) * 100);
+  const momentum = [72, 86, 64, 91, 77, 88];
+
+  document.getElementById('content').innerHTML=`
+    <div class="admin-hero">
+      <div class="admin-hero-copy">
+        <div class="hero-pill">General Admin • Full access</div>
+        <h1 class="page-title" style="font-size:30px;line-height:1.1">Command center for the delivery ecosystem</h1>
+        <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9)">You can onboard talent, launch projects, assign delivery leads, change delivery states, and manage permissions from a single cinematic control tower.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="users.html">${I('users')} Manage people</a>
+          <a class="btn btn-secondary" href="projects.html" style="background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.2)">${I('folder')} Manage projects</a>
+        </div>
+      </div>
+      <div class="admin-hero-card">
+        <div class="hero-ring"><span>15/15</span></div>
+        <div>
+          <div class="hero-card-title">Operational readiness</div>
+          <div class="hero-card-text">Every core administrative action is enabled for this role.</div>
+          <div class="hero-card-foot">Live • Secure • Audited</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-4 mb-4">
+      ${metrics.map(m=>`
+        <div class="stat admin-stat i-${m.color}">
+          <div class="label">${m.label}</div>
+          <div class="value">${m.value}</div>
+          <div class="delta up">Realtime visibility</div>
+          <div class="icon-wrap">${I(m.icon)}</div>
+        </div>`).join('')}
+    </div>
+
+    <div class="grid grid-2 mb-4">
+      <div class="card admin-panel">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Permission matrix</div>
+            <div class="card-sub">Full access coverage across delivery and governance</div>
+          </div>
+          <span class="badge badge-primary">15 capabilities</span>
+        </div>
+        <div class="card-body">
+          <div class="permission-chips">
+            ${capabilities.map(c=>`<span class="chip">${PDMS.esc(c)}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="card admin-panel">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Priority operations</div>
+            <div class="card-sub">Always ready for the next critical move</div>
+          </div>
+          <span class="badge badge-success">Live</span>
+        </div>
+        <div class="card-body">
+          <div class="action-list">
+            <div class="action-item"><span>${I('users')}</span><div><strong>Onboard users</strong><div class="text-sm text-muted">Bring new team members into the workspace quickly.</div></div></div>
+            <div class="action-item"><span>${I('folder')}</span><div><strong>Create & assign projects</strong><div class="text-sm text-muted">Launch initiatives and direct them to the right PM or lead.</div></div></div>
+            <div class="action-item"><span>${I('shield')}</span><div><strong>Manage permissions</strong><div class="text-sm text-muted">Keep governance aligned with role-based access.</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-3 mb-4">
+      <div class="card animated-card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Delivery pulse</div>
+            <div class="card-sub">Live project momentum across the portfolio</div>
+          </div>
+          <span class="badge badge-success dot">Live</span>
+        </div>
+        <div class="card-body">
+          <div class="pulse-list">
+            ${D.projects.slice(0,4).map((p, idx)=>`
+              <div class="pulse-item">
+                <div class="pulse-meta">
+                  <div class="pulse-name">${PDMS.esc(p.name)}</div>
+                  <div class="pulse-sub">${PDMS.esc(p.status)} · ${PDMS.esc(p.client)}</div>
+                </div>
+                <div class="pulse-meter">
+                  <div class="pulse-bar"><div class="pulse-fill" style="width:${p.progress}%; animation-delay:${idx * 90}ms"></div></div>
+                  <span>${p.progress}%</span>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="card animated-card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Momentum stream</div>
+            <div class="card-sub">Weekly execution intensity</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="momentum-grid">
+            ${momentum.map((v, idx)=>`<div class="momentum-col"><div class="momentum-bar" style="height:${v}%; animation-delay:${idx * 70}ms"></div></div>`).join('')}
+          </div>
+          <div class="momentum-labels">${['W1','W2','W3','W4','W5','W6'].map(l=>`<span>${l}</span>`).join('')}</div>
+        </div>
+      </div>
+
+      <div class="card animated-card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Resource readiness</div>
+            <div class="card-sub">Consultant availability for rapid deployment</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="resource-ring-wrap">
+            <div class="ring" style="--p:${readiness};--sz:92px;--th:8px;--c:var(--primary)"><span class="ring-val">${readiness}%</span></div>
+            <div>
+              <div class="hero-card-title">${availableConsultants} available</div>
+              <div class="hero-card-text">Ready to support incoming and active engagements.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Recent activity</div>
+          <a href="activity.html" class="btn btn-secondary btn-sm">View all</a>
+        </div>
+        <div class="card-body" style="padding:8px 20px">
+          ${D.activities.slice(0,6).map(a=>`
+            <div class="activity"><div class="a-icon">${I('activity')}</div>
+              <div><div class="a-text"><b>${PDMS.esc(a.user)}</b> ${PDMS.esc(a.action)} <b>${PDMS.esc(a.target)}</b></div><div class="a-time">${a.time}</div></div></div>`).join('')}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">System health</div>
+        </div>
+        <div class="card-body">
+          ${[['API Uptime',99.9],['Database Health',98.5],['Storage Used',62],['Active Sessions',44]].map(([k,v])=>`
+            <div class="mb-3">
+              <div class="flex justify-between mb-2"><span class="font-semi text-sm">${k}</span><span class="font-bold">${v}${typeof v==='number'&&v<=100?'%':''}</span></div>
+              <div class="progress"><div class="bar" style="width:${v}%"></div></div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
 }
 PDMS.onRefresh(render);
 </script></body></html>
