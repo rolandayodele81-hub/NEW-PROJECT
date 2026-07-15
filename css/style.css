@@ -403,7 +403,12 @@ table.data tbody tr:last-child td{border-bottom:none}
   content:"";position:absolute;inset:var(--th);
   border-radius:50%;background:var(--surface);
 }
-.ring .ring-val{position:relative;font-weight:700;font-size:16px}
+.ring .ring-val{
+  position:relative;
+  font-weight:700;
+  font-size:16px;
+  color:var(--text) !important;
+}
 
 /* Avatars group */
 .avatars{display:flex}

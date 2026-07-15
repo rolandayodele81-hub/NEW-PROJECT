@@ -1,0 +1,31 @@
+{
+  "name": "pse-project-management-enterprise",
+  "version": "1.0.0",
+  "description": "Enterprise Project Management System for Panoramic Synergy (PSE)",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "seed": "node src/seeds/seed.js"
+  },
+  "keywords": ["project management", "pse", "enterprise", "node", "express", "mysql", "jwt"],
+  "author": "PSE Engineering",
+  "license": "MIT",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.3",
+    "express-rate-limit": "^6.9.0",
+    "helmet": "^7.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "mysql2": "^3.23.0",
+    "sequelize": "^6.32.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
