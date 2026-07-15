@@ -2,29 +2,327 @@
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>HTD Dashboard — PSE PDMS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css"/></head><body>
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+.htd-hero {
+  display: grid;
+  grid-template-columns: 1.3fr 0.7fr;
+  gap: 20px;
+  padding: 24px 26px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #090d16 0%, #1d3c88 40%, #8b5cf6 75%, #ec4899 100%);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(29, 60, 136, 0.25);
+  margin-bottom: 24px;
+}
+.htd-hero::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10% auto auto;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 70%);
+  filter: blur(10px);
+  animation: drift 8s ease-in-out infinite alternate;
+}
+.htd-hero-copy { position: relative; z-index: 1; }
+.htd-hero-card {
+  position: relative; z-index: 1; display: flex; align-items: center; gap: 16px; padding: 18px; border-radius: 20px;
+  background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.staffing-select {
+  font-size: 12px;
+  padding: 4px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  max-width: 140px;
+}
+[data-theme="dark"] .staffing-select {
+  background: var(--surface-2);
+  color: var(--text);
+}
+@keyframes drift{from{transform:translate3d(0,0,0)}to{transform:translate3d(-20px,-10px,0)}}
+@media(max-width:900px){
+  .htd-hero { grid-template-columns: 1fr; }
+  .htd-hero-card { margin-top: 8px; }
+}
+</style>
+</head><body>
 <script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
 <script>
 PDMS.mountShell('dashboard');
 const D=PDMS_DATA;const I=PDMS.icon;
+const DEFAULT_PASSWORD = 'Welcome@123';
+
 function render(){
-document.getElementById('content').innerHTML=`
-  <div class="page-head"><div><div class="breadcrumbs"><span>Dashboard</span><span>HTD</span></div>
-    <h1 class="page-title">Head of Technical Delivery</h1><div class="page-sub">Portfolio-wide delivery health and assignments</div></div>
-    <button class="btn btn-primary">${I('plus')} Assign Project</button></div>
-  <div class="grid grid-4 mb-4">
-    ${[['Active','48','primary'],['At Risk','7','warn'],['Delayed','5','info'],['Delivered YTD','214','success']].map(([k,v,c])=>`
-      <div class="stat i-${c}"><div class="label">${k}</div><div class="value">${v}</div><div class="icon-wrap">${I('briefcase')}</div></div>`).join('')}
-  </div>
-  <div class="grid" style="grid-template-columns:2fr 1fr;gap:20px">
-    <div class="card"><div class="card-head"><div class="card-title">Delivery Health by Department</div></div>
-      <div class="card-body"><div class="chart-wrap" style="height:280px"><canvas id="c1"></canvas></div></div></div>
-    <div class="card"><div class="card-head"><div class="card-title">Escalations</div></div>
-      <div class="card-body" style="padding:8px 20px">${D.projects.filter(p=>p.priority==='Critical').slice(0,6).map(p=>`
-        <div class="activity"><div class="a-icon">${I('zap')}</div>
-        <div><div class="font-semi text-sm">${PDMS.esc(p.name)}</div><div class="a-time">${PDMS.esc(p.client)} • ${p.progress}% complete</div></div></div>`).join('')}</div></div>
-  </div>`;
-PDMS.charts.line(document.getElementById('c1'),[[10,18,25,30,42,55,60,68,72,78,85,92]],['J','F','M','A','M','J','J','A','S','O','N','D'],['#4f46e5']);
+  const activeProjects = D.projects.filter(p=>p.status==='In Progress').length;
+  const criticalEscalations = D.projects.filter(p=>p.priority==='Critical').length;
+  
+  // Bench utilization
+  const totalConsultants = D.consultants.length;
+  const activeConsultants = D.consultants.filter(c=>c.availability!=='Available').length;
+  const utilization = Math.round((activeConsultants / Math.max(totalConsultants, 1)) * 100);
+  
+  // Total budget managed
+  const totalBudget = D.projects.reduce((acc, curr) => acc + (curr.budget || 0), 0);
+  
+  // List of all PMs and Leads for dropdowns
+  const pmsList = D.users.filter(u=>u.role==='Project Manager').map(u=>u.name).concat(['TBD']);
+  const leadsList = D.users.filter(u=>u.role==='Project Manager' || u.role==='Consultant').map(u=>u.name).concat(['TBD']);
+  
+  document.getElementById('content').innerHTML=`
+    <div class="htd-hero">
+      <div class="htd-hero-copy">
+        <div class="hero-pill">Technical Delivery • Operations & Staffing</div>
+        <h1 class="page-title" style="font-size:30px;line-height:1.1;margin-top:10px">Delivery & Engineering Portfolio Command</h1>
+        <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9);margin-top:8px">Onboard delivery leaders, assign PMs and Leads, manage consultant allocations, and oversee technical governance.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" onclick="newUser()">${I('user-plus')} Onboard Staff</button>
+          <a class="btn btn-secondary" href="consultants.html" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18)">${I('briefcase')} View Resources</a>
+        </div>
+      </div>
+      <div class="htd-hero-card">
+        <div class="ring" data-on-hero style="--p:${utilization};--sz:92px;--th:8px;--c:#8b5cf6"><span class="ring-val">${utilization}%</span></div>
+        <div>
+          <div class="hero-card-title">Bench Utilization</div>
+          <div class="hero-card-text">${activeConsultants} of ${totalConsultants} consultants are actively staffed on engagements.</div>
+          <div class="hero-card-foot">Dynamic Allocation</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-4 mb-4">
+      <div class="stat i-primary">
+        <div class="label">Active Projects</div>
+        <div class="value">${activeProjects}</div>
+        <div class="delta up">In progress / Delivery</div>
+        <div class="icon-wrap">${I('folder')}</div>
+      </div>
+      <div class="stat i-warn">
+        <div class="label">Critical Escalations</div>
+        <div class="value">${criticalEscalations}</div>
+        <div class="delta down">Requires attention</div>
+        <div class="icon-wrap">${I('zap')}</div>
+      </div>
+      <div class="stat i-success">
+        <div class="label">Delivery Budget</div>
+        <div class="value" style="font-size:22px;margin-top:12px">${PDMS.money(totalBudget)}</div>
+        <div class="delta up">Under management</div>
+        <div class="icon-wrap">${I('chart')}</div>
+      </div>
+      <div class="stat i-info">
+        <div class="label">Total Bench Size</div>
+        <div class="value">${totalConsultants}</div>
+        <div class="delta up">Engineers & Analysts</div>
+        <div class="icon-wrap">${I('users')}</div>
+      </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 24px">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Delivery Health Trend</div>
+            <div class="card-sub">Completed projects vs incoming velocity YTD</div>
+          </div>
+          <span class="badge badge-success dot">Live</span>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap" style="height:260px"><canvas id="c1"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Critical Attention Needed</div>
+            <div class="card-sub">Delayed or Critical projects</div>
+          </div>
+          <span class="badge badge-warn">Risk Feed</span>
+        </div>
+        <div class="card-body" style="padding:8px 20px">
+          ${D.projects.filter(p=>p.priority==='Critical' || p.status==='Revision').slice(0,5).map(p=>`
+            <div class="activity" style="align-items:center;padding:12px 0">
+              <div class="a-icon" style="background:rgba(239,68,68,.12);color:var(--danger)">${I('zap')}</div>
+              <div style="flex:1">
+                <div class="font-semi text-sm"><a href="project-details.html?id=${p.id}">${PDMS.esc(p.name)}</a></div>
+                <div class="text-sm text-muted">${PDMS.esc(p.client)} • ${p.progress}% done</div>
+              </div>
+              <span class="badge badge-danger">${p.priority}</span>
+            </div>`).join('')}
+          ${D.projects.filter(p=>p.priority==='Critical' || p.status==='Revision').length === 0 ? `
+            <div class="text-muted text-center" style="padding:32px 0">No projects require immediate escalations.</div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Portfolio Allocation & Staffing Console</div>
+          <div class="card-sub">Change project managers, delivery leads, consultants, and statuses in real time.</div>
+        </div>
+        <span class="badge badge-primary">Sheet Sync</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Project ID & Name</th>
+                <th>Status</th>
+                <th>Project Manager (PM)</th>
+                <th>Project Lead</th>
+                <th>Consultants</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${D.projects.map(p=>`
+                <tr>
+                  <td>
+                    <div>
+                      <a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a>
+                      <div class="font-bold text-sm">${PDMS.esc(p.name)}</div>
+                      <div class="text-sm text-muted">${PDMS.esc(p.client)}</div>
+                    </div>
+                  </td>
+                  <td>
+                    <select class="staffing-select" onchange="updateProjectField('${p.id}', 'status', this.value)">
+                      ${D.statuses.map(s=>`<option value="${s}" ${s===p.status?'selected':''}>${s}</option>`).join('')}
+                    </select>
+                  </td>
+                  <td>
+                    <select class="staffing-select" onchange="updateProjectField('${p.id}', 'pm', this.value)">
+                      ${pmsList.map(pm=>`<option value="${pm}" ${pm===p.pm?'selected':''}>${PDMS.esc(pm)}</option>`).join('')}
+                    </select>
+                  </td>
+                  <td>
+                    <select class="staffing-select" onchange="updateProjectField('${p.id}', 'lead', this.value)">
+                      ${leadsList.map(ld=>`<option value="${ld}" ${ld===p.lead?'selected':''}>${PDMS.esc(ld)}</option>`).join('')}
+                    </select>
+                  </td>
+                  <td>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;max-width:200px">
+                      ${(p.consultants||[]).map(c=>`<span class="badge badge-info" style="font-size:10px">${PDMS.esc(c)}</span>`).join('')}
+                      ${(p.consultants||[]).length===0?'<span class="text-muted text-sm">None</span>':''}
+                    </div>
+                  </td>
+                  <td>
+                    <button class="btn btn-secondary btn-sm" onclick="manageConsultants('${p.id}')">Manage Staff</button>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Render health trend line chart
+  PDMS.charts.line(document.getElementById('c1'), [[10,18,25,30,42,55,60,68,72,85,92,105]], ['J','F','M','A','M','J','J','A','S','O','N','D'], ['#8b5cf6']);
 }
+
+function updateProjectField(projectId, field, value) {
+  const project = D.projects.find(p=>p.id===projectId);
+  if(!project) return;
+  
+  const patch = {};
+  patch[field] = value;
+  
+  PDMS.api.update('projects', projectId, patch).then(saved => {
+    Object.assign(project, saved);
+    PDMS.toast('Project updated', `${projectId} ${field} set to ${value}`, 'success');
+    render();
+  }).catch(err => PDMS.toast('Error', err.message || 'Could not update project allocation', 'error'));
+}
+
+function manageConsultants(projectId) {
+  const project = D.projects.find(p=>p.id===projectId);
+  if(!project) return;
+  
+  const current = project.consultants || [];
+  const listHtml = D.consultants.map(c => {
+    const checked = current.includes(c.name) ? 'checked' : '';
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <input type="checkbox" id="c-${c.id}" value="${PDMS.esc(c.name)}" ${checked} style="width:16px;height:16px"/>
+        <label for="c-${c.id}" class="flex items-center gap-2" style="cursor:pointer;flex:1">
+          <div class="avatar avatar-sm">${PDMS.initials(c.name)}</div>
+          <div>
+            <div class="font-semi text-sm">${PDMS.esc(c.name)}</div>
+            <div class="text-sm text-muted">${PDMS.esc(c.specialty)} · Load: ${c.workload}%</div>
+          </div>
+        </label>
+      </div>`;
+  }).join('');
+  
+  const modal = PDMS.modal(`Staff Consultants to ${project.id}`, `
+    <div style="max-height:300px;overflow-y:auto;padding-right:8px">
+      ${listHtml}
+    </div>
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveStaffBtn">${I('check')} Save Allocation</button>`);
+  
+  modal.querySelector('#saveStaffBtn').onclick = function() {
+    const selected = [];
+    modal.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+      selected.push(cb.value);
+    });
+    
+    PDMS.api.update('projects', projectId, { consultants: selected }).then(saved => {
+      Object.assign(project, saved);
+      modal.remove();
+      PDMS.toast('Consultants assigned', `Staff alignment saved for ${projectId}`, 'success');
+      render();
+    }).catch(err => PDMS.toast('Error', err.message || 'Could not save consultants', 'error'));
+  };
+}
+
+function newUser() {
+  const modal = PDMS.modal('Onboard New Delivery Resource', `
+    <div class="form-grid">
+      <div class="form-row"><label>Full Name</label><input id="newUserName" placeholder="Jane Smith"/></div>
+      <div class="form-row"><label>Email</label><input id="newUserEmail" type="email" placeholder="jane.smith@pse.com"/></div>
+      <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Department</label><input id="newUserDept" type="text" placeholder="e.g. Engineering"/></div>
+    </div>
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">${I('check')} Onboard</button>`);
+  
+  modal.querySelector('#createUserBtn').onclick = function () {
+    const name = modal.querySelector('#newUserName').value.trim();
+    const email = modal.querySelector('#newUserEmail').value.trim().toLowerCase();
+    const role = modal.querySelector('#newUserRole').value;
+    const dept = modal.querySelector('#newUserDept').value.trim();
+    if (!name || !email) {
+      PDMS.toast('Missing user info', 'Name and email are required', 'error');
+      return;
+    }
+    const record = { name, email, role, dept, password: DEFAULT_PASSWORD, workload: 0, phone: '', joined: new Date().toISOString().slice(0, 10), status: 'Active' };
+    PDMS.api.register(record).then(saved => {
+      D.users.unshift(saved);
+      modal.remove();
+      showNewUserPasswordNote(saved);
+      render();
+    }).catch(err => PDMS.toast('Error', err.message || 'Could not onboard user', 'error'));
+  };
+}
+
+function showNewUserPasswordNote(user) {
+  const modal = PDMS.modal('User Onboarded Successfully', `
+    <p class="text-sm text-muted" style="margin-bottom:16px">The account for ${PDMS.esc(user.name)} is active. Here is their temporary login password:</p>
+    <div style="text-align:center;padding:18px;background:var(--surface-2);border:1px dashed var(--border);border-radius:10px;font-size:20px;font-weight:800;letter-spacing:1px;color:var(--primary)">${PDMS.esc(DEFAULT_PASSWORD)}</div>
+  `, `<button class="btn btn-primary w-full" data-close>Got it</button>`);
+  modal.querySelector('.modal').classList.add('modal-sm');
+}
+
+window.newUser = newUser;
+window.updateProjectField = updateProjectField;
+window.manageConsultants = manageConsultants;
+
 PDMS.onRefresh(render);
 </script></body></html>

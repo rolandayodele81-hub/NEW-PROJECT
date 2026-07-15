@@ -155,7 +155,7 @@
         '<div style="overflow-x:auto"><table class="data"><thead><tr>'+
         opts.columns.map(c=>'<th data-key="'+c.key+'">'+c.label+(state.sortKey===c.key?(state.sortDir>0?' ↑':' ↓'):'')+'</th>').join('')+
         '</tr></thead><tbody>'+
-        (slice.length?slice.map(r=>'<tr>'+opts.columns.map(c=>'<td>'+(c.render?c.render(r):PDMS.esc(r[c.key]??''))+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+opts.columns.length+'" style="text-align:center;padding:32px;color:var(--text-muted)">No records found</td></tr>')+
+        (slice.length?slice.map(r=>'<tr>'+opts.columns.map(c=>'<td>'+(c.render?c.render(r):PDMS.esc(r[c.key]??''))+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+opts.columns.length+'" style="text-align:center;padding:32px;color:var(--text-muted)">loading records...</td></tr>')+
         '</tbody></table></div>'+
         '<div class="pagination"><div>Showing '+((state.page-1)*pageSize+1)+'-'+Math.min(state.page*pageSize,arr.length)+' of '+arr.length+'</div><div class="pages">'+
         '<button class="page-btn" data-p="prev">‹</button>'+
@@ -321,6 +321,6 @@
     ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
   }
   function getCss(v){
-    return getComputedStyle(document.documentElement).getPropertyValue(v).trim()||'#4f46e5';
+    return getComputedStyle(document.documentElement).getPropertyValue(v).trim()||'#1d3c88';
   }
 })(window);

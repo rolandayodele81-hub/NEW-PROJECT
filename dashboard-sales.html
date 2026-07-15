@@ -2,30 +2,249 @@
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Sales Dashboard — PSE PDMS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css"/></head><body>
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+.sales-hero {
+  display: grid;
+  grid-template-columns: 1.3fr 0.7fr;
+  gap: 20px;
+  padding: 24px 26px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #090d16 0%, #1d3c88 40%, #8b5cf6 75%, #ec4899 100%);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(29, 60, 136, 0.25);
+  margin-bottom: 24px;
+}
+.sales-hero::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10% auto auto;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 70%);
+  filter: blur(10px);
+  animation: drift 8s ease-in-out infinite alternate;
+}
+.sales-hero-copy { position: relative; z-index: 1; }
+.sales-hero-card {
+  position: relative; z-index: 1; display: flex; align-items: center; gap: 16px; padding: 18px; border-radius: 20px;
+  background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.18);
+}
+@keyframes drift{from{transform:translate3d(0,0,0)}to{transform:translate3d(-20px,-10px,0)}}
+@media(max-width:900px){
+  .sales-hero { grid-template-columns: 1fr; }
+  .sales-hero-card { margin-top: 8px; }
+}
+</style>
+</head><body>
 <script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
 <script>
 PDMS.mountShell('dashboard');
 const D=PDMS_DATA;const I=PDMS.icon;
+
 function render(){
-document.getElementById('content').innerHTML=`
-  <div class="page-head"><div><div class="breadcrumbs"><span>Dashboard</span><span>Sales</span></div>
-    <h1 class="page-title">Sales Dashboard</h1><div class="page-sub">Pipeline, incoming deals and client health</div></div>
-    <button class="btn btn-primary">${I('plus')} New Deal</button></div>
-  <div class="grid grid-4 mb-4">
-    ${[['Pipeline','$8.2M','primary'],['This Month','$1.4M','success'],['Deals Open','24','warn'],['Won Rate','62%','info']].map(([k,v,c])=>`
-      <div class="stat i-${c}"><div class="label">${k}</div><div class="value">${v}</div><div class="icon-wrap">${I('trending')}</div></div>`).join('')}
-  </div>
-  <div class="grid" style="grid-template-columns:2fr 1fr;gap:20px">
-    <div class="card"><div class="card-head"><div class="card-title">Deals Pipeline</div></div><div class="card-body"><div class="chart-wrap" style="height:260px"><canvas id="c1"></canvas></div></div></div>
-    <div class="card"><div class="card-head"><div class="card-title">Top Clients</div></div>
-      <div class="card-body" style="padding:8px 20px">${D.clients.slice(0,6).map(c=>`
-        <div class="flex items-center gap-3" style="padding:8px 0;border-bottom:1px solid var(--border)">
-          <div style="width:36px;height:36px;border-radius:10px;background:var(--gradient-2);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px">${c.name.split(' ').map(w=>w[0]).slice(0,2).join('')}</div>
-          <div style="flex:1"><div class="font-semi text-sm">${PDMS.esc(c.name)}</div><div class="text-sm text-muted">${c.projects} projects</div></div>
-          <div class="font-bold">${PDMS.money(c.revenue)}</div></div>`).join('')}</div></div>
-  </div>`;
-PDMS.charts.line(document.getElementById('c1'),[[400,550,720,680,890,950,1100,1050,1250,1400,1350,1500]],['J','F','M','A','M','J','J','A','S','O','N','D'],['#f59e0b']);
+  // Total pipeline calculation
+  const pipelineValue = D.projects.filter(p => p.status === 'Incoming' || p.status === 'Approved').reduce((acc, curr) => acc + (curr.budget || 0), 0);
+  const totalRevenueWon = D.clients.reduce((acc, curr) => acc + (curr.revenue || 0), 0);
+  const openDealsCount = D.projects.filter(p => p.status === 'Incoming').length;
+  
+  document.getElementById('content').innerHTML=`
+    <div class="sales-hero">
+      <div class="sales-hero-copy">
+        <div class="hero-pill">Sales Console • Deals & Client Growth</div>
+        <h1 class="page-title" style="font-size:30px;line-height:1.1;margin-top:10px">Sales Pipeline Command Center</h1>
+        <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9);margin-top:8px">Create new project engagements, confirm incoming deals, check consultant bench strength, and log remarks.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" onclick="newDeal()">${I('plus')} Intake New Deal</button>
+          <a class="btn btn-secondary" href="consultants.html" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18)">${I('users')} Verify Resources</a>
+        </div>
+      </div>
+      <div class="sales-hero-card">
+        <div class="ring" data-on-hero style="--p:62;--sz:92px;--th:8px;--c:#ec4899"><span class="ring-val">62%</span></div>
+        <div>
+          <div class="hero-card-title">Pipeline Target</div>
+          <div class="hero-card-text">Close velocity for this quarter is on track to meet budget projections.</div>
+          <div class="hero-card-foot">Live Ledger</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-4 mb-4">
+      <div class="stat i-pink">
+        <div class="label">Pipeline Value</div>
+        <div class="value" style="font-size:22px;margin-top:12px">${PDMS.money(pipelineValue)}</div>
+        <div class="delta up">Unconfirmed / Intake</div>
+        <div class="icon-wrap">${I('trending')}</div>
+      </div>
+      <div class="stat i-success">
+        <div class="label">Revenue Won</div>
+        <div class="value" style="font-size:22px;margin-top:12px">${PDMS.money(totalRevenueWon)}</div>
+        <div class="delta up">YTD Client Contracts</div>
+        <div class="icon-wrap">${I('check')}</div>
+      </div>
+      <div class="stat i-warn">
+        <div class="label">Deals Pending</div>
+        <div class="value">${openDealsCount}</div>
+        <div class="delta down">Awaiting Confirmation</div>
+        <div class="icon-wrap">${I('clock')}</div>
+      </div>
+      <div class="stat i-info">
+        <div class="label">Close-Won Rate</div>
+        <div class="value">62%</div>
+        <div class="delta up">Historical Average</div>
+        <div class="icon-wrap">${I('chart')}</div>
+      </div>
+    </div>
+
+    <div class="grid grid-2 mb-4">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Deals Pipeline Trend</div>
+            <div class="card-sub">Growth projections (in Thousands USD)</div>
+          </div>
+          <span class="badge badge-warn">Projections</span>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap" style="height:260px"><canvas id="c1"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Client Ledger & Revenues</div>
+            <div class="card-sub">Top enterprise accounts by YTD billings</div>
+          </div>
+          <a class="btn btn-secondary btn-sm" href="clients.html">View Accounts</a>
+        </div>
+        <div class="card-body" style="padding:8px 20px">
+          ${D.clients.slice(0, 5).map(c=>`
+            <div class="flex items-center gap-3" style="padding:12px 0;border-bottom:1px solid var(--border)">
+              <div style="width:36px;height:36px;border-radius:10px;background:var(--gradient-2);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px">
+                ${c.name.split(' ').map(w=>w[0]).slice(0,2).join('')}
+              </div>
+              <div style="flex:1">
+                <div class="font-semi text-sm">${PDMS.esc(c.name)}</div>
+                <div class="text-sm text-muted">${c.projects} active projects</div>
+              </div>
+              <div class="font-bold">${PDMS.money(c.revenue)}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Intake Pipelines & Contract Confirmations</div>
+          <div class="card-sub">Review incoming project requests and confirm deals (moves Incoming to Confirmed)</div>
+        </div>
+        <span class="badge badge-success">Deals Board</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Project ID</th>
+                <th>Project Name</th>
+                <th>Client Partner</th>
+                <th>Department</th>
+                <th>Intake Date / Start</th>
+                <th>Budget (USD)</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${D.projects.map(p=>`
+                <tr>
+                  <td><a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
+                  <td class="font-bold">${PDMS.esc(p.name)}</td>
+                  <td>${PDMS.esc(p.client)}</td>
+                  <td><span class="badge badge-purple">${PDMS.esc(p.dept)}</span></td>
+                  <td>${p.start || 'TBD'}</td>
+                  <td class="font-semi">${PDMS.money(p.budget)}</td>
+                  <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${p.status}</span></td>
+                  <td>
+                    ${p.status === 'Incoming' ? `
+                      <button class="btn btn-primary btn-sm" onclick="confirmDeal('${p.id}')">Confirm Contract</button>
+                    ` : `
+                      <span class="text-muted text-sm" style="font-style:italic">Confirmed</span>
+                    `}
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Render pipeline line chart
+  PDMS.charts.line(document.getElementById('c1'), [[400, 550, 720, 680, 890, 950, 1100, 1050, 1250, 1400, 1350, 1500]], ['J','F','M','A','M','J','J','A','S','O','N','D'], ['#f59e0b']);
 }
+
+function confirmDeal(id) {
+  const project = D.projects.find(p=>p.id===id);
+  if(!project) return;
+  
+  PDMS.api.update('projects', id, { status: 'Confirmed' }).then(saved => {
+    Object.assign(project, saved);
+    PDMS.toast('Deal Confirmed', `Project ${id} moved to Confirmed status.`, 'success');
+    render();
+  }).catch(err => PDMS.toast('Error', err.message || 'Could not confirm contract', 'error'));
+}
+
+function newDeal() {
+  const modal = PDMS.modal('New Deal Intake', `
+    <div class="form-grid">
+      <div class="form-row"><label>Project Name</label><input id="newProjName" placeholder="e.g. Falcon Migration"/></div>
+      <div class="form-row"><label>Client</label><select id="newProjClient">${D.clients.map(c=>`<option>${c.name}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Type</label><select id="newProjType"><option>Software Development</option><option>Consulting</option><option>Infrastructure</option></select></div>
+      <div class="form-row"><label>Priority</label><select id="newProjPriority">${D.priorities.map(p=>`<option>${p}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Start Date</label><input id="newProjStart" type="date"/></div>
+      <div class="form-row"><label>Due Date</label><input id="newProjDue" type="date"/></div>
+      <div class="form-row"><label>Budget (USD)</label><input id="newProjBudget" type="number" placeholder="250000"/></div>
+      <div class="form-row"><label>Department</label><select id="newProjDept">${D.departments.map(d=>`<option>${d.name}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row"><label>Description</label><textarea id="newProjDesc" rows="3" placeholder="Scope, goals, deliverables..."></textarea></div>
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createProjectBtn">${I('plus')} Create Deal</button>`);
+  
+  modal.querySelector('#createProjectBtn').onclick = function(){
+    const name = modal.querySelector('#newProjName').value.trim();
+    const client = modal.querySelector('#newProjClient').value;
+    const type = modal.querySelector('#newProjType').value;
+    const priority = modal.querySelector('#newProjPriority').value;
+    const start = modal.querySelector('#newProjStart').value;
+    const due = modal.querySelector('#newProjDue').value;
+    const budget = Number(modal.querySelector('#newProjBudget').value)||0;
+    const dept = modal.querySelector('#newProjDept').value;
+    const desc = modal.querySelector('#newProjDesc').value.trim();
+    if(!name || !client){
+      PDMS.toast('Missing project info','Project name and client are required','error');
+      return;
+    }
+    const record = {
+      name, client, type, dept, sales:'Sales Team', pm:'TBD', lead:'TBD', consultants:[],
+      priority, budget, status:'Incoming', progress:0, start:start||'', due:due||'', completion:null,
+      description:desc, files:0, remarks:0
+    };
+    
+    PDMS.api.create('projects', record).then(saved => {
+      D.projects.unshift(saved);
+      modal.remove();
+      PDMS.toast('Project created', 'New deal added to intake pipeline', 'success');
+      render();
+    }).catch(err => PDMS.toast('Error', err.message || 'Could not create project', 'error'));
+  };
+}
+
+window.confirmDeal = confirmDeal;
+window.newDeal = newDeal;
+
 PDMS.onRefresh(render);
 </script></body></html>
