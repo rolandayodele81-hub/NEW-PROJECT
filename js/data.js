@@ -5,9 +5,9 @@
   const roles = ['General Admin','HR','HTD','COO','Project Manager','Consultant','Sales'];
   const types = ['Infrastructure','Software Development','Consulting','Digital Transformation','Cloud Migration','ERP Implementation','Cybersecurity','Data Analytics','Mobile App','Web Platform'];
   const priorities = ['Critical','High','Medium','Low'];
-  const statuses = ['Incoming','Approved','Assigned','Planning','In Progress','Awaiting Review','Revision','Completed','Closed','Cancelled'];
+  const statuses = ['Incoming','Approved','Assigned','Confirmed','Planning','In Progress','Awaiting Review','Revision','Completed','Closed','Cancelled'];
   const statusColors = {
-    'Incoming':'info','Approved':'primary','Assigned':'purple','Planning':'info',
+    'Incoming':'info','Approved':'primary','Assigned':'purple','Confirmed':'success','Planning':'info',
     'In Progress':'warn','Awaiting Review':'warn','Revision':'danger',
     'Completed':'success','Closed':'muted','Cancelled':'danger'
   };

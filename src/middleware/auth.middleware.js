@@ -18,10 +18,16 @@ export async function verifyToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const users = await query('SELECT id, name, email, role, status FROM users WHERE id = ?', [decoded.id]);
+    const users = await query('SELECT id, name, email, role, department, status FROM users WHERE id = ?', [decoded.id]);
     const user = users[0];
     if (!user || user.status !== 'Active') return res.status(401).json({ error: 'Invalid or inactive session' });
-    req.user = user;
+    req.user = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department
+    };
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid token' });

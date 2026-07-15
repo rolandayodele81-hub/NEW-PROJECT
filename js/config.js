@@ -4,7 +4,12 @@
    a background fetch refreshes the cache and notifies pages when fresh
    data lands. No page ever blocks on the network. */
 (function (global) {
-  global.PDMS_API_URL = 'http://localhost:4000/api';
+  const DEFAULT_BACKEND_PORT = 4000;
+  const hostname = window.location.hostname || 'localhost';
+  const protocol = window.location.protocol.indexOf('http') === 0 ? window.location.protocol : 'http:';
+  const origin = hostname === 'localhost' || hostname === '127.0.0.1' ? `${protocol}//${hostname}` : `${protocol}//${hostname}`;
+  const defaultOrigin = window.location.protocol === 'file:' ? `${protocol}//127.0.0.1` : origin;
+  global.PDMS_API_URL = global.PDMS_API_URL || `${defaultOrigin}:${DEFAULT_BACKEND_PORT}/api`;
 
   var CACHE_KEY = 'pdms-cache';
 

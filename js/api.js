@@ -16,10 +16,29 @@
       credentials: 'include',
       body: payload ? JSON.stringify(payload) : undefined
     })
-      .then(res => res.json().then(json => ({ status: res.status, body: json })))
-      .then(({ status, body }) => {
-        if (!body || body.error) {
-          throw new Error(body?.error || 'Request failed');
+      .then(async res => {
+        const text = await res.text();
+        const contentType = res.headers.get('content-type') || '';
+        let body = null;
+        if (text) {
+          if (contentType.includes('application/json')) {
+            try {
+              body = JSON.parse(text);
+            } catch (err) {
+              throw new Error('Invalid JSON response from server');
+            }
+          } else {
+            body = { error: text };
+          }
+        }
+        if (!res.ok) {
+          throw new Error(body?.error || `Request failed with status ${res.status}`);
+        }
+        if (!body) {
+          throw new Error('Empty response from server');
+        }
+        if (body.error) {
+          throw new Error(body.error);
         }
         return body.data;
       });

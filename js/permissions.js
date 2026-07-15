@@ -52,6 +52,7 @@
     'HR': 'dashboard-hr.html',
     'HTD': 'dashboard-htd.html',
     'COO': 'dashboard-coo.html',
+    'Lead Project Manager': 'dashboard-pm.html',
     'Project Manager': 'dashboard-pm.html',
     'Sales': 'dashboard-sales.html'
   };
