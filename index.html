@@ -83,6 +83,7 @@
     <form id="loginForm">
       <div class="form-row"><label>Work email</label><input type="email" id="email" placeholder="name@company.com" required/></div>
       <div class="form-row"><label>Password</label><input type="password" id="password" placeholder="Enter your password" required/></div>
+      <div class="form-row form-row-inline"><label><input type="checkbox" id="rememberMe"/> Remember me</label></div>
       <button class="btn btn-primary w-full" type="submit">Sign in</button>
       <div class="form-actions"><a href="forgot.html">Forgot password?</a></div>
     </form>
@@ -94,11 +95,13 @@
       event.preventDefault();
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
+      const remember = document.getElementById('rememberMe').checked;
       try {
-        const user = await PDMS.authenticate(email, password);
-        PDMS.setUser(user);
+        const session = await PDMS.authenticate(email, password);
+        PDMS.setSession(session);
+        if (remember) localStorage.setItem('pdms-remember', '1');
         PDMS.toast('Welcome', 'Logging you in...', 'success');
-        setTimeout(() => location.href = PDMS.dashboardFor(user), 600);
+        setTimeout(() => location.href = PDMS.dashboardFor(session.user), 600);
       } catch (err) {
         PDMS.toast('Authentication failed', err.message || 'Invalid login credentials.', 'error');
       }
@@ -116,10 +119,10 @@
         return;
       }
       try {
-        const account = await PDMS.registerUser({ name, email, password, role, avatar: PDMS.initials(name) });
-        PDMS.setUser(account);
+        const session = await PDMS.registerUser({ name, email, password, role });
+        PDMS.setSession(session);
         PDMS.toast('Account created', 'Logging you in...', 'success');
-        setTimeout(() => location.href = PDMS.dashboardFor(account), 600);
+        setTimeout(() => location.href = PDMS.dashboardFor(session.user), 600);
       } catch (err) {
         PDMS.toast('Could not create account', err.message || 'Use a different email or login instead', 'error');
       }

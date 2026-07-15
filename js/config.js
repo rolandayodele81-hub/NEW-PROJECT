@@ -4,20 +4,16 @@
    a background fetch refreshes the cache and notifies pages when fresh
    data lands. No page ever blocks on the network. */
 (function (global) {
-  global.PDMS_API_URL = 'https://script.google.com/macros/s/AKfycbx63abHDM6FNFJ092t02DDkCyFrsPz6k5Pi5vuYan2pybiEnyWkmPibKX5wgfkuE5aK/exec';
+  global.PDMS_API_URL = 'http://localhost:4000/api';
 
   var CACHE_KEY = 'pdms-cache';
 
-  try {
-    // Bypassing localStorage cache to ensure we always retrieve directly from the Google Sheet
-  } catch (e) { /* corrupt cache — fall through to seed data */ }
-
   global.PDMS_REFRESH = function () {
     if (!global.PDMS_API_URL || global.PDMS_API_URL.indexOf('REPLACE_WITH') === 0) return;
-    fetch(global.PDMS_API_URL + '?action=bootstrap')
+    fetch(global.PDMS_API_URL + '/bootstrap', { credentials: 'include' })
       .then(function (res) { return res.json(); })
       .then(function (json) {
-        if (!json.ok) throw new Error(json.error || 'Bootstrap failed');
+        if (json.error) throw new Error(json.error || 'Bootstrap failed');
         localStorage.setItem(CACHE_KEY, JSON.stringify(json.data));
         global.PDMS_REMOTE = json.data;
         if (global.PDMS_DATA) {

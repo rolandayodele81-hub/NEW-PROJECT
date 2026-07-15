@@ -56,26 +56,33 @@
   PDMS.applyTheme();
 
   // Auth
-  // Current session only — the shared dataset (including Users) lives in
-  // Google Sheets via PDMS.api; this is just "who's logged in on this browser".
   PDMS.getUser = function(){
     try{ return JSON.parse(localStorage.getItem('pdms-user'))||null; }catch(e){return null;}
   };
-  PDMS.setUser = function(u){ localStorage.setItem('pdms-user',JSON.stringify(u)); };
+  PDMS.getToken = function(){ return localStorage.getItem('pdms-token') || null; };
+  PDMS.setSession = function(session){
+    if (!session || !session.user) return;
+    localStorage.setItem('pdms-user', JSON.stringify(session.user));
+    if (session.token) localStorage.setItem('pdms-token', session.token);
+  };
+  PDMS.clearSession = function(){
+    localStorage.removeItem('pdms-user');
+    localStorage.removeItem('pdms-token');
+  };
   PDMS.getUsers = function(){ return (window.PDMS_DATA && window.PDMS_DATA.users) || []; };
   PDMS.findUserByEmail = function(email){
     const e = String(email||'').trim().toLowerCase();
     return PDMS.getUsers().find(u=>String(u.email||'').trim().toLowerCase()===e);
   };
-  // Both return Promises — the backend hashes/verifies passwords, the client never sees a hash.
   PDMS.authenticate = function(email,password){ return PDMS.api.login(email,password); };
   PDMS.registerUser = function(account){ return PDMS.api.register(account); };
   PDMS.isAdmin = function(){ const user = PDMS.getUser(); return user && user.role==='General Admin'; };
   PDMS.requireAdmin = function(){ if(!PDMS.isAdmin()) location.href='dashboard.html'; };
-  PDMS.logout = function(){ localStorage.removeItem('pdms-user'); location.href='index.html'; };
+  PDMS.logout = function(){ PDMS.clearSession(); location.href='index.html'; };
   PDMS.requireAuth = function(){
     const user = PDMS.getUser();
-    if(!user){ location.href='index.html'; return null; }
+    const token = PDMS.getToken();
+    if(!user || !token){ PDMS.clearSession(); location.href='index.html'; return null; }
     return user;
   };
 
