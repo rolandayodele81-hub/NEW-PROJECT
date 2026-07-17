@@ -55,9 +55,9 @@ PDMS.mountShell('dashboard');
 const D=PDMS_DATA;const I=PDMS.icon;
 
 function render(){
-  const user = PDMS.getUser() || { name: 'Project Manager' };
+  const user = PDMS.getUser() || { name: 'PM Head' };
   
-  // Dynamic filter for PM
+  // Dynamic filter for PM Head
   let myProjects = D.projects.filter(p => p.pm === user.name);
   let isFiltered = true;
   if (myProjects.length === 0) {
@@ -77,7 +77,7 @@ function render(){
   const avgProgress = Math.round(myProjects.reduce((acc, curr) => acc + (curr.progress || 0), 0) / Math.max(totalMyProjects, 1));
   
   // Lead list for dropdown
-  const leadsList = D.users.filter(u=>u.role==='Project Manager' || u.role==='Consultant').map(u=>u.name).concat(['TBD']);
+  const leadsList = D.users.filter(u=>u.role==='PM Head' || u.role==='Consultant').map(u=>u.name).concat(['TBD']);
 
   document.getElementById('content').innerHTML=`
     <div class="pm-hero">

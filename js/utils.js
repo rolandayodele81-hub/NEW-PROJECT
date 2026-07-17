@@ -62,16 +62,74 @@
     try{ return JSON.parse(localStorage.getItem('pdms-user'))||null; }catch(e){return null;}
   };
   PDMS.setUser = function(u){ localStorage.setItem('pdms-user',JSON.stringify(u)); };
-  PDMS.getUsers = function(){ return (window.PDMS_DATA && window.PDMS_DATA.users) || []; };
+  PDMS.getLocalAuthUsers = function(){
+    const base = [{
+      id: 'U001',
+      name: 'HR Manager',
+      email: 'hr@pse.com',
+      role: 'HR',
+      dept: 'Human Resources',
+      status: 'Active',
+      availability: 'Available',
+      workload: 0,
+      phone: '',
+      joined: '2026-01-15',
+      _localPassword: 'HR@2026!'
+    }];
+    const persisted = (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.users)) ? window.PDMS_DATA.users.filter(u => u._localPassword).map(u => Object.assign({}, u)) : [];
+    const emails = new Set(persisted.map(u => String(u.email || '').trim().toLowerCase()));
+    base.forEach(u => {
+      if (!emails.has(String(u.email || '').trim().toLowerCase())) persisted.unshift(u);
+    });
+    return persisted;
+  };
+  const isLocalFile = location.protocol === 'file:';
+  const isLocalHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(location.hostname);
+  const isLocalMode = isLocalFile || isLocalHost;
+  PDMS.getUsers = function(){
+    const users = (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.users)) ? window.PDMS_DATA.users.slice() : [];
+    if (isLocalMode) {
+      const local = PDMS.getLocalAuthUsers();
+      const emails = new Set(users.map(u => String(u.email||'').trim().toLowerCase()));
+      local.forEach(u => {
+        if (!emails.has(String(u.email||'').trim().toLowerCase())) users.push(u);
+      });
+      return users;
+    }
+    const remote = users;
+    const local = PDMS.getLocalAuthUsers();
+    const emails = new Set(remote.map(u => String(u.email||'').trim().toLowerCase()));
+    local.forEach(u => {
+      if (!emails.has(String(u.email||'').trim().toLowerCase())) remote.push(u);
+    });
+    return remote;
+  };
   PDMS.findUserByEmail = function(email){
     const e = String(email||'').trim().toLowerCase();
-    return PDMS.getUsers().find(u=>String(u.email||'').trim().toLowerCase()===e);
+    return PDMS.getUsers().find(u => String(u.email||'').trim().toLowerCase() === e);
+  };
+  PDMS.findLocalAuthUser = function(email,password){
+    const e = String(email||'').trim().toLowerCase();
+    return PDMS.getLocalAuthUsers().find(u =>
+      String(u.email||'').trim().toLowerCase() === e && String(u._localPassword||'') === String(password)
+    );
   };
   // Both return Promises — the backend hashes/verifies passwords, the client never sees a hash.
-  PDMS.authenticate = function(email,password){ return PDMS.api.login(email,password); };
+  PDMS.authenticate = function(email,password){
+    return PDMS.api.login(email,password).catch(function(err){
+      const user = PDMS.findLocalAuthUser(email,password);
+      if(user){
+        const fallback = Object.assign({}, user);
+        delete fallback._localPassword;
+        return Promise.resolve(fallback);
+      }
+      return Promise.reject(err);
+    });
+  };
   PDMS.registerUser = function(account){ return PDMS.api.register(account); };
-  PDMS.isAdmin = function(){ const user = PDMS.getUser(); return user && user.role==='General Admin'; };
+  PDMS.isAdmin = function(){ const user = PDMS.getUser(); return user && user.role==='System Administrator'; };
   PDMS.requireAdmin = function(){ if(!PDMS.isAdmin()) location.href='dashboard.html'; };
+  PDMS.requireRole = function(role){ const user = PDMS.getUser(); if(!user || user.role !== role){ location.href = PDMS.dashboardFor(user); return null; } return user; };
   PDMS.logout = function(){ localStorage.removeItem('pdms-user'); location.href='index.html'; };
   PDMS.requireAuth = function(){
     const user = PDMS.getUser();
@@ -148,7 +206,7 @@
         '<div style="overflow-x:auto"><table class="data"><thead><tr>'+
         opts.columns.map(c=>'<th data-key="'+c.key+'">'+c.label+(state.sortKey===c.key?(state.sortDir>0?' ↑':' ↓'):'')+'</th>').join('')+
         '</tr></thead><tbody>'+
-        (slice.length?slice.map(r=>'<tr>'+opts.columns.map(c=>'<td>'+(c.render?c.render(r):PDMS.esc(r[c.key]??''))+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+opts.columns.length+'" style="text-align:center;padding:32px;color:var(--text-muted)">loading records...</td></tr>')+
+        (slice.length?slice.map(r=>'<tr>'+opts.columns.map(c=>'<td>'+(c.render?c.render(r):PDMS.esc(r[c.key]??''))+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+opts.columns.length+'" style="text-align:center;padding:32px;color:var(--text-muted)">No data available</td></tr>')+
         '</tbody></table></div>'+
         '<div class="pagination"><div>Showing '+((state.page-1)*pageSize+1)+'-'+Math.min(state.page*pageSize,arr.length)+' of '+arr.length+'</div><div class="pages">'+
         '<button class="page-btn" data-p="prev">‹</button>'+

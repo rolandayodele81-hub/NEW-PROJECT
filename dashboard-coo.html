@@ -61,8 +61,7 @@ function render(){
         <h1 class="page-title" style="font-size:30px;line-height:1.1;margin-top:10px">Enterprise Operations & Delivery Console</h1>
         <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9);margin-top:8px">Analyze corporate revenue, review client portfolios, execute governance, and onboard leadership resources.</p>
         <div class="hero-actions">
-          <button class="btn btn-primary" onclick="newUser()">${I('user-plus')} Onboard Leadership</button>
-          <a class="btn btn-secondary" href="reports.html" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18)">${I('chart')} View Reports</a>
+          <a class="btn btn-secondary" href="projects.html" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18)">${I('folder')} View Projects</a>
         </div>
       </div>
       <div class="coo-hero-card">
@@ -206,45 +205,6 @@ function render(){
   // Render revenue bar chart (Engineering, Design, QA, Ops, PM, Sales, etc.)
   PDMS.charts.bar(document.getElementById('c1'), [1200, 900, 800, 1600, 2100, 1400], ['Eng', 'Design', 'QA', 'Ops', 'PM', 'Sales'], '#1d3c88');
 }
-
-function newUser() {
-  const modal = PDMS.modal('Onboard New Executive User', `
-    <div class="form-grid">
-      <div class="form-row"><label>Full Name</label><input id="newUserName" placeholder="Jane Smith"/></div>
-      <div class="form-row"><label>Email</label><input id="newUserEmail" type="email" placeholder="jane.smith@pse.com"/></div>
-      <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Department</label><input id="newUserDept" type="text" placeholder="e.g. Operations"/></div>
-    </div>
-  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">${I('check')} Onboard</button>`);
-  
-  modal.querySelector('#createUserBtn').onclick = function () {
-    const name = modal.querySelector('#newUserName').value.trim();
-    const email = modal.querySelector('#newUserEmail').value.trim().toLowerCase();
-    const role = modal.querySelector('#newUserRole').value;
-    const dept = modal.querySelector('#newUserDept').value.trim();
-    if (!name || !email) {
-      PDMS.toast('Missing user info', 'Name and email are required', 'error');
-      return;
-    }
-    const record = { name, email, role, dept, password: DEFAULT_PASSWORD, workload: 0, phone: '', joined: new Date().toISOString().slice(0, 10), status: 'Active' };
-    PDMS.api.register(record).then(saved => {
-      D.users.unshift(saved);
-      modal.remove();
-      showNewUserPasswordNote(saved);
-      render();
-    }).catch(err => PDMS.toast('Error', err.message || 'Could not onboard user', 'error'));
-  };
-}
-
-function showNewUserPasswordNote(user) {
-  const modal = PDMS.modal('User Onboarded Successfully', `
-    <p class="text-sm text-muted" style="margin-bottom:16px">The account for ${PDMS.esc(user.name)} is active. Here is their temporary login password:</p>
-    <div style="text-align:center;padding:18px;background:var(--surface-2);border:1px dashed var(--border);border-radius:10px;font-size:20px;font-weight:800;letter-spacing:1px;color:var(--primary)">${PDMS.esc(DEFAULT_PASSWORD)}</div>
-  `, `<button class="btn btn-primary w-full" data-close>Got it</button>`);
-  modal.querySelector('.modal').classList.add('modal-sm');
-}
-
-window.newUser = newUser;
 
 PDMS.onRefresh(render);
 </script></body></html>

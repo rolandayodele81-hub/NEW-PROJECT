@@ -8,21 +8,21 @@
   const PDMS = global.PDMS = global.PDMS || {};
 
   const MATRIX = {
-    'Onboard User':        ['HR','HTD','COO','General Admin'],
-    'Create Project':      ['Sales','General Admin'],
-    'Assign Project':      ['HR','HTD','COO','Project Manager','General Admin'],
-    'Assign PM':            ['HTD','COO','General Admin'],
-    'Assign Lead':          ['HTD','COO','Project Manager','General Admin'],
-    'Assign Consultant':    ['HTD','COO','Project Manager','General Admin'],
-    'Reassign Project':     ['HTD','COO','Project Manager','General Admin'],
-    'Reassign Consultant':  ['HTD','COO','Project Manager','General Admin'],
-    'Change Status':        ['HR','HTD','COO','Project Manager','General Admin'],
-    'Close Project':        ['HR','HTD','COO','Project Manager','General Admin'],
-    'Add Remarks':          ['HR','HTD','COO','Sales','Project Manager','General Admin','Consultant'],
-    'View Reports':         ['HR','HTD','COO','Sales','Project Manager','General Admin','Consultant'],
-    'Manage Permissions':   ['General Admin'],
-    'Confirm Project':      ['Sales','General Admin'],
-    'View Resources':       ['HTD','COO','Sales','Project Manager','General Admin','Consultant']
+    'Onboard User':        ['HR'],
+    'Create Project':      ['Sales','COO','HTD','PM Head'],
+    'Assign Project':      ['COO','HTD','PM Head'],
+    'Assign PM':           ['COO','HTD','PM Head'],
+    'Assign Lead':         ['COO','HTD','PM Head'],
+    'Assign Consultant':   ['COO','HTD','PM Head'],
+    'Reassign Project':    ['COO','HTD','PM Head'],
+    'Reassign Consultant': ['COO','HTD','PM Head'],
+    'Change Status':       ['COO','HTD','PM Head','PMO','Sales'],
+    'Close Project':       ['COO','HTD','PM Head','PMO'],
+    'Add Remarks':         ['HR','COO','HTD','PM Head','PMO','Sales','Consultant','System Administrator'],
+    'View Reports':        ['HR','COO','HTD','PM Head','PMO','Sales','Consultant','System Administrator'],
+    'Manage Permissions':  ['System Administrator'],
+    'Confirm Project':     ['Sales'],
+    'View Resources':      ['HR','COO','HTD','PM Head','PMO','Sales']
   };
 
   PDMS.PERMISSIONS = MATRIX;
@@ -30,6 +30,7 @@
   PDMS.can = function(action, user){
     user = user || PDMS.getUser();
     if(!user) return false;
+    if (user.role === 'System Administrator') return true;
     const allowed = MATRIX[action];
     return !!allowed && allowed.includes(user.role);
   };
@@ -48,12 +49,14 @@
   // Where "role-based sign-in" lands each role after auth. Consultant has no
   // dedicated variant, so it (and any unmapped role) falls back to the generic dashboard.
   const DASHBOARD_BY_ROLE = {
-    'General Admin': 'dashboard-admin.html',
+    'System Administrator': 'dashboard-admin.html',
     'HR': 'dashboard-hr.html',
     'HTD': 'dashboard-htd.html',
     'COO': 'dashboard-coo.html',
-    'Project Manager': 'dashboard-pm.html',
-    'Sales': 'dashboard-sales.html'
+    'PM Head': 'dashboard-pm.html',
+    'PMO': 'dashboard-pmo.html',
+    'Sales': 'dashboard-sales.html',
+    'Consultant': 'dashboard-consultant.html'
   };
   PDMS.dashboardFor = function(user){
     user = user || PDMS.getUser();

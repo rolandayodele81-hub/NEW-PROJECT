@@ -27,12 +27,12 @@ function render(){
   document.getElementById('content').innerHTML=`
     <div class="admin-hero">
       <div class="admin-hero-copy">
-        <div class="hero-pill">General Admin • Full access</div>
-        <h1 class="page-title" style="font-size:30px;line-height:1.1">Command center for the delivery ecosystem</h1>
-        <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9)">You can onboard talent, launch projects, assign delivery leads, change delivery states, and manage permissions from a single cinematic control tower.</p>
+        <div class="hero-pill">System Administrator • Platform oversight</div>
+        <h1 class="page-title" style="font-size:30px;line-height:1.1">Security, configuration, and audit command center</h1>
+        <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9)">Manage system settings, audit logs, security controls, and role permissions from a central administration workspace.</p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="users.html">${I('users')} Manage people</a>
-          <a class="btn btn-secondary" href="projects.html" style="background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.2)">${I('folder')} Manage projects</a>
+          <a class="btn btn-primary" href="settings.html">${I('settings')} System settings</a>
+          <a class="btn btn-secondary" href="activity.html" style="background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.2)">${I('activity')} Audit logs</a>
         </div>
       </div>
       <div class="admin-hero-card">
@@ -81,9 +81,9 @@ function render(){
         </div>
         <div class="card-body">
           <div class="action-list">
-            <div class="action-item"><span>${I('users')}</span><div><strong>Onboard users</strong><div class="text-sm text-muted">Bring new team members into the workspace quickly.</div></div></div>
-            <div class="action-item"><span>${I('folder')}</span><div><strong>Create & assign projects</strong><div class="text-sm text-muted">Launch initiatives and direct them to the right PM or lead.</div></div></div>
-            <div class="action-item"><span>${I('shield')}</span><div><strong>Manage permissions</strong><div class="text-sm text-muted">Keep governance aligned with role-based access.</div></div></div>
+            <div class="action-item"><span>${I('shield')}</span><div><strong>Configure system policies</strong><div class="text-sm text-muted">Manage role permissions and security settings.</div></div></div>
+            <div class="action-item"><span>${I('activity')}</span><div><strong>Review audit logs</strong><div class="text-sm text-muted">Track changes, logins, and system events.</div></div></div>
+            <div class="action-item"><span>${I('lock')}</span><div><strong>Manage backups</strong><div class="text-sm text-muted">Protect the database and restore system state.</div></div></div>
           </div>
         </div>
       </div>

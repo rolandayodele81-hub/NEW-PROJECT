@@ -5,32 +5,21 @@
   const NAV = [
     {section:'Main',items:[
       {id:'dashboard',label:'Dashboard',icon:'dashboard',href:'dashboard.html',roles:'*'},
-      {id:'projects',label:'Projects',icon:'folder',href:'projects.html',roles:'*',badge:'12'},
-      {id:'timeline',label:'Project Timeline',icon:'activity',href:'timeline.html',roles:['HTD','COO','Project Manager','General Admin']},
+      {id:'projects',label:'Projects',icon:'folder',href:'projects.html',roles:['HR','COO','HTD','PM Head','PMO','Sales','Consultant']},
+      {id:'timeline',label:'Project Timeline',icon:'activity',href:'timeline.html',roles:['HTD','COO','PM Head','PMO']},
     ]},
     {section:'Management',items:[
-      {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR','General Admin','HTD','COO']},
-      {id:'departments',label:'Departments',icon:'building',href:'departments.html',roles:['HR','General Admin','COO','HTD']},
-      {id:'consultants',label:'Consultants',icon:'briefcase',href:'consultants.html',roles:['HR','HTD','COO','Project Manager']},
-      {id:'clients',label:'Clients',icon:'globe',href:'clients.html',roles:['Sales','COO','HTD','General Admin']},
-    ]},
-    {section:'Insights',items:[
-      {id:'reports',label:'Reports',icon:'chart',href:'reports.html',roles:'*'},
-      {id:'activity',label:'Activity Logs',icon:'activity',href:'activity.html',roles:['General Admin','COO','HTD']},
-    ]},
-    {section:'Communication',items:[
-      {id:'messages',label:'Messages',icon:'message',href:'messages.html',roles:'*',badge:'3'},
-      {id:'notifications',label:'Notifications',icon:'bell',href:'notifications.html',roles:'*'},
+      {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR']},
+      {id:'consultants',label:'Consultants',icon:'briefcase',href:'consultants.html',roles:['HR','COO','HTD','PM Head','PMO']},
     ]},
     {section:'System',items:[
-      {id:'settings',label:'Settings',icon:'settings',href:'settings.html',roles:'*'},
-      {id:'profile',label:'Profile',icon:'user',href:'profile.html',roles:'*'},
+      {id:'settings',label:'System Settings',icon:'settings',href:'settings.html',roles:['System Administrator']},
+      {id:'activity',label:'Audit Logs',icon:'activity',href:'activity.html',roles:['System Administrator']},
     ]}
   ];
 
   function canSee(item, role){
     if(item.roles==='*') return true;
-    if(role==='General Admin') return true;
     return item.roles.includes(role);
   }
 
@@ -56,7 +45,7 @@
     '<div class="app">'+
       '<aside class="sidebar" id="sidebar">'+
         '<div class="sidebar-header">'+
-          '<div class="brand"><div class="brand-logo"><img src="/images/pse-logo.png" alt="PSE PDMS Logo"/></div></div>'+
+          '<div class="brand"><div class="brand-logo"><img src="images/pse-logo.png" alt="PSE PDMS Logo"/></div></div>'+
         '</div>'+
         '<nav class="nav">'+navHtml+'</nav>'+
         '<div class="sidebar-footer">'+

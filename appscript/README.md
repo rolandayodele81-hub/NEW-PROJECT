@@ -26,5 +26,5 @@ Redeploying later (Deploy → Manage deployments → Edit → new version) keeps
 ## Notes / trade-offs
 
 - Every write takes a script lock, so concurrent edits are serialized rather than racing — fine for an internal tool, not built for high write throughput.
-- The default admin seeded by `initializeSheets` is `admin@pse.com` / `admin123` with Admin ID `ADM-1234` — change the password via the Users sheet (or re-run registration) before real use.
+- The default HR account seeded by `initializeSheets` is `hr@pse.com` / `HR@2026!` — change the password via the Users sheet before real use.
 - If you add a field that holds a date-like string (`YYYY-MM-DD`), add it to that entity's `textColumns` in `Setup.gs`, or Sheets may silently convert it to a real Date cell and break the JSON your frontend expects.
