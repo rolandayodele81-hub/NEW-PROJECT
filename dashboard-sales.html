@@ -311,6 +311,9 @@
           PDMS.toast('Missing project info', 'Project name and client are required', 'error');
           return;
         }
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Creating...');
+        setTimeout(() => PDMS.setButtonLoading(btn, false), 10000);
         const record = {
           name, client, type, dept, sales: 'Sales Team', pm: 'TBD', lead: 'TBD', consultants: [],
           priority, status, stage: 'Sales', createdByRole: 'Sales', progress: 0, start: start || '', due: due || '', completion: null,

@@ -62,7 +62,7 @@ function renderReview(r){
         <div class="font-semi text-sm">${PDMS.esc(r.author)} <span class="text-muted font-normal">· ${PDMS.esc(r.authorRole||'')}</span></div>
         <div class="text-sm text-muted">${timeAgo(r.time)}</div>
       </div>
-      ${r.projectId ? `<a href="project-details.html?id=${r.projectId}" class="badge badge-primary">${PDMS.esc(r.projectName||r.projectId)}</a>` : `<span class="badge badge-muted">General</span>`}
+      ${r.projectId ? `<a href="project-details.html?id=${r.projectId}" class="badge badge-primary">${PDMS.esc(r.projectName||r.projectId)}</a>` : r.projectName ? `<span class="badge badge-primary">${PDMS.esc(r.projectName)}</span>` : `<span class="badge badge-muted">General</span>`}
     </div>
     <div class="review-body">${PDMS.esc(r.message)}</div>
     <div class="comment-thread">
@@ -116,18 +116,18 @@ function toggleReplyForm(reviewId, commentId){
 
 function postReview(){
   const modal = PDMS.modal('Write a Review',`
-    <div class="form-row"><label>Project (optional)</label><select id="reviewProject"><option value="">General — not tied to a project</option>${D.projects.map(p=>`<option value="${p.id}">${PDMS.esc(p.name)}</option>`).join('')}</select></div>
+    <div class="form-row"><label>Project (optional)</label><input id="reviewProject" type="text" placeholder="Leave blank for a general review, or type a project name" list="reviewProjectOptions"/><datalist id="reviewProjectOptions">${D.projects.map(p=>`<option value="${PDMS.esc(p.name)}">`).join('')}</datalist></div>
     <div class="form-row"><label>Your review</label><textarea id="reviewMessage" rows="4" placeholder="Share your thoughts..."></textarea></div>
   `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveReviewBtn">Post Review</button>`);
   modal.querySelector('#saveReviewBtn').onclick = function(){
     const message = modal.querySelector('#reviewMessage').value.trim();
-    const projectId = modal.querySelector('#reviewProject').value;
+    const projectTyped = modal.querySelector('#reviewProject').value.trim();
     if(!message){ PDMS.toast('Empty review','Please write something first','error'); return; }
     const user = PDMS.getUser();
-    const project = projectId ? D.projects.find(p=>p.id===projectId) : null;
+    const project = projectTyped ? D.projects.find(p=>p.name.toLowerCase()===projectTyped.toLowerCase()) : null;
     const record = {
       author: user ? user.name : 'Unknown', authorRole: user ? user.role : '',
-      projectId: projectId || '', projectName: project ? project.name : '',
+      projectId: project ? project.id : '', projectName: project ? project.name : projectTyped,
       message, time: new Date().toISOString(), comments: []
     };
     PDMS.api.create('reviews', record).then(saved=>{

@@ -158,6 +158,20 @@
     setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateX(20px)'; setTimeout(()=>t.remove(),300); },3500);
   };
 
+  // Disables a button and swaps its label while an async action is in
+  // flight, so a slow request can't be triggered twice by repeated clicks.
+  PDMS.setButtonLoading = function(btn, isLoading, label){
+    if(!btn) return;
+    if(isLoading){
+      if(btn.dataset.originalHtml===undefined) btn.dataset.originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = label || 'Loading...';
+    } else {
+      btn.disabled = false;
+      if(btn.dataset.originalHtml!==undefined){ btn.innerHTML = btn.dataset.originalHtml; delete btn.dataset.originalHtml; }
+    }
+  };
+
   // Money & date fmt
   PDMS.money = n => '$'+Number(n).toLocaleString();
   PDMS.initials = name => name.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
@@ -208,7 +222,10 @@
         '<div style="overflow-x:auto"><table class="data"><thead><tr>'+
         opts.columns.map(c=>'<th data-key="'+c.key+'">'+c.label+(state.sortKey===c.key?(state.sortDir>0?' ↑':' ↓'):'')+'</th>').join('')+
         '</tr></thead><tbody>'+
-        (slice.length?slice.map(r=>'<tr>'+opts.columns.map(c=>'<td>'+(c.render?c.render(r):PDMS.esc(r[c.key]??''))+'</td>').join('')+'</tr>').join('')
+        (slice.length?slice.map(r=>{
+          const rowAttr = opts.rowHref ? ' style="cursor:pointer" onclick="location.href=\''+opts.rowHref(r)+'\'"' : '';
+          return '<tr'+rowAttr+'>'+opts.columns.map(c=>'<td>'+(c.render?c.render(r):PDMS.esc(r[c.key]??''))+'</td>').join('')+'</tr>';
+        }).join('')
           :'<tr><td colspan="'+opts.columns.length+'">'+(g.PDMS_REMOTE?'<div style="text-align:center;padding:32px;color:var(--text-muted)">No data available</div>':'<div class="pdms-loading-inline"><span class="pdms-spinner"></span>Loading...</div>')+'</td></tr>')+
         '</tbody></table></div>'+
         '<div class="pagination"><div>Showing '+((state.page-1)*pageSize+1)+'-'+Math.min(state.page*pageSize,arr.length)+' of '+arr.length+'</div><div class="pages">'+
