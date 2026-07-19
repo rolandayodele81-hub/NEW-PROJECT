@@ -6,6 +6,7 @@
   const isLocalFile = location.protocol === 'file:';
   const isLocalHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(location.hostname);
   const isLocalMode = isLocalFile || isLocalHost;
+  const hasRemoteBackend = !!(global.PDMS_API_URL && global.PDMS_API_URL.indexOf('REPLACE_WITH') !== 0);
   const LOCAL_STORAGE_KEY = 'pdms-local-data';
   const ID_PREFIX = {
     users: 'U',
@@ -15,11 +16,12 @@
     departments: 'D',
     notifications: 'N',
     threads: 'T',
-    activities: 'A'
+    activities: 'A',
+    reviews: 'RV'
   };
 
   function persistLocalData() {
-    if (!isLocalMode || !global.PDMS_DATA) return;
+    if (!isLocalMode || hasRemoteBackend || !global.PDMS_DATA) return;
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
       users: global.PDMS_DATA.users,
       consultants: global.PDMS_DATA.consultants,
@@ -28,12 +30,13 @@
       departments: global.PDMS_DATA.departments,
       notifications: global.PDMS_DATA.notifications,
       threads: global.PDMS_DATA.threads,
-      activities: global.PDMS_DATA.activities
+      activities: global.PDMS_DATA.activities,
+      reviews: global.PDMS_DATA.reviews
     }));
   }
 
   function loadLocalData() {
-    if (!isLocalMode || !global.PDMS_DATA) return;
+    if (!isLocalMode || hasRemoteBackend || !global.PDMS_DATA) return;
     try {
       const saved = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '{}');
       Object.keys(saved).forEach(key => {
@@ -139,5 +142,12 @@
     register: (account) => post('register', { resource: 'users', account })
   };
 
-  if (isLocalMode) loadLocalData();
+  if (hasRemoteBackend) {
+    // A real Apps Script backend is configured — data always comes from the
+    // sheet, so drop any stale demo/offline data left over in this browser
+    // from before the backend was wired up.
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+  } else if (isLocalMode) {
+    loadLocalData();
+  }
 })(window);

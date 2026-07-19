@@ -5,12 +5,19 @@
   const NAV = [
     {section:'Main',items:[
       {id:'dashboard',label:'Dashboard',icon:'dashboard',href:'dashboard.html',roles:'*'},
-      {id:'projects',label:'Projects',icon:'folder',href:'projects.html',roles:['HR','COO','HTD','PM Head','PMO','Sales','Consultant']},
+      {id:'projects',label:'Projects',icon:'folder',href:'projects.html',roles:['HR','COO','HTD','PM Head','PMO','Consultant']},
       {id:'timeline',label:'Project Timeline',icon:'activity',href:'timeline.html',roles:['HTD','COO','PM Head','PMO']},
+      {id:'clients',label:'Clients',icon:'globe',href:'clients.html',roles:['Sales']},
+      {id:'sales-pipeline',label:'Sales Pipeline',icon:'zap',href:'projects.html#view=sales',roles:['Sales']},
+      {id:'delivery-projects',label:'Projects in Delivery',icon:'folder',href:'projects.html#view=delivery',roles:['Sales']},
     ]},
     {section:'Management',items:[
       {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR']},
       {id:'consultants',label:'Consultants',icon:'briefcase',href:'consultants.html',roles:['HR','COO','HTD','PM Head','PMO']},
+    ]},
+    {section:'Community',items:[
+      {id:'notifications',label:'Notifications',icon:'bell',href:'notifications.html',roles:'*'},
+      {id:'reviews',label:'Reviews',icon:'message',href:'reviews.html',roles:'*'},
     ]},
     {section:'System',items:[
       {id:'settings',label:'System Settings',icon:'settings',href:'settings.html',roles:['System Administrator']},
@@ -69,7 +76,18 @@
       '</div>'+
     '</div>'+
     '<div class="panel" id="notifPanel"></div>'+
-    '<div class="panel" id="msgPanel"></div>';
+    '<div class="panel" id="msgPanel"></div>'+
+    '<div class="pdms-loading-bar" id="pdmsLoadingBar"></div>';
+
+    // Show the top loading bar until this page's data has actually arrived —
+    // PDMS_REFRESH() was already kicked off by config.js before this shell mounted.
+    const loadingBar = document.getElementById('pdmsLoadingBar');
+    if (!window.PDMS_REMOTE) {
+      loadingBar.classList.add('active');
+      const stop = () => { loadingBar.classList.remove('active'); };
+      document.addEventListener('pdms:refresh', stop, { once: true });
+      document.addEventListener('pdms:loading-end', stop, { once: true });
+    }
 
     document.getElementById('hamburger').onclick = ()=>document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('themeToggle').onclick = PDMS.toggleTheme;

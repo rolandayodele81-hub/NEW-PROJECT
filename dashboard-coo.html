@@ -1,65 +1,107 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>COO Dashboard — PSE PDMS</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css"/>
-<style>
-.coo-hero {
-  display: grid;
-  grid-template-columns: 1.3fr 0.7fr;
-  gap: 20px;
-  padding: 24px 26px;
-  border-radius: 28px;
-  background: linear-gradient(135deg, #090d16 0%, #1d3c88 40%, #8b5cf6 75%, #ec4899 100%);
-  color: #fff;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 24px 60px rgba(29, 60, 136, 0.25);
-  margin-bottom: 24px;
-}
-.coo-hero::before {
-  content: "";
-  position: absolute;
-  inset: -20% -10% auto auto;
-  width: 320px;
-  height: 320px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 70%);
-  filter: blur(10px);
-  animation: drift 8s ease-in-out infinite alternate;
-}
-.coo-hero-copy { position: relative; z-index: 1; }
-.coo-hero-card {
-  position: relative; z-index: 1; display: flex; align-items: center; gap: 16px; padding: 18px; border-radius: 20px;
-  background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.18);
-}
-@keyframes drift{from{transform:translate3d(0,0,0)}to{transform:translate3d(-20px,-10px,0)}}
-@media(max-width:900px){
-  .coo-hero { grid-template-columns: 1fr; }
-  .coo-hero-card { margin-top: 8px; }
-}
-</style>
-</head><body>
-<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
-<script>
-PDMS.mountShell('dashboard');
-const D=PDMS_DATA;const I=PDMS.icon;
-const DEFAULT_PASSWORD = 'Welcome@123';
+<html lang="en">
 
-function render(){
-  const totalRevenue = D.clients.reduce((acc, curr) => acc + (curr.revenue || 0), 0);
-  const openProjects = D.projects.filter(p=>p.status!=='Completed'&&p.status!=='Closed'&&p.status!=='Cancelled').length;
-  
-  // Bench utilization
-  const totalConsultants = D.consultants.length;
-  const activeConsultants = D.consultants.filter(c=>c.availability!=='Available').length;
-  const utilization = Math.round((activeConsultants / Math.max(totalConsultants, 1)) * 100);
-  
-  document.getElementById('content').innerHTML=`
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>COO Dashboard — PSE PDMS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .coo-hero {
+      display: grid;
+      grid-template-columns: 1.3fr 0.7fr;
+      gap: 20px;
+      padding: 24px 26px;
+      border-radius: 28px;
+      background: linear-gradient(135deg, #090d16 0%, #1d3c88 40%, #8b5cf6 75%, #ec4899 100%);
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(29, 60, 136, 0.25);
+      margin-bottom: 24px;
+    }
+
+    .coo-hero::before {
+      content: "";
+      position: absolute;
+      inset: -20% -10% auto auto;
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 70%);
+      filter: blur(10px);
+      animation: drift 8s ease-in-out infinite alternate;
+    }
+
+    .coo-hero-copy {
+      position: relative;
+      z-index: 1;
+    }
+
+    .coo-hero-card {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    @keyframes drift {
+      from {
+        transform: translate3d(0, 0, 0)
+      }
+
+      to {
+        transform: translate3d(-20px, -10px, 0)
+      }
+    }
+
+    @media(max-width:900px) {
+      .coo-hero {
+        grid-template-columns: 1fr;
+      }
+
+      .coo-hero-card {
+        margin-top: 8px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/permissions.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    PDMS.mountShell('dashboard');
+    const D = PDMS_DATA; const I = PDMS.icon;
+    const DEFAULT_PASSWORD = 'Welcome@123';
+
+    function render() {
+      const salesProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Sales');
+      const deliveryProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Delivery');
+      const completedProjects = deliveryProjects.filter(p => p.status === 'Completed').length;
+      const openProjects = deliveryProjects.filter(p => p.status !== 'Completed').length;
+
+      // Bench utilization
+      const totalConsultants = D.consultants.length;
+      const activeConsultants = D.consultants.filter(c => c.availability !== 'Available').length;
+      const utilization = Math.round((activeConsultants / Math.max(totalConsultants, 1)) * 100);
+
+      document.getElementById('content').innerHTML = `
     <div class="coo-hero">
       <div class="coo-hero-copy">
-        <div class="hero-pill">Operations Command • Financials & Efficiency</div>
+        <div class="hero-pill">Operations Dashboard • Projects & Delivery</div>
         <h1 class="page-title" style="font-size:30px;line-height:1.1;margin-top:10px">Enterprise Operations & Delivery Console</h1>
-        <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9);margin-top:8px">Analyze corporate revenue, review client portfolios, execute governance, and onboard leadership resources.</p>
+        <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9);margin-top:8px">Review client portfolios, monitor delivery health, execute governance, and oversee active project execution.</p>
         <div class="hero-actions">
           <a class="btn btn-secondary" href="projects.html" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18)">${I('folder')} View Projects</a>
         </div>
@@ -76,10 +118,10 @@ function render(){
 
     <div class="grid grid-4 mb-4">
       <div class="stat i-success">
-        <div class="label">Total Revenue YTD</div>
-        <div class="value" style="font-size:24px;margin-top:10px">${PDMS.money(totalRevenue)}</div>
-        <div class="delta up">${I('trending')} +14.2% YoY</div>
-        <div class="icon-wrap">${I('chart')}</div>
+        <div class="label">Completed Projects</div>
+        <div class="value">${completedProjects}</div>
+        <div class="delta up">Delivered successfully</div>
+        <div class="icon-wrap">${I('check')}</div>
       </div>
       <div class="stat i-primary">
         <div class="label">Active Backlog</div>
@@ -105,10 +147,10 @@ function render(){
       <div class="card">
         <div class="card-head">
           <div>
-            <div class="card-title">Corporate Revenue by Dept</div>
-            <div class="card-sub">Budget volume allocations (in Thousands USD)</div>
+            <div class="card-title">Project Status Breakdown</div>
+            <div class="card-sub">Distribution of active projects across delivery stages</div>
           </div>
-          <span class="badge badge-success">Financials</span>
+          <span class="badge badge-primary">Live</span>
         </div>
         <div class="card-body">
           <div class="chart-wrap" style="height:280px"><canvas id="c1"></canvas></div>
@@ -124,7 +166,7 @@ function render(){
           <span class="badge badge-info">Target 90%+</span>
         </div>
         <div class="card-body">
-          ${[['On-time Project Delivery', 92], ['Consultant Utilization Rate', 78], ['Client Engagement NPS', 62], ['Budget Execution & Cost Control', 94]].map(([k,v])=>`
+          ${[['On-time Project Delivery', 92], ['Consultant Utilization Rate', 78], ['Client Engagement NPS', 62], ['SLA Compliance Rate', 94]].map(([k, v]) => `
             <div class="mb-3">
               <div class="flex justify-between mb-2">
                 <span class="font-semi text-sm">${k}</span>
@@ -142,10 +184,10 @@ function render(){
       <div class="card">
         <div class="card-head">
           <div>
-            <div class="card-title">Client Portfolio Performance Matrix</div>
-            <div class="card-sub">Enterprise client revenues and active project indicators</div>
+            <div class="card-title">Client Portfolio Overview</div>
+            <div class="card-sub">Active client accounts and project indicators</div>
           </div>
-          <a href="clients.html" class="btn btn-secondary btn-sm">Full Ledger</a>
+          <a href="clients.html" class="btn btn-secondary btn-sm">View All</a>
         </div>
         <div class="card-body" style="padding:0">
           <div style="overflow-x:auto">
@@ -156,27 +198,25 @@ function render(){
                   <th>Industry</th>
                   <th>Projects</th>
                   <th>NPS Status</th>
-                  <th>Revenue YTD</th>
                 </tr>
               </thead>
               <tbody>
-                ${D.clients.map(c=>`
+                ${D.clients.map(c => `
                   <tr>
                     <td>
                       <div class="flex items-center gap-2">
                         <div style="width:36px;height:36px;border-radius:10px;background:var(--gradient-3);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px">
-                          ${c.name.split(' ').map(w=>w[0]).slice(0,2).join('')}
+                          ${c.name.split(' ').map(w => w[0]).slice(0, 2).join('')}
                         </div>
                         <div>
                           <div class="font-semi">${PDMS.esc(c.name)}</div>
-                          <div class="text-sm text-muted">Contact: ${PDMS.esc(c.contact)}</div>
+                          <div class="text-sm text-muted">${PDMS.esc(c.email)}</div>
                         </div>
                       </div>
                     </td>
                     <td><span class="badge badge-muted">${PDMS.esc(c.industry)}</span></td>
                     <td><span class="badge badge-primary">${c.projects} active</span></td>
                     <td><span class="badge badge-success dot">Healthy</span></td>
-                    <td class="font-bold">${PDMS.money(c.revenue)}</td>
                   </tr>`).join('')}
               </tbody>
             </table>
@@ -189,7 +229,7 @@ function render(){
           <div class="card-title">Enterprise Activity Logs</div>
         </div>
         <div class="card-body" style="padding:8px 20px">
-          ${D.activities.slice(0, 5).map(a=>`
+          ${D.activities.slice(0, 5).map(a => `
             <div class="activity">
               <div class="a-icon">${I('activity')}</div>
               <div>
@@ -200,11 +240,43 @@ function render(){
         </div>
       </div>
     </div>
-  `;
-  
-  // Render revenue bar chart (Engineering, Design, QA, Ops, PM, Sales, etc.)
-  PDMS.charts.bar(document.getElementById('c1'), [1200, 900, 800, 1600, 2100, 1400], ['Eng', 'Design', 'QA', 'Ops', 'PM', 'Sales'], '#1d3c88');
-}
 
-PDMS.onRefresh(render);
-</script></body></html>
+    <div class="card mt-4">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Sales Pipeline</div>
+          <div class="card-sub">Prospects Sales is still working — visibility only, until Approved</div>
+        </div>
+        <span class="badge badge-muted">${salesProjects.length} in pipeline</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead><tr><th>Project</th><th>Client</th><th>Priority</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              ${salesProjects.map(p => `
+                <tr>
+                  <td><a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
+                  <td>${PDMS.esc(p.client)}</td>
+                  <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
+                  <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
+                  <td>${p.status === 'Approved' ? `<button class="btn btn-primary btn-sm" onclick="location.href='project-details.html?id=${p.id}'">Start Delivery</button>` : ''}</td>
+                </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">No sales pipeline projects</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+      // Render project status breakdown bar chart (delivery-stage projects only)
+      const statuses = D.deliveryStatuses;
+      const statusCounts = statuses.map(s => deliveryProjects.filter(p => p.status === s).length);
+      PDMS.charts.bar(document.getElementById('c1'), statusCounts, statuses, '#1d3c88');
+    }
+
+    PDMS.onRefresh(render);
+  </script>
+</body>
+
+</html>

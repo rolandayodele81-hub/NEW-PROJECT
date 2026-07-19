@@ -5,11 +5,19 @@
   const roles = ['System Administrator','HR','COO','HTD','PM Head','PMO','Sales','Consultant'];
   const types = ['Infrastructure','Software Development','Consulting','Digital Transformation','Cloud Migration','ERP Implementation','Cybersecurity','Data Analytics','Mobile App','Web Platform'];
   const priorities = ['Critical','High','Medium','Low'];
-  const statuses = ['Incoming','Approved','Assigned','Planning','In Progress','Awaiting Review','Revision','Completed','Closed','Cancelled'];
+  // A project lives in one of two stages, each with its own status vocabulary:
+  // 'Sales' while Sales is working the prospect, 'Delivery' once a PM/PMO/COO/HTD
+  // picks up an Approved lead and starts executing it. Same project record throughout —
+  // stage just decides which status list and dashboard section it shows up in.
+  const salesStatuses = ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','Approved','Rejected','On Hold'];
+  const deliveryStatuses = ['Not Started','In Progress','On Hold','Awaiting Review','Testing / Quality Assurance','Completed','Approved','Rejected'];
+  const statuses = ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','Approved','Rejected','On Hold','Not Started','In Progress','Awaiting Review','Testing / Quality Assurance','Completed'];
   const statusColors = {
-    'Incoming':'info','Approved':'primary','Assigned':'purple','Planning':'info',
-    'In Progress':'warn','Awaiting Review':'warn','Revision':'danger',
-    'Completed':'success','Closed':'muted','Cancelled':'danger'
+    'Incoming':'info','Initial Contact':'primary','Requirement Gathering':'purple',
+    'Proposal Sent':'warn','Negotiation':'warn','Awaiting Client Approval':'warn',
+    'Approved':'primary','Rejected':'danger','On Hold':'muted',
+    'Not Started':'muted','In Progress':'warn','Awaiting Review':'warn',
+    'Testing / Quality Assurance':'purple','Completed':'success'
   };
   const prioColors = {'Critical':'prio-critical','High':'prio-high','Medium':'prio-medium','Low':'prio-low'};
 
@@ -45,6 +53,7 @@
   const notifications = loadCollection('notifications', []);
   const threads = loadCollection('threads', []);
   const activities = loadCollection('activities', []);
+  const reviews = loadCollection('reviews', []);
 
   function tasksFor(projectId){
     return [];
@@ -52,8 +61,8 @@
 
   global.PDMS_DATA = {
     departments, users, consultants, clients, projects,
-    notifications, threads, activities,
-    roles, types, priorities, statuses,
+    notifications, threads, activities, reviews,
+    roles, types, priorities, statuses, salesStatuses, deliveryStatuses,
     statusColors, prioColors,
     tasksFor
   };

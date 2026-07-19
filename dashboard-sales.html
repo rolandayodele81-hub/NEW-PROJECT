@@ -1,60 +1,112 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Sales Dashboard — PSE PDMS</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css"/>
-<style>
-.sales-hero {
-  display: grid;
-  grid-template-columns: 1.3fr 0.7fr;
-  gap: 20px;
-  padding: 24px 26px;
-  border-radius: 28px;
-  background: linear-gradient(135deg, #090d16 0%, #1d3c88 40%, #8b5cf6 75%, #ec4899 100%);
-  color: #fff;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 24px 60px rgba(29, 60, 136, 0.25);
-  margin-bottom: 24px;
-}
-.sales-hero::before {
-  content: "";
-  position: absolute;
-  inset: -20% -10% auto auto;
-  width: 320px;
-  height: 320px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 70%);
-  filter: blur(10px);
-  animation: drift 8s ease-in-out infinite alternate;
-}
-.sales-hero-copy { position: relative; z-index: 1; }
-.sales-hero-card {
-  position: relative; z-index: 1; display: flex; align-items: center; gap: 16px; padding: 18px; border-radius: 20px;
-  background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.18);
-}
-@keyframes drift{from{transform:translate3d(0,0,0)}to{transform:translate3d(-20px,-10px,0)}}
-@media(max-width:900px){
-  .sales-hero { grid-template-columns: 1fr; }
-  .sales-hero-card { margin-top: 8px; }
-}
-</style>
-</head><body>
-<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
-<script>
-PDMS.mountShell('dashboard');
-const D=PDMS_DATA;const I=PDMS.icon;
+<html lang="en">
 
-function render(){
-  // Total pipeline calculation
-  const pipelineValue = D.projects.filter(p => p.status === 'Incoming' || p.status === 'Approved').reduce((acc, curr) => acc + (curr.budget || 0), 0);
-  const totalRevenueWon = D.clients.reduce((acc, curr) => acc + (curr.revenue || 0), 0);
-  const openDealsCount = D.projects.filter(p => p.status === 'Incoming').length;
-  
-  document.getElementById('content').innerHTML=`
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sales Dashboard — PSE PDMS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .sales-hero {
+      display: grid;
+      grid-template-columns: 1.3fr 0.7fr;
+      gap: 20px;
+      padding: 24px 26px;
+      border-radius: 28px;
+      background: linear-gradient(135deg, #090d16 0%, #1d3c88 40%, #8b5cf6 75%, #ec4899 100%);
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(29, 60, 136, 0.25);
+      margin-bottom: 24px;
+    }
+
+    .sales-hero::before {
+      content: "";
+      position: absolute;
+      inset: -20% -10% auto auto;
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 70%);
+      filter: blur(10px);
+      animation: drift 8s ease-in-out infinite alternate;
+    }
+
+    .sales-hero-copy {
+      position: relative;
+      z-index: 1;
+    }
+
+    .sales-hero-card {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    @keyframes drift {
+      from {
+        transform: translate3d(0, 0, 0)
+      }
+
+      to {
+        transform: translate3d(-20px, -10px, 0)
+      }
+    }
+
+    @media(max-width:900px) {
+      .sales-hero {
+        grid-template-columns: 1fr;
+      }
+
+      .sales-hero-card {
+        margin-top: 8px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/permissions.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    PDMS.mountShell('dashboard');
+    const D = PDMS_DATA; const I = PDMS.icon;
+
+    function render() {
+      const salesProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Sales');
+      // Only projects a delivery role (COO/HTD/PM Head/PMO) created directly —
+      // not sales-originated projects that got promoted via "Start Delivery".
+      const deliveryProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Delivery' && PDMS.isDeliveryRole({role: p.createdByRole}));
+      const activePipeline = salesProjects.filter(p => p.status !== 'Approved' && p.status !== 'Rejected').length;
+      const awaitingApproval = salesProjects.filter(p => p.status === 'Awaiting Client Approval').length;
+      const totalClients = D.clients.length;
+
+      // Pipeline conversion funnel: how many projects are sitting at each stage right now.
+      const funnelStages = ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','Approved'];
+      const funnelCounts = funnelStages.map(s => salesProjects.filter(p => p.status === s).length);
+      const funnelMax = Math.max(...funnelCounts, 1);
+      const offRampCounts = {
+        Rejected: salesProjects.filter(p => p.status === 'Rejected').length,
+        'On Hold': salesProjects.filter(p => p.status === 'On Hold').length
+      };
+
+      document.getElementById('content').innerHTML = `
     <div class="sales-hero">
       <div class="sales-hero-copy">
         <div class="hero-pill">Sales Console • Deals & Client Growth</div>
-        <h1 class="page-title" style="font-size:30px;line-height:1.1;margin-top:10px">Sales Pipeline Command Center</h1>
+        <h1 class="page-title" style="font-size:30px;line-height:1.1;margin-top:10px">Sales Pipeline Dashboard Center</h1>
         <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9);margin-top:8px">Create new project engagements, confirm incoming deals, check consultant bench strength, and log remarks.</p>
         <div class="hero-actions">
           <button class="btn btn-primary" onclick="newDeal()">${I('plus')} Intake New Deal</button>
@@ -65,35 +117,35 @@ function render(){
         <div class="ring" style="--p:62;--sz:92px;--th:8px;--c:#f59e0b"><span class="ring-val">62%</span></div>
         <div>
           <div class="hero-card-title">Pipeline Target</div>
-          <div class="hero-card-text">Close velocity for this quarter is on track to meet budget projections.</div>
-          <div class="hero-card-foot">Live Ledger</div>
+          <div class="hero-card-text">Close velocity for this quarter is on track to meet delivery targets.</div>
+          <div class="hero-card-foot">Live Tracking</div>
         </div>
       </div>
     </div>
 
     <div class="grid grid-4 mb-4">
       <div class="stat i-pink">
-        <div class="label">Pipeline Value</div>
-        <div class="value" style="font-size:22px;margin-top:12px">${PDMS.money(pipelineValue)}</div>
-        <div class="delta up">Unconfirmed / Intake</div>
-        <div class="icon-wrap">${I('trending')}</div>
+        <div class="label">Active Pipeline</div>
+        <div class="value">${activePipeline}</div>
+        <div class="delta up">Prospects being worked</div>
+        <div class="icon-wrap">${I('folder')}</div>
       </div>
       <div class="stat i-success">
-        <div class="label">Revenue Won</div>
-        <div class="value" style="font-size:22px;margin-top:12px">${PDMS.money(totalRevenueWon)}</div>
-        <div class="delta up">YTD Client Contracts</div>
-        <div class="icon-wrap">${I('check')}</div>
+        <div class="label">Total Clients</div>
+        <div class="value">${totalClients}</div>
+        <div class="delta up">Active enterprise accounts</div>
+        <div class="icon-wrap">${I('globe')}</div>
       </div>
       <div class="stat i-warn">
-        <div class="label">Deals Pending</div>
-        <div class="value">${openDealsCount}</div>
-        <div class="delta down">Awaiting Confirmation</div>
+        <div class="label">Awaiting Client Approval</div>
+        <div class="value">${awaitingApproval}</div>
+        <div class="delta down">Proposals sent, pending sign-off</div>
         <div class="icon-wrap">${I('clock')}</div>
       </div>
       <div class="stat i-info">
-        <div class="label">Close-Won Rate</div>
-        <div class="value">62%</div>
-        <div class="delta up">Historical Average</div>
+        <div class="label">In Delivery</div>
+        <div class="value">${deliveryProjects.length}</div>
+        <div class="delta up">Approved & handed to delivery</div>
         <div class="icon-wrap">${I('chart')}</div>
       </div>
     </div>
@@ -102,47 +154,61 @@ function render(){
       <div class="card">
         <div class="card-head">
           <div>
-            <div class="card-title">Deals Pipeline Trend</div>
-            <div class="card-sub">Growth projections (in Thousands USD)</div>
+            <div class="card-title">Pipeline Conversion Funnel</div>
+            <div class="card-sub">Where deals are sitting right now, and where they stall</div>
           </div>
-          <span class="badge badge-warn">Projections</span>
+          <span class="badge badge-primary">${salesProjects.length} total</span>
         </div>
         <div class="card-body">
-          <div class="chart-wrap" style="height:260px"><canvas id="c1"></canvas></div>
+          ${funnelStages.map((s, i) => `
+            <div class="mb-3">
+              <div class="flex justify-between mb-1">
+                <span class="font-semi text-sm">${PDMS.esc(s)}</span>
+                <span class="font-bold text-sm">${funnelCounts[i]}</span>
+              </div>
+              <div class="progress"><div class="bar" style="width:${Math.max((funnelCounts[i]/funnelMax)*100, funnelCounts[i]?4:0)}%; background:${D.statusColors[s]==='primary'?'var(--gradient)':D.statusColors[s]==='success'?'var(--gradient-3)':'var(--gradient-2)'}"></div></div>
+            </div>`).join('')}
+          <div class="flex gap-4 mt-3 pt-3" style="border-top:1px solid var(--border)">
+            <div class="text-sm text-muted">Rejected: <span class="font-semi" style="color:var(--danger)">${offRampCounts.Rejected}</span></div>
+            <div class="text-sm text-muted">On Hold: <span class="font-semi">${offRampCounts['On Hold']}</span></div>
+          </div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-head">
           <div>
-            <div class="card-title">Client Ledger & Revenues</div>
-            <div class="card-sub">Top enterprise accounts by YTD billings</div>
+            <div class="card-title">Client Accounts</div>
+            <div class="card-sub">Top enterprise accounts by active projects</div>
           </div>
           <a class="btn btn-secondary btn-sm" href="clients.html">View Accounts</a>
         </div>
         <div class="card-body" style="padding:8px 20px">
-          ${D.clients.slice(0, 5).map(c=>`
+          ${D.clients.slice(0, 5).map(c => `
             <div class="flex items-center gap-3" style="padding:12px 0;border-bottom:1px solid var(--border)">
               <div style="width:36px;height:36px;border-radius:10px;background:var(--gradient-2);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px">
-                ${c.name.split(' ').map(w=>w[0]).slice(0,2).join('')}
+                ${c.name.split(' ').map(w => w[0]).slice(0, 2).join('')}
               </div>
               <div style="flex:1">
                 <div class="font-semi text-sm">${PDMS.esc(c.name)}</div>
                 <div class="text-sm text-muted">${c.projects} active projects</div>
               </div>
-              <div class="font-bold">${PDMS.money(c.revenue)}</div>
+              <span class="badge badge-primary">${c.industry}</span>
             </div>`).join('')}
         </div>
       </div>
     </div>
 
-    <div class="card">
+    <div class="card mb-4">
       <div class="card-head">
         <div>
-          <div class="card-title">Intake Pipelines & Contract Confirmations</div>
-          <div class="card-sub">Review incoming project requests and confirm deals (moves Incoming to Confirmed)</div>
+          <div class="card-title">Sales Pipeline</div>
+          <div class="card-sub">Prospects and deals currently being worked, from first contact to client approval</div>
         </div>
-        <span class="badge badge-success">Deals Board</span>
+        <div class="flex items-center gap-2">
+          <span class="badge badge-success">${salesProjects.length} in pipeline</span>
+          <a class="btn btn-secondary btn-sm" href="projects.html#view=sales">View More</a>
+        </div>
       </div>
       <div class="card-body" style="padding:0">
         <div style="overflow-x:auto">
@@ -152,99 +218,118 @@ function render(){
                 <th>Project ID</th>
                 <th>Project Name</th>
                 <th>Client Partner</th>
-                <th>Department</th>
-                <th>Intake Date / Start</th>
-                <th>Budget (USD)</th>
-                <th>Status</th>
+                <th>Priority</th>
+                <th>Stage</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              ${D.projects.map(p=>`
+              ${salesProjects.map(p => `
                 <tr>
                   <td><a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
                   <td class="font-bold">${PDMS.esc(p.name)}</td>
                   <td>${PDMS.esc(p.client)}</td>
-                  <td><span class="badge badge-purple">${PDMS.esc(p.dept)}</span></td>
-                  <td>${p.start || 'TBD'}</td>
-                  <td class="font-semi">${PDMS.money(p.budget)}</td>
-                  <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${p.status}</span></td>
-                  <td>
-                    ${p.status === 'Incoming' ? `
-                      <button class="btn btn-primary btn-sm" onclick="confirmDeal('${p.id}')">Confirm Contract</button>
-                    ` : `
-                      <span class="text-muted text-sm" style="font-style:italic">Confirmed</span>
-                    `}
-                  </td>
-                </tr>`).join('')}
+                  <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
+                  <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
+                  <td><a href="project-details.html?id=${p.id}" class="btn btn-secondary btn-sm">Manage</a></td>
+                </tr>`).join('') || `<tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">No sales pipeline projects yet</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Projects in Delivery</div>
+          <div class="card-sub">Deals you closed that delivery has picked up — track how they're progressing</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="badge badge-primary">${deliveryProjects.length} in delivery</span>
+          <a class="btn btn-secondary btn-sm" href="projects.html#view=delivery">View More</a>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Project ID</th>
+                <th>Project Name</th>
+                <th>Client Partner</th>
+                <th>PM</th>
+                <th>Status</th>
+                <th>Progress</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${deliveryProjects.map(p => `
+                <tr>
+                  <td><a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
+                  <td class="font-bold">${PDMS.esc(p.name)}</td>
+                  <td>${PDMS.esc(p.client)}</td>
+                  <td>${PDMS.esc(p.pm || 'TBD')}</td>
+                  <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
+                  <td><div class="progress-inline"><div class="progress"><div class="bar" style="width:${p.progress || 0}%"></div></div><span class="pct">${p.progress || 0}%</span></div></td>
+                </tr>`).join('') || `<tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">No projects in delivery yet</td></tr>`}
             </tbody>
           </table>
         </div>
       </div>
     </div>
   `;
-  
-  // Render pipeline line chart
-  PDMS.charts.line(document.getElementById('c1'), [[400, 550, 720, 680, 890, 950, 1100, 1050, 1250, 1400, 1350, 1500]], ['J','F','M','A','M','J','J','A','S','O','N','D'], ['#f59e0b']);
-}
+    }
 
-function confirmDeal(id) {
-  const project = D.projects.find(p=>p.id===id);
-  if(!project) return;
-  
-  PDMS.api.update('projects', id, { status: 'Confirmed' }).then(saved => {
-    Object.assign(project, saved);
-    PDMS.toast('Deal Confirmed', `Project ${id} moved to Confirmed status.`, 'success');
-    render();
-  }).catch(err => PDMS.toast('Error', err.message || 'Could not confirm contract', 'error'));
-}
-
-function newDeal() {
-  const modal = PDMS.modal('New Deal Intake', `
+    function newDeal() {
+      const statusOptions = D.salesStatuses;
+      const modal = PDMS.modal('New Deal Intake', `
     <div class="form-grid">
       <div class="form-row"><label>Project Name</label><input id="newProjName" placeholder="e.g. Falcon Migration"/></div>
-      <div class="form-row"><label>Client</label><select id="newProjClient">${D.clients.map(c=>`<option>${c.name}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Type</label><select id="newProjType"><option>Software Development</option><option>Consulting</option><option>Infrastructure</option></select></div>
-      <div class="form-row"><label>Priority</label><select id="newProjPriority">${D.priorities.map(p=>`<option>${p}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Client</label><select id="newProjClient">${D.clients.map(c => `<option>${c.name}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Type</label><input id="newProjType" type="text" placeholder="e.g. Software Development"/></div>
+      <div class="form-row"><label>Priority</label><select id="newProjPriority">${D.priorities.map(p => `<option>${p}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Status</label><select id="newProjStatus">${statusOptions.map(s => `<option${s === 'Incoming' ? ' selected' : ''}>${s}</option>`).join('')}</select></div>
       <div class="form-row"><label>Start Date</label><input id="newProjStart" type="date"/></div>
       <div class="form-row"><label>Due Date</label><input id="newProjDue" type="date"/></div>
-      <div class="form-row"><label>Budget (USD)</label><input id="newProjBudget" type="number" placeholder="250000"/></div>
-      <div class="form-row"><label>Department</label><select id="newProjDept">${D.departments.map(d=>`<option>${d.name}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Skill Set</label><input id="newProjDept" type="text" placeholder="e.g. Cloud Engineering"/></div>
     </div>
     <div class="form-row"><label>Description</label><textarea id="newProjDesc" rows="3" placeholder="Scope, goals, deliverables..."></textarea></div>
   `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createProjectBtn">${I('plus')} Create Deal</button>`);
-  
-  modal.querySelector('#createProjectBtn').onclick = function(){
-    const name = modal.querySelector('#newProjName').value.trim();
-    const client = modal.querySelector('#newProjClient').value;
-    const type = modal.querySelector('#newProjType').value;
-    const priority = modal.querySelector('#newProjPriority').value;
-    const start = modal.querySelector('#newProjStart').value;
-    const due = modal.querySelector('#newProjDue').value;
-    const budget = Number(modal.querySelector('#newProjBudget').value)||0;
-    const dept = modal.querySelector('#newProjDept').value;
-    const desc = modal.querySelector('#newProjDesc').value.trim();
-    if(!name || !client){
-      PDMS.toast('Missing project info','Project name and client are required','error');
-      return;
+
+      modal.querySelector('#createProjectBtn').onclick = function () {
+        const name = modal.querySelector('#newProjName').value.trim();
+        const client = modal.querySelector('#newProjClient').value;
+        const type = modal.querySelector('#newProjType').value.trim();
+        const priority = modal.querySelector('#newProjPriority').value;
+        const status = modal.querySelector('#newProjStatus').value;
+        const start = modal.querySelector('#newProjStart').value;
+        const due = modal.querySelector('#newProjDue').value;
+        const dept = modal.querySelector('#newProjDept').value.trim();
+        const desc = modal.querySelector('#newProjDesc').value.trim();
+        if (!name || !client) {
+          PDMS.toast('Missing project info', 'Project name and client are required', 'error');
+          return;
+        }
+        const record = {
+          name, client, type, dept, sales: 'Sales Team', pm: 'TBD', lead: 'TBD', consultants: [],
+          priority, status, stage: 'Sales', createdByRole: 'Sales', progress: 0, start: start || '', due: due || '', completion: null,
+          description: desc, files: 0, remarks: 0
+        };
+
+        PDMS.api.create('projects', record).then(saved => {
+          D.projects.unshift(saved);
+          modal.remove();
+          PDMS.toast('Project created', 'New deal added to intake pipeline', 'success');
+          render();
+        }).catch(err => PDMS.toast('Error', err.message || 'Could not create project', 'error'));
+      };
     }
-    const record = {
-      name, client, type, dept, sales:'Sales Team', pm:'TBD', lead:'TBD', consultants:[],
-      priority, budget, status:'Incoming', progress:0, start:start||'', due:due||'', completion:null,
-      description:desc, files:0, remarks:0
-    };
-    
-    PDMS.api.create('projects', record).then(saved => {
-      D.projects.unshift(saved);
-      modal.remove();
-      PDMS.toast('Project created', 'New deal added to intake pipeline', 'success');
-      render();
-    }).catch(err => PDMS.toast('Error', err.message || 'Could not create project', 'error'));
-  };
-}
 
-window.confirmDeal = confirmDeal;
-window.newDeal = newDeal;
+    window.newDeal = newDeal;
 
-PDMS.onRefresh(render);
-</script></body></html>
+    PDMS.onRefresh(render);
+  </script>
+</body>
+
+</html>

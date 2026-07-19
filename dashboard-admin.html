@@ -1,34 +1,49 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Admin Dashboard — PSE PDMS</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css"/></head><body>
-<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
-<script>
-PDMS.mountShell('dashboard');
-const D=PDMS_DATA;const I=PDMS.icon;
-const capabilities = [
-  'Onboard User','Create Project','Assign Project','Assign PM','Assign Lead','Assign Consultant',
-  'Reassign Project','Reassign Consultant','Change Status','Close Project','Add Remarks','View Reports',
-  'Manage Permissions','Confirm Project','View Resources'
-];
+<html lang="en">
 
-function render(){
-  const metrics = [
-    {label:'Users', value:D.users.length, icon:'users', color:'primary'},
-    {label:'Projects', value:D.projects.length, icon:'folder', color:'success'},
-    {label:'Departments', value:D.departments.length, icon:'building', color:'info'},
-    {label:'Audit Events', value:D.activities.length, icon:'activity', color:'purple'}
-  ];
-  const availableConsultants = D.consultants.filter(c=>c.availability==='Available').length;
-  const readiness = Math.round((availableConsultants / Math.max(D.consultants.length, 1)) * 100);
-  const momentum = [72, 86, 64, 91, 77, 88];
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Dashboard — PSE PDMS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+</head>
 
-  document.getElementById('content').innerHTML=`
+<body>
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/permissions.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    PDMS.mountShell('dashboard');
+    const D = PDMS_DATA; const I = PDMS.icon;
+    const capabilities = [
+      'Onboard User', 'Create Project', 'Assign Project', 'Assign PM', 'Assign Lead', 'Assign Consultant',
+      'Reassign Project', 'Reassign Consultant', 'Change Status', 'Start Delivery', 'Close Project', 'Add Remarks',
+      'View Reports', 'Manage Permissions', 'View Resources'
+    ];
+
+    function render() {
+      const metrics = [
+        { label: 'Users', value: D.users.length, icon: 'users', color: 'primary' },
+        { label: 'Projects', value: D.projects.length, icon: 'folder', color: 'success' },
+        { label: 'Skill Set', value: D.departments.length, icon: 'building', color: 'info' },
+        { label: 'Audit Events', value: D.activities.length, icon: 'activity', color: 'purple' }
+      ];
+      const consultants = D.users.filter(u => u.role === 'Consultant');
+      const availableConsultants = consultants.filter(c => c.availability === 'Available').length;
+      const readiness = Math.round((availableConsultants / Math.max(consultants.length, 1)) * 100);
+      const momentum = [72, 86, 64, 91, 77, 88];
+      const salesProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Sales');
+      const deliveryProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Delivery');
+
+      document.getElementById('content').innerHTML = `
     <div class="admin-hero">
       <div class="admin-hero-copy">
         <div class="hero-pill">System Administrator • Platform oversight</div>
-        <h1 class="page-title" style="font-size:30px;line-height:1.1">Security, configuration, and audit command center</h1>
+        <h1 class="page-title" style="font-size:30px;line-height:1.1">Security, configuration, and audit Dashboard</h1>
         <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9)">Manage system settings, audit logs, security controls, and role permissions from a central administration workspace.</p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="settings.html">${I('settings')} System settings</a>
@@ -46,7 +61,7 @@ function render(){
     </div>
 
     <div class="grid grid-4 mb-4">
-      ${metrics.map(m=>`
+      ${metrics.map(m => `
         <div class="stat admin-stat i-${m.color}">
           <div class="label">${m.label}</div>
           <div class="value">${m.value}</div>
@@ -66,7 +81,7 @@ function render(){
         </div>
         <div class="card-body">
           <div class="permission-chips">
-            ${capabilities.map(c=>`<span class="chip">${PDMS.esc(c)}</span>`).join('')}
+            ${capabilities.map(c => `<span class="chip">${PDMS.esc(c)}</span>`).join('')}
           </div>
         </div>
       </div>
@@ -100,7 +115,7 @@ function render(){
         </div>
         <div class="card-body">
           <div class="pulse-list">
-            ${D.projects.slice(0,4).map((p, idx)=>`
+            ${deliveryProjects.slice(0, 4).map((p, idx) => `
               <div class="pulse-item">
                 <div class="pulse-meta">
                   <div class="pulse-name">${PDMS.esc(p.name)}</div>
@@ -124,9 +139,9 @@ function render(){
         </div>
         <div class="card-body">
           <div class="momentum-grid">
-            ${momentum.map((v, idx)=>`<div class="momentum-col"><div class="momentum-bar" style="height:${v}%; animation-delay:${idx * 70}ms"></div></div>`).join('')}
+            ${momentum.map((v, idx) => `<div class="momentum-col"><div class="momentum-bar" style="height:${v}%; animation-delay:${idx * 70}ms"></div></div>`).join('')}
           </div>
-          <div class="momentum-labels">${['W1','W2','W3','W4','W5','W6'].map(l=>`<span>${l}</span>`).join('')}</div>
+          <div class="momentum-labels">${['W1', 'W2', 'W3', 'W4', 'W5', 'W6'].map(l => `<span>${l}</span>`).join('')}</div>
         </div>
       </div>
 
@@ -149,6 +164,75 @@ function render(){
       </div>
     </div>
 
+    <div class="card mb-4">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Sales Pipeline</div>
+          <div class="card-sub">Prospects Sales is currently working, from first contact to client approval</div>
+        </div>
+        <span class="badge badge-muted">${salesProjects.length} in pipeline</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead><tr><th>Project</th><th>Client</th><th>Priority</th><th>Status</th></tr></thead>
+            <tbody>
+              ${salesProjects.map(p => `
+                <tr>
+                  <td><a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
+                  <td>${PDMS.esc(p.client)}</td>
+                  <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
+                  <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
+                </tr>`).join('') || `<tr><td colspan="4" class="text-muted" style="text-align:center;padding:24px">No sales pipeline projects</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Consultant Bench & Allocation</div>
+          <div class="card-sub">Directly manage availability and view metrics</div>
+        </div>
+        <a class="btn btn-secondary btn-sm" href="consultants.html">Manage All</a>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Consultant</th>
+                <th>Specialty</th>
+                <th>Status</th>
+                <th>Availability</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${consultants.slice(0, 5).map(c => `
+                <tr>
+                  <td>
+                    <div class="flex items-center gap-2">
+                      <div class="avatar avatar-sm">${PDMS.initials(c.name)}</div>
+                      <div>
+                        <div class="font-semi">${PDMS.esc(c.name)}</div>
+                        <div class="text-sm text-muted">${PDMS.esc(c.email)}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="badge badge-purple">${PDMS.esc(c.dept || '—')}</span></td>
+                  <td><span class="badge badge-${c.status === 'Active' ? 'success' : 'danger'}">${PDMS.esc(c.status)}</span></td>
+                  <td><span class="badge badge-${c.availability === 'Available' ? 'success' : 'warn'}">${PDMS.esc(c.availability || '—')}</span></td>
+                  <td><button class="btn btn-secondary btn-sm" onclick="toggleAvailability('${c.id}')">Toggle Availability</button></td>
+                </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">No consultants yet</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <div class="grid grid-2">
       <div class="card">
         <div class="card-head">
@@ -156,7 +240,7 @@ function render(){
           <a href="activity.html" class="btn btn-secondary btn-sm">View all</a>
         </div>
         <div class="card-body" style="padding:8px 20px">
-          ${D.activities.slice(0,6).map(a=>`
+          ${D.activities.slice(0, 6).map(a => `
             <div class="activity"><div class="a-icon">${I('activity')}</div>
               <div><div class="a-text"><b>${PDMS.esc(a.user)}</b> ${PDMS.esc(a.action)} <b>${PDMS.esc(a.target)}</b></div><div class="a-time">${a.time}</div></div></div>`).join('')}
         </div>
@@ -167,14 +251,30 @@ function render(){
           <div class="card-title">System health</div>
         </div>
         <div class="card-body">
-          ${[['API Uptime',99.9],['Database Health',98.5],['Storage Used',62],['Active Sessions',44]].map(([k,v])=>`
+          ${[['API Uptime', 99.9], ['Database Health', 98.5], ['Storage Used', 62], ['Active Sessions', 44]].map(([k, v]) => `
             <div class="mb-3">
-              <div class="flex justify-between mb-2"><span class="font-semi text-sm">${k}</span><span class="font-bold">${v}${typeof v==='number'&&v<=100?'%':''}</span></div>
+              <div class="flex justify-between mb-2"><span class="font-semi text-sm">${k}</span><span class="font-bold">${v}${typeof v === 'number' && v <= 100 ? '%' : ''}</span></div>
               <div class="progress"><div class="bar" style="width:${v}%"></div></div>
             </div>`).join('')}
         </div>
       </div>
     </div>`;
-}
-PDMS.onRefresh(render);
-</script></body></html>
+    }
+
+    function toggleAvailability(id) {
+      const consultant = D.users.find(u => u.id === id);
+      if (!consultant) return;
+      const nextAvailability = consultant.availability === 'Available' ? 'Allocated' : 'Available';
+      PDMS.api.update('users', id, { availability: nextAvailability }).then(saved => {
+        Object.assign(consultant, saved);
+        PDMS.toast('Availability updated', `${consultant.name} is now ${consultant.availability}`, 'success');
+        render();
+      }).catch(err => PDMS.toast('Error', err.message || 'Could not update availability', 'error'));
+    }
+    window.toggleAvailability = toggleAvailability;
+
+    PDMS.onRefresh(render);
+  </script>
+</body>
+
+</html>

@@ -5,23 +5,55 @@
 <link rel="stylesheet" href="css/style.css"/></head><body>
 <script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
 <script>
-PDMS.mountShell('projects');
+// A hash (not a query string) survives any host's clean-URL rewriting untouched,
+// since it's never sent to the server — unlike ?view=, which some static hosts strip.
+const viewParam = new URLSearchParams(location.hash.replace(/^#/,'')).get('view');
+window.addEventListener('hashchange', ()=>location.reload());
+
+const activeNavId = viewParam==='sales' ? 'sales-pipeline' : viewParam==='delivery' ? 'delivery-projects' : 'projects';
+PDMS.mountShell(activeNavId);
 const D = PDMS_DATA; const I = PDMS.icon;
+const currentUser = PDMS.getUser();
+
+const pageInfo = viewParam==='sales' ? {title:'Sales Pipeline', sub:'Projects created by Sales, from first contact to client approval'}
+  : viewParam==='delivery' ? {title:'Projects in Delivery', sub:'Projects created directly by the delivery team (COO/HTD/PM Head/PMO)'}
+  : {title:'Projects', sub:'Manage all engagements across the organization'};
+
+// Bucketing is by WHO created the project, not its current status — a project
+// created by Sales stays in Sales Pipeline for its whole life; a project created
+// by a delivery role stays in Projects in Delivery for its whole life.
+function scopedProjects(){
+  if(viewParam==='sales') return D.projects.filter(p=>p.createdByRole==='Sales');
+  if(viewParam==='delivery') return D.projects.filter(p=>PDMS.isDeliveryRole({role:p.createdByRole}));
+  return D.projects;
+}
+// Each bucket is filtered/kanban'd using its own status vocabulary.
+const bucketStatuses = viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : D.statuses;
+const kanbanStatuses = viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : ['Incoming','In Progress','Awaiting Review','Completed'];
+const statTiles = viewParam==='sales'
+  ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'Awaiting Approval', match:p=>p.status==='Awaiting Client Approval', color:'warn', icon:'clock'}, {label:'Approved', match:p=>p.status==='Approved', color:'success', icon:'check'}, {label:'Rejected', match:p=>p.status==='Rejected', color:'info', icon:'zap'}]
+  : viewParam==='delivery'
+  ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'In Progress', match:p=>p.status==='In Progress', color:'warn', icon:'activity'}, {label:'Completed', match:p=>p.status==='Completed', color:'success', icon:'check'}, {label:'On Hold', match:p=>p.status==='On Hold', color:'info', icon:'zap'}]
+  : [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'In Progress', match:p=>p.status==='In Progress', color:'warn', icon:'activity'}, {label:'Completed', match:p=>p.status==='Completed', color:'success', icon:'check'}, {label:'Incoming', match:p=>p.status==='Incoming', color:'info', icon:'zap'}];
+
+// Sales can view the delivery bucket but never create there — only a delivery
+// role creates projects that belong in Projects in Delivery.
+const canCreateHere = viewParam==='sales' ? PDMS.isSalesRole(currentUser)
+  : viewParam==='delivery' ? PDMS.isDeliveryRole(currentUser)
+  : PDMS.can('Create Project');
+
 const content = document.getElementById('content');
 content.innerHTML = `
   <div class="page-head">
     <div><div class="breadcrumbs"><span>Home</span><span>Projects</span></div>
-      <h1 class="page-title">Projects</h1><div class="page-sub">Manage all engagements across the organization</div></div>
-    <div class="flex gap-2"><button class="btn btn-secondary" id="viewToggle">${I('folder')} Kanban View</button>${PDMS.can('Create Project')?`<button class="btn btn-primary" id="newProj">${I('plus')} New Project</button>`:''}</div>
+      <h1 class="page-title">${pageInfo.title}</h1><div class="page-sub">${pageInfo.sub}</div></div>
+    <div class="flex gap-2"><button class="btn btn-secondary" id="viewToggle">${I('folder')} Table View</button>${canCreateHere?`<button class="btn btn-primary" id="newProj">${I('plus')} New Project</button>`:''}</div>
   </div>
   <div class="grid grid-4 mb-4">
-    <div class="stat i-primary"><div class="label">Total</div><div class="value" id="stat-total">${D.projects.length}</div><div class="icon-wrap">${I('folder')}</div></div>
-    <div class="stat i-warn"><div class="label">In Progress</div><div class="value" id="stat-inprogress">${D.projects.filter(p=>p.status==='In Progress').length}</div><div class="icon-wrap">${I('activity')}</div></div>
-    <div class="stat i-success"><div class="label">Completed</div><div class="value" id="stat-completed">${D.projects.filter(p=>p.status==='Completed').length}</div><div class="icon-wrap">${I('check')}</div></div>
-    <div class="stat i-info"><div class="label">Incoming</div><div class="value" id="stat-incoming">${D.projects.filter(p=>p.status==='Incoming').length}</div><div class="icon-wrap">${I('zap')}</div></div>
+    ${statTiles.map((t,i)=>`<div class="stat i-${t.color}"><div class="label">${t.label}</div><div class="value" id="stat-${i}">0</div><div class="icon-wrap">${I(t.icon)}</div></div>`).join('')}
   </div>
-  <div id="listView" class="table-wrap"></div>
-  <div id="kanbanView" class="hidden"></div>
+  <div id="listView" class="table-wrap hidden"></div>
+  <div id="kanbanView"></div>
 `;
 
 const columns = [
@@ -30,38 +62,32 @@ const columns = [
   {key:'client',label:'Client'},
   {key:'pm',label:'PM'},
   {key:'priority',label:'Priority',render:r=>`<span class="badge ${D.prioColors[r.priority]}">${r.priority}</span>`},
-  {key:'status',label:'Status',render:r=>`<span class="badge badge-${D.statusColors[r.status]}">${r.status}</span>`},
+  {key:'status',label:'Status',render:r=>`<span class="badge badge-${D.statusColors[r.status]||'muted'}">${r.status}</span>`},
   {key:'progress',label:'Progress',render:r=>`<div class="progress-inline"><div class="progress"><div class="bar" style="width:${r.progress}%"></div></div><span class="pct">${r.progress}%</span></div>`},
   {key:'due',label:'Due'},
-  {key:'budget',label:'Budget',render:r=>PDMS.money(r.budget)},
   {key:'actions',label:'Actions',render:r=>{
     const btns=[];
-    if(r.status==='Incoming' && PDMS.canChangeStatus(r.status,'Confirmed')) btns.push(`<button class="btn btn-primary btn-sm" onclick="confirmProject('${r.id}')">Confirm</button>`);
     if(PDMS.can('Assign Project')) btns.push(`<button class="btn btn-secondary btn-sm" onclick="editProject('${r.id}')">Edit</button>`);
     return `<div class="flex gap-2">${btns.join('')}</div>`;
   }}
 ];
-// Kanban
-const kanbanStatuses = ['Incoming','In Progress','Awaiting Review','Completed'];
-function renderStats(){
-  document.getElementById('stat-total').textContent = D.projects.length;
-  document.getElementById('stat-inprogress').textContent = D.projects.filter(p=>p.status==='In Progress').length;
-  document.getElementById('stat-completed').textContent = D.projects.filter(p=>p.status==='Completed').length;
-  document.getElementById('stat-incoming').textContent = D.projects.filter(p=>p.status==='Incoming').length;
+function renderStats(rows){
+  statTiles.forEach((t,i)=>{ document.getElementById('stat-'+i).textContent = rows.filter(t.match).length; });
 }
 function renderProjects(){
-  renderStats();
+  const rows = scopedProjects();
+  renderStats(rows);
   PDMS.renderTable(document.getElementById('listView'),{
-    columns, rows:D.projects, pageSize:12,
+    columns, rows, pageSize:12,
     searchKeys:['id','name','client','pm','status','type'],
     filterOptions:[
-      {key:'status',label:'Status',options:D.statuses},
+      {key:'status',label:'Status',options:bucketStatuses},
       {key:'priority',label:'Priority',options:D.priorities}
     ]
   });
   document.getElementById('kanbanView').innerHTML = `<div class="kanban">${kanbanStatuses.map(s=>`
-    <div class="kb-col"><div class="kb-head"><span class="kb-title">${s}</span><span class="badge badge-muted">${D.projects.filter(p=>p.status===s).length}</span></div>
-      ${D.projects.filter(p=>p.status===s).slice(0,8).map(p=>`<div class="kb-card" onclick="location.href='project-details.html?id=${p.id}'">
+    <div class="kb-col"><div class="kb-head"><span class="kb-title">${s}</span><span class="badge badge-muted">${rows.filter(p=>p.status===s).length}</span></div>
+      ${rows.filter(p=>p.status===s).slice(0,8).map(p=>`<div class="kb-card" onclick="location.href='project-details.html?id=${p.id}'">
         <div class="t">${PDMS.esc(p.name)}</div>
         <div class="progress mb-2"><div class="bar" style="width:${p.progress}%"></div></div>
         <div class="m"><span class="badge ${D.prioColors[p.priority]}">${p.priority}</span><span>${p.due}</span></div>
@@ -75,40 +101,33 @@ document.getElementById('viewToggle').onclick = ()=>{
   document.getElementById('viewToggle').innerHTML = (lv.classList.contains('hidden')?I('folder')+' Table View':I('folder')+' Kanban View');
 };
 
-function confirmProject(id){
-  const project = D.projects.find(p=>p.id===id);
-  if(!project) return;
-  PDMS.api.update('projects',id,{status:'Confirmed'}).then(saved=>{
-    Object.assign(project,saved);
-    PDMS.toast('Project confirmed','Status moved to Confirmed','success');
-    renderProjects();
-  }).catch(err=>PDMS.toast('Error',err.message||'Could not confirm project','error'));
-}
-window.confirmProject = confirmProject;
-
 if(document.getElementById('newProj')) document.getElementById('newProj').onclick = ()=>{
+  const createdByRole = viewParam==='sales' ? 'Sales' : viewParam==='delivery' ? currentUser.role : currentUser.role;
+  const stage = viewParam==='sales' ? 'Sales' : viewParam==='delivery' ? 'Delivery' : PDMS.stageFor(currentUser);
+  const statusOptions = viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : PDMS.statusOptionsFor(currentUser);
+  const defaultStatus = statusOptions[0];
   const modal = PDMS.modal('Create New Project',`
     <div class="form-grid">
       <div class="form-row"><label>Project Name</label><input id="newProjName" placeholder="e.g. Falcon Migration"/></div>
       <div class="form-row"><label>Client</label><select id="newProjClient">${D.clients.map(c=>`<option>${c.name}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Type</label><select id="newProjType"><option>Software Development</option><option>Consulting</option><option>Infrastructure</option></select></div>
+      <div class="form-row"><label>Type</label><input id="newProjType" type="text" placeholder="e.g. Software Development"/></div>
       <div class="form-row"><label>Priority</label><select id="newProjPriority">${D.priorities.map(p=>`<option>${p}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Status</label><select id="newProjStatus">${statusOptions.map(s=>`<option${s===defaultStatus?' selected':''}>${s}</option>`).join('')}</select></div>
       <div class="form-row"><label>Start Date</label><input id="newProjStart" type="date"/></div>
       <div class="form-row"><label>Due Date</label><input id="newProjDue" type="date"/></div>
-      <div class="form-row"><label>Budget (USD)</label><input id="newProjBudget" type="number" placeholder="250000"/></div>
-      <div class="form-row"><label>Department</label><select id="newProjDept">${D.departments.map(d=>`<option>${d.name}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Department</label><input id="newProjDept" type="text" placeholder="e.g. Cloud Engineering"/></div>
     </div>
     <div class="form-row"><label>Description</label><textarea id="newProjDesc" rows="3" placeholder="Scope, goals, deliverables..."></textarea></div>
   `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createProjectBtn">Create Project</button>`);
   modal.querySelector('#createProjectBtn').onclick = function(){
     const name = modal.querySelector('#newProjName').value.trim();
     const client = modal.querySelector('#newProjClient').value;
-    const type = modal.querySelector('#newProjType').value;
+    const type = modal.querySelector('#newProjType').value.trim();
     const priority = modal.querySelector('#newProjPriority').value;
+    const status = modal.querySelector('#newProjStatus').value;
     const start = modal.querySelector('#newProjStart').value;
     const due = modal.querySelector('#newProjDue').value;
-    const budget = Number(modal.querySelector('#newProjBudget').value)||0;
-    const dept = modal.querySelector('#newProjDept').value;
+    const dept = modal.querySelector('#newProjDept').value.trim();
     const desc = modal.querySelector('#newProjDesc').value.trim();
     if(!name || !client){
       PDMS.toast('Missing project info','Project name and client are required','error');
@@ -116,7 +135,7 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
     }
     const record = {
       name, client, type, dept, sales:'Sales Team', pm:'TBD', lead:'TBD', consultants:[],
-      priority, budget, status:'Incoming', progress:0, start:start||'', due:due||'', completion:null,
+      priority, status, stage, createdByRole, progress:0, start:start||'', due:due||'', completion:null,
       description:desc, files:0, remarks:0
     };
     PDMS.api.create('projects',record).then(saved=>{
@@ -135,12 +154,11 @@ function editProject(id){
     <div class="form-grid">
       <div class="form-row"><label>Project Name</label><input id="editProjName" value="${PDMS.esc(project.name)}"/></div>
       <div class="form-row"><label>Client</label><select id="editProjClient">${D.clients.map(c=>`<option value="${PDMS.esc(c.name)}"${c.name===project.client?' selected':''}>${PDMS.esc(c.name)}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Type</label><select id="editProjType"><option${project.type==='Software Development'?' selected':''}>Software Development</option><option${project.type==='Consulting'?' selected':''}>Consulting</option><option${project.type==='Infrastructure'?' selected':''}>Infrastructure</option></select></div>
+      <div class="form-row"><label>Type</label><input id="editProjType" type="text" value="${PDMS.esc(project.type||'')}"/></div>
       <div class="form-row"><label>Priority</label><select id="editProjPriority">${D.priorities.map(p=>`<option${p===project.priority?' selected':''}>${p}</option>`).join('')}</select></div>
       <div class="form-row"><label>Start Date</label><input id="editProjStart" type="date" value="${PDMS.esc(project.start)}"/></div>
       <div class="form-row"><label>Due Date</label><input id="editProjDue" type="date" value="${PDMS.esc(project.due)}"/></div>
-      <div class="form-row"><label>Budget (USD)</label><input id="editProjBudget" type="number" value="${project.budget}"/></div>
-      <div class="form-row"><label>Department</label><select id="editProjDept">${D.departments.map(d=>`<option${d.name===project.dept?' selected':''}>${PDMS.esc(d.name)}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Department</label><input id="editProjDept" type="text" value="${PDMS.esc(project.dept||'')}"/></div>
     </div>
     <div class="form-row"><label>Description</label><textarea id="editProjDesc" rows="3">${PDMS.esc(project.description)}</textarea></div>
   `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveProjectChangesBtn">Save changes</button>`);
@@ -148,12 +166,11 @@ function editProject(id){
     const patch = {
       name:modal.querySelector('#editProjName').value.trim(),
       client:modal.querySelector('#editProjClient').value,
-      type:modal.querySelector('#editProjType').value,
+      type:modal.querySelector('#editProjType').value.trim(),
       priority:modal.querySelector('#editProjPriority').value,
       start:modal.querySelector('#editProjStart').value,
       due:modal.querySelector('#editProjDue').value,
-      budget:Number(modal.querySelector('#editProjBudget').value)||0,
-      dept:modal.querySelector('#editProjDept').value,
+      dept:modal.querySelector('#editProjDept').value.trim(),
       description:modal.querySelector('#editProjDesc').value.trim()
     };
     PDMS.api.update('projects',project.id,patch).then(saved=>{

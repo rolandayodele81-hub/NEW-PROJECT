@@ -48,7 +48,7 @@
     }
 
     function newUser() {
-      const modal = PDMS.modal('Create User', `<div class="form-grid"><div class="form-row"><label>Full Name</label><input id="newUserName"/></div><div class="form-row"><label>Email</label><input id="newUserEmail" type="email"/></div><div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div><div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.map(r => `<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Department</label><input id="newUserDept" type="text" placeholder="e.g. Cyber Security"/></div></div>`,
+      const modal = PDMS.modal('Create User', `<div class="form-grid"><div class="form-row"><label>Full Name</label><input id="newUserName"/></div><div class="form-row"><label>Email</label><input id="newUserEmail" type="email"/></div><div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div><div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.map(r => `<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Skill Set</label><input id="newUserDept" type="text" placeholder="e.g. Cyber Security"/></div><div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="date"/></div></div>`,
         `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">Create</button>`);
       modal.querySelector('#createUserBtn').onclick = function () {
         const name = modal.querySelector('#newUserName').value.trim();
@@ -56,16 +56,24 @@
         const password = modal.querySelector('#newUserPassword').value;
         const role = modal.querySelector('#newUserRole').value;
         const dept = modal.querySelector('#newUserDept').value.trim();
+        const birthday = modal.querySelector('#newUserBirthday').value;
         if (!name || !email || !password) {
           PDMS.toast('Missing user info', 'Name, email, and password are required', 'error');
           return;
         }
-        const record = { name, email, password, role, dept, workload: 0, phone: '', joined: new Date().toISOString().slice(0, 10) };
+        // Duplicate email guard
+        if (D.users.some(u => u.email.toLowerCase() === email)) {
+          PDMS.toast('Email already in use', 'A user with this email address already exists.', 'error');
+          return;
+        }
+        const record = { name, email, password, role, dept, birthday: birthday || '', workload: 0, phone: '', joined: new Date().toISOString().slice(0, 10) };
         PDMS.api.register(record).then(saved => {
           D.users.unshift(saved);
           modal.remove();
           showNewUserPasswordNote(saved, password);
-          renderUsers();
+          renderUsers(); // immediate local re-render
+          // Background async refresh — syncs stats & list from server
+          if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
         }).catch(err => PDMS.toast('Error', err.message || 'Could not create user', 'error'));
       };
     }

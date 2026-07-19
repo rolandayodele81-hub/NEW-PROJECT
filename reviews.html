@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Reviews — PSE PDMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+  .review-card{border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px;background:var(--surface)}
+  .review-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .review-body{font-size:14px;line-height:1.5;margin-bottom:12px}
+  .comment-thread{padding-left:20px;border-left:2px solid var(--border);margin-top:10px}
+  .comment{padding:10px 0}
+  .comment-head{display:flex;align-items:center;gap:8px}
+  .reply-thread{padding-left:32px;margin-top:6px}
+  .reply{padding:8px 0}
+  .comment-form{display:flex;gap:8px;margin-top:10px}
+  .comment-form input{flex:1}
+  .link-btn{background:none;border:none;color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;padding:0}
+</style>
+</head><body>
+<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
+<script>
+PDMS.mountShell('reviews');
+const D = PDMS_DATA; const I = PDMS.icon;
+
+function getComments(review){
+  const arr = Array.isArray(review.comments) ? review.comments : (review.comments ? (typeof review.comments === 'string' ? JSON.parse(review.comments) : review.comments) : []);
+  return Array.isArray(arr) ? arr : [];
+}
+function timeAgo(iso){
+  if(!iso) return '';
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs/60000);
+  if(mins < 1) return 'just now';
+  if(mins < 60) return mins+'m ago';
+  const hrs = Math.round(mins/60);
+  if(hrs < 24) return hrs+'h ago';
+  return Math.round(hrs/24)+'d ago';
+}
+function genId(){ return 'c'+Date.now()+Math.floor(Math.random()*1000); }
+
+function render(){
+  const reviews = D.reviews.slice().sort((a,b)=> new Date(b.time) - new Date(a.time));
+  document.getElementById('content').innerHTML = `
+  <div class="page-head">
+    <div><div class="breadcrumbs"><span>Home</span><span>Reviews</span></div>
+      <h1 class="page-title">Reviews</h1><div class="page-sub">General feedback and project reviews — open to everyone</div></div>
+    <button class="btn btn-primary" onclick="postReview()">${I('plus')} Write a Review</button>
+  </div>
+  <div style="max-width:760px">
+    ${reviews.length ? reviews.map(r=>renderReview(r)).join('') : `<div class="card"><div class="card-body text-muted" style="text-align:center;padding:32px">No reviews yet. Be the first to share one.</div></div>`}
+  </div>
+  `;
+}
+
+function renderReview(r){
+  const comments = getComments(r);
+  return `
+  <div class="review-card" id="review-${r.id}">
+    <div class="review-head">
+      <div class="avatar avatar-sm">${PDMS.initials(r.author)}</div>
+      <div style="flex:1">
+        <div class="font-semi text-sm">${PDMS.esc(r.author)} <span class="text-muted font-normal">· ${PDMS.esc(r.authorRole||'')}</span></div>
+        <div class="text-sm text-muted">${timeAgo(r.time)}</div>
+      </div>
+      ${r.projectId ? `<a href="project-details.html?id=${r.projectId}" class="badge badge-primary">${PDMS.esc(r.projectName||r.projectId)}</a>` : `<span class="badge badge-muted">General</span>`}
+    </div>
+    <div class="review-body">${PDMS.esc(r.message)}</div>
+    <div class="comment-thread">
+      ${comments.map(c=>renderComment(r.id, c)).join('')}
+    </div>
+    <div class="comment-form">
+      <input id="commentInput-${r.id}" placeholder="Write a comment..."/>
+      <button class="btn btn-secondary btn-sm" onclick="addComment('${r.id}')">Comment</button>
+    </div>
+  </div>`;
+}
+
+function renderComment(reviewId, c){
+  const replies = Array.isArray(c.replies) ? c.replies : [];
+  return `
+  <div class="comment" id="comment-${c.id}">
+    <div class="comment-head">
+      <div class="avatar avatar-sm" style="width:26px;height:26px;font-size:11px">${PDMS.initials(c.author)}</div>
+      <div style="flex:1">
+        <div class="font-semi text-sm">${PDMS.esc(c.author)} <span class="text-muted font-normal">· ${PDMS.esc(c.authorRole||'')}</span></div>
+      </div>
+      <div class="text-sm text-muted">${timeAgo(c.time)}</div>
+    </div>
+    <div class="text-sm mt-1" style="padding-left:34px">${PDMS.esc(c.message)}</div>
+    <div style="padding-left:34px;margin-top:4px">
+      <button class="link-btn" onclick="toggleReplyForm('${reviewId}','${c.id}')">Reply</button>
+    </div>
+    <div class="reply-thread">
+      ${replies.map(rp=>`
+        <div class="reply">
+          <div class="comment-head">
+            <div class="avatar avatar-sm" style="width:22px;height:22px;font-size:10px">${PDMS.initials(rp.author)}</div>
+            <div style="flex:1">
+              <div class="font-semi text-sm">${PDMS.esc(rp.author)} <span class="text-muted font-normal">· ${PDMS.esc(rp.authorRole||'')}</span></div>
+            </div>
+            <div class="text-sm text-muted">${timeAgo(rp.time)}</div>
+          </div>
+          <div class="text-sm mt-1" style="padding-left:30px">${PDMS.esc(rp.message)}</div>
+        </div>`).join('')}
+      <div class="comment-form hidden" id="replyForm-${c.id}" style="padding-left:34px">
+        <input id="replyInput-${c.id}" placeholder="Write a reply..."/>
+        <button class="btn btn-secondary btn-sm" onclick="addReply('${reviewId}','${c.id}')">Reply</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleReplyForm(reviewId, commentId){
+  document.getElementById('replyForm-'+commentId).classList.toggle('hidden');
+}
+
+function postReview(){
+  const modal = PDMS.modal('Write a Review',`
+    <div class="form-row"><label>Project (optional)</label><select id="reviewProject"><option value="">General — not tied to a project</option>${D.projects.map(p=>`<option value="${p.id}">${PDMS.esc(p.name)}</option>`).join('')}</select></div>
+    <div class="form-row"><label>Your review</label><textarea id="reviewMessage" rows="4" placeholder="Share your thoughts..."></textarea></div>
+  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveReviewBtn">Post Review</button>`);
+  modal.querySelector('#saveReviewBtn').onclick = function(){
+    const message = modal.querySelector('#reviewMessage').value.trim();
+    const projectId = modal.querySelector('#reviewProject').value;
+    if(!message){ PDMS.toast('Empty review','Please write something first','error'); return; }
+    const user = PDMS.getUser();
+    const project = projectId ? D.projects.find(p=>p.id===projectId) : null;
+    const record = {
+      author: user ? user.name : 'Unknown', authorRole: user ? user.role : '',
+      projectId: projectId || '', projectName: project ? project.name : '',
+      message, time: new Date().toISOString(), comments: []
+    };
+    PDMS.api.create('reviews', record).then(saved=>{
+      D.reviews.unshift(saved);
+      modal.remove();
+      PDMS.toast('Review posted','Your review is live','success');
+      render();
+    }).catch(err=>PDMS.toast('Error', err.message||'Could not post review','error'));
+  };
+}
+
+function addComment(reviewId){
+  const input = document.getElementById('commentInput-'+reviewId);
+  const message = input.value.trim();
+  if(!message) return;
+  const review = D.reviews.find(r=>r.id===reviewId);
+  if(!review) return;
+  const user = PDMS.getUser();
+  const comments = getComments(review);
+  comments.push({id: genId(), author: user?user.name:'Unknown', authorRole: user?user.role:'', message, time: new Date().toISOString(), replies: []});
+  PDMS.api.update('reviews', reviewId, {comments}).then(saved=>{
+    Object.assign(review, saved);
+    render();
+  }).catch(err=>PDMS.toast('Error', err.message||'Could not post comment','error'));
+}
+
+function addReply(reviewId, commentId){
+  const input = document.getElementById('replyInput-'+commentId);
+  const message = input.value.trim();
+  if(!message) return;
+  const review = D.reviews.find(r=>r.id===reviewId);
+  if(!review) return;
+  const user = PDMS.getUser();
+  const comments = getComments(review);
+  const comment = comments.find(c=>c.id===commentId);
+  if(!comment) return;
+  if(!Array.isArray(comment.replies)) comment.replies = [];
+  comment.replies.push({author: user?user.name:'Unknown', authorRole: user?user.role:'', message, time: new Date().toISOString()});
+  PDMS.api.update('reviews', reviewId, {comments}).then(saved=>{
+    Object.assign(review, saved);
+    render();
+  }).catch(err=>PDMS.toast('Error', err.message||'Could not post reply','error'));
+}
+
+window.postReview = postReview;
+window.addComment = addComment;
+window.addReply = addReply;
+window.toggleReplyForm = toggleReplyForm;
+
+PDMS.onRefresh(render);
+</script>
+</body></html>

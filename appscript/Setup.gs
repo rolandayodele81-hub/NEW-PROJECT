@@ -12,11 +12,11 @@ function initializeSheets() {
       rows: []
     },
     Users: {
-      headers: ['id', 'name', 'email', 'passwordHash', 'role', 'dept', 'status', 'availability', 'workload', 'phone', 'joined'],
-      textColumns: ['joined'],
+      headers: ['id', 'name', 'email', 'passwordHash', 'role', 'dept', 'status', 'availability', 'workload', 'phone', 'joined', 'birthday'],
+      textColumns: ['joined', 'birthday'],
       rows: [
-        ['U000', 'System Administrator', 'admin@pse.com', hashPassword_('Admin@2026!'), 'System Administrator', 'Information Technology', 'Active', 'Available', 0, '+0000000000', '2026-01-15'],
-        ['U001', 'HR Manager', 'hr@pse.com', hashPassword_('HR@2026!'), 'HR', 'Human Resources', 'Active', 'Available', 0, '+0000000000', '2026-01-15']
+        ['U000', 'System Administrator', 'admin@pse.com', hashPassword_('Admin@2026!'), 'System Administrator', 'Information Technology', 'Active', 'Available', 0, '+0000000000', '2026-01-15', ''],
+        ['U001', 'HR Manager', 'hr@pse.com', hashPassword_('HR@2026!'), 'HR', 'Human Resources', 'Active', 'Available', 0, '+0000000000', '2026-01-15', '']
       ]
     },
     Consultants: {
@@ -29,7 +29,7 @@ function initializeSheets() {
       rows: []
     },
     Projects: {
-      headers: ['id', 'name', 'client', 'type', 'dept', 'sales', 'pm', 'lead', 'consultants', 'priority', 'budget', 'status', 'progress', 'start', 'due', 'completion', 'description', 'files', 'remarks'],
+      headers: ['id', 'name', 'client', 'type', 'dept', 'sales', 'pm', 'lead', 'consultants', 'priority', 'budget', 'status', 'stage', 'createdByRole', 'progress', 'start', 'due', 'completion', 'description', 'files', 'remarks'],
       textColumns: ['start', 'due', 'completion'],
       rows: []
     },
@@ -44,6 +44,10 @@ function initializeSheets() {
     Activities: {
       headers: ['id', 'user', 'role', 'action', 'target', 'time'],
       rows: []
+    },
+    Reviews: {
+      headers: ['id', 'author', 'authorRole', 'projectId', 'projectName', 'message', 'time', 'comments'],
+      rows: []
     }
   };
 
@@ -53,7 +57,7 @@ function initializeSheets() {
     if (isNew) sheet = ss.insertSheet(sheetName);
 
     var def = seed[sheetName];
-    if (isNew || sheet.getLastRow() === 0) {
+    if (isNew || sheet.getLastRow() <= 1) {
       sheet.getRange(1, 1, 1, def.headers.length).setValues([def.headers]);
 
       // Force date-like columns (e.g. "2026-01-15") to stay plain text —
