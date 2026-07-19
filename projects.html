@@ -23,8 +23,8 @@ const pageInfo = viewParam==='sales' ? {title:'Sales Pipeline', sub:'Projects cr
 // created by Sales stays in Sales Pipeline for its whole life; a project created
 // by a delivery role stays in Projects in Delivery for its whole life.
 function scopedProjects(){
-  if(viewParam==='sales') return D.projects.filter(p=>p.createdByRole==='Sales');
-  if(viewParam==='delivery') return D.projects.filter(p=>PDMS.isDeliveryRole({role:p.createdByRole}));
+  if(viewParam==='sales') return D.projects.filter(p=>PDMS.createdByRoleOf(p)==='Sales');
+  if(viewParam==='delivery') return D.projects.filter(p=>PDMS.isDeliveryRole({role:PDMS.createdByRoleOf(p)}));
   return D.projects;
 }
 // Each bucket is filtered/kanban'd using its own status vocabulary.
@@ -140,7 +140,7 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
     ensureClient.then(client=>{
       if(!existingClient) D.clients.unshift(client);
       const record = {
-        name, client:client.name, type, dept, sales:'Sales Team', pm:'TBD', lead:'TBD', consultants:[],
+        name, client:client.name, type, dept, sales:'Sales Team', pm:'', lead:'', consultants:[],
         priority, status, stage, createdByRole, progress:0, start:start||'', due:due||'', completion:null,
         description:desc, files:0, remarks:0
       };

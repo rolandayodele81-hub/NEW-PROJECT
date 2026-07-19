@@ -69,6 +69,13 @@
     if(project && (project.stage === 'Sales' || project.stage === 'Delivery')) return project.stage;
     return (project && global.PDMS_DATA.salesStatuses.includes(project.status)) ? 'Sales' : 'Delivery';
   };
+  // Same fallback idea as stageOf — 'createdByRole' also needs its own sheet
+  // column, so records saved before that column existed have it undefined.
+  // Fall back to inferring from stage rather than losing the bucketing entirely.
+  PDMS.createdByRoleOf = function(project){
+    if(project && project.createdByRole) return project.createdByRole;
+    return PDMS.stageOf(project) === 'Sales' ? 'Sales' : 'COO';
+  };
   // Whether this user may change THIS project's status, given its current stage.
   PDMS.canManageStatus = function(project, user){
     user = user || PDMS.getUser();

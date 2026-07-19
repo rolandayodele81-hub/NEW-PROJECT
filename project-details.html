@@ -134,8 +134,8 @@ if(!p){
     <div class="flex flex-col gap-4">
       <div class="card"><div class="card-head"><div class="card-title">Assignment</div></div>
         <div class="card-body">
-          <div class="mb-3"><div class="text-sm text-muted">Project Manager</div><div class="flex items-center gap-2 mt-2"><div class="avatar avatar-sm">${PDMS.initials(p.pm)}</div><div class="font-semi">${PDMS.esc(p.pm)}</div></div></div>
-          <div class="mb-3"><div class="text-sm text-muted">Project Lead</div><div class="flex items-center gap-2 mt-2"><div class="avatar avatar-sm">${PDMS.initials(p.lead)}</div><div class="font-semi">${PDMS.esc(p.lead)}</div></div></div>
+          <div class="mb-3"><div class="text-sm text-muted">Project Manager</div><div class="flex items-center gap-2 mt-2">${p.pm?`<div class="avatar avatar-sm">${PDMS.initials(p.pm)}</div><div class="font-semi">${PDMS.esc(p.pm)}</div>`:`<div class="text-muted text-sm">Unassigned</div>`}</div></div>
+          <div class="mb-3"><div class="text-sm text-muted">Project Lead</div><div class="flex items-center gap-2 mt-2">${p.lead?`<div class="avatar avatar-sm">${PDMS.initials(p.lead)}</div><div class="font-semi">${PDMS.esc(p.lead)}</div>`:`<div class="text-muted text-sm">Unassigned</div>`}</div></div>
           <div><div class="text-sm text-muted mb-2">Assigned Consultants (${p.consultants.length})</div>${p.consultants.map(c=>`<div class="flex items-center gap-2 mb-2"><div class="avatar avatar-sm">${PDMS.initials(c)}</div><div class="text-sm">${PDMS.esc(c)}</div></div>`).join('')||'<div class="text-muted text-sm">None assigned</div>'}</div>
           ${PDMS.can('Assign Consultant')?`<button class="btn btn-secondary w-full mt-2" style="justify-content:center" onclick="PDMS.toast('Assignment','Consultant assignment opened','success')">${I('user-plus')} Assign Consultant</button>`:''}
         </div>
