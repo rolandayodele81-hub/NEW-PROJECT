@@ -195,7 +195,7 @@
               <span class="badge badge-danger">${p.priority}</span>
             </div>`).join('')}
           ${deliveryProjects.filter(p => p.priority === 'Critical').length === 0 ? `
-            <div class="text-muted text-center" style="padding:32px 0">No projects require immediate escalations.</div>` : ''}
+            <div class="text-muted text-center" style="padding:32px 0">${PDMS.emptyOrLoading('No projects require immediate escalations.')}</div>` : ''}
         </div>
       </div>
     </div>
@@ -282,7 +282,7 @@
                   <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
                   <td>${p.status === 'Approved' ? `<button class="btn btn-primary btn-sm" onclick="location.href='project-details.html?id=${p.id}'">Start Delivery</button>` : ''}</td>
-                </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">No sales pipeline projects</td></tr>`}
+                </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects')}</td></tr>`}
             </tbody>
           </table>
         </div>

@@ -23,7 +23,7 @@ document.getElementById('content').innerHTML=`
         <div class="flex items-center gap-2 text-sm"><span class="text-muted" style="width:20px">${I('phone')}</span><span>${PDMS.esc(c.phone||'—')}</span></div>
         <div class="flex items-center gap-2 text-sm"><span class="text-muted" style="width:20px">${I('globe')}</span><span>${PDMS.esc(c.address||'—')}</span></div>
       </div>
-    </div></div>`).join('') || `<div class="text-muted" style="padding:24px;text-align:center;grid-column:1/-1">No clients yet</div>`}</div>`;
+    </div></div>`).join('') || `<div class="text-muted" style="padding:24px;text-align:center;grid-column:1/-1">${PDMS.emptyOrLoading('No clients yet')}</div>`}</div>`;
 }
 PDMS.onRefresh(render);
 function openClientModal(){

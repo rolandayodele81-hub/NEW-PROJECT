@@ -172,6 +172,14 @@
     }
   };
 
+  // Real bootstrap data hasn't arrived yet (g.PDMS_REMOTE is only set once the
+  // background fetch in config.js resolves) — an empty array at this point means
+  // "still loading", not "genuinely nothing here". Every "No X yet" empty state
+  // should route through this so it doesn't misrepresent one as the other.
+  PDMS.emptyOrLoading = function(emptyMessage){
+    return g.PDMS_REMOTE ? emptyMessage : '<span class="pdms-spinner" style="margin-right:8px;vertical-align:-2px"></span>Loading...';
+  };
+
   // Money & date fmt
   PDMS.money = n => '$'+Number(n).toLocaleString();
   PDMS.initials = name => name.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();

@@ -183,7 +183,7 @@
                   <td>${PDMS.esc(p.client)}</td>
                   <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
-                </tr>`).join('') || `<tr><td colspan="4" class="text-muted" style="text-align:center;padding:24px">No sales pipeline projects</td></tr>`}
+                </tr>`).join('') || `<tr><td colspan="4" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects')}</td></tr>`}
             </tbody>
           </table>
         </div>
@@ -226,7 +226,7 @@
                   <td><span class="badge badge-${c.status === 'Active' ? 'success' : 'danger'}">${PDMS.esc(c.status)}</span></td>
                   <td><span class="badge badge-${c.availability === 'Available' ? 'success' : 'warn'}">${PDMS.esc(c.availability || '—')}</span></td>
                   <td><button class="btn btn-secondary btn-sm" onclick="toggleAvailability('${c.id}')">Toggle Availability</button></td>
-                </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">No consultants yet</td></tr>`}
+                </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No consultants yet')}</td></tr>`}
             </tbody>
           </table>
         </div>

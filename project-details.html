@@ -63,11 +63,15 @@ const id = hasProjects ? new URLSearchParams(location.search).get('id') || D.pro
 p = hasProjects ? D.projects.find(x=>x.id===id) || D.projects[0] : null;
 
 if(!p){
-  document.getElementById('content').innerHTML = `
+  document.getElementById('content').innerHTML = window.PDMS_REMOTE ? `
     <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Projects</span></div>
       <h1 class="page-title">No Project Data</h1><div class="page-sub">You currently do not have any project records.</div></div>
       <div class="flex gap-2"><a class="btn btn-primary" href="projects.html">Open Projects</a></div></div>
     <div class="card"><div class="card-body"><p class="text-muted">Add your own project data in <code>js/data.js</code> or use the template structure to populate this app.</p></div></div>
+  ` : `
+    <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Projects</span></div>
+      <h1 class="page-title">Loading Project...</h1><div class="page-sub">Fetching your project data</div></div></div>
+    <div class="card"><div class="card-body pdms-loading-inline"><span class="pdms-spinner"></span>Loading...</div></div>
   `;
 } else {
   const health = healthOf(p);
@@ -114,7 +118,7 @@ if(!p){
           </div>
           <div class="text-sm text-muted mb-2">Progress History</div>
           ${updates.length?updates.map(u=>`
-            <div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="flex items-center gap-2"><span class="badge badge-${u.type==='blocker'?'danger':u.type==='update'?'primary':'muted'}" style="font-size:11px">${u.type==='blocker'?'Blocker':u.type==='update'?'Update':'Remark'}</span><div class="font-semi text-sm">${PDMS.esc(u.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(u.time)}</div></div><div class="text-sm mt-2">${PDMS.esc(u.message)}</div></div>`).join(''):'<div class="text-muted text-sm">No progress history yet.</div>'}
+            <div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="flex items-center gap-2"><span class="badge badge-${u.type==='blocker'?'danger':u.type==='update'?'primary':'muted'}" style="font-size:11px">${u.type==='blocker'?'Blocker':u.type==='update'?'Update':'Remark'}</span><div class="font-semi text-sm">${PDMS.esc(u.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(u.time)}</div></div><div class="text-sm mt-2">${PDMS.esc(u.message)}</div></div>`).join(''):`<div class="text-muted text-sm">${PDMS.emptyOrLoading('No progress history yet.')}</div>`}
         </div>
       </div>
       <div class="card"><div class="card-head"><div class="card-title">Documents</div><div class="card-sub">Reports & project files</div>${canUpdate?`<button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button>`:''}</div>
@@ -139,12 +143,12 @@ if(!p){
       <div class="card"><div class="card-head"><div class="card-title">Updates</div></div>
         <div class="card-body">
           <div class="text-sm text-muted mb-1">Latest Progress Update</div>
-          ${latest?`<div class="mb-3" style="padding:10px;background:var(--surface-2);border-radius:10px"><div class="flex items-center gap-2"><div class="font-semi text-sm">${PDMS.esc(latest.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(latest.time)}</div></div><div class="text-sm mt-1">${PDMS.esc(latest.message)}</div></div>`:'<div class="text-muted text-sm mb-3">No updates yet.</div>'}
+          ${latest?`<div class="mb-3" style="padding:10px;background:var(--surface-2);border-radius:10px"><div class="flex items-center gap-2"><div class="font-semi text-sm">${PDMS.esc(latest.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(latest.time)}</div></div><div class="text-sm mt-1">${PDMS.esc(latest.message)}</div></div>`:`<div class="text-muted text-sm mb-3">${PDMS.emptyOrLoading('No updates yet.')}</div>`}
           ${canUpdate?`<div class="flex gap-2 mb-3"><button class="btn btn-secondary btn-sm" onclick="addUpdate('remark')">${I('message')} Add Remark</button><button class="btn btn-secondary btn-sm" onclick="addUpdate('blocker')">${I('alert')||''} Report Blocker</button></div>`:''}
           <div class="text-sm text-muted mb-2">Remarks</div>
-          ${remarks.length?remarks.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="flex items-center gap-2"><div class="font-semi text-sm">${PDMS.esc(r.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(r.time)}</div></div><div class="text-sm mt-1">${PDMS.esc(r.message)}</div></div>`).join(''):'<div class="text-muted text-sm mb-2">No remarks yet.</div>'}
+          ${remarks.length?remarks.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="flex items-center gap-2"><div class="font-semi text-sm">${PDMS.esc(r.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(r.time)}</div></div><div class="text-sm mt-1">${PDMS.esc(r.message)}</div></div>`).join(''):`<div class="text-muted text-sm mb-2">${PDMS.emptyOrLoading('No remarks yet.')}</div>`}
           <div class="text-sm text-muted mb-2 mt-3">Issues / Blockers</div>
-          ${blockers.length?blockers.map(b=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="flex items-center gap-2"><span class="badge badge-danger" style="font-size:11px">Blocker</span><div class="font-semi text-sm">${PDMS.esc(b.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(b.time)}</div></div><div class="text-sm mt-1">${PDMS.esc(b.message)}</div></div>`).join(''):'<div class="text-muted text-sm">No blockers reported.</div>'}
+          ${blockers.length?blockers.map(b=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="flex items-center gap-2"><span class="badge badge-danger" style="font-size:11px">Blocker</span><div class="font-semi text-sm">${PDMS.esc(b.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(b.time)}</div></div><div class="text-sm mt-1">${PDMS.esc(b.message)}</div></div>`).join(''):`<div class="text-muted text-sm">${PDMS.emptyOrLoading('No blockers reported.')}</div>`}
         </div>
       </div>
     </div>

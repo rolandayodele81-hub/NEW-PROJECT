@@ -232,7 +232,7 @@
                   <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
                   <td><a href="project-details.html?id=${p.id}" class="btn btn-secondary btn-sm">Manage</a></td>
-                </tr>`).join('') || `<tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">No sales pipeline projects yet</td></tr>`}
+                </tr>`).join('') || `<tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects yet')}</td></tr>`}
             </tbody>
           </table>
         </div>
@@ -272,7 +272,7 @@
                   <td>${PDMS.esc(p.pm || 'TBD')}</td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
                   <td><div class="progress-inline"><div class="progress"><div class="bar" style="width:${p.progress || 0}%"></div></div><span class="pct">${p.progress || 0}%</span></div></td>
-                </tr>`).join('') || `<tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">No projects in delivery yet</td></tr>`}
+                </tr>`).join('') || `<tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No projects in delivery yet')}</td></tr>`}
             </tbody>
           </table>
         </div>

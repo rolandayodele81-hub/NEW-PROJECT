@@ -42,18 +42,22 @@ const canCreateHere = viewParam==='sales' ? PDMS.isSalesRole(currentUser)
   : viewParam==='delivery' ? PDMS.isDeliveryRole(currentUser)
   : PDMS.can('Create Project');
 
+// Sales Pipeline and Projects in Delivery default to Table view; the plain
+// Projects page (used by delivery roles day-to-day) defaults to Kanban.
+const defaultToTable = viewParam==='sales' || viewParam==='delivery';
+
 const content = document.getElementById('content');
 content.innerHTML = `
   <div class="page-head">
     <div><div class="breadcrumbs"><span>Home</span><span>Projects</span></div>
       <h1 class="page-title">${pageInfo.title}</h1><div class="page-sub">${pageInfo.sub}</div></div>
-    <div class="flex gap-2"><button class="btn btn-secondary" id="viewToggle">${I('folder')} Table View</button>${canCreateHere?`<button class="btn btn-primary" id="newProj">${I('plus')} New Project</button>`:''}</div>
+    <div class="flex gap-2"><button class="btn btn-secondary" id="viewToggle">${defaultToTable ? I('folder')+' Kanban View' : I('folder')+' Table View'}</button>${canCreateHere?`<button class="btn btn-primary" id="newProj">${I('plus')} New Project</button>`:''}</div>
   </div>
   <div class="grid grid-4 mb-4">
     ${statTiles.map((t,i)=>`<div class="stat i-${t.color}"><div class="label">${t.label}</div><div class="value" id="stat-${i}">0</div><div class="icon-wrap">${I(t.icon)}</div></div>`).join('')}
   </div>
-  <div id="listView" class="table-wrap hidden"></div>
-  <div id="kanbanView"></div>
+  <div id="listView" class="table-wrap ${defaultToTable ? '' : 'hidden'}"></div>
+  <div id="kanbanView" class="${defaultToTable ? 'hidden' : ''}"></div>
 `;
 
 const columns = [

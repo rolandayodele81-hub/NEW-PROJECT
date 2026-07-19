@@ -43,7 +43,7 @@ function render(){
           </div>
           ${PDMS.can('Reply Incident')?`<button class="btn btn-secondary btn-sm" onclick="viewIncident('${inc.id}')">Reply</button>`:''}
         </div>`).join('')
-        : `<div class="text-muted" style="padding:24px 0;text-align:center">No incidents reported.</div>`}
+        : `<div class="text-muted" style="padding:24px 0;text-align:center">${PDMS.emptyOrLoading('No incidents reported.')}</div>`}
     </div></div>
   `;
   if(document.getElementById('reportBtn')) document.getElementById('reportBtn').onclick = reportIncident;
@@ -82,7 +82,7 @@ function viewIncident(id){
     <div class="text-sm mb-2">${PDMS.esc(inc.description)}</div>
     <div class="text-sm text-muted mb-3">${projectName(inc.projectId) ? PDMS.esc(projectName(inc.projectId)) : 'General issue'} • Reported by ${PDMS.esc(inc.reportedBy)} • <span class="badge badge-${inc.status==='Resolved'?'success':'warn'}">${inc.status}</span></div>
     <div style="max-height:220px;overflow-y:auto;margin-bottom:12px">
-      ${replies.length ? replies.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="font-semi text-sm">${PDMS.esc(r.from)} <span class="text-sm text-muted" style="font-weight:400">${r.time||''}</span></div><div class="text-sm mt-1">${PDMS.esc(r.text)}</div></div>`).join('') : '<div class="text-muted text-sm">No replies yet.</div>'}
+      ${replies.length ? replies.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="font-semi text-sm">${PDMS.esc(r.from)} <span class="text-sm text-muted" style="font-weight:400">${r.time||''}</span></div><div class="text-sm mt-1">${PDMS.esc(r.text)}</div></div>`).join('') : `<div class="text-muted text-sm">${PDMS.emptyOrLoading('No replies yet.')}</div>`}
     </div>
     <div class="form-row"><textarea id="incReply" rows="2" placeholder="Write a reply..."></textarea></div>
     <div class="form-row"><label>Status</label><select id="incStatus"><option${inc.status==='Pending'?' selected':''}>Pending</option><option${inc.status==='Resolved'?' selected':''}>Resolved</option></select></div>

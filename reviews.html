@@ -4,16 +4,41 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css"/>
 <style>
-  .review-card{border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px;background:var(--surface)}
-  .review-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-  .review-body{font-size:14px;line-height:1.5;margin-bottom:12px}
-  .comment-thread{padding-left:20px;border-left:2px solid var(--border);margin-top:10px}
-  .comment{padding:10px 0}
+  .review-card{
+    position:relative;border:1px solid var(--border);border-radius:18px;padding:22px 24px 20px;
+    margin-bottom:20px;background:var(--surface);overflow:hidden;
+    box-shadow:0 1px 2px rgba(15,23,42,.04);transition:box-shadow .2s ease, transform .2s ease;
+  }
+  .review-card:hover{box-shadow:0 12px 28px rgba(15,23,42,.08);transform:translateY(-1px)}
+  .review-card::before{content:"";position:absolute;top:0;left:0;right:0;height:4px}
+  .review-card.type-project::before{background:var(--gradient)}
+  .review-card.type-general::before{background:var(--gradient-2)}
+  .review-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+  .review-avatar{
+    width:44px;height:44px;border-radius:13px;flex-shrink:0;color:#fff;font-weight:800;font-size:15px;
+    display:grid;place-items:center;
+  }
+  .type-project .review-avatar{background:var(--gradient)}
+  .type-general .review-avatar{background:var(--gradient-2)}
+  .review-author-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .review-role-chip{font-size:11px;font-weight:600;color:var(--text-muted);background:var(--surface-2);padding:2px 8px;border-radius:999px}
+  .review-time{font-size:12px;color:var(--text-soft);margin-top:2px;display:flex;align-items:center;gap:4px}
+  .review-body{
+    font-size:15.5px;line-height:1.65;margin:4px 0 14px;color:var(--text);position:relative;padding-left:22px;
+  }
+  .review-body::before{
+    content:"\201C";position:absolute;left:-4px;top:-8px;font-size:34px;font-weight:800;
+    color:var(--border);font-family:Georgia,serif;line-height:1;
+  }
+  .review-footer{display:flex;align-items:center;justify-content:space-between;padding-top:2px}
+  .comment-count-pill{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:5px}
+  .comment-thread{padding:14px 0 0;margin-top:14px;border-top:1px solid var(--border)}
+  .comment{padding:10px 12px;background:var(--surface-2);border-radius:12px;margin-bottom:8px}
   .comment-head{display:flex;align-items:center;gap:8px}
-  .reply-thread{padding-left:32px;margin-top:6px}
-  .reply{padding:8px 0}
-  .comment-form{display:flex;gap:8px;margin-top:10px}
-  .comment-form input{flex:1}
+  .reply-thread{padding-left:26px;margin-top:8px}
+  .reply{padding:8px 10px;background:var(--bg);border-radius:10px;margin-bottom:6px}
+  .comment-form{display:flex;gap:8px;margin-top:12px}
+  .comment-form input{flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--text)}
   .link-btn{background:none;border:none;color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;padding:0}
 </style>
 </head><body>
@@ -47,30 +72,42 @@ function render(){
     <button class="btn btn-primary" onclick="postReview()">${I('plus')} Write a Review</button>
   </div>
   <div style="max-width:760px">
-    ${reviews.length ? reviews.map(r=>renderReview(r)).join('') : `<div class="card"><div class="card-body text-muted" style="text-align:center;padding:32px">No reviews yet. Be the first to share one.</div></div>`}
+    ${reviews.length ? reviews.map(r=>renderReview(r)).join('') : `<div class="card"><div class="card-body text-muted" style="text-align:center;padding:32px">${PDMS.emptyOrLoading('No reviews yet. Be the first to share one.')}</div></div>`}
   </div>
   `;
 }
 
 function renderReview(r){
   const comments = getComments(r);
+  const isProject = !!(r.projectId || r.projectName);
+  const projectBadge = r.projectId
+    ? `<a href="project-details.html?id=${r.projectId}" class="badge badge-primary">${I('folder')} ${PDMS.esc(r.projectName||r.projectId)}</a>`
+    : r.projectName
+      ? `<span class="badge badge-primary">${I('folder')} ${PDMS.esc(r.projectName)}</span>`
+      : `<span class="badge badge-muted">${I('message')} General</span>`;
   return `
-  <div class="review-card" id="review-${r.id}">
+  <div class="review-card ${isProject?'type-project':'type-general'}" id="review-${r.id}">
     <div class="review-head">
-      <div class="avatar avatar-sm">${PDMS.initials(r.author)}</div>
-      <div style="flex:1">
-        <div class="font-semi text-sm">${PDMS.esc(r.author)} <span class="text-muted font-normal">· ${PDMS.esc(r.authorRole||'')}</span></div>
-        <div class="text-sm text-muted">${timeAgo(r.time)}</div>
+      <div class="review-avatar">${PDMS.initials(r.author)}</div>
+      <div style="flex:1;min-width:0">
+        <div class="review-author-row">
+          <span class="font-bold text-sm">${PDMS.esc(r.author)}</span>
+          <span class="review-role-chip">${PDMS.esc(r.authorRole||'')}</span>
+        </div>
+        <div class="review-time">${I('clock')} ${timeAgo(r.time)}</div>
       </div>
-      ${r.projectId ? `<a href="project-details.html?id=${r.projectId}" class="badge badge-primary">${PDMS.esc(r.projectName||r.projectId)}</a>` : r.projectName ? `<span class="badge badge-primary">${PDMS.esc(r.projectName)}</span>` : `<span class="badge badge-muted">General</span>`}
+      ${projectBadge}
     </div>
     <div class="review-body">${PDMS.esc(r.message)}</div>
+    <div class="review-footer">
+      <div class="comment-count-pill">${I('message')} ${comments.length} ${comments.length===1?'comment':'comments'}</div>
+    </div>
     <div class="comment-thread">
       ${comments.map(c=>renderComment(r.id, c)).join('')}
     </div>
     <div class="comment-form">
       <input id="commentInput-${r.id}" placeholder="Write a comment..."/>
-      <button class="btn btn-secondary btn-sm" onclick="addComment('${r.id}')">Comment</button>
+      <button class="btn btn-secondary btn-sm" onclick="addComment('${r.id}', this)">Comment</button>
     </div>
   </div>`;
 }
@@ -104,7 +141,7 @@ function renderComment(reviewId, c){
         </div>`).join('')}
       <div class="comment-form hidden" id="replyForm-${c.id}" style="padding-left:34px">
         <input id="replyInput-${c.id}" placeholder="Write a reply..."/>
-        <button class="btn btn-secondary btn-sm" onclick="addReply('${reviewId}','${c.id}')">Reply</button>
+        <button class="btn btn-secondary btn-sm" onclick="addReply('${reviewId}','${c.id}', this)">Reply</button>
       </div>
     </div>
   </div>`;
@@ -130,16 +167,21 @@ function postReview(){
       projectId: project ? project.id : '', projectName: project ? project.name : projectTyped,
       message, time: new Date().toISOString(), comments: []
     };
+    const btn = this;
+    PDMS.setButtonLoading(btn, true, 'Sending...');
     PDMS.api.create('reviews', record).then(saved=>{
       D.reviews.unshift(saved);
       modal.remove();
       PDMS.toast('Review posted','Your review is live','success');
       render();
-    }).catch(err=>PDMS.toast('Error', err.message||'Could not post review','error'));
+    }).catch(err=>{
+      PDMS.setButtonLoading(btn, false);
+      PDMS.toast('Error', err.message||'Could not post review','error');
+    });
   };
 }
 
-function addComment(reviewId){
+function addComment(reviewId, btn){
   const input = document.getElementById('commentInput-'+reviewId);
   const message = input.value.trim();
   if(!message) return;
@@ -148,13 +190,17 @@ function addComment(reviewId){
   const user = PDMS.getUser();
   const comments = getComments(review);
   comments.push({id: genId(), author: user?user.name:'Unknown', authorRole: user?user.role:'', message, time: new Date().toISOString(), replies: []});
+  PDMS.setButtonLoading(btn, true, 'Sending...');
   PDMS.api.update('reviews', reviewId, {comments}).then(saved=>{
     Object.assign(review, saved);
     render();
-  }).catch(err=>PDMS.toast('Error', err.message||'Could not post comment','error'));
+  }).catch(err=>{
+    PDMS.setButtonLoading(btn, false);
+    PDMS.toast('Error', err.message||'Could not post comment','error');
+  });
 }
 
-function addReply(reviewId, commentId){
+function addReply(reviewId, commentId, btn){
   const input = document.getElementById('replyInput-'+commentId);
   const message = input.value.trim();
   if(!message) return;
@@ -166,10 +212,14 @@ function addReply(reviewId, commentId){
   if(!comment) return;
   if(!Array.isArray(comment.replies)) comment.replies = [];
   comment.replies.push({author: user?user.name:'Unknown', authorRole: user?user.role:'', message, time: new Date().toISOString()});
+  PDMS.setButtonLoading(btn, true, 'Sending...');
   PDMS.api.update('reviews', reviewId, {comments}).then(saved=>{
     Object.assign(review, saved);
     render();
-  }).catch(err=>PDMS.toast('Error', err.message||'Could not post reply','error'));
+  }).catch(err=>{
+    PDMS.setButtonLoading(btn, false);
+    PDMS.toast('Error', err.message||'Could not post reply','error');
+  });
 }
 
 window.postReview = postReview;
