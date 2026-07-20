@@ -2,20 +2,108 @@
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Notifications — PSE PDMS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css"/></head><body>
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+  .notif-card{
+    display:flex;align-items:flex-start;gap:14px;padding:16px 20px;
+    border-bottom:1px solid var(--border);transition:background .15s;cursor:default;
+  }
+  .notif-card:last-child{border-bottom:none}
+  .notif-card.unread{background:var(--primary-10,rgba(99,102,241,.05))}
+  .notif-card:hover{background:var(--surface-2)}
+  .notif-icon-wrap{
+    width:40px;height:40px;border-radius:12px;background:var(--primary-10,rgba(99,102,241,.1));
+    color:var(--primary);display:grid;place-items:center;flex-shrink:0;
+  }
+  .notif-icon-wrap.icon-zap{background:rgba(234,179,8,.1);color:#ca8a04}
+  .notif-icon-wrap.icon-refresh{background:rgba(99,102,241,.1);color:var(--primary)}
+  .notif-icon-wrap.icon-users{background:rgba(16,185,129,.1);color:#059669}
+  .notif-icon-wrap.icon-user-plus{background:rgba(139,92,246,.1);color:#7c3aed}
+  .notif-icon-wrap.icon-message{background:rgba(59,130,246,.1);color:#2563eb}
+  .notif-icon-wrap.icon-folder{background:rgba(249,115,22,.1);color:#ea580c}
+  .notif-dot{width:8px;height:8px;border-radius:50%;background:var(--primary);flex-shrink:0;margin-top:6px}
+  .notif-dot.read{background:transparent}
+  .notif-title{font-weight:700;font-size:14px;color:var(--text)}
+  .notif-msg{font-size:13px;color:var(--text-muted);margin-top:2px;line-height:1.4}
+  .notif-meta{display:flex;align-items:center;gap:10px;margin-top:6px}
+  .notif-time{font-size:12px;color:var(--text-soft)}
+  .notif-link{font-size:12px;font-weight:600;color:var(--primary);text-decoration:none}
+  .notif-link:hover{text-decoration:underline}
+</style>
+</head><body>
 <script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
 <script>
 PDMS.mountShell('notifications');
-const D=PDMS_DATA;const I=PDMS.icon;
-function render(){
-document.getElementById('content').innerHTML=`
-  <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Notifications</span></div>
-    <h1 class="page-title">Notifications</h1><div class="page-sub">${D.notifications.filter(n=>n.unread).length} unread</div></div>
-    <button class="btn btn-secondary">Mark all as read</button></div>
-  <div class="card"><div class="card-body" style="padding:6px">
-    ${D.notifications.map(n=>`<div class="notif ${n.unread?'unread':''}"><div class="n-icon">${I(n.icon)}</div>
-      <div style="flex:1"><div class="n-title">${PDMS.esc(n.title)}</div><div class="n-msg">${PDMS.esc(n.msg)}</div><div class="n-time">${n.time}</div></div></div>`).join('')}
-  </div></div>`;
+const D = PDMS_DATA; const I = PDMS.icon;
+
+function timeAgo(iso){
+  if(!iso) return '';
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs/60000);
+  if(mins < 1) return 'just now';
+  if(mins < 60) return mins + 'm ago';
+  const hrs = Math.round(mins/60);
+  if(hrs < 24) return hrs + 'h ago';
+  return Math.round(hrs/24) + 'd ago';
 }
+
+function iconClass(icon){
+  return 'icon-'+(icon||'bell');
+}
+
+function markAllRead(){
+  const unread = D.notifications.filter(n=>n.unread);
+  if(!unread.length) return;
+  Promise.all(unread.map(n => PDMS.api.update('notifications', n.id, {unread: false}).then(saved=>{
+    Object.assign(n, saved);
+  }))).then(()=>{
+    PDMS.toast('Done','All notifications marked as read','success');
+    render();
+  }).catch(()=>render());
+}
+
+function render(){
+  const total = D.notifications.length;
+  const unreadCount = D.notifications.filter(n=>n.unread).length;
+  const sorted = D.notifications.slice().sort((a,b)=>new Date(b.time)-new Date(a.time));
+
+  document.getElementById('content').innerHTML = `
+  <div class="page-head">
+    <div>
+      <div class="breadcrumbs"><span>Home</span><span>Notifications</span></div>
+      <h1 class="page-title">Notifications</h1>
+      <div class="page-sub">${unreadCount} unread · ${total} total</div>
+    </div>
+    <div class="flex gap-2">
+      ${unreadCount ? `<button class="btn btn-secondary" onclick="markAllRead()">Mark all as read</button>` : ''}
+    </div>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden">
+    ${sorted.length ? sorted.map(n => {
+      const ic = n.icon || 'bell';
+      return `
+      <div class="notif-card ${n.unread?'unread':''}">
+        <div class="notif-icon-wrap ${iconClass(ic)}">${I(ic)}</div>
+        <div style="flex:1;min-width:0">
+          <div class="notif-title">${PDMS.esc(n.title||'')}</div>
+          <div class="notif-msg">${PDMS.esc(n.msg||'')}</div>
+          <div class="notif-meta">
+            <span class="notif-time">${timeAgo(n.time)}</span>
+            ${n.link ? `<a class="notif-link" href="${PDMS.esc(n.link)}">View →</a>` : ''}
+          </div>
+        </div>
+        <div class="notif-dot ${n.unread?'':'read'}"></div>
+      </div>`;
+    }).join('') : `
+    <div style="text-align:center;padding:48px 24px;color:var(--text-muted)">
+      ${PDMS.emptyOrLoading('No notifications yet. They will appear here as actions are taken across the system.')}
+    </div>`}
+  </div>
+  `;
+}
+
+window.markAllRead = markAllRead;
 PDMS.onRefresh(render);
-</script></body></html>
+</script>
+</body></html>

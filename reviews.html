@@ -173,6 +173,8 @@ function postReview(){
       D.reviews.unshift(saved);
       modal.remove();
       PDMS.toast('Review posted','Your review is live','success');
+      const context = record.projectName ? `on "${record.projectName}"` : '(general)';
+      PDMS.notify('Review Posted', `${record.author} (${record.authorRole}) posted a review ${context}`, 'message', 'reviews.html#review-'+saved.id);
       render();
     }).catch(err=>{
       PDMS.setButtonLoading(btn, false);

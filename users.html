@@ -75,8 +75,9 @@
           D.users.unshift(saved);
           modal.remove();
           showNewUserPasswordNote(saved, password);
+          const creator = PDMS.getUser();
+          PDMS.notify('User Onboarded', `${creator ? creator.name : 'HR'} onboarded ${saved.name} as ${saved.role}`, 'user-plus', 'user-details.html#id='+saved.id);
           render(); // immediate local re-render, including stat cards
-          // Background async refresh — syncs stats & list from server
           if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
         }).catch(err => PDMS.toast('Error', err.message || 'Could not create user', 'error'));
       };

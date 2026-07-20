@@ -180,6 +180,26 @@
     return g.PDMS_REMOTE ? emptyMessage : '<span class="pdms-spinner" style="margin-right:8px;vertical-align:-2px"></span>Loading...';
   };
 
+  // Broadcast a notification to all users — fires and forgets (never blocks the caller).
+  // icon: any key from ICONS; link: optional href the notification card links to.
+  PDMS.notify = function(title, msg, icon, link){
+    const user = PDMS.getUser();
+    const record = {
+      title, msg,
+      icon: icon || 'bell',
+      link: link || '',
+      actor: user ? user.name : 'System',
+      actorRole: user ? user.role : '',
+      time: new Date().toISOString(),
+      unread: true
+    };
+    PDMS.api.create('notifications', record).then(saved=>{
+      if(window.PDMS_DATA && Array.isArray(window.PDMS_DATA.notifications)){
+        window.PDMS_DATA.notifications.unshift(saved);
+      }
+    }).catch(()=>{}); // silent — notifications are best-effort
+  };
+
   // Money & date fmt
   PDMS.money = n => '$'+Number(n).toLocaleString();
   PDMS.initials = name => name.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
