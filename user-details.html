@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>User Details — PSE PDMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/></head><body>
+<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
+<script>
+// A hash survives any host's clean-URL rewriting untouched, since it's never
+// sent to the server — unlike ?id=, which some static hosts strip on redirect.
+window.addEventListener('hashchange', ()=>location.reload());
+PDMS.mountShell('users');
+const D = PDMS_DATA; const I = PDMS.icon;
+let u;
+
+function projectsFor(user){
+  return D.projects.filter(p => p.pm===user.name || p.lead===user.name || (p.consultants||[]).includes(user.name));
+}
+
+function render(){
+  const hasUsers = Array.isArray(D.users) && D.users.length > 0;
+  const id = hasUsers ? new URLSearchParams(location.hash.replace(/^#/,'')).get('id') || D.users[0].id : null;
+  u = hasUsers ? D.users.find(x=>x.id===id) || D.users[0] : null;
+
+  if(!u){
+    document.getElementById('content').innerHTML = window.PDMS_REMOTE ? `
+      <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Users</span></div>
+        <h1 class="page-title">No User Data</h1><div class="page-sub">You currently do not have any user records.</div></div>
+        <div class="flex gap-2"><a class="btn btn-primary" href="users.html">Open Users</a></div></div>
+    ` : `
+      <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Users</span></div>
+        <h1 class="page-title">Loading User...</h1><div class="page-sub">Fetching user data</div></div></div>
+      <div class="card"><div class="card-body pdms-loading-inline"><span class="pdms-spinner"></span>Loading...</div></div>
+    `;
+    return;
+  }
+
+  const userProjects = projectsFor(u);
+  const currentProjects = userProjects.filter(p => p.status !== 'Completed' && p.status !== 'Rejected');
+  const previousProjects = userProjects.filter(p => p.status === 'Completed' || p.status === 'Rejected');
+
+  document.getElementById('content').innerHTML = `
+  <div class="page-head">
+    <div><div class="breadcrumbs"><span><a href="users.html">Users</a></span><span>${PDMS.esc(u.name)}</span></div>
+      <h1 class="page-title">${PDMS.esc(u.name)}</h1><div class="page-sub">${PDMS.esc(u.email)}</div></div>
+  </div>
+
+  <div class="proj-head">
+    <div class="flex gap-4 items-center" style="flex-wrap:wrap">
+      <div class="avatar" style="width:76px;height:76px;font-size:24px;border-radius:18px">${PDMS.initials(u.name)}</div>
+      <div style="flex:1;min-width:220px">
+        <div class="flex gap-2 mb-2" style="flex-wrap:wrap">
+          <span class="badge badge-primary">${PDMS.esc(u.role)}</span>
+          <span class="badge badge-${u.status==='Active'?'success':u.status==='On Leave'?'warn':'danger'}">${PDMS.esc(u.status||'—')}</span>
+          <span class="badge badge-${u.availability==='Available'?'success':'warn'}">${PDMS.esc(u.availability||'—')}</span>
+        </div>
+        <div class="text-muted text-sm">${PDMS.esc(u.dept||'No skill set on file')}</div>
+      </div>
+      <div class="grid grid-2" style="gap:12px 24px">
+        <div><div class="text-sm text-muted">Phone</div><div class="font-semi">${PDMS.esc(u.phone||'—')}</div></div>
+        <div><div class="text-sm text-muted">Joined</div><div class="font-semi">${PDMS.esc(u.joined||'—')}</div></div>
+        <div><div class="text-sm text-muted">Date of Birth</div><div class="font-semi">${PDMS.esc(u.birthday||'—')}</div></div>
+        <div><div class="text-sm text-muted">Workload</div><div class="font-semi">${u.workload||0}%</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1fr;gap:20px">
+    <div class="card">
+      <div class="card-head"><div class="card-title">Current Projects</div><span class="badge badge-primary">${currentProjects.length}</span></div>
+      <div class="card-body" style="padding:0">
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead><tr><th>Project</th><th>Client</th><th>Role</th><th>Status</th><th>Progress</th></tr></thead>
+            <tbody>
+              ${currentProjects.map(p=>`
+                <tr style="cursor:pointer" onclick="location.href='project-details.html#id=${p.id}'">
+                  <td class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</td>
+                  <td>${PDMS.esc(p.client||'—')}</td>
+                  <td>${p.pm===u.name?'Project Manager':p.lead===u.name?'Project Lead':'Consultant'}</td>
+                  <td><span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status)}</span></td>
+                  <td><div class="progress-inline"><div class="progress"><div class="bar" style="width:${p.progress||0}%"></div></div><span class="pct">${p.progress||0}%</span></div></td>
+                </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No current projects')}</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div class="card-title">Previous Projects</div><span class="badge badge-muted">${previousProjects.length}</span></div>
+      <div class="card-body" style="padding:0">
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead><tr><th>Project</th><th>Client</th><th>Role</th><th>Status</th></tr></thead>
+            <tbody>
+              ${previousProjects.map(p=>`
+                <tr style="cursor:pointer" onclick="location.href='project-details.html#id=${p.id}'">
+                  <td class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</td>
+                  <td>${PDMS.esc(p.client||'—')}</td>
+                  <td>${p.pm===u.name?'Project Manager':p.lead===u.name?'Project Lead':'Consultant'}</td>
+                  <td><span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status)}</span></td>
+                </tr>`).join('') || `<tr><td colspan="4" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No previous projects')}</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+}
+PDMS.onRefresh(render);
+</script>
+</body></html>

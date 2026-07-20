@@ -19,7 +19,9 @@
   <script>
     PDMS.mountShell('users');
     const D = PDMS_DATA; const I = PDMS.icon;
-    document.getElementById('content').innerHTML = `
+
+    function render() {
+      document.getElementById('content').innerHTML = `
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Users</span></div>
     <h1 class="page-title">Users & Staff</h1><div class="page-sub">Manage employees, roles and access</div></div>
     <div class="flex gap-2">${PDMS.can('Onboard User') ? `<button class="btn btn-primary" onclick="newUser()">${I('user-plus')} Add User</button>` : ''}</div></div>
@@ -31,6 +33,8 @@
   </div>
   <div id="tbl" class="table-wrap"></div>
 `;
+      renderUsers();
+    }
     function renderUsers() {
       document.getElementById('tbl').innerHTML = '';
       PDMS.renderTable(document.getElementById('tbl'), {
@@ -38,17 +42,16 @@
           { key: 'name', label: 'User', render: r => `<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.name)}</div><div><div class="font-semi">${PDMS.esc(r.name)}</div><div class="text-sm text-muted">${PDMS.esc(r.email)}</div></div></div>` },
           { key: 'role', label: 'Role', render: r => `<span class="badge badge-primary">${r.role}</span>` },
           { key: 'dept', label: 'Department' },
-          { key: 'workload', label: 'Workload', render: r => `<div class="progress-inline"><div class="progress"><div class="bar" style="width:${r.workload}%"></div></div><span class="pct">${r.workload}%</span></div>` },
-          { key: 'joined', label: 'Joined' },
-          { key: 'actions', label: 'Actions', render: r => `<div class="flex gap-2"><button class="btn btn-secondary btn-sm" onclick="editU('${r.id}')">Edit</button></div>` }
+          { key: 'workload', label: 'Workload', render: r => `<div class="progress-inline"><div class="progress"><div class="bar" style="width:${r.workload}%"></div></div><span class="pct">${r.workload}%</span></div>` }
         ],
         rows: D.users, pageSize: 10, searchKeys: ['name', 'email', 'role', 'dept'],
+        rowHref: r => 'user-details.html#id=' + r.id,
         filterOptions: [{ key: 'role', label: 'Role', options: D.roles }]
       });
     }
 
     function newUser() {
-      const modal = PDMS.modal('Create User', `<div class="form-grid"><div class="form-row"><label>Full Name</label><input id="newUserName"/></div><div class="form-row"><label>Email</label><input id="newUserEmail" type="email"/></div><div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div><div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.map(r => `<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Skill Set</label><input id="newUserDept" type="text" placeholder="e.g. Cyber Security"/></div><div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="date"/></div></div>`,
+      const modal = PDMS.modal('Create User', `<div class="form-grid"><div class="form-row"><label>Full Name</label><input id="newUserName"/></div><div class="form-row"><label>Email</label><input id="newUserEmail" type="email"/></div><div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div><div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Skill Set</label><input id="newUserDept" type="text" placeholder="e.g. Cyber Security"/></div><div class="form-row"><label>Phone</label><input id="newUserPhone" type="text" placeholder="e.g. +1 555 123 4567"/></div><div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="date"/></div></div>`,
         `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">Create</button>`);
       modal.querySelector('#createUserBtn').onclick = function () {
         const name = modal.querySelector('#newUserName').value.trim();
@@ -56,6 +59,7 @@
         const password = modal.querySelector('#newUserPassword').value;
         const role = modal.querySelector('#newUserRole').value;
         const dept = modal.querySelector('#newUserDept').value.trim();
+        const phone = modal.querySelector('#newUserPhone').value.trim();
         const birthday = modal.querySelector('#newUserBirthday').value;
         if (!name || !email || !password) {
           PDMS.toast('Missing user info', 'Name, email, and password are required', 'error');
@@ -66,12 +70,12 @@
           PDMS.toast('Email already in use', 'A user with this email address already exists.', 'error');
           return;
         }
-        const record = { name, email, password, role, dept, birthday: birthday || '', workload: 0, phone: '', joined: new Date().toISOString().slice(0, 10) };
+        const record = { name, email, password, role, dept, birthday: birthday || '', workload: 0, phone, joined: new Date().toISOString().slice(0, 10) };
         PDMS.api.register(record).then(saved => {
           D.users.unshift(saved);
           modal.remove();
           showNewUserPasswordNote(saved, password);
-          renderUsers(); // immediate local re-render
+          render(); // immediate local re-render, including stat cards
           // Background async refresh — syncs stats & list from server
           if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
         }).catch(err => PDMS.toast('Error', err.message || 'Could not create user', 'error'));
@@ -93,15 +97,12 @@
       PDMS.api.update('users', id, { status: nextStatus }).then(saved => {
         Object.assign(user, saved);
         PDMS.toast('Status updated', `${user.name} is now ${user.status}`, 'success');
-        renderUsers();
+        render();
       }).catch(err => PDMS.toast('Error', err.message || 'Could not update user', 'error'));
     }
 
-    function editU(id) {
-      PDMS.toast('Editing', 'User editor opened', 'success');
-    }
-    window.newUser = newUser; window.editU = editU;
-    PDMS.onRefresh(renderUsers);
+    window.newUser = newUser;
+    PDMS.onRefresh(render);
   </script>
 </body>
 

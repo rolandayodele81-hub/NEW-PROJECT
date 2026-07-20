@@ -39,6 +39,7 @@
           { key: 'workload', label: 'Load', render: r => `<div class="progress-inline"><div class="progress"><div class="bar" style="width:${r.workload || 0}%"></div></div><span class="pct">${r.workload || 0}%</span></div>` },
           { key: 'joined', label: 'Joined' }
         ], rows: consultants, pageSize: 10, searchKeys: ['name', 'dept', 'email'],
+        rowHref: r => 'user-details.html#id=' + r.id,
         filterOptions: [{ key: 'availability', label: 'Availability', options: ['Available', 'Busy'] }]
       });
     }

@@ -95,7 +95,9 @@
       const readiness = Math.round((availableConsultants / Math.max(totalConsultants, 1)) * 100);
 
       const salesProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Sales');
-      const deliveryProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Delivery');
+      // Only projects a delivery role (COO/HTD/PM Head/PMO) created directly —
+      // not sales-originated projects that got promoted via "Start Delivery".
+      const deliveryProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Delivery' && PDMS.isDeliveryRole({role: p.createdByRole}));
 
       // Delivery project status distribution
       const statusColorHex = {'Not Started':'#94a3b8','In Progress':'#f59e0b','On Hold':'#94a3b8','Awaiting Review':'#eab308','Testing / Quality Assurance':'#8b5cf6',Completed:'#10b981',Approved:'#4f46e5',Rejected:'#ef4444'};
@@ -199,7 +201,7 @@
 
     <div class="flex items-center justify-between mb-3">
       <h2 class="card-title" style="font-size:18px">Projects in Delivery</h2>
-      <a class="text-sm" style="color:var(--primary);font-weight:600" href="projects.html">View all</a>
+      <a class="btn btn-secondary btn-sm" href="projects.html#view=delivery">View More</a>
     </div>
     <div class="grid grid-3 mb-4">
       ${deliveryProjects.slice(0, 6).map(p => `
@@ -214,7 +216,7 @@
             <div class="progress mb-3"><div class="bar" style="width:${p.progress || 0}%"></div></div>
             <div class="text-sm text-muted">Start Date: ${p.start || 'TBD'}</div>
             <div class="text-sm text-muted mb-3">Expected End: ${p.due || 'TBD'}</div>
-            <a href="project-details.html?id=${p.id}" class="text-sm font-semi" style="color:var(--primary)">View Details →</a>
+            <a href="project-details.html#id=${p.id}" class="text-sm font-semi" style="color:var(--primary)">View Details →</a>
           </div>
         </div>`).join('') || `<div class="text-muted" style="padding:24px;text-align:center;grid-column:1/-1">${PDMS.emptyOrLoading('No projects in delivery yet')}</div>`}
     </div>
@@ -225,7 +227,10 @@
           <div class="card-title">Sales Pipeline</div>
           <div class="card-sub">Prospects Sales is currently working, from first contact to client approval</div>
         </div>
-        <span class="badge badge-muted">${salesProjects.length} in pipeline</span>
+        <div class="flex items-center gap-2">
+          <span class="badge badge-muted">${salesProjects.length} in pipeline</span>
+          <a class="btn btn-secondary btn-sm" href="projects.html#view=sales">View More</a>
+        </div>
       </div>
       <div class="card-body" style="padding:0">
         <div style="overflow-x:auto">
@@ -234,7 +239,7 @@
             <tbody>
               ${salesProjects.map(p => `
                 <tr>
-                  <td><a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
+                  <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
                   <td>${PDMS.esc(p.client)}</td>
                   <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
@@ -270,13 +275,13 @@
                 ${consultants.slice(0, 5).map(c => `
                   <tr>
                     <td>
-                      <div class="flex items-center gap-2">
+                      <a href="user-details.html#id=${c.id}" class="flex items-center gap-2" style="color:inherit;text-decoration:none">
                         <div class="avatar avatar-sm">${PDMS.initials(c.name)}</div>
                         <div>
                           <div class="font-semi">${PDMS.esc(c.name)}</div>
                           <div class="text-sm text-muted">${PDMS.esc(c.email)}</div>
                         </div>
-                      </div>
+                      </a>
                     </td>
                     <td><span class="badge badge-purple">${PDMS.esc(c.dept || '—')}</span></td>
                     <td><span class="badge badge-${c.status === 'Active' ? 'success' : 'danger'}">${PDMS.esc(c.status)}</span></td>
@@ -325,7 +330,7 @@
       <div class="form-row"><label>Full Name</label><input id="newUserName" placeholder="Jane Smith"/></div>
       <div class="form-row"><label>Email</label><input id="newUserEmail" type="email" placeholder="jane.smith@pse.com"/></div>
       <div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div>
-      <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
       <div class="form-row"><label>Skill Set</label><input id="newUserDept" type="text" placeholder="e.g. Design"/></div>
       <div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="date"/></div>
     </div>

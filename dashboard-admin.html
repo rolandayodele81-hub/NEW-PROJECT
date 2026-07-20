@@ -179,7 +179,7 @@
             <tbody>
               ${salesProjects.map(p => `
                 <tr>
-                  <td><a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
+                  <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
                   <td>${PDMS.esc(p.client)}</td>
                   <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
@@ -214,13 +214,13 @@
               ${consultants.slice(0, 5).map(c => `
                 <tr>
                   <td>
-                    <div class="flex items-center gap-2">
+                    <a href="user-details.html#id=${c.id}" class="flex items-center gap-2" style="color:inherit;text-decoration:none">
                       <div class="avatar avatar-sm">${PDMS.initials(c.name)}</div>
                       <div>
                         <div class="font-semi">${PDMS.esc(c.name)}</div>
                         <div class="text-sm text-muted">${PDMS.esc(c.email)}</div>
                       </div>
-                    </div>
+                    </a>
                   </td>
                   <td><span class="badge badge-purple">${PDMS.esc(c.dept || '—')}</span></td>
                   <td><span class="badge badge-${c.status === 'Active' ? 'success' : 'danger'}">${PDMS.esc(c.status)}</span></td>

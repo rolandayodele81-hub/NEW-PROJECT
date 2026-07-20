@@ -155,7 +155,7 @@ function render(){
                   <tr>
                     <td>
                       <div>
-                        <a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a>
+                        <a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a>
                         <div class="font-bold text-sm">${PDMS.esc(p.name)}</div>
                         <div class="text-sm text-muted">Client: ${PDMS.esc(p.client)} • PM: ${PDMS.esc(p.pm)}</div>
                       </div>
@@ -242,11 +242,11 @@ function render(){
             <tbody>
               ${salesProjects.map(p=>`
                 <tr>
-                  <td><a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
+                  <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
                   <td>${PDMS.esc(p.client)}</td>
                   <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
                   <td><span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status)}</span></td>
-                  <td>${p.status==='Approved'?`<button class="btn btn-primary btn-sm" onclick="location.href='project-details.html?id=${p.id}'">Start Delivery</button>`:''}</td>
+                  <td>${p.status==='Approved'?`<button class="btn btn-primary btn-sm" onclick="location.href='project-details.html#id=${p.id}'">Start Delivery</button>`:''}</td>
                 </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects')}</td></tr>`}
             </tbody>
           </table>

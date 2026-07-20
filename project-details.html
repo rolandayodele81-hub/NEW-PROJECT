@@ -5,19 +5,17 @@
 <link rel="stylesheet" href="css/style.css"/></head><body>
 <script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
 <script>
+// A hash survives any host's clean-URL rewriting untouched, since it's never
+// sent to the server — unlike ?id=, which some static hosts strip on redirect.
+window.addEventListener('hashchange', ()=>location.reload());
 PDMS.mountShell('projects');
 const D = PDMS_DATA; const I = PDMS.icon;
 let p;
 
-function getUpdates(proj){
-  try{
-    const raw = proj.remarks;
-    const arr = Array.isArray(raw) ? raw : (raw ? JSON.parse(raw) : []);
-    return Array.isArray(arr) ? arr : [];
-  }catch(e){ return []; }
-}
-function saveUpdates(proj, arr){
-  return PDMS.api.update('projects', proj.id, {remarks: JSON.stringify(arr)});
+// Updates for a project are just Reviews scoped to it — posting one from
+// here or from the Reviews page is the same action, so it shows up in both.
+function projectReviews(proj){
+  return D.reviews.filter(r=>r.projectId===proj.id).slice().sort((a,b)=> new Date(b.time)-new Date(a.time));
 }
 function timeAgo(iso){
   if(!iso) return '';
@@ -42,24 +40,41 @@ function healthOf(proj){
   return {label:'On Track', cls:'badge-success'};
 }
 function milestoneStages(proj){
-  const stages = [
-    {label:'Kickoff & Requirements', at:0},
-    {label:'Solution Architecture', at:20},
-    {label:'Implementation Phase', at:40},
-    {label:'UAT & Client Review', at:75},
-    {label:'Go-Live & Handover', at:100}
-  ];
-  const progress = proj.progress||0;
-  return stages.map((s,i)=>{
-    const next = stages[i+1] ? stages[i+1].at : 101;
-    const state = progress>=next || (i===stages.length-1 && proj.status==='Completed') ? 'done' : (progress>=s.at ? 'active' : '');
-    return {...s, state};
+  // 'Approved'/'Rejected'/'On Hold' are outcomes, not sequential steps — they
+  // can't all sit in the same line at once. The timeline only ever walks the
+  // main sequence, which normally ends at Approved (Sales) / Completed (Delivery).
+  const isSales = PDMS.stageOf(proj)==='Sales';
+  const mainSequence = isSales
+    ? ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','Approved']
+    : ['Not Started','In Progress','Awaiting Review','Testing / Quality Assurance','Completed'];
+  const status = proj.status;
+
+  if(status==='Rejected'){
+    // It got rejected at the final gate — everything before that gate stands as done.
+    return mainSequence.map((label,i)=> i===mainSequence.length-1 ? {label:'Rejected', state:'active'} : {label, state:'done'});
+  }
+
+  if(status==='On Hold'){
+    // On Hold isn't a fixed slot — it can happen at any point, so position it
+    // right after however far progress actually got, not at a fixed spot in the list.
+    const stepsBeforeFinal = mainSequence.length-1;
+    const doneCount = Math.min(stepsBeforeFinal, Math.floor(((proj.progress||0)/100)*stepsBeforeFinal));
+    const result = mainSequence.slice(0,doneCount).map(label=>({label, state:'done'}));
+    result.push({label:'On Hold', state:'active'});
+    mainSequence.slice(doneCount).forEach(label=>result.push({label, state:''}));
+    return result;
+  }
+
+  const currentIndex = mainSequence.indexOf(status);
+  return mainSequence.map((label,i)=>{
+    const state = currentIndex===-1 ? '' : i<currentIndex ? 'done' : i===currentIndex ? 'active' : '';
+    return {label, state};
   });
 }
 
 function render(){
 const hasProjects = Array.isArray(D.projects) && D.projects.length > 0;
-const id = hasProjects ? new URLSearchParams(location.search).get('id') || D.projects[0].id : null;
+const id = hasProjects ? new URLSearchParams(location.hash.replace(/^#/,'')).get('id') || D.projects[0].id : null;
 p = hasProjects ? D.projects.find(x=>x.id===id) || D.projects[0] : null;
 
 if(!p){
@@ -74,13 +89,14 @@ if(!p){
     <div class="card"><div class="card-body pdms-loading-inline"><span class="pdms-spinner"></span>Loading...</div></div>
   `;
 } else {
+  const user = PDMS.getUser();
   const health = healthOf(p);
   const stages = milestoneStages(p);
-  const updates = getUpdates(p);
-  const latest = updates[0];
-  const remarks = updates.filter(u=>u.type==='remark');
-  const blockers = updates.filter(u=>u.type==='blocker');
+  const reviews = projectReviews(p);
+  const latest = reviews[0];
   const canUpdate = PDMS.can('Add Remarks');
+  const canUploadDoc = canUpdate && !(user && user.role==='HR');
+  const canAssign = PDMS.can('Assign Consultant');
   const canManageStatus = PDMS.canManageStatus(p);
   const canStartDelivery = PDMS.can('Start Delivery') && PDMS.stageOf(p)==='Sales' && p.status==='Approved';
 
@@ -89,7 +105,6 @@ if(!p){
     <div><div class="breadcrumbs"><span><a href="projects.html">Projects</a></span><span>${p.id}</span></div>
       <h1 class="page-title">${PDMS.esc(p.name)}</h1><div class="page-sub">${PDMS.esc(p.client)} • ${PDMS.esc(p.type)}</div></div>
     <div class="flex gap-2">
-      ${canUpdate?`<button class="btn btn-secondary" onclick="addUpdate('update')">${I('message')} Post Update</button>`:''}
       ${canStartDelivery?`<button class="btn btn-primary" onclick="startDelivery()">${I('zap')||''} Start Delivery</button>`:''}
       ${canManageStatus?`<button class="btn btn-primary" onclick="changeStatus()">${I('refresh')} Change Status</button>`:''}
     </div>
@@ -113,20 +128,14 @@ if(!p){
             <div><div class="text-sm text-muted">Start Date</div><div class="font-semi">${p.start||'TBD'}</div></div>
             <div><div class="text-sm text-muted">Expected Completion</div><div class="font-semi">${p.due||'TBD'}</div></div>
           </div>
-          <div class="timeline mb-3">
+          <div class="timeline">
             ${stages.map(s=>`<div class="tl-item ${s.state}"><div class="tl-title">${s.label}</div><div class="tl-meta">${s.state==='done'?'Completed':s.state==='active'?`Ongoing — ${p.progress}% complete`:'Upcoming'}</div></div>`).join('')}
           </div>
-          <div class="text-sm text-muted mb-2">Progress History</div>
-          ${updates.length?updates.map(u=>`
-            <div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="flex items-center gap-2"><span class="badge badge-${u.type==='blocker'?'danger':u.type==='update'?'primary':'muted'}" style="font-size:11px">${u.type==='blocker'?'Blocker':u.type==='update'?'Update':'Remark'}</span><div class="font-semi text-sm">${PDMS.esc(u.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(u.time)}</div></div><div class="text-sm mt-2">${PDMS.esc(u.message)}</div></div>`).join(''):`<div class="text-muted text-sm">${PDMS.emptyOrLoading('No progress history yet.')}</div>`}
         </div>
       </div>
-      <div class="card"><div class="card-head"><div class="card-title">Documents</div><div class="card-sub">Reports & project files</div>${canUpdate?`<button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button>`:''}</div>
+      <div class="card"><div class="card-head"><div class="card-title">Documents</div><div class="card-sub">Reports & project files</div>${canUploadDoc?`<button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button>`:''}</div>
         <div class="card-body" style="padding:8px 20px">
-          ${['Statement_of_Work.pdf','Architecture_Diagram.pdf','Sprint3_Report.docx','UAT_Feedback.xlsx','Client_Signoff.pdf'].map((f,i)=>`
-            <div class="activity"><div class="a-icon">${I('file')}</div>
-              <div style="flex:1"><div class="font-semi text-sm">${f}</div><div class="a-time">${['2 days ago','5 days ago','1 week ago','2 weeks ago','1 month ago'][i]}</div></div>
-              <button class="icon-btn">${I('download')}</button></div>`).join('')}
+          <div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>
         </div>
       </div>
     </div>
@@ -137,18 +146,16 @@ if(!p){
           <div class="mb-3"><div class="text-sm text-muted">Project Manager</div><div class="flex items-center gap-2 mt-2">${p.pm?`<div class="avatar avatar-sm">${PDMS.initials(p.pm)}</div><div class="font-semi">${PDMS.esc(p.pm)}</div>`:`<div class="text-muted text-sm">Unassigned</div>`}</div></div>
           <div class="mb-3"><div class="text-sm text-muted">Project Lead</div><div class="flex items-center gap-2 mt-2">${p.lead?`<div class="avatar avatar-sm">${PDMS.initials(p.lead)}</div><div class="font-semi">${PDMS.esc(p.lead)}</div>`:`<div class="text-muted text-sm">Unassigned</div>`}</div></div>
           <div><div class="text-sm text-muted mb-2">Assigned Consultants (${p.consultants.length})</div>${p.consultants.map(c=>`<div class="flex items-center gap-2 mb-2"><div class="avatar avatar-sm">${PDMS.initials(c)}</div><div class="text-sm">${PDMS.esc(c)}</div></div>`).join('')||'<div class="text-muted text-sm">None assigned</div>'}</div>
-          ${PDMS.can('Assign Consultant')?`<button class="btn btn-secondary w-full mt-2" style="justify-content:center" onclick="PDMS.toast('Assignment','Consultant assignment opened','success')">${I('user-plus')} Assign Consultant</button>`:''}
+          ${canAssign?`<button class="btn btn-secondary w-full mt-2" style="justify-content:center" onclick="assignTeam()">${I('user-plus')} Assign Team</button>`:''}
         </div>
       </div>
       <div class="card"><div class="card-head"><div class="card-title">Updates</div></div>
         <div class="card-body">
-          <div class="text-sm text-muted mb-1">Latest Progress Update</div>
+          <div class="text-sm text-muted mb-1">Latest Update</div>
           ${latest?`<div class="mb-3" style="padding:10px;background:var(--surface-2);border-radius:10px"><div class="flex items-center gap-2"><div class="font-semi text-sm">${PDMS.esc(latest.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(latest.time)}</div></div><div class="text-sm mt-1">${PDMS.esc(latest.message)}</div></div>`:`<div class="text-muted text-sm mb-3">${PDMS.emptyOrLoading('No updates yet.')}</div>`}
-          ${canUpdate?`<div class="flex gap-2 mb-3"><button class="btn btn-secondary btn-sm" onclick="addUpdate('remark')">${I('message')} Add Remark</button><button class="btn btn-secondary btn-sm" onclick="addUpdate('blocker')">${I('alert')||''} Report Blocker</button></div>`:''}
-          <div class="text-sm text-muted mb-2">Remarks</div>
-          ${remarks.length?remarks.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="flex items-center gap-2"><div class="font-semi text-sm">${PDMS.esc(r.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(r.time)}</div></div><div class="text-sm mt-1">${PDMS.esc(r.message)}</div></div>`).join(''):`<div class="text-muted text-sm mb-2">${PDMS.emptyOrLoading('No remarks yet.')}</div>`}
-          <div class="text-sm text-muted mb-2 mt-3">Issues / Blockers</div>
-          ${blockers.length?blockers.map(b=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="flex items-center gap-2"><span class="badge badge-danger" style="font-size:11px">Blocker</span><div class="font-semi text-sm">${PDMS.esc(b.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(b.time)}</div></div><div class="text-sm mt-1">${PDMS.esc(b.message)}</div></div>`).join(''):`<div class="text-muted text-sm">${PDMS.emptyOrLoading('No blockers reported.')}</div>`}
+          ${canUpdate?`<button class="btn btn-secondary btn-sm mb-3" onclick="postProjectReview()">${I('message')} Add Remark</button>`:''}
+          <div class="text-sm text-muted mb-2">All Updates (${reviews.length})</div>
+          ${reviews.length?reviews.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="flex items-center gap-2"><div class="font-semi text-sm">${PDMS.esc(r.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(r.time)}</div></div><div class="text-sm mt-1">${PDMS.esc(r.message)}</div><a href="reviews.html#review-${r.id}" class="text-sm font-semi" style="color:var(--primary)">View & comment →</a></div>`).join(''):`<div class="text-muted text-sm">${PDMS.emptyOrLoading('No updates yet.')}</div>`}
         </div>
       </div>
     </div>
@@ -158,22 +165,54 @@ if(!p){
 }
 PDMS.onRefresh(render);
 
-function addUpdate(type){
-  const titles = {update:'Post Progress Update', remark:'Add Remark', blocker:'Report Issue / Blocker'};
-  const modal = PDMS.modal(titles[type]||'Add Update',`<div class="form-row"><label>Message</label><textarea id="updText" rows="4" placeholder="Type your ${type==='blocker'?'issue':'note'}..."></textarea></div>`,
-    `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveUpdBtn">Post</button>`);
-  modal.querySelector('#saveUpdBtn').onclick = function(){
-    const msg = modal.querySelector('#updText').value.trim();
-    if(!msg) return;
+function postProjectReview(){
+  const modal = PDMS.modal('Add Remark',`<div class="form-row"><label>Your remark</label><textarea id="prMessage" rows="4" placeholder="Share a progress update..."></textarea></div>`,
+    `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="prSaveBtn">Post</button>`);
+  modal.querySelector('#prSaveBtn').onclick = function(){
+    const message = modal.querySelector('#prMessage').value.trim();
+    if(!message){ PDMS.toast('Empty remark','Please write something first','error'); return; }
     const user = PDMS.getUser();
-    const entries = getUpdates(p);
-    entries.unshift({type, message: msg, author: user?user.name:'Unknown', time: new Date().toISOString()});
-    saveUpdates(p, entries).then(saved=>{
-      Object.assign(p, saved);
+    const record = {
+      author: user?user.name:'Unknown', authorRole: user?user.role:'',
+      projectId: p.id, projectName: p.name,
+      message, time: new Date().toISOString(), comments: []
+    };
+    PDMS.api.create('reviews', record).then(saved=>{
+      D.reviews.unshift(saved);
       modal.remove();
-      PDMS.toast('Posted','Your update has been saved','success');
+      PDMS.toast('Posted','Your remark has been saved','success');
       render();
-    }).catch(err=>PDMS.toast('Error',err.message||'Could not save update','error'));
+    }).catch(err=>PDMS.toast('Error',err.message||'Could not post remark','error'));
+  };
+}
+function assignTeam(){
+  const consultantUsers = D.users.filter(u=>u.role==='Consultant');
+  const currentConsultants = p.consultants||[];
+  const modal = PDMS.modal('Assign Team',`
+    <div class="form-grid">
+      <div class="form-row"><label>Project Manager</label><input id="assignPm" value="${PDMS.esc(p.pm||'')}" placeholder="e.g. Jane Smith"/></div>
+      <div class="form-row"><label>Project Lead</label><input id="assignLead" value="${PDMS.esc(p.lead||'')}" placeholder="e.g. John Doe"/></div>
+    </div>
+    <div class="form-row"><label>Consultants</label>
+      <div style="max-height:220px;overflow-y:auto;padding-right:4px">
+        ${consultantUsers.map(c=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:6px 0">
+            <input type="checkbox" id="cc-${c.id}" value="${PDMS.esc(c.name)}" ${currentConsultants.includes(c.name)?'checked':''}/>
+            <label for="cc-${c.id}" style="cursor:pointer">${PDMS.esc(c.name)}</label>
+          </div>`).join('') || '<div class="text-muted text-sm">No consultants available</div>'}
+      </div>
+    </div>
+  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveAssignBtn">Save</button>`);
+  modal.querySelector('#saveAssignBtn').onclick = function(){
+    const pm = modal.querySelector('#assignPm').value.trim();
+    const lead = modal.querySelector('#assignLead').value.trim();
+    const consultants = Array.from(modal.querySelectorAll('input[type="checkbox"]:checked')).map(cb=>cb.value);
+    PDMS.api.update('projects',p.id,{pm,lead,consultants}).then(saved=>{
+      Object.assign(p,saved);
+      modal.remove();
+      PDMS.toast('Team updated','Assignment saved','success');
+      render();
+    }).catch(err=>PDMS.toast('Error',err.message||'Could not update assignment','error'));
   };
 }
 function uploadDoc(){
@@ -220,5 +259,5 @@ function startDelivery(){
     }).catch(err=>PDMS.toast('Error',err.message||'Could not start delivery','error'));
   };
 }
-window.addUpdate=addUpdate;window.uploadDoc=uploadDoc;window.changeStatus=changeStatus;window.startDelivery=startDelivery;
+window.postProjectReview=postProjectReview;window.assignTeam=assignTeam;window.uploadDoc=uploadDoc;window.changeStatus=changeStatus;window.startDelivery=startDelivery;
 </script></body></html>

@@ -226,12 +226,12 @@
             <tbody>
               ${salesProjects.map(p => `
                 <tr>
-                  <td><a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
+                  <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
                   <td class="font-bold">${PDMS.esc(p.name)}</td>
                   <td>${PDMS.esc(p.client)}</td>
                   <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
-                  <td><a href="project-details.html?id=${p.id}" class="btn btn-secondary btn-sm">Manage</a></td>
+                  <td><a href="project-details.html#id=${p.id}" class="btn btn-secondary btn-sm">Manage</a></td>
                 </tr>`).join('') || `<tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects yet')}</td></tr>`}
             </tbody>
           </table>
@@ -266,7 +266,7 @@
             <tbody>
               ${deliveryProjects.map(p => `
                 <tr>
-                  <td><a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
+                  <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
                   <td class="font-bold">${PDMS.esc(p.name)}</td>
                   <td>${PDMS.esc(p.client)}</td>
                   <td>${PDMS.esc(p.pm || 'TBD')}</td>

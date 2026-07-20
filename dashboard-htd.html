@@ -189,7 +189,7 @@
             <div class="activity" style="align-items:center;padding:12px 0">
               <div class="a-icon" style="background:rgba(239,68,68,.12);color:var(--danger)">${I('zap')}</div>
               <div style="flex:1">
-                <div class="font-semi text-sm"><a href="project-details.html?id=${p.id}">${PDMS.esc(p.name)}</a></div>
+                <div class="font-semi text-sm"><a href="project-details.html#id=${p.id}">${PDMS.esc(p.name)}</a></div>
                 <div class="text-sm text-muted">${PDMS.esc(p.client)} • ${p.progress}% done</div>
               </div>
               <span class="badge badge-danger">${p.priority}</span>
@@ -226,7 +226,7 @@
                 <tr>
                   <td>
                     <div>
-                      <a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a>
+                      <a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a>
                       <div class="font-bold text-sm">${PDMS.esc(p.name)}</div>
                       <div class="text-sm text-muted">${PDMS.esc(p.client)}</div>
                     </div>
@@ -277,11 +277,11 @@
             <tbody>
               ${salesProjects.map(p => `
                 <tr>
-                  <td><a href="project-details.html?id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
+                  <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
                   <td>${PDMS.esc(p.client)}</td>
                   <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
-                  <td>${p.status === 'Approved' ? `<button class="btn btn-primary btn-sm" onclick="location.href='project-details.html?id=${p.id}'">Start Delivery</button>` : ''}</td>
+                  <td>${p.status === 'Approved' ? `<button class="btn btn-primary btn-sm" onclick="location.href='project-details.html#id=${p.id}'">Start Delivery</button>` : ''}</td>
                 </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects')}</td></tr>`}
             </tbody>
           </table>
@@ -355,7 +355,7 @@
       <div class="form-row"><label>Full Name</label><input id="newUserName" placeholder="Jane Smith"/></div>
       <div class="form-row"><label>Email</label><input id="newUserEmail" type="email" placeholder="jane.smith@pse.com"/></div>
       <div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div>
-      <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
       <div class="form-row"><label>Department</label><input id="newUserDept" type="text" placeholder="e.g. Engineering"/></div>
     </div>
   `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">${I('check')} Onboard</button>`);

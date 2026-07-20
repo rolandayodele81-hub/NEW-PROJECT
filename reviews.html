@@ -81,7 +81,7 @@ function renderReview(r){
   const comments = getComments(r);
   const isProject = !!(r.projectId || r.projectName);
   const projectBadge = r.projectId
-    ? `<a href="project-details.html?id=${r.projectId}" class="badge badge-primary">${I('folder')} ${PDMS.esc(r.projectName||r.projectId)}</a>`
+    ? `<a href="project-details.html#id=${r.projectId}" class="badge badge-primary">${I('folder')} ${PDMS.esc(r.projectName||r.projectId)}</a>`
     : r.projectName
       ? `<span class="badge badge-primary">${I('folder')} ${PDMS.esc(r.projectName)}</span>`
       : `<span class="badge badge-muted">${I('message')} General</span>`;

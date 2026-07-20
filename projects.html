@@ -76,7 +76,7 @@ function renderProjects(){
   PDMS.renderTable(document.getElementById('listView'),{
     columns, rows, pageSize:12,
     searchKeys:['id','name','client','pm','status','type'],
-    rowHref:r=>'project-details.html?id='+r.id,
+    rowHref:r=>'project-details.html#id='+r.id,
     filterOptions:[
       {key:'status',label:'Status',options:bucketStatuses},
       {key:'priority',label:'Priority',options:D.priorities}
@@ -84,7 +84,7 @@ function renderProjects(){
   });
   document.getElementById('kanbanView').innerHTML = `<div class="kanban">${kanbanStatuses.map(s=>`
     <div class="kb-col"><div class="kb-head"><span class="kb-title">${s}</span><span class="badge badge-muted">${rows.filter(p=>p.status===s).length}</span></div>
-      ${rows.filter(p=>p.status===s).slice(0,8).map(p=>`<div class="kb-card" onclick="location.href='project-details.html?id=${p.id}'">
+      ${rows.filter(p=>p.status===s).slice(0,8).map(p=>`<div class="kb-card" onclick="location.href='project-details.html#id=${p.id}'">
         <div class="t">${PDMS.esc(p.name)}</div>
         <div class="progress mb-2"><div class="bar" style="width:${p.progress}%"></div></div>
         <div class="m"><span class="badge ${D.prioColors[p.priority]}">${p.priority}</span><span>${p.due}</span></div>
