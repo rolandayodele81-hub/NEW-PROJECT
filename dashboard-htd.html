@@ -62,6 +62,10 @@ const DEFAULT_PASSWORD = 'Welcome@123';
 function render(){
   const activeProjects = D.projects.filter(p=>p.status==='In Progress').length;
   const criticalEscalations = D.projects.filter(p=>p.priority==='Critical').length;
+  const pipelineProjects = D.projects.filter(p=>['Incoming','Approved'].includes(p.status));
+  const pipelineValue = pipelineProjects.reduce((acc, curr) => acc + (curr.budget || 0), 0);
+  const incomingDeals = D.projects.filter(p=>p.status==='Incoming').length;
+  const approvedDeals = D.projects.filter(p=>p.status==='Approved').length;
   
   // Bench utilization
   const totalConsultants = D.consultants.length;
@@ -83,6 +87,7 @@ function render(){
         <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9);margin-top:8px">Onboard delivery leaders, assign PMs and Leads, manage consultant allocations, and oversee technical governance.</p>
         <div class="hero-actions">
           <button class="btn btn-primary" onclick="newUser()">${I('user-plus')} Onboard Staff</button>
+          <button class="btn btn-secondary" onclick="newProject()">${I('plus')} Create Project</button>
           <a class="btn btn-secondary" href="consultants.html" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18)">${I('briefcase')} View Resources</a>
         </div>
       </div>
@@ -120,6 +125,27 @@ function render(){
         <div class="value">${totalConsultants}</div>
         <div class="delta up">Engineers & Analysts</div>
         <div class="icon-wrap">${I('users')}</div>
+      </div>
+    </div>
+
+    <div class="grid grid-3 mb-4">
+      <div class="stat i-pink">
+        <div class="label">Pipeline Value</div>
+        <div class="value" style="font-size:22px;margin-top:10px">${PDMS.money(pipelineValue)}</div>
+        <div class="delta up">${pipelineProjects.length} deals in pipeline</div>
+        <div class="icon-wrap">${I('trending')}</div>
+      </div>
+      <div class="stat i-success">
+        <div class="label">Approved Deals</div>
+        <div class="value">${approvedDeals}</div>
+        <div class="delta up">Ready for delivery</div>
+        <div class="icon-wrap">${I('check')}</div>
+      </div>
+      <div class="stat i-warn">
+        <div class="label">Incoming Deals</div>
+        <div class="value">${incomingDeals}</div>
+        <div class="delta down">Awaiting confirmation</div>
+        <div class="icon-wrap">${I('clock')}</div>
       </div>
     </div>
 
@@ -283,6 +309,48 @@ function manageConsultants(projectId) {
   };
 }
 
+function newProject() {
+  const modal = PDMS.modal('Create New Project', `
+    <div class="form-grid">
+      <div class="form-row"><label>Project Name</label><input id="newProjName" placeholder="e.g. Falcon Migration"/></div>
+      <div class="form-row"><label>Client</label><select id="newProjClient">${D.clients.map(c=>`<option>${PDMS.esc(c.name)}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Type</label><select id="newProjType"><option>Software Development</option><option>Consulting</option><option>Infrastructure</option></select></div>
+      <div class="form-row"><label>Priority</label><select id="newProjPriority">${D.priorities.map(p=>`<option>${p}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Start Date</label><input id="newProjStart" type="date"/></div>
+      <div class="form-row"><label>Due Date</label><input id="newProjDue" type="date"/></div>
+      <div class="form-row"><label>Budget (USD)</label><input id="newProjBudget" type="number" placeholder="250000"/></div>
+      <div class="form-row"><label>Department</label><select id="newProjDept">${D.departments.map(d=>`<option>${PDMS.esc(d.name)}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row"><label>Description</label><textarea id="newProjDesc" rows="3" placeholder="Scope, goals, deliverables..."></textarea></div>
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createProjectBtn">${I('plus')} Create Project</button>`);
+  modal.querySelector('#createProjectBtn').onclick = function(){
+    const name = modal.querySelector('#newProjName').value.trim();
+    const client = modal.querySelector('#newProjClient').value;
+    const type = modal.querySelector('#newProjType').value;
+    const priority = modal.querySelector('#newProjPriority').value;
+    const start = modal.querySelector('#newProjStart').value;
+    const due = modal.querySelector('#newProjDue').value;
+    const budget = Number(modal.querySelector('#newProjBudget').value)||0;
+    const dept = modal.querySelector('#newProjDept').value;
+    const desc = modal.querySelector('#newProjDesc').value.trim();
+    if(!name || !client){
+      PDMS.toast('Missing project info','Project name and client are required','error');
+      return;
+    }
+    const record = {
+      name, client, type, dept, sales:PDMS.getUser() ? PDMS.getUser().name : 'TBD', pm:'TBD', lead:'TBD', consultants:[],
+      priority, budget, status:'Incoming', progress:0, start:start||'', due:due||'', completion:null,
+      description:desc, files:0, remarks:0
+    };
+    PDMS.api.create('projects', record).then(saved => {
+      D.projects.unshift(saved);
+      modal.remove();
+      PDMS.toast('Project created', 'New project added to pipeline', 'success');
+      render();
+    }).catch(err => PDMS.toast('Error', err.message || 'Could not create project', 'error'));
+  };
+}
+
 function newUser() {
   const modal = PDMS.modal('Onboard New Delivery Resource', `
     <div class="form-grid">
@@ -321,6 +389,7 @@ function showNewUserPasswordNote(user) {
 }
 
 window.newUser = newUser;
+window.newProject = newProject;
 window.updateProjectField = updateProjectField;
 window.manageConsultants = manageConsultants;
 

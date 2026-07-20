@@ -9,7 +9,7 @@
 
   const MATRIX = {
     'Onboard User':        ['HR','HTD','COO','General Admin'],
-    'Create Project':      ['Sales','General Admin'],
+    'Create Project':      ['Sales','HTD','COO','Project Manager','General Admin'],
     'Assign Project':      ['HR','HTD','COO','Project Manager','General Admin'],
     'Assign PM':            ['HTD','COO','General Admin'],
     'Assign Lead':          ['HTD','COO','Project Manager','General Admin'],
