@@ -97,14 +97,18 @@
       const salesProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Sales');
       // Only projects a delivery role (COO/HTD/PM Head/PMO) created directly —
       // not sales-originated projects that got promoted via "Start Delivery".
+      // This narrower set feeds the "Projects in Delivery" section below.
       const deliveryProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Delivery' && PDMS.isDeliveryRole({role: p.createdByRole}));
+      // The status overview chart is a general snapshot of everything currently
+      // in delivery, regardless of how it got there — so it uses the full set.
+      const allDeliveryStageProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Delivery');
 
       // Delivery project status distribution
       const statusColorHex = {'Not Started':'#94a3b8','In Progress':'#f59e0b','On Hold':'#94a3b8','Awaiting Review':'#eab308','Testing / Quality Assurance':'#8b5cf6',Completed:'#10b981',Approved:'#4f46e5',Rejected:'#ef4444'};
-      const totalProjects = deliveryProjects.length;
+      const totalProjects = allDeliveryStageProjects.length;
       const statusCounts = D.deliveryStatuses.map(s => ({
         status: s,
-        count: deliveryProjects.filter(p => p.status === s).length,
+        count: allDeliveryStageProjects.filter(p => p.status === s).length,
         color: statusColorHex[s] || '#94a3b8'
       })).filter(s => s.count > 0);
 
