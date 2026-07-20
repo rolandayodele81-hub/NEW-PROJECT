@@ -1,71 +1,117 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>HR Dashboard — PSE PDMS</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css"/>
-<style>
-.hr-hero {
-  display: grid;
-  grid-template-columns: 1.3fr 0.7fr;
-  gap: 20px;
-  padding: 24px 26px;
-  border-radius: 28px;
-  background: linear-gradient(135deg, #2e0854 0%, #8b5cf6 50%, #ec4899 100%);
-  color: #fff;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 24px 60px rgba(139, 92, 246, 0.25);
-  margin-bottom: 24px;
-}
-.hr-hero::before {
-  content: "";
-  position: absolute;
-  inset: -20% -10% auto auto;
-  width: 320px;
-  height: 320px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 70%);
-  filter: blur(10px);
-  animation: drift 8s ease-in-out infinite alternate;
-}
-.hr-hero-copy { position: relative; z-index: 1; }
-.hr-hero-card {
-  position: relative; z-index: 1; display: flex; align-items: center; gap: 16px; padding: 18px; border-radius: 20px;
-  background: rgba(255, 255, 255, 0.16); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.22);
-}
-@keyframes drift{from{transform:translate3d(0,0,0)}to{transform:translate3d(-20px,-10px,0)}}
-@media(max-width:900px){
-  .hr-hero { grid-template-columns: 1fr; }
-  .hr-hero-card { margin-top: 8px; }
-}
-</style>
-</head><body>
-<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
-<script>
-PDMS.mountShell('dashboard');
-const D=PDMS_DATA;const I=PDMS.icon;
-const DEFAULT_PASSWORD = 'Welcome@123';
+<html lang="en">
 
-function render(){
-  const totalStaff = D.users.length;
-  const activeStaff = D.users.filter(u=>u.status==='Active').length;
-  const totalConsultants = D.consultants.length;
-  const availableConsultants = D.consultants.filter(c=>c.availability==='Available').length;
-  
-  // Readiness calculation
-  const readiness = Math.round((availableConsultants / Math.max(totalConsultants, 1)) * 100);
-  
-  // Workload distributions
-  const depts = [...new Set(D.users.map(u => u.dept || 'Engineering'))];
-  const deptWorkloads = depts.map(d => {
-    const list = D.users.filter(u => u.dept === d);
-    return Math.round(list.reduce((acc, curr) => acc + (curr.workload || 0), 0) / Math.max(list.length, 1));
-  });
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HR Dashboard — PSE PDMS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .hr-hero {
+      display: grid;
+      grid-template-columns: 1.3fr 0.7fr;
+      gap: 20px;
+      padding: 24px 26px;
+      border-radius: 28px;
+      background: linear-gradient(135deg, #2e0854 0%, #8b5cf6 50%, #ec4899 100%);
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(139, 92, 246, 0.25);
+      margin-bottom: 24px;
+    }
 
-  document.getElementById('content').innerHTML=`
+    .hr-hero::before {
+      content: "";
+      position: absolute;
+      inset: -20% -10% auto auto;
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 70%);
+      filter: blur(10px);
+      animation: drift 8s ease-in-out infinite alternate;
+    }
+
+    .hr-hero-copy {
+      position: relative;
+      z-index: 1;
+    }
+
+    .hr-hero-card {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.16);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+    }
+
+    @keyframes drift {
+      from {
+        transform: translate3d(0, 0, 0)
+      }
+
+      to {
+        transform: translate3d(-20px, -10px, 0)
+      }
+    }
+
+    @media(max-width:900px) {
+      .hr-hero {
+        grid-template-columns: 1fr;
+      }
+
+      .hr-hero-card {
+        margin-top: 8px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/permissions.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    PDMS.mountShell('dashboard');
+    const D = PDMS_DATA; const I = PDMS.icon;
+
+    function render() {
+      const totalStaff = D.users.length;
+      const activeStaff = D.users.filter(u => u.status === 'Active').length;
+      const consultants = D.users.filter(u => u.role === 'Consultant');
+      const totalConsultants = consultants.length;
+      const availableConsultants = consultants.filter(c => c.availability === 'Available').length;
+
+      // Readiness calculation
+      const readiness = Math.round((availableConsultants / Math.max(totalConsultants, 1)) * 100);
+
+      const salesProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Sales');
+      // Only projects a delivery role (COO/HTD/PM Head/PMO) created directly —
+      // not sales-originated projects that got promoted via "Start Delivery".
+      const deliveryProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Delivery' && PDMS.isDeliveryRole({role: p.createdByRole}));
+
+      // Delivery project status distribution
+      const statusColorHex = {'Not Started':'#94a3b8','In Progress':'#f59e0b','On Hold':'#94a3b8','Awaiting Review':'#eab308','Testing / Quality Assurance':'#8b5cf6',Completed:'#10b981',Approved:'#4f46e5',Rejected:'#ef4444'};
+      const totalProjects = deliveryProjects.length;
+      const statusCounts = D.deliveryStatuses.map(s => ({
+        status: s,
+        count: deliveryProjects.filter(p => p.status === s).length,
+        color: statusColorHex[s] || '#94a3b8'
+      })).filter(s => s.count > 0);
+
+      document.getElementById('content').innerHTML = `
     <div class="hr-hero">
       <div class="hr-hero-copy">
-        <div class="hero-pill">People Operations • Talent & Capacity</div>
-        <h1 class="page-title" style="font-size:30px;line-height:1.1;margin-top:10px">Talent & Resource Command Center</h1>
+        <h1 class="page-title" style="font-size:30px;line-height:1.1;margin-top:10px">Talent & Resource Dashboard</h1>
         <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9);margin-top:8px">Orchestrate resources, manage onboarding, evaluate staff utilization, and verify delivery availability in real time.</p>
         <div class="hero-actions">
           <button class="btn btn-primary" onclick="newUser()">${I('user-plus')} Onboard User</button>
@@ -97,7 +143,7 @@ function render(){
       </div>
       <div class="stat i-warn">
         <div class="label">On Leave</div>
-        <div class="value">${D.users.filter(u=>u.status==='On Leave').length}</div>
+        <div class="value">${D.users.filter(u => u.status === 'On Leave').length}</div>
         <div class="delta down">Out of office</div>
         <div class="icon-wrap">${I('clock')}</div>
       </div>
@@ -113,13 +159,18 @@ function render(){
       <div class="card">
         <div class="card-head">
           <div>
-            <div class="card-title">Workload Distribution by Dept</div>
-            <div class="card-sub">Average workload percentage across business units</div>
+            <div class="card-title">Project Status Overview</div>
+            <div class="card-sub">Distribution of all projects by current status</div>
           </div>
           <span class="badge badge-purple">Realtime</span>
         </div>
         <div class="card-body">
-          <div class="chart-wrap" style="height:260px"><canvas id="c1"></canvas></div>
+          <div class="chart-wrap" style="height:220px"><canvas id="statusDonut"></canvas></div>
+          <div id="statusLegend" class="mt-3 flex flex-col gap-2">${statusCounts.map(s => `
+            <div class="flex items-center justify-between text-sm">
+              <span class="flex items-center gap-2"><span style="width:10px;height:10px;border-radius:3px;background:${s.color};display:inline-block"></span>${s.status}</span>
+              <span class="font-semi">${Math.round((s.count/Math.max(totalProjects,1))*100)}%</span>
+            </div>`).join('') || `<div class="text-muted text-sm">${PDMS.emptyOrLoading('No projects yet')}</div>`}</div>
         </div>
       </div>
 
@@ -132,7 +183,7 @@ function render(){
           <span class="badge badge-danger">High Load</span>
         </div>
         <div class="card-body" style="padding:8px 20px">
-          ${D.users.slice().sort((a,b)=>b.workload-a.workload).slice(0,5).map(u=>`
+          ${D.users.slice().sort((a, b) => b.workload - a.workload).slice(0, 5).map(u => `
             <div class="flex items-center gap-3" style="padding:12px 0;border-bottom:1px solid var(--border)">
               <div class="avatar avatar-sm">${PDMS.initials(u.name)}</div>
               <div style="flex:1">
@@ -144,6 +195,57 @@ function render(){
                 <span class="pct">${u.workload}%</span>
               </div>
             </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="card-title" style="font-size:18px">Projects in Delivery</h2>
+      <a class="btn btn-secondary btn-sm" href="projects.html#view=delivery">View More</a>
+    </div>
+    <div class="grid grid-3 mb-4">
+      ${deliveryProjects.slice(0, 6).map(p => `
+        <div class="card">
+          <div class="card-body">
+            <div class="flex items-center justify-between mb-2" style="gap:8px">
+              <div class="font-bold" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(p.name)}</div>
+              <span class="badge badge-${D.statusColors[p.status] || 'muted'} dot" style="flex-shrink:0">${PDMS.esc(p.status)}</span>
+            </div>
+            <div class="text-sm text-muted mb-3">Client: ${PDMS.esc(p.client || 'TBD')}</div>
+            <div class="flex items-center justify-between text-sm mb-1"><span class="text-muted">Progress</span><span class="font-semi">${p.progress || 0}%</span></div>
+            <div class="progress mb-3"><div class="bar" style="width:${p.progress || 0}%"></div></div>
+            <div class="text-sm text-muted">Start Date: ${p.start || 'TBD'}</div>
+            <div class="text-sm text-muted mb-3">Expected End: ${p.due || 'TBD'}</div>
+            <a href="project-details.html#id=${p.id}" class="text-sm font-semi" style="color:var(--primary)">View Details →</a>
+          </div>
+        </div>`).join('') || `<div class="text-muted" style="padding:24px;text-align:center;grid-column:1/-1">${PDMS.emptyOrLoading('No projects in delivery yet')}</div>`}
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Sales Pipeline</div>
+          <div class="card-sub">Prospects Sales is currently working, from first contact to client approval</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="badge badge-muted">${salesProjects.length} in pipeline</span>
+          <a class="btn btn-secondary btn-sm" href="projects.html#view=sales">View More</a>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead><tr><th>Project</th><th>Client</th><th>Priority</th><th>Status</th></tr></thead>
+            <tbody>
+              ${salesProjects.map(p => `
+                <tr>
+                  <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
+                  <td>${PDMS.esc(p.client)}</td>
+                  <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
+                  <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
+                </tr>`).join('') || `<tr><td colspan="4" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects')}</td></tr>`}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -170,26 +272,26 @@ function render(){
                 </tr>
               </thead>
               <tbody>
-                ${D.consultants.slice(0, 5).map(c=>`
+                ${consultants.slice(0, 5).map(c => `
                   <tr>
                     <td>
-                      <div class="flex items-center gap-2">
+                      <a href="user-details.html#id=${c.id}" class="flex items-center gap-2" style="color:inherit;text-decoration:none">
                         <div class="avatar avatar-sm">${PDMS.initials(c.name)}</div>
                         <div>
                           <div class="font-semi">${PDMS.esc(c.name)}</div>
                           <div class="text-sm text-muted">${PDMS.esc(c.email)}</div>
                         </div>
-                      </div>
+                      </a>
                     </td>
-                    <td><span class="badge badge-purple">${PDMS.esc(c.specialty)}</span></td>
-                    <td><span class="badge badge-${c.status==='Active'?'success':'danger'}">${PDMS.esc(c.status)}</span></td>
+                    <td><span class="badge badge-purple">${PDMS.esc(c.dept || '—')}</span></td>
+                    <td><span class="badge badge-${c.status === 'Active' ? 'success' : 'danger'}">${PDMS.esc(c.status)}</span></td>
                     <td>
-                      <span class="badge badge-${c.availability==='Available'?'success':'warn'}">${PDMS.esc(c.availability)}</span>
+                      <span class="badge badge-${c.availability === 'Available' ? 'success' : 'warn'}">${PDMS.esc(c.availability || '—')}</span>
                     </td>
                     <td>
                       <button class="btn btn-secondary btn-sm" onclick="toggleAvailability('${c.id}')">Toggle Availability</button>
                     </td>
-                  </tr>`).join('')}
+                  </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No consultants yet')}</td></tr>`}
               </tbody>
             </table>
           </div>
@@ -201,7 +303,7 @@ function render(){
           <div class="card-title">People Activities</div>
         </div>
         <div class="card-body" style="padding: 8px 20px">
-          ${D.activities.filter(a=>a.action.includes('onboard') || a.action.includes('assign') || a.role==='HR').slice(0,5).map(a=>`
+          ${D.activities.filter(a => a.action.includes('onboard') || a.action.includes('assign') || a.role === 'HR').slice(0, 5).map(a => `
             <div class="activity">
               <div class="a-icon">${I('activity')}</div>
               <div>
@@ -209,68 +311,84 @@ function render(){
                 <div class="a-time">${a.time}</div>
               </div>
             </div>`).join('')}
-          ${D.activities.filter(a=>a.action.includes('onboard') || a.action.includes('assign') || a.role==='HR').length === 0 ? `
-            <div class="text-muted text-center" style="padding: 24px 0">No recent HR-related events</div>` : ''}
+          ${D.activities.filter(a => a.action.includes('onboard') || a.action.includes('assign') || a.role === 'HR').length === 0 ? `
+            <div class="text-muted text-center" style="padding: 24px 0">${PDMS.emptyOrLoading('No recent HR-related events')}</div>` : ''}
         </div>
       </div>
     </div>
   `;
-  
-  // Render department workload bar chart
-  PDMS.charts.bar(document.getElementById('c1'), deptWorkloads, depts, '#8b5cf6');
-}
 
-function newUser() {
-  const modal = PDMS.modal('Onboard New User', `
+      // Render project status donut chart
+      if(statusCounts.length){
+        PDMS.charts.donut(document.getElementById('statusDonut'), statusCounts.map(s=>s.count), statusCounts.map(s=>s.color));
+      }
+    }
+
+    function newUser() {
+      const modal = PDMS.modal('Onboard New User', `
     <div class="form-grid">
       <div class="form-row"><label>Full Name</label><input id="newUserName" placeholder="Jane Smith"/></div>
       <div class="form-row"><label>Email</label><input id="newUserEmail" type="email" placeholder="jane.smith@pse.com"/></div>
-      <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Department</label><input id="newUserDept" type="text" placeholder="e.g. Design"/></div>
+      <div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div>
+      <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Skill Set</label><input id="newUserDept" type="text" placeholder="e.g. Design"/></div>
+      <div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="date"/></div>
     </div>
   `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">${I('check')} Onboard</button>`);
-  
-  modal.querySelector('#createUserBtn').onclick = function () {
-    const name = modal.querySelector('#newUserName').value.trim();
-    const email = modal.querySelector('#newUserEmail').value.trim().toLowerCase();
-    const role = modal.querySelector('#newUserRole').value;
-    const dept = modal.querySelector('#newUserDept').value.trim();
-    if (!name || !email) {
-      PDMS.toast('Missing user info', 'Name and email are required', 'error');
-      return;
+
+      modal.querySelector('#createUserBtn').onclick = function () {
+        const name = modal.querySelector('#newUserName').value.trim();
+        const email = modal.querySelector('#newUserEmail').value.trim().toLowerCase();
+        const password = modal.querySelector('#newUserPassword').value;
+        const role = modal.querySelector('#newUserRole').value;
+        const dept = modal.querySelector('#newUserDept').value.trim();
+        const birthday = modal.querySelector('#newUserBirthday').value;
+        if (!name || !email || !password) {
+          PDMS.toast('Missing user info', 'Name, email, and password are required', 'error');
+          return;
+        }
+        // Duplicate email guard
+        if (D.users.some(u => u.email.toLowerCase() === email)) {
+          PDMS.toast('Email already in use', 'A user with this email already exists. Use a different address.', 'error');
+          return;
+        }
+        const record = { name, email, password, role, dept, birthday: birthday || '', workload: 0, phone: '', joined: new Date().toISOString().slice(0, 10), status: 'Active' };
+        PDMS.api.register(record).then(saved => {
+          D.users.unshift(saved);
+          modal.remove();
+          showNewUserPasswordNote(saved, password);
+          render(); // immediate local re-render with the new user
+          // Background async refresh — updates stats & list when server responds
+          if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+        }).catch(err => PDMS.toast('Error', err.message || 'Could not onboard user', 'error'));
+      };
     }
-    const record = { name, email, role, dept, password: DEFAULT_PASSWORD, workload: 0, phone: '', joined: new Date().toISOString().slice(0, 10), status: 'Active' };
-    PDMS.api.register(record).then(saved => {
-      D.users.unshift(saved);
-      modal.remove();
-      showNewUserPasswordNote(saved);
-      render();
-    }).catch(err => PDMS.toast('Error', err.message || 'Could not onboard user', 'error'));
-  };
-}
 
-function showNewUserPasswordNote(user) {
-  const modal = PDMS.modal('User Onboarded Successfully', `
+    function showNewUserPasswordNote(user, password) {
+      const modal = PDMS.modal('User Onboarded Successfully', `
     <p class="text-sm text-muted" style="margin-bottom:16px">The account for ${PDMS.esc(user.name)} is active. Here is their temporary login password:</p>
-    <div style="text-align:center;padding:18px;background:var(--surface-2);border:1px dashed var(--border);border-radius:10px;font-size:20px;font-weight:800;letter-spacing:1px;color:var(--primary)">${PDMS.esc(DEFAULT_PASSWORD)}</div>
+    <div style="text-align:center;padding:18px;background:var(--surface-2);border:1px dashed var(--border);border-radius:10px;font-size:20px;font-weight:800;letter-spacing:1px;color:var(--primary)">${PDMS.esc(password)}</div>
   `, `<button class="btn btn-primary w-full" data-close>Got it</button>`);
-  modal.querySelector('.modal').classList.add('modal-sm');
-}
+      modal.querySelector('.modal').classList.add('modal-sm');
+    }
 
-function toggleAvailability(id) {
-  const consultant = D.consultants.find(c => c.id === id);
-  if (!consultant) return;
-  const nextAvailability = consultant.availability === 'Available' ? 'Allocated' : 'Available';
-  
-  PDMS.api.update('consultants', id, { availability: nextAvailability }).then(saved => {
-    Object.assign(consultant, saved);
-    PDMS.toast('Availability updated', `${consultant.name} is now ${consultant.availability}`, 'success');
-    render();
-  }).catch(err => PDMS.toast('Error', err.message || 'Could not update availability', 'error'));
-}
+    function toggleAvailability(id) {
+      const consultant = D.users.find(u => u.id === id);
+      if (!consultant) return;
+      const nextAvailability = consultant.availability === 'Available' ? 'Allocated' : 'Available';
 
-window.newUser = newUser;
-window.toggleAvailability = toggleAvailability;
+      PDMS.api.update('users', id, { availability: nextAvailability }).then(saved => {
+        Object.assign(consultant, saved);
+        PDMS.toast('Availability updated', `${consultant.name} is now ${consultant.availability}`, 'success');
+        render();
+      }).catch(err => PDMS.toast('Error', err.message || 'Could not update availability', 'error'));
+    }
 
-PDMS.onRefresh(render);
-</script></body></html>
+    window.newUser = newUser;
+    window.toggleAvailability = toggleAvailability;
+
+    PDMS.onRefresh(render);
+  </script>
+</body>
+
+</html>

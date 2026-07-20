@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PSE PDMS — Sign in</title>
   <meta name="description" content="PSE PDMS — Project Delivery Management System for enterprise teams." />
-  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
   <div class="auth-wrap">
     <div class="auth-brand">
       <div class="brand">
-        <div class="brand-logo" style="height:64px"><img src="/images/pse-logo.png" alt="PSE PDMS Logo" /></div>
+        <div class="brand-logo" style="height:64px"><img src="images/pse-logo.png" alt="PSE PDMS Logo" /></div>
       </div>
       <div>
         <h1>Deliver every project with clarity, speed, and control.</h1>
@@ -41,51 +41,29 @@
     </div>
     <div class="auth-form-wrap">
       <div class="auth-form">
-        <div class="auth-actions" style="display:flex;justify-content:flex-end;padding-bottom:16px;">
-          <button type="button" class="btn btn-secondary" id="signupBtn">Create account</button>
-        </div>
-        <div id="authBox">
-          <div class="auth-empty" style="padding:24px 0;color:var(--text-muted)">Please choose an action above.</div>
-        </div>
+        <div id="authBox"></div>
       </div>
     </div>
   </div>
   <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/permissions.js"></script>
   <script src="js/api.js"></script>
   <script>
-    const ROLES = ['General Admin', 'HR', 'HTD', 'COO', 'Project Manager', 'Consultant', 'Sales'];
     const authBox = document.getElementById('authBox');
-    const signupBtn = document.getElementById('signupBtn');
-
-    function renderSignupForm() {
-      authBox.innerHTML = `
-    <h2>Create your account</h2>
-    <p class="sub">Get started with your PSE workspace.</p>
-    <form id="signupForm">
-      <div class="form-row"><label>Full name</label><input type="text" id="signupName" placeholder="John Doe" required/></div>
-      <div class="form-row"><label>Work email</label><input type="email" id="signupEmail" placeholder="name@company.com" required/></div>
-      <div class="form-row"><label>Password</label><input type="password" id="signupPassword" placeholder="Enter a strong password" required/></div>
-      <div class="form-row"><label>Role</label><select id="signupRole">${ROLES.map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
-      <button class="btn btn-primary w-full" type="submit">Create account</button>
-      <div class="form-actions"><a href="#" id="switchToLogin">Already have an account? Sign in</a></div>
-    </form>
-  `;
-      document.getElementById('signupForm').addEventListener('submit', handleSignup);
-      document.getElementById('switchToLogin').addEventListener('click', e => { e.preventDefault(); renderLoginForm(); });
-    }
 
     function renderLoginForm() {
       authBox.innerHTML = `
     <h2>Welcome back</h2>
-    <p class="sub">Sign in to access your workspace.</p>
+    <p class="sub">Sign in with your corporate credentials.</p>
     <form id="loginForm">
       <div class="form-row"><label>Work email</label><input type="email" id="email" placeholder="name@company.com" required/></div>
       <div class="form-row"><label>Password</label><input type="password" id="password" placeholder="Enter your password" required/></div>
       <button class="btn btn-primary w-full" type="submit">Sign in</button>
       <div class="form-actions"><a href="forgot.html">Forgot password?</a></div>
     </form>
+    <div class="auth-note">Accounts are provisioned by HR and system administrators only.</div>
   `;
       document.getElementById('loginForm').addEventListener('submit', handleLogin);
     }
@@ -104,28 +82,6 @@
       }
     }
 
-    async function handleSignup(event) {
-      event.preventDefault();
-      const name = document.getElementById('signupName').value.trim();
-      const email = document.getElementById('signupEmail').value.trim().toLowerCase();
-      const password = document.getElementById('signupPassword').value;
-      const role = document.getElementById('signupRole').value;
-
-      if (!name || !email || !password) {
-        PDMS.toast('Missing information', 'Please complete all fields', 'error');
-        return;
-      }
-      try {
-        const account = await PDMS.registerUser({ name, email, password, role, avatar: PDMS.initials(name) });
-        PDMS.setUser(account);
-        PDMS.toast('Account created', 'Logging you in...', 'success');
-        setTimeout(() => location.href = PDMS.dashboardFor(account), 600);
-      } catch (err) {
-        PDMS.toast('Could not create account', err.message || 'Use a different email or login instead', 'error');
-      }
-    }
-
-    signupBtn.addEventListener('click', renderSignupForm);
     renderLoginForm();
   </script>
 </body>

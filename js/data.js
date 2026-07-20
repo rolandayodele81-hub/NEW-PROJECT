@@ -2,14 +2,22 @@
    PSE PDMS - Data Schema
    ============================================ */
 (function(global){
-  const roles = ['General Admin','HR','HTD','COO','Project Manager','Consultant','Sales'];
+  const roles = ['System Administrator','HR','COO','HTD','PM Head','PMO','Sales','Consultant'];
   const types = ['Infrastructure','Software Development','Consulting','Digital Transformation','Cloud Migration','ERP Implementation','Cybersecurity','Data Analytics','Mobile App','Web Platform'];
   const priorities = ['Critical','High','Medium','Low'];
-  const statuses = ['Incoming','Approved','Assigned','Planning','In Progress','Awaiting Review','Revision','Completed','Closed','Cancelled'];
+  // A project lives in one of two stages, each with its own status vocabulary:
+  // 'Sales' while Sales is working the prospect, 'Delivery' once a PM/PMO/COO/HTD
+  // picks up an Approved lead and starts executing it. Same project record throughout —
+  // stage just decides which status list and dashboard section it shows up in.
+  const salesStatuses = ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','Approved','Rejected','On Hold'];
+  const deliveryStatuses = ['Not Started','In Progress','On Hold','Awaiting Review','Testing / Quality Assurance','Completed','Approved','Rejected'];
+  const statuses = ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','Approved','Rejected','On Hold','Not Started','In Progress','Awaiting Review','Testing / Quality Assurance','Completed'];
   const statusColors = {
-    'Incoming':'info','Approved':'primary','Assigned':'purple','Planning':'info',
-    'In Progress':'warn','Awaiting Review':'warn','Revision':'danger',
-    'Completed':'success','Closed':'muted','Cancelled':'danger'
+    'Incoming':'info','Initial Contact':'primary','Requirement Gathering':'purple',
+    'Proposal Sent':'warn','Negotiation':'warn','Awaiting Client Approval':'warn',
+    'Approved':'primary','Rejected':'danger','On Hold':'muted',
+    'Not Started':'muted','In Progress':'warn','Awaiting Review':'warn',
+    'Testing / Quality Assurance':'purple','Completed':'success'
   };
   const prioColors = {'Critical':'prio-critical','High':'prio-high','Medium':'prio-medium','Low':'prio-low'};
 
@@ -26,34 +34,35 @@
   }
 
   const departments = loadCollection('departments', []);
-  const users = loadCollection('users', []);
+  const users = loadCollection('users', [{
+    id: 'U001',
+    name: 'HR Manager',
+    email: 'hr@pse.com',
+    role: 'HR',
+    dept: 'Human Resources',
+    status: 'Active',
+    availability: 'Available',
+    workload: 0,
+    phone: '',
+    joined: '2026-01-15',
+    _localPassword: 'HR@2026!'
+  }]);
   const consultants = loadCollection('consultants', []);
   const clients = loadCollection('clients', []);
   const projects = loadCollection('projects', []);
   const notifications = loadCollection('notifications', []);
   const threads = loadCollection('threads', []);
   const activities = loadCollection('activities', []);
-
-  // Example record templates for guidance:
-  // departments: { id:'D01', name:'Human Resources', head:'Name Surname', count:12, color:'primary' }
-  // users: { id:'U001', name:'Jane Doe', email:'jane@company.com', role:'General Admin', dept:'Human Resources', status:'Active', availability:'Available', workload:45, phone:'+1234567890', joined:'2026-01-15' }
-  // consultants: { id:'U010', name:'Mark Smith', email:'mark@company.com', role:'Consultant', dept:'Engineering', status:'Active', availability:'Available', workload:32, phone:'+1234567890', joined:'2026-03-12', specialty:'Cloud Architect', rate:150, projects:3, rating:'4.8' }
-  // clients: { id:'C001', name:'Acme Corp', industry:'Banking', contact:'Jane Doe', email:'contact@acme.com', phone:'+1234567890', projects:5, revenue:250000 }
-  // projects: { id:'PSE-1001', name:'Alpha Platform', client:'Acme Corp', type:'Software Development', dept:'Engineering', sales:'Alice Johnson', pm:'John Smith', lead:'Emily Clark', consultants:['Mark Smith','Sara Lee'], priority:'High', budget:350000, status:'In Progress', progress:45, start:'2026-04-01', due:'2026-09-01', completion:null, description:'Project description goes here.', files:4, remarks:2 }
-  // notifications: { id:'N001', title:'Notification title', msg:'Notification details', icon:'info', time:'2h ago', unread:true }
-  // threads: { id:'T001', user:{name:'Jane Doe'}, messages:[{from:'me',text:'Message text',time:'1h ago'}], unread:1, last:'Message text' }
-  // activities: { id:'A001', user:'Jane Doe', role:'General Admin', action:'created', target:'Project Alpha', time:'2h ago' }
+  const reviews = loadCollection('reviews', []);
 
   function tasksFor(projectId){
-    return [
-      // { id: projectId + '-T01', title: 'Task name', assignee: 'Jane Doe', status: 'Pending', due: '2026-05-01', progress: 0 }
-    ];
+    return [];
   }
 
   global.PDMS_DATA = {
     departments, users, consultants, clients, projects,
-    notifications, threads, activities,
-    roles, types, priorities, statuses,
+    notifications, threads, activities, reviews,
+    roles, types, priorities, statuses, salesStatuses, deliveryStatuses,
     statusColors, prioColors,
     tasksFor
   };

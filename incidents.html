@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Incidents — PSE PDMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/></head><body>
+<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
+<script>
+PDMS.mountShell('incidents');
+const D = PDMS_DATA; const I = PDMS.icon;
+const user = PDMS.getUser();
+
+function projectName(id){
+  const proj = D.projects.find(p=>p.id===id);
+  return proj ? proj.name : null;
+}
+
+function visibleIncidents(){
+  // Consultants see only what they've personally reported; every other
+  // role with incident access has full oversight.
+  if(user.role==='Consultant') return D.incidents.filter(i=>i.reportedBy===user.name);
+  return D.incidents;
+}
+
+function render(){
+  const incidents = visibleIncidents();
+  document.getElementById('content').innerHTML = `
+    <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Incidents</span></div>
+      <h1 class="page-title">Incidents</h1><div class="page-sub">Project-specific and general issue reports</div></div>
+      ${PDMS.can('Report Incident')?`<button class="btn btn-primary" id="reportBtn">${I('plus')} Report Incident</button>`:''}
+    </div>
+    <div class="grid grid-3 mb-4">
+      <div class="stat i-warn"><div class="label">Pending</div><div class="value">${incidents.filter(i=>i.status==='Pending').length}</div><div class="icon-wrap">${I('clock')}</div></div>
+      <div class="stat i-success"><div class="label">Resolved</div><div class="value">${incidents.filter(i=>i.status==='Resolved').length}</div><div class="icon-wrap">${I('check')}</div></div>
+      <div class="stat i-info"><div class="label">Total</div><div class="value">${incidents.length}</div><div class="icon-wrap">${I('activity')}</div></div>
+    </div>
+    <div class="card"><div class="card-body" style="padding:8px 20px">
+      ${incidents.length ? incidents.map(inc=>`
+        <div class="activity" style="align-items:flex-start">
+          <div class="a-icon">${I('activity')}</div>
+          <div style="flex:1">
+            <div class="flex items-center justify-between"><div class="font-semi text-sm">${PDMS.esc(inc.description)}</div><span class="badge badge-${inc.status==='Resolved'?'success':'warn'}">${inc.status}</span></div>
+            <div class="a-time">${projectName(inc.projectId) ? PDMS.esc(projectName(inc.projectId)) : 'General issue'} • Reported by ${PDMS.esc(inc.reportedBy)}</div>
+          </div>
+          ${PDMS.can('Reply Incident')?`<button class="btn btn-secondary btn-sm" onclick="viewIncident('${inc.id}')">Reply</button>`:''}
+        </div>`).join('')
+        : `<div class="text-muted" style="padding:24px 0;text-align:center">${PDMS.emptyOrLoading('No incidents reported.')}</div>`}
+    </div></div>
+  `;
+  if(document.getElementById('reportBtn')) document.getElementById('reportBtn').onclick = reportIncident;
+}
+PDMS.onRefresh(render);
+
+function reportIncident(){
+  const modal = PDMS.modal('Report Incident',`
+    <div class="form-row"><label>Related Project (optional)</label><select id="incProject"><option value="">— General issue —</option>${D.projects.map(p=>`<option value="${p.id}">${PDMS.esc(p.name)}</option>`).join('')}</select></div>
+    <div class="form-row"><label>Description</label><textarea id="incDesc" rows="4" placeholder="What happened?"></textarea></div>
+  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveIncBtn">Report</button>`);
+  modal.querySelector('#saveIncBtn').onclick = function(){
+    const btn = this;
+    const description = modal.querySelector('#incDesc').value.trim();
+    const projectId = modal.querySelector('#incProject').value || null;
+    if(!description){ PDMS.toast('Missing info','Description is required','error'); return; }
+    const record = { projectId, reportedBy: user.name, description, status:'Pending', replies:[] };
+    PDMS.setButtonLoading(btn, true, 'Reporting...');
+    PDMS.api.create('incidents', record).then(saved=>{
+      D.incidents.unshift(saved);
+      modal.remove();
+      PDMS.toast('Incident reported','The team has been notified','success');
+      render();
+    }).catch(err=>{
+      PDMS.setButtonLoading(btn, false);
+      PDMS.toast('Error',err.message||'Could not report incident','error');
+    });
+  };
+}
+
+function viewIncident(id){
+  const inc = D.incidents.find(x=>x.id===id);
+  if(!inc) return;
+  const replies = Array.isArray(inc.replies) ? inc.replies : [];
+  const modal = PDMS.modal('Incident', `
+    <div class="text-sm mb-2">${PDMS.esc(inc.description)}</div>
+    <div class="text-sm text-muted mb-3">${projectName(inc.projectId) ? PDMS.esc(projectName(inc.projectId)) : 'General issue'} • Reported by ${PDMS.esc(inc.reportedBy)} • <span class="badge badge-${inc.status==='Resolved'?'success':'warn'}">${inc.status}</span></div>
+    <div style="max-height:220px;overflow-y:auto;margin-bottom:12px">
+      ${replies.length ? replies.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="font-semi text-sm">${PDMS.esc(r.from)} <span class="text-sm text-muted" style="font-weight:400">${r.time||''}</span></div><div class="text-sm mt-1">${PDMS.esc(r.text)}</div></div>`).join('') : `<div class="text-muted text-sm">${PDMS.emptyOrLoading('No replies yet.')}</div>`}
+    </div>
+    <div class="form-row"><textarea id="incReply" rows="2" placeholder="Write a reply..."></textarea></div>
+    <div class="form-row"><label>Status</label><select id="incStatus"><option${inc.status==='Pending'?' selected':''}>Pending</option><option${inc.status==='Resolved'?' selected':''}>Resolved</option></select></div>
+  `, `<button class="btn btn-ghost" data-close>Close</button><button class="btn btn-primary" id="saveReplyBtn">Save</button>`);
+  modal.querySelector('#saveReplyBtn').onclick = function(){
+    const btn = this;
+    const replyText = modal.querySelector('#incReply').value.trim();
+    const status = modal.querySelector('#incStatus').value;
+    const updatedReplies = replyText ? replies.concat([{from:user.name, text:replyText, time:'just now'}]) : replies;
+    PDMS.setButtonLoading(btn, true, 'Saving...');
+    PDMS.api.update('incidents', inc.id, {replies:updatedReplies, status}).then(saved=>{
+      Object.assign(inc, saved);
+      modal.remove();
+      PDMS.toast('Incident updated','','success');
+      render();
+    }).catch(err=>{
+      PDMS.setButtonLoading(btn, false);
+      PDMS.toast('Error',err.message||'Could not update incident','error');
+    });
+  };
+}
+window.viewIncident = viewIncident;
+</script></body></html>

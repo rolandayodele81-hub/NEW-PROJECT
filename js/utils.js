@@ -35,7 +35,9 @@
     shield:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
     globe:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
     send:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
-    zap:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>'
+    zap:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+    mail:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>',
+    phone:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>'
   };
 
   PDMS.icon = function(name){ return ICONS[name]||''; };
@@ -62,16 +64,74 @@
     try{ return JSON.parse(localStorage.getItem('pdms-user'))||null; }catch(e){return null;}
   };
   PDMS.setUser = function(u){ localStorage.setItem('pdms-user',JSON.stringify(u)); };
-  PDMS.getUsers = function(){ return (window.PDMS_DATA && window.PDMS_DATA.users) || []; };
+  PDMS.getLocalAuthUsers = function(){
+    const base = [{
+      id: 'U001',
+      name: 'HR Manager',
+      email: 'hr@pse.com',
+      role: 'HR',
+      dept: 'Human Resources',
+      status: 'Active',
+      availability: 'Available',
+      workload: 0,
+      phone: '',
+      joined: '2026-01-15',
+      _localPassword: 'HR@2026!'
+    }];
+    const persisted = (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.users)) ? window.PDMS_DATA.users.filter(u => u._localPassword).map(u => Object.assign({}, u)) : [];
+    const emails = new Set(persisted.map(u => String(u.email || '').trim().toLowerCase()));
+    base.forEach(u => {
+      if (!emails.has(String(u.email || '').trim().toLowerCase())) persisted.unshift(u);
+    });
+    return persisted;
+  };
+  const isLocalFile = location.protocol === 'file:';
+  const isLocalHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(location.hostname);
+  const isLocalMode = isLocalFile || isLocalHost;
+  PDMS.getUsers = function(){
+    const users = (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.users)) ? window.PDMS_DATA.users.slice() : [];
+    if (isLocalMode) {
+      const local = PDMS.getLocalAuthUsers();
+      const emails = new Set(users.map(u => String(u.email||'').trim().toLowerCase()));
+      local.forEach(u => {
+        if (!emails.has(String(u.email||'').trim().toLowerCase())) users.push(u);
+      });
+      return users;
+    }
+    const remote = users;
+    const local = PDMS.getLocalAuthUsers();
+    const emails = new Set(remote.map(u => String(u.email||'').trim().toLowerCase()));
+    local.forEach(u => {
+      if (!emails.has(String(u.email||'').trim().toLowerCase())) remote.push(u);
+    });
+    return remote;
+  };
   PDMS.findUserByEmail = function(email){
     const e = String(email||'').trim().toLowerCase();
-    return PDMS.getUsers().find(u=>String(u.email||'').trim().toLowerCase()===e);
+    return PDMS.getUsers().find(u => String(u.email||'').trim().toLowerCase() === e);
+  };
+  PDMS.findLocalAuthUser = function(email,password){
+    const e = String(email||'').trim().toLowerCase();
+    return PDMS.getLocalAuthUsers().find(u =>
+      String(u.email||'').trim().toLowerCase() === e && String(u._localPassword||'') === String(password)
+    );
   };
   // Both return Promises — the backend hashes/verifies passwords, the client never sees a hash.
-  PDMS.authenticate = function(email,password){ return PDMS.api.login(email,password); };
+  PDMS.authenticate = function(email,password){
+    return PDMS.api.login(email,password).catch(function(err){
+      const user = PDMS.findLocalAuthUser(email,password);
+      if(user){
+        const fallback = Object.assign({}, user);
+        delete fallback._localPassword;
+        return Promise.resolve(fallback);
+      }
+      return Promise.reject(err);
+    });
+  };
   PDMS.registerUser = function(account){ return PDMS.api.register(account); };
-  PDMS.isAdmin = function(){ const user = PDMS.getUser(); return user && user.role==='General Admin'; };
+  PDMS.isAdmin = function(){ const user = PDMS.getUser(); return user && user.role==='System Administrator'; };
   PDMS.requireAdmin = function(){ if(!PDMS.isAdmin()) location.href='dashboard.html'; };
+  PDMS.requireRole = function(role){ const user = PDMS.getUser(); if(!user || user.role !== role){ location.href = PDMS.dashboardFor(user); return null; } return user; };
   PDMS.logout = function(){ localStorage.removeItem('pdms-user'); location.href='index.html'; };
   PDMS.requireAuth = function(){
     const user = PDMS.getUser();
@@ -96,6 +156,28 @@
     t.innerHTML = '<div class="t-icon">'+ICONS[icon]+'</div><div><div class="t-title">'+title+'</div><div class="t-msg">'+(msg||'')+'</div></div>';
     box.appendChild(t);
     setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateX(20px)'; setTimeout(()=>t.remove(),300); },3500);
+  };
+
+  // Disables a button and swaps its label while an async action is in
+  // flight, so a slow request can't be triggered twice by repeated clicks.
+  PDMS.setButtonLoading = function(btn, isLoading, label){
+    if(!btn) return;
+    if(isLoading){
+      if(btn.dataset.originalHtml===undefined) btn.dataset.originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = label || 'Loading...';
+    } else {
+      btn.disabled = false;
+      if(btn.dataset.originalHtml!==undefined){ btn.innerHTML = btn.dataset.originalHtml; delete btn.dataset.originalHtml; }
+    }
+  };
+
+  // Real bootstrap data hasn't arrived yet (g.PDMS_REMOTE is only set once the
+  // background fetch in config.js resolves) — an empty array at this point means
+  // "still loading", not "genuinely nothing here". Every "No X yet" empty state
+  // should route through this so it doesn't misrepresent one as the other.
+  PDMS.emptyOrLoading = function(emptyMessage){
+    return g.PDMS_REMOTE ? emptyMessage : '<span class="pdms-spinner" style="margin-right:8px;vertical-align:-2px"></span>Loading...';
   };
 
   // Money & date fmt
@@ -148,7 +230,11 @@
         '<div style="overflow-x:auto"><table class="data"><thead><tr>'+
         opts.columns.map(c=>'<th data-key="'+c.key+'">'+c.label+(state.sortKey===c.key?(state.sortDir>0?' ↑':' ↓'):'')+'</th>').join('')+
         '</tr></thead><tbody>'+
-        (slice.length?slice.map(r=>'<tr>'+opts.columns.map(c=>'<td>'+(c.render?c.render(r):PDMS.esc(r[c.key]??''))+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+opts.columns.length+'" style="text-align:center;padding:32px;color:var(--text-muted)">loading records...</td></tr>')+
+        (slice.length?slice.map(r=>{
+          const rowAttr = opts.rowHref ? ' style="cursor:pointer" onclick="location.href=\''+opts.rowHref(r)+'\'"' : '';
+          return '<tr'+rowAttr+'>'+opts.columns.map(c=>'<td>'+(c.render?c.render(r):PDMS.esc(r[c.key]??''))+'</td>').join('')+'</tr>';
+        }).join('')
+          :'<tr><td colspan="'+opts.columns.length+'">'+(g.PDMS_REMOTE?'<div style="text-align:center;padding:32px;color:var(--text-muted)">No data available</div>':'<div class="pdms-loading-inline"><span class="pdms-spinner"></span>Loading...</div>')+'</td></tr>')+
         '</tbody></table></div>'+
         '<div class="pagination"><div>Showing '+((state.page-1)*pageSize+1)+'-'+Math.min(state.page*pageSize,arr.length)+' of '+arr.length+'</div><div class="pages">'+
         '<button class="page-btn" data-p="prev">‹</button>'+

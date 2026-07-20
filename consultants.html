@@ -1,34 +1,50 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Consultants — PSE PDMS</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css"/></head><body>
-<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
-<script>
-PDMS.mountShell('consultants');
-const D=PDMS_DATA;const I=PDMS.icon;
-function render(){
-const consultants=D.users.filter(u=>u.role==='Consultant');
-document.getElementById('content').innerHTML=`
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Consultants — PSE PDMS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/permissions.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    PDMS.mountShell('consultants');
+    const D = PDMS_DATA; const I = PDMS.icon;
+    function render() {
+      const consultants = D.users.filter(u => u.role === 'Consultant');
+      document.getElementById('content').innerHTML = `
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Consultants</span></div>
     <h1 class="page-title">Consultants</h1><div class="page-sub">Resource pool availability and specialties</div></div></div>
   <div class="grid grid-4 mb-4">
     <div class="stat i-primary"><div class="label">Total</div><div class="value">${consultants.length}</div><div class="icon-wrap">${I('users')}</div></div>
-    <div class="stat i-success"><div class="label">Available</div><div class="value">${consultants.filter(c=>c.availability==='Available').length}</div><div class="icon-wrap">${I('check')}</div></div>
-    <div class="stat i-warn"><div class="label">Busy</div><div class="value">${consultants.filter(c=>c.availability==='Busy').length}</div><div class="icon-wrap">${I('activity')}</div></div>
-    <div class="stat i-info"><div class="label">Avg Workload</div><div class="value">${consultants.length?Math.round(consultants.reduce((s,c)=>s+(c.workload||0),0)/consultants.length):0}%</div><div class="icon-wrap">${I('zap')}</div></div>
+    <div class="stat i-success"><div class="label">Available</div><div class="value">${consultants.filter(c => c.availability === 'Available').length}</div><div class="icon-wrap">${I('check')}</div></div>
+    <div class="stat i-warn"><div class="label">Busy</div><div class="value">${consultants.filter(c => c.availability === 'Busy').length}</div><div class="icon-wrap">${I('activity')}</div></div>
+    <div class="stat i-info"><div class="label">Avg Workload</div><div class="value">${consultants.length ? Math.round(consultants.reduce((s, c) => s + (c.workload || 0), 0) / consultants.length) : 0}%</div><div class="icon-wrap">${I('zap')}</div></div>
   </div>
   <div id="tbl" class="table-wrap"></div>`;
-PDMS.renderTable(document.getElementById('tbl'),{
-  columns:[
-    {key:'name',label:'Consultant',render:r=>`<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.name)}</div><div><div class="font-semi">${PDMS.esc(r.name)}</div><div class="text-sm text-muted">${PDMS.esc(r.email)}</div></div></div>`},
-    {key:'dept',label:'Department'},
-    {key:'availability',label:'Availability',render:r=>`<span class="badge badge-${r.availability==='Available'?'success':'warn'} dot">${r.availability||'—'}</span>`},
-    {key:'workload',label:'Load',render:r=>`<div class="progress-inline"><div class="progress"><div class="bar" style="width:${r.workload||0}%"></div></div><span class="pct">${r.workload||0}%</span></div>`},
-    {key:'joined',label:'Joined'}
-  ],rows:consultants,pageSize:10,searchKeys:['name','dept','email'],
-  filterOptions:[{key:'availability',label:'Availability',options:['Available','Busy']}]
-});
-}
-PDMS.onRefresh(render);
-</script></body></html>
+      PDMS.renderTable(document.getElementById('tbl'), {
+        columns: [
+          { key: 'name', label: 'Consultant', render: r => `<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.name)}</div><div><div class="font-semi">${PDMS.esc(r.name)}</div><div class="text-sm text-muted">${PDMS.esc(r.email)}</div></div></div>` },
+          { key: 'dept', label: 'Skill Set' },
+          { key: 'availability', label: 'Availability', render: r => `<span class="badge badge-${r.availability === 'Available' ? 'success' : 'warn'} dot">${r.availability || '—'}</span>` },
+          { key: 'workload', label: 'Load', render: r => `<div class="progress-inline"><div class="progress"><div class="bar" style="width:${r.workload || 0}%"></div></div><span class="pct">${r.workload || 0}%</span></div>` },
+          { key: 'joined', label: 'Joined' }
+        ], rows: consultants, pageSize: 10, searchKeys: ['name', 'dept', 'email'],
+        rowHref: r => 'user-details.html#id=' + r.id,
+        filterOptions: [{ key: 'availability', label: 'Availability', options: ['Available', 'Busy'] }]
+      });
+    }
+    PDMS.onRefresh(render);
+  </script>
+</body>
+
+</html>

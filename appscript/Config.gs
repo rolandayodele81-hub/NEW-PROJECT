@@ -13,13 +13,14 @@
  */
 var ENTITIES = {
   departments: { sheet: 'Departments', idPrefix: 'D' },
-  users: { sheet: 'Users', idPrefix: 'U', publicExclude: ['passwordHash'], textFields: ['joined'] },
+  users: { sheet: 'Users', idPrefix: 'U', publicExclude: ['passwordHash'], textFields: ['joined', 'birthday'] },
   consultants: { sheet: 'Consultants', idPrefix: 'C', textFields: ['joined'] },
   clients: { sheet: 'Clients', idPrefix: 'CL' },
   projects: { sheet: 'Projects', idPrefix: 'PSE-', jsonFields: ['consultants'], textFields: ['start', 'due', 'completion'] },
   notifications: { sheet: 'Notifications', idPrefix: 'N' },
   threads: { sheet: 'Threads', idPrefix: 'T', jsonFields: ['user', 'messages'] },
-  activities: { sheet: 'Activities', idPrefix: 'A' }
+  activities: { sheet: 'Activities', idPrefix: 'A' },
+  reviews: { sheet: 'Reviews', idPrefix: 'RV', jsonFields: ['comments'] }
 };
 
 function entityConfig_(entityKey) {
