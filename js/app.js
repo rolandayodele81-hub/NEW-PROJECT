@@ -8,12 +8,12 @@
       {id:'projects',label:'Projects',icon:'folder',href:'projects.html',roles:['COO','PM Head','PMO','Consultant']},
       {id:'timeline',label:'Project Timeline',icon:'activity',href:'timeline.html',roles:['HTD','COO','PM Head','PMO']},
       {id:'clients',label:'Clients',icon:'globe',href:'clients.html',roles:['Sales']},
-      {id:'sales-pipeline',label:'Sales Pipeline',icon:'zap',href:'projects.html#view=sales',roles:['Sales','HR','HTD','COO']},
-      {id:'delivery-projects',label:'Projects in Delivery',icon:'folder',href:'projects.html#view=delivery',roles:['Sales','HR','HTD','COO']},
+      {id:'sales-pipeline',label:'Sales Pipeline',icon:'zap',href:'projects.html#view=sales',roles:['Sales','HR','HTD','COO','Project Manager']},
+      {id:'delivery-projects',label:'Projects in Delivery',icon:'folder',href:'projects.html#view=delivery',roles:['Sales','HR','HTD','COO','Project Manager']},
     ]},
     {section:'Management',items:[
       {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR']},
-      {id:'consultants',label:'Consultants',icon:'briefcase',href:'consultants.html',roles:['HR','COO','HTD','PM Head','PMO']},
+      {id:'consultants',label:'Consultants',icon:'briefcase',href:'consultants.html',roles:['HR','COO','HTD','PM Head','PMO','Project Manager']},
     ]},
     {section:'Community',items:[
       {id:'notifications',label:'Notifications',icon:'bell',href:'notifications.html',roles:'*'},

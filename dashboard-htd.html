@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HTD Dashboard — PSE PDMS</title>
+  <title>Delivery Dashboard — PSE PDMS</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css" />
   <style>
@@ -217,10 +217,32 @@
   <div class="grid" style="grid-template-columns:2fr 1fr;gap:20px;margin-bottom:24px">
     <div class="card">
       <div class="card-head">
-        <div><div class="card-title">Delivery Health Trend</div><div class="card-sub">Completed projects vs incoming velocity YTD</div></div>
-        <span class="badge badge-success dot">Live</span>
+        <div><div class="card-title">Delivery Status Breakdown</div><div class="card-sub">How many projects sit in each delivery status</div></div>
+        <span class="badge badge-primary">${deliveryProjects.length} total</span>
       </div>
-      <div class="card-body"><div class="chart-wrap" style="height:260px"><canvas id="c1"></canvas></div></div>
+      <div class="card-body" style="padding:12px 20px">
+        ${(()=>{
+          const max = Math.max(...D.deliveryStatuses.map(s=>deliveryProjects.filter(p=>p.status===s).length), 1);
+          const sc = {'Not Started':'#94a3b8','In Progress':'#f59e0b','On Hold':'#64748b','Awaiting Review':'#eab308','Testing / Quality Assurance':'#8b5cf6','Completed':'#10b981','Approved':'#4f46e5','Rejected':'#ef4444'};
+          return D.deliveryStatuses.map(s=>{
+            const count = deliveryProjects.filter(p=>p.status===s).length;
+            const pct = Math.round((count/max)*100);
+            const color = sc[s]||'#94a3b8';
+            return `
+            <div style="display:grid;grid-template-columns:160px 1fr 36px;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
+              <div class="text-sm" style="display:flex;align-items:center;gap:6px;min-width:0">
+                <span style="width:8px;height:8px;border-radius:2px;background:${color};flex-shrink:0;display:inline-block"></span>
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s}</span>
+              </div>
+              <div style="background:var(--surface-2);border-radius:6px;height:14px;overflow:hidden">
+                <div style="width:${pct}%;height:100%;background:${color};border-radius:6px;transition:width .4s ease;opacity:${count===0?'0.25':'1'}"></div>
+              </div>
+              <div class="text-sm font-semi" style="text-align:right;color:${count===0?'var(--text-muted)':'var(--text)'}">${count}</div>
+            </div>`;
+          }).join('');
+        })()}
+        ${deliveryProjects.length===0 ? `<div class="text-muted text-sm text-center" style="padding:16px 0">${PDMS.emptyOrLoading('No delivery projects yet')}</div>` : ''}
+      </div>
     </div>
     <div class="card">
       <div class="card-head">
@@ -321,7 +343,6 @@
   </div>
   `;
 
-      PDMS.charts.line(document.getElementById('c1'), [[10, 18, 25, 30, 42, 55, 60, 68, 72, 85, 92, 105]], ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'], ['#8b5cf6']);
       wireAcDrops();
     }
 

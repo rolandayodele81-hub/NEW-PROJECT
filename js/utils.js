@@ -365,28 +365,43 @@
       const W = canvas.clientWidth, H = canvas.clientHeight;
       canvas.width=W*dpr; canvas.height=H*dpr; ctx.scale(dpr,dpr);
       ctx.clearRect(0,0,W,H);
-      const pad = {l:36,r:12,t:12,b:24};
+      const rotate = values.length > 5;
+      const pad = {l:36, r:12, t:18, b: rotate ? 80 : 28};
       const max = Math.max(...values)*1.15||1;
       const gw = W-pad.l-pad.r, gh = H-pad.t-pad.b;
       ctx.strokeStyle = getCss('--border'); ctx.fillStyle=getCss('--text-soft'); ctx.font='11px Inter';
       for(let i=0;i<=4;i++){
         const y = pad.t + gh*i/4;
         ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();
-        ctx.fillText(Math.round(max-max*i/4),4,y+3);
+        ctx.fillText(Math.round(max-max*i/4),4,y+4);
       }
-      const bw = gw/values.length*0.6;
-      const c = color||getCss('--primary');
+      const bw = Math.min(gw/values.length*0.65, 48);
+      const colors = Array.isArray(color) ? color : values.map(()=>color||getCss('--primary'));
       values.forEach((v,i)=>{
-        const x = pad.l + gw*(i+0.5)/values.length - bw/2;
-        const bh = gh*(v/max);
+        const c = colors[i]||getCss('--primary');
+        const cx = pad.l + gw*(i+0.5)/values.length;
+        const x = cx - bw/2;
+        const bh = Math.max(gh*(v/max), v>0?4:0);
         const y = pad.t+gh-bh;
-        const grad = ctx.createLinearGradient(0,y,0,y+bh);
-        grad.addColorStop(0,c);grad.addColorStop(1,c+'80');
-        ctx.fillStyle=grad;
-        roundRect(ctx,x,y,bw,bh,6);ctx.fill();
-        ctx.fillStyle=getCss('--text-soft');
-        ctx.fillText(labels[i]||'',x-2,H-6);
+        if(bh>0){
+          const grad = ctx.createLinearGradient(0,y,0,y+bh);
+          grad.addColorStop(0,c); grad.addColorStop(1,c+'70');
+          ctx.fillStyle=grad;
+          roundRect(ctx,x,y,bw,bh,5); ctx.fill();
+        }
+        if(v>0){
+          ctx.fillStyle=getCss('--text'); ctx.font='bold 11px Inter'; ctx.textAlign='center';
+          ctx.fillText(v, cx, y-5);
+        }
+        ctx.fillStyle=getCss('--text-soft'); ctx.font='11px Inter'; ctx.textAlign='center';
+        if(rotate){
+          ctx.save(); ctx.translate(cx, pad.t+gh+10); ctx.rotate(-Math.PI/4);
+          ctx.textAlign='right'; ctx.fillText(labels[i]||'', 0, 0); ctx.restore();
+        } else {
+          ctx.fillText(labels[i]||'', cx, H-8);
+        }
       });
+      ctx.textAlign='left';
     },
     donut(canvas, values, colors, labels){
       const ctx=canvas.getContext('2d');

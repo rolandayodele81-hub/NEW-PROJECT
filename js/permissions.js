@@ -51,8 +51,8 @@
     'General Admin': 'dashboard-admin.html',
     'HR': 'dashboard-hr.html',
     'HTD': 'dashboard-htd.html',
-    'COO': 'dashboard-coo.html',
-    'Project Manager': 'dashboard-pm.html',
+    'COO': 'dashboard-htd.html',
+    'Project Manager': 'dashboard-htd.html',
     'Sales': 'dashboard-sales.html'
   };
   PDMS.dashboardFor = function(user){
