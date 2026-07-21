@@ -100,7 +100,7 @@ document.getElementById('viewToggle').onclick = ()=>{
 
 if(document.getElementById('newProj')) document.getElementById('newProj').onclick = ()=>{
   const createdByRole = viewParam==='sales' ? 'Sales' : viewParam==='delivery' ? currentUser.role : currentUser.role;
-  const stage = viewParam==='sales' ? 'Sales' : viewParam==='delivery' ? 'Delivery' : PDMS.stageFor(currentUser);
+  const stage = viewParam==='sales' ? 'Sales' : viewParam==='delivery' ? 'Delivery' : (PDMS.isSalesRole(currentUser) ? 'Sales' : 'Delivery');
   const statusOptions = viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : PDMS.statusOptionsFor(currentUser);
   const defaultStatus = statusOptions[0];
   const modal = PDMS.modal('Create New Project',`
@@ -149,6 +149,7 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
       D.projects.unshift(saved);
       modal.remove();
       PDMS.toast('Project created','New project added to pipeline','success');
+      PDMS.notify('Project Created', `${currentUser.name} (${currentUser.role}) created "${saved.name}" for ${saved.client}`, 'folder', 'project-details.html#id='+saved.id);
       renderProjects();
     }).catch(err=>PDMS.toast('Error',err.message||'Could not create project','error'));
   };

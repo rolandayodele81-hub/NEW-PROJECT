@@ -34,7 +34,7 @@ function initializeSheets() {
       rows: []
     },
     Notifications: {
-      headers: ['id', 'title', 'msg', 'icon', 'time', 'unread'],
+      headers: ['id', 'title', 'msg', 'icon', 'link', 'actor', 'actorRole', 'time', 'unread'],
       rows: []
     },
     Threads: {
