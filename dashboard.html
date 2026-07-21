@@ -29,6 +29,11 @@ const dueToday = D.projects.filter(p=>p.due===today).length;
 const dueWeek = D.projects.filter(p=>p.due>=today && p.due<=week).length;
 const avail = D.consultants.filter(c=>c.availability==='Available').length;
 const busy = D.consultants.length - avail;
+const isConsultant = user && user.role === 'Consultant';
+const consultantProjects = isConsultant ? D.projects.filter(p => {
+  const consultantNames = Array.isArray(p.consultants) ? p.consultants.map(String).map(n => n.toLowerCase()) : [];
+  return consultantNames.includes(String(user.name || '').toLowerCase()) || consultantNames.includes(String(user.email || '').toLowerCase());
+}) : [];
 
 const content = document.getElementById('content');
 content.innerHTML = `
@@ -36,14 +41,23 @@ content.innerHTML = `
     <div>
       <div class="breadcrumbs"><span>Home</span><span>Dashboard</span></div>
       <h1 class="page-title">Good day, ${PDMS.esc(user.name.split(' ')[0])} 👋</h1>
-      <div class="page-sub">Here's what's happening across your workspace today.</div>
+      <div class="page-sub">${isConsultant ? "Here's your assigned projects and tasks." : "Here's what's happening across your workspace today."}</div>
     </div>
     <div class="flex gap-2">
-      <a class="btn btn-secondary" href="reports.html">${I('chart')} Reports</a>
-      <a class="btn btn-primary" href="projects.html">${I('plus')} New Project</a>
+      ${isConsultant ? '' : '<a class="btn btn-secondary" href="reports.html">' + I('chart') + ' Reports</a>'}
+      ${isConsultant ? '' : '<a class="btn btn-primary" href="projects.html">' + I('plus') + ' New Project</a>'}
+      ${isConsultant ? '<a class="btn btn-primary" href="consultants.html">' + I('folder') + ' My Projects</a>' : ''}
     </div>
   </div>
 
+  ${isConsultant ? `
+  <div class="grid grid-4 mb-4">
+    <div class="stat i-primary"><div class="label">Current Projects</div><div class="value">${consultantProjects.length}</div><div class="icon-wrap">${I('folder')}</div></div>
+    <div class="stat i-success"><div class="label">Completed</div><div class="value">${consultantProjects.filter(p=>p.status==='Completed').length}</div><div class="icon-wrap">${I('check')}</div></div>
+    <div class="stat i-warn"><div class="label">In Progress</div><div class="value">${consultantProjects.filter(p=>p.status==='In Progress').length}</div><div class="icon-wrap">${I('activity')}</div></div>
+    <div class="stat i-info"><div class="label">Delayed</div><div class="value">${consultantProjects.filter(p=>p.due<today && !['Completed','Closed','Cancelled'].includes(p.status)).length}</div><div class="icon-wrap">${I('clock')}</div></div>
+  </div>
+  ` : `
   <div class="grid grid-4 mb-4">
     <div class="stat i-primary"><div class="label">Total Projects</div><div class="value">${total}</div><div class="delta up">${I('trending')} +12% this month</div><div class="icon-wrap">${I('folder')}</div></div>
     <div class="stat i-success"><div class="label">Completed</div><div class="value">${completed}</div><div class="delta up">${I('trending')} +8 this week</div><div class="icon-wrap">${I('check')}</div></div>
@@ -57,6 +71,7 @@ content.innerHTML = `
     <div class="stat i-success"><div class="label">Available Consultants</div><div class="value">${avail}</div><div class="delta up">Ready to deploy</div><div class="icon-wrap">${I('users')}</div></div>
     <div class="stat i-warn"><div class="label">Busy Consultants</div><div class="value">${busy}</div><div class="delta">On active engagements</div><div class="icon-wrap">${I('briefcase')}</div></div>
   </div>
+  `}
 
   <div class="grid" style="grid-template-columns:2fr 1fr;gap:20px" id="row1"></div>
   <div class="grid grid-3 mt-4" id="row2"></div>
@@ -65,12 +80,12 @@ content.innerHTML = `
 
 document.getElementById('row1').innerHTML = `
   <div class="card">
-    <div class="card-head"><div><div class="card-title">Project Pipeline</div><div class="card-sub">Monthly deliveries vs completions</div></div>
+    <div class="card-head"><div><div class="card-title">${isConsultant ? 'My Projects Overview' : 'Project Pipeline'}</div><div class="card-sub">${isConsultant ? 'Status and progress of assigned projects' : 'Monthly deliveries vs completions'}</div></div>
       <div class="flex gap-2 text-sm text-muted"><span style="color:var(--primary)">● Started</span><span style="color:var(--success)">● Completed</span></div>
     </div>
     <div class="card-body"><div class="chart-wrap" style="height:260px"><canvas id="lineC"></canvas></div></div>
   </div>
-  <div class="card"><div class="card-head"><div class="card-title">Status Breakdown</div></div>
+  <div class="card"><div class="card-head"><div class="card-title">${isConsultant ? 'My Project Status' : 'Status Breakdown'}</div></div>
     <div class="card-body"><div class="chart-wrap" style="height:220px"><canvas id="donutC"></canvas></div>
     <div id="statLegend" class="mt-3 flex flex-col gap-2"></div>
     </div>
@@ -83,21 +98,20 @@ const done=[6,10,14,18,22,25,30,26,32,38,40,44];
 PDMS.charts.line(document.getElementById('lineC'),[started,done],['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
   ['#4f46e5','#10b981']);
 
-// Donut
+// Donut - use only consultant projects if consultant
+const projectsForChart = isConsultant ? consultantProjects : D.projects;
 const statusCounts = {};
-D.statuses.forEach(s=>statusCounts[s]=D.projects.filter(p=>p.status===s).length);
+D.statuses.forEach(s=>statusCounts[s]=projectsForChart.filter(p=>p.status===s).length);
 const statusColorHex = {Incoming:'#3b82f6',Approved:'#4f46e5',Assigned:'#8b5cf6',Planning:'#06b6d4','In Progress':'#f59e0b','Awaiting Review':'#eab308',Revision:'#ef4444',Completed:'#10b981',Closed:'#94a3b8',Cancelled:'#dc2626'};
 PDMS.charts.donut(document.getElementById('donutC'),Object.values(statusCounts),Object.keys(statusCounts).map(k=>statusColorHex[k]));
 document.getElementById('statLegend').innerHTML = Object.entries(statusCounts).map(([k,v])=>`<div class="flex items-center justify-between text-sm"><span class="flex items-center gap-2"><span style="width:10px;height:10px;border-radius:3px;background:${statusColorHex[k]};display:inline-block"></span>${k}</span><span class="font-semi">${v}</span></div>`).join('');
 
 // Row 2 - dept performance / upcoming / activity
 document.getElementById('row2').innerHTML = `
-  <div class="card"><div class="card-head"><div class="card-title">Department Performance</div></div>
-    <div class="card-body"><div class="chart-wrap" style="height:220px"><canvas id="barC"></canvas></div></div>
-  </div>
-  <div class="card"><div class="card-head"><div class="card-title">Upcoming Deadlines</div><a class="text-sm" style="color:var(--primary);font-weight:600" href="projects.html">View all</a></div>
+  ${isConsultant ? '' : '<div class="card"><div class="card-head"><div class="card-title">Department Performance</div></div><div class="card-body"><div class="chart-wrap" style="height:220px"><canvas id="barC"></canvas></div></div></div>'}
+  <div class="card"><div class="card-head"><div class="card-title">${isConsultant ? 'My Project Deadlines' : 'Upcoming Deadlines'}</div><a class="text-sm" style="color:var(--primary);font-weight:600" href="${isConsultant ? 'consultants.html' : 'projects.html'}">View all</a></div>
     <div class="card-body" style="padding:8px 12px">${
-      D.projects.filter(p=>!['Completed','Closed','Cancelled'].includes(p.status)).slice(0,5).map(p=>`
+      (isConsultant ? consultantProjects : D.projects).filter(p=>!['Completed','Closed','Cancelled'].includes(p.status)).slice(0,5).map(p=>`
         <div class="flex items-center gap-3" style="padding:10px 0;border-bottom:1px solid var(--border)">
           <div class="ring" style="--p:${p.progress};--sz:44px;--th:5px"><span class="ring-val" style="font-size:11px">${p.progress}%</span></div>
           <div style="flex:1;min-width:0">
@@ -108,26 +122,28 @@ document.getElementById('row2').innerHTML = `
         </div>`).join('')
     }</div>
   </div>
-  <div class="card"><div class="card-head"><div class="card-title">Recent Activity</div></div>
+  <div class="card"><div class="card-head"><div class="card-title">${isConsultant ? 'Recent Updates' : 'Recent Activity'}</div></div>
     <div class="card-body" style="padding:8px 20px">${
-      D.activities.slice(0,6).map(a=>`
+      (isConsultant ? D.activities.filter(a => a.user === user.name) : D.activities).slice(0,6).map(a=>`
         <div class="activity"><div class="a-icon">${I('activity')}</div>
           <div><div class="a-text"><b>${PDMS.esc(a.user)}</b> ${PDMS.esc(a.action)} <b>${PDMS.esc(a.target)}</b></div>
           <div class="a-time">${a.time}</div></div></div>`).join('')
     }</div>
   </div>
 `;
-PDMS.charts.bar(document.getElementById('barC'),
-  D.departments.slice(0,7).map(d=>Math.floor(Math.random()*80+20)),
-  D.departments.slice(0,7).map(d=>d.name.split(' ')[0].slice(0,8)),
-  '#8b5cf6');
+if(!isConsultant){
+  PDMS.charts.bar(document.getElementById('barC'),
+    D.departments.slice(0,7).map(d=>Math.floor(Math.random()*80+20)),
+    D.departments.slice(0,7).map(d=>d.name.split(' ')[0].slice(0,8)),
+    '#8b5cf6');
+}
 
 // Row 3
 document.getElementById('row3').innerHTML = `
-  <div class="card"><div class="card-head"><div class="card-title">Live Activity Feed</div>
-    <span class="badge badge-success dot">Live</span></div>
+  <div class="card"><div class="card-head"><div class="card-title">${isConsultant ? 'Activity Feed' : 'Live Activity Feed'}</div>
+    ${isConsultant ? '' : '<span class="badge badge-success dot">Live</span>'}</div>
     <div class="card-body" style="padding:8px 20px;max-height:360px;overflow-y:auto">${
-      D.activities.map(a=>`
+      (isConsultant ? D.activities.filter(a => a.user === user.name) : D.activities).map(a=>`
         <div class="activity"><div class="a-icon">${I('activity')}</div>
           <div><div class="a-text"><b>${PDMS.esc(a.user)}</b> <span class="text-muted">(${PDMS.esc(a.role)})</span> ${PDMS.esc(a.action)} <b>${PDMS.esc(a.target)}</b></div>
           <div class="a-time">${a.time}</div></div></div>`).join('')
@@ -135,7 +151,7 @@ document.getElementById('row3').innerHTML = `
   </div>
   <div class="card"><div class="card-head"><div class="card-title">Notifications</div><a class="text-sm" style="color:var(--primary);font-weight:600" href="notifications.html">View all</a></div>
     <div class="card-body" style="padding:6px">${
-      D.notifications.slice(0,7).map(n=>`
+      (isConsultant ? D.notifications.filter(n => !n.projectId || consultantProjects.some(p => p.id === n.projectId)) : D.notifications).slice(0,7).map(n=>`
         <div class="notif ${n.unread?'unread':''}"><div class="n-icon">${I(n.icon)}</div>
         <div><div class="n-title">${PDMS.esc(n.title)}</div><div class="n-msg">${PDMS.esc(n.msg)}</div><div class="n-time">${n.time}</div></div></div>`).join('')
     }</div>
