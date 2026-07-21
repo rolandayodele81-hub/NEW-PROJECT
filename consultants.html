@@ -19,30 +19,285 @@
   <script>
     PDMS.mountShell('consultants');
     const D = PDMS_DATA; const I = PDMS.icon;
-    function render() {
-      const consultants = D.users.filter(u => u.role === 'Consultant');
+
+    function getUser() {
+      return PDMS.getUser();
+    }
+
+    function isAssignedConsultant(project, user) {
+      if (!user) return false;
+      const consultantNames = Array.isArray(project.consultants) ? project.consultants.map(String) : [];
+      const userName = String(user.name || '').toLowerCase();
+      const userEmail = String(user.email || '').toLowerCase();
+      return consultantNames.some(name => {
+        const value = String(name).trim().toLowerCase();
+        return value === userName || value === userEmail;
+      });
+    }
+
+    function consultantProjects(user) {
+      if (!user) return [];
+      return (D.projects || []).filter(project => isAssignedConsultant(project, user));
+    }
+
+    function projectDocs(project) {
+      return Array.isArray(project.documents) ? project.documents : [];
+    }
+
+    function projectTasks(project, user) {
+      return (project.privateTasks || []).filter(task => {
+        const ownerId = String(task.ownerId || '').trim();
+        const ownerName = String(task.ownerName || '').trim().toLowerCase();
+        const currentName = String(user?.name || '').trim().toLowerCase();
+        const currentId = String(user?.id || '').trim();
+        return ownerId === currentId || ownerName === currentName || ownerId === currentName;
+      }).sort((a, b) => new Date(a.date || '2999-12-31') - new Date(b.date || '2999-12-31'));
+    }
+
+    function projectNotifications(project, user) {
+      return (D.notifications || []).filter(notification => {
+        const sameProject = String(notification.projectId || '') === String(project.id || '');
+        const recipient = String(notification.recipientId || notification.recipient || '').trim();
+        return sameProject && (!recipient || recipient === String(user?.id || '') || recipient === String(user?.name || ''));
+      }).sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+    }
+
+    function projectReviews(project) {
+      return (D.reviews || []).filter(review => String(review.projectId || '') === String(project.id || '')).sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+    }
+
+    function saveProject(project, patch) {
+      return PDMS.api.update('projects', project.id, patch).then(saved => {
+        Object.assign(project, saved);
+        return project;
+      });
+    }
+
+    function renderProjectCard(project, user) {
+      const docs = projectDocs(project);
+      const tasks = projectTasks(project, user);
+      const notifications = projectNotifications(project, user);
+      const reviews = projectReviews(project);
+      return `
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head">
+            <div>
+              <div class="card-title">${PDMS.esc(project.name || project.id)}</div>
+              <div class="card-sub">${PDMS.esc(project.client || 'Client')} • ${PDMS.esc(project.status || 'Active')}</div>
+            </div>
+            <div class="flex gap-2">
+              <button class="btn btn-secondary btn-sm" onclick="uploadDeliveryPlan('${project.id}')">${I('upload')} Delivery Plan</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="grid grid-2 mb-3" style="gap:16px">
+              <div>
+                <div class="text-sm text-muted mb-2">Project Overview</div>
+                <div class="text-sm">${PDMS.esc(project.description || 'No summary yet.')}</div>
+                <div class="mt-2 text-sm text-muted">PM: ${PDMS.esc(project.pm || 'Unassigned')} • Lead: ${PDMS.esc(project.lead || 'Unassigned')}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted mb-2">Private Tasks</div>
+                <button class="btn btn-secondary btn-sm mb-2" onclick="addPrivateTask('${project.id}')">${I('plus')} Add Task</button>
+                ${tasks.length ? tasks.map(task => `<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="font-semi text-sm">${PDMS.esc(task.activity || 'Task')}</div><div class="text-sm text-muted">Deliverable: ${PDMS.esc(task.deliverable || '—')}</div><div class="text-sm text-muted">Date: ${PDMS.esc(task.date || 'TBD')}</div></div>`).join('') : '<div class="text-muted text-sm">No private tasks assigned yet.</div>'}
+              </div>
+            </div>
+
+            <div class="card" style="margin-bottom:12px">
+              <div class="card-head"><div class="card-title">Delivery Plan Documents</div></div>
+              <div class="card-body">
+                ${docs.length ? docs.map(doc => `<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="font-semi text-sm">${PDMS.esc(doc.name || 'Document')}</div><div class="text-sm text-muted">${PDMS.esc(doc.description || 'Uploaded for this project')}</div><div class="text-sm text-muted">${PDMS.esc(doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleString() : '')}</div></div>`).join('') : '<div class="text-muted text-sm">No delivery plan documents uploaded yet.</div>'}
+              </div>
+            </div>
+
+            <div class="card" style="margin-bottom:12px">
+              <div class="card-head"><div class="card-title">Issues & Remarks</div></div>
+              <div class="card-body">
+                <button class="btn btn-secondary btn-sm mb-3" onclick="addProjectRemark('${project.id}')">${I('message')} Add Remark</button>
+                ${reviews.length ? reviews.map(review => `<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="flex items-center gap-2"><div class="font-semi text-sm">${PDMS.esc(review.author || 'Unknown')}</div><div class="text-sm text-muted" style="margin-left:auto">${PDMS.esc(review.time ? new Date(review.time).toLocaleString() : '')}</div></div><div class="text-sm mt-1">${PDMS.esc(review.message || '')}</div></div>`).join('') : '<div class="text-muted text-sm">No issues or remarks for this project yet.</div>'}
+              </div>
+            </div>
+
+            <div class="card" style="margin-bottom:12px">
+              <div class="card-head"><div class="card-title">Project Notifications</div></div>
+              <div class="card-body">
+                ${notifications.length ? notifications.map(notification => `<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="font-semi text-sm">${PDMS.esc(notification.title || 'Notification')}</div><div class="text-sm text-muted">${PDMS.esc(notification.message || '')}</div></div>`).join('') : '<div class="text-muted text-sm">No project notifications yet.</div>'}
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function getAllUserTasks(user) {
+      const allTasks = [];
+      (consultantProjects(user) || []).forEach(project => {
+        const tasks = projectTasks(project, user) || [];
+        tasks.forEach(task => {
+          allTasks.push(Object.assign({}, task, { projectId: project.id, projectName: project.name }));
+        });
+      });
+      return allTasks.sort((a, b) => new Date(a.date || '2999-12-31') - new Date(b.date || '2999-12-31'));
+    }
+
+    function renderTaskTimeline(user) {
+      const allTasks = getAllUserTasks(user);
+      if (!allTasks.length) {
+        return '<div class="card mb-4"><div class="card-head"><div class="card-title">My Tasks Activity Timeline</div></div><div class="card-body"><div class="text-muted text-sm">No private tasks assigned yet.</div></div></div>';
+      }
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const timeline = allTasks.map((task, idx) => {
+        const taskDate = task.date ? new Date(task.date) : null;
+        let state = '';
+        if (taskDate) {
+          taskDate.setHours(0, 0, 0, 0);
+          if (taskDate.getTime() < today.getTime()) {
+            state = 'done';
+          } else if (taskDate.getTime() === today.getTime()) {
+            state = 'active';
+          } else {
+            state = '';
+          }
+        }
+        return `<div class="tl-item ${state}"><div class="tl-title">${PDMS.esc(task.activity || 'Task')}</div><div class="tl-meta">${PDMS.esc(task.deliverable || 'Deliverable TBD')} • ${PDMS.esc(task.projectName || 'Project')} • ${PDMS.esc(task.date || 'No date set')}</div></div>`;
+      }).join('');
+      return `<div class="card mb-4"><div class="card-head"><div class="card-title">My Tasks Activity Timeline</div><div class="card-sub">Personal task schedule across all projects</div></div><div class="card-body"><div class="timeline">${timeline}</div></div></div>`;
+    }
+
+    function renderConsultantWorkspace(user) {
+      const projects = consultantProjects(user);
       document.getElementById('content').innerHTML = `
-  <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Consultants</span></div>
-    <h1 class="page-title">Consultants</h1><div class="page-sub">Resource pool availability and specialties</div></div></div>
-  <div class="grid grid-4 mb-4">
-    <div class="stat i-primary"><div class="label">Total</div><div class="value">${consultants.length}</div><div class="icon-wrap">${I('users')}</div></div>
-    <div class="stat i-success"><div class="label">Available</div><div class="value">${consultants.filter(c => c.availability === 'Available').length}</div><div class="icon-wrap">${I('check')}</div></div>
-    <div class="stat i-warn"><div class="label">Busy</div><div class="value">${consultants.filter(c => c.availability === 'Busy').length}</div><div class="icon-wrap">${I('activity')}</div></div>
-    <div class="stat i-info"><div class="label">Avg Workload</div><div class="value">${consultants.length ? Math.round(consultants.reduce((s, c) => s + (c.workload || 0), 0) / consultants.length) : 0}%</div><div class="icon-wrap">${I('zap')}</div></div>
-  </div>
-  <div id="tbl" class="table-wrap"></div>`;
+        <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Consultants</span></div>
+          <h1 class="page-title">My Projects</h1><div class="page-sub">Assigned projects, delivery plans, private tasks, and project-specific remarks.</div></div></div>
+        <div class="grid grid-4 mb-4">
+          <div class="stat i-primary"><div class="label">Current Projects</div><div class="value">${projects.length}</div><div class="icon-wrap">${I('folder')}</div></div>
+          <div class="stat i-success"><div class="label">Delivery Plans</div><div class="value">${projects.reduce((sum, project) => sum + projectDocs(project).length, 0)}</div><div class="icon-wrap">${I('upload')}</div></div>
+          <div class="stat i-warn"><div class="label">Private Tasks</div><div class="value">${projects.reduce((sum, project) => sum + projectTasks(project, user).length, 0)}</div><div class="icon-wrap">${I('activity')}</div></div>
+          <div class="stat i-info"><div class="label">Project Remarks</div><div class="value">${projects.reduce((sum, project) => sum + projectReviews(project).length, 0)}</div><div class="icon-wrap">${I('message')}</div></div>
+        </div>
+        ${renderTaskTimeline(user)}
+        ${projects.length ? projects.map(project => renderProjectCard(project, user)).join('') : '<div class="card"><div class="card-body"><div class="text-muted">You are not assigned to any projects yet.</div></div></div>'}`;
+    }
+
+    function renderConsultantDirectory() {
+      const consultants = D.users.filter(u => u.role === 'Consultant');
+      const projectMap = {};
+      (D.projects || []).forEach(project => {
+        (Array.isArray(project.consultants) ? project.consultants : []).forEach(name => {
+          const key = String(name).trim().toLowerCase();
+          if (!projectMap[key]) projectMap[key] = 0;
+          projectMap[key] += 1;
+        });
+      });
+      document.getElementById('content').innerHTML = `
+        <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Consultants</span></div>
+          <h1 class="page-title">Consultants</h1><div class="page-sub">Resource pool availability and specialties</div></div></div>
+        <div class="grid grid-4 mb-4">
+          <div class="stat i-primary"><div class="label">Total</div><div class="value">${consultants.length}</div><div class="icon-wrap">${I('users')}</div></div>
+          <div class="stat i-success"><div class="label">Available</div><div class="value">${consultants.filter(c => c.availability === 'Available').length}</div><div class="icon-wrap">${I('check')}</div></div>
+          <div class="stat i-warn"><div class="label">Busy</div><div class="value">${consultants.filter(c => c.availability === 'Busy').length}</div><div class="icon-wrap">${I('activity')}</div></div>
+          <div class="stat i-info"><div class="label">Current Projects</div><div class="value">${consultants.reduce((sum, consultant) => sum + (projectMap[String(consultant.name || '').trim().toLowerCase()] || 0), 0)}</div><div class="icon-wrap">${I('folder')}</div></div>
+        </div>
+        <div id="tbl" class="table-wrap"></div>`;
       PDMS.renderTable(document.getElementById('tbl'), {
         columns: [
           { key: 'name', label: 'Consultant', render: r => `<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.name)}</div><div><div class="font-semi">${PDMS.esc(r.name)}</div><div class="text-sm text-muted">${PDMS.esc(r.email)}</div></div></div>` },
           { key: 'dept', label: 'Skill Set' },
           { key: 'availability', label: 'Availability', render: r => `<span class="badge badge-${r.availability === 'Available' ? 'success' : 'warn'} dot">${r.availability || '—'}</span>` },
-          { key: 'workload', label: 'Load', render: r => `<div class="progress-inline"><div class="progress"><div class="bar" style="width:${r.workload || 0}%"></div></div><span class="pct">${r.workload || 0}%</span></div>` },
+          { key: 'projects', label: 'Projects', render: r => `<span class="badge badge-muted">${projectMap[String(r.name || '').trim().toLowerCase()] || 0}</span>` },
           { key: 'joined', label: 'Joined' }
-        ], rows: consultants, pageSize: 10, searchKeys: ['name', 'dept', 'email'],
+        ], rows: consultants.map(consultant => Object.assign({}, consultant, { projects: projectMap[String(consultant.name || '').trim().toLowerCase()] || 0 })), pageSize: 10, searchKeys: ['name', 'dept', 'email'],
         rowHref: r => 'user-details.html#id=' + r.id,
         filterOptions: [{ key: 'availability', label: 'Availability', options: ['Available', 'Busy'] }]
       });
     }
+
+    function render() {
+      const user = getUser();
+      if (user && user.role === 'Consultant') {
+        renderConsultantWorkspace(user);
+      } else {
+        renderConsultantDirectory();
+      }
+    }
+
+    function uploadDeliveryPlan(projectId) {
+      const user = getUser();
+      const project = (D.projects || []).find(item => String(item.id) === String(projectId));
+      if (!project) return;
+      const modal = PDMS.modal('Upload Delivery Plan', `<div class="form-row"><label>File</label><input id="planFile" type="file" /></div><div class="form-row"><label>Description</label><input id="planDescription" placeholder="e.g. Delivery plan v1" /></div>`, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="savePlanBtn">Upload</button>`);
+      modal.querySelector('#savePlanBtn').onclick = function () {
+        const fileInput = modal.querySelector('#planFile');
+        const description = modal.querySelector('#planDescription').value.trim();
+        const fileName = fileInput.files && fileInput.files[0] ? fileInput.files[0].name : 'delivery-plan.pdf';
+        const doc = { id: 'DOC-' + Math.floor(1000 + Math.random() * 9000), name: fileName, description, uploadedAt: new Date().toISOString(), uploadedBy: user?.name || 'Consultant' };
+        const documents = projectDocs(project);
+        documents.unshift(doc);
+        saveProject(project, { documents }).then(() => {
+          modal.remove();
+          PDMS.toast('Uploaded', 'Delivery plan saved for this project', 'success');
+          render();
+        }).catch(err => PDMS.toast('Error', err.message || 'Could not upload document', 'error'));
+      };
+    }
+
+    function addPrivateTask(projectId) {
+      const user = getUser();
+      const project = (D.projects || []).find(item => String(item.id) === String(projectId));
+      if (!project) return;
+      const modal = PDMS.modal('Add Private Task', `<div class="form-row"><label>Activity</label><input id="taskActivity" placeholder="e.g. Analysis" /></div><div class="form-row"><label>Deliverable</label><input id="taskDeliverable" placeholder="e.g. Draft report" /></div><div class="form-row"><label>Date</label><input id="taskDate" type="date" /></div>`, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveTaskBtn">Save</button>`);
+      modal.querySelector('#saveTaskBtn').onclick = function () {
+        const activity = modal.querySelector('#taskActivity').value.trim();
+        const deliverable = modal.querySelector('#taskDeliverable').value.trim();
+        const date = modal.querySelector('#taskDate').value;
+        if (!activity || !deliverable || !date) {
+          PDMS.toast('Missing fields', 'Please fill in the activity, deliverable, and date', 'error');
+          return;
+        }
+        const task = { id: 'T-' + Math.floor(1000 + Math.random() * 9000), activity, deliverable, date, ownerId: user?.id || '', ownerName: user?.name || '' };
+        const privateTasks = Array.isArray(project.privateTasks) ? project.privateTasks.slice() : [];
+        privateTasks.unshift(task);
+        saveProject(project, { privateTasks }).then(() => {
+          modal.remove();
+          PDMS.toast('Saved', 'Private task added for your view and the project manager', 'success');
+          render();
+        }).catch(err => PDMS.toast('Error', err.message || 'Could not save task', 'error'));
+      };
+    }
+
+    function addProjectRemark(projectId) {
+      const user = getUser();
+      const project = (D.projects || []).find(item => String(item.id) === String(projectId));
+      if (!project) return;
+      const modal = PDMS.modal('Add Issue / Remark', `<div class="form-row"><label>Your update</label><textarea id="remarkMessage" rows="4" placeholder="Share a project-specific issue or remark..."></textarea></div>`, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveRemarkBtn">Post</button>`);
+      modal.querySelector('#saveRemarkBtn').onclick = function () {
+        const message = modal.querySelector('#remarkMessage').value.trim();
+        if (!message) {
+          PDMS.toast('Empty remark', 'Please write something first', 'error');
+          return;
+        }
+        const record = {
+          id: 'RV-' + Math.floor(1000 + Math.random() * 9000),
+          author: user?.name || 'Consultant',
+          authorRole: user?.role || 'Consultant',
+          projectId: project.id,
+          projectName: project.name,
+          message,
+          time: new Date().toISOString(),
+          comments: []
+        };
+        PDMS.api.create('reviews', record).then(saved => {
+          D.reviews.unshift(saved);
+          modal.remove();
+          PDMS.toast('Posted', 'Remark posted for this project only', 'success');
+          render();
+        }).catch(err => PDMS.toast('Error', err.message || 'Could not post remark', 'error'));
+      };
+    }
+
+    window.uploadDeliveryPlan = uploadDeliveryPlan;
+    window.addPrivateTask = addPrivateTask;
+    window.addProjectRemark = addProjectRemark;
     PDMS.onRefresh(render);
   </script>
 </body>
