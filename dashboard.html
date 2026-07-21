@@ -14,29 +14,43 @@
 <script src="js/app.js"></script>
 <script>
 PDMS.mountShell('dashboard');
-const user = PDMS.getUser();
-const D = PDMS_DATA;
-const I = PDMS.icon;
 
-function renderDashboard(){
-const total = D.projects.length;
-const completed = D.projects.filter(p=>p.status==='Completed').length;
-const inProgress = D.projects.filter(p=>p.status==='In Progress').length;
-const today = new Date().toISOString().slice(0,10);
-const week = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
-const delayed = D.projects.filter(p=>p.due<today && !['Completed','Closed','Cancelled'].includes(p.status)).length;
-const dueToday = D.projects.filter(p=>p.due===today).length;
-const dueWeek = D.projects.filter(p=>p.due>=today && p.due<=week).length;
-const avail = D.consultants.filter(c=>c.availability==='Available').length;
-const busy = D.consultants.length - avail;
-const isConsultant = user && user.role === 'Consultant';
-const consultantProjects = isConsultant ? D.projects.filter(p => {
-  const consultantNames = Array.isArray(p.consultants) ? p.consultants.map(String).map(n => n.toLowerCase()) : [];
-  return consultantNames.includes(String(user.name || '').toLowerCase()) || consultantNames.includes(String(user.email || '').toLowerCase());
-}) : [];
+// Use requestAnimationFrame to ensure DOM is ready
+requestAnimationFrame(() => {
+  const user = PDMS.getUser();
+  if (!user) return;
+  
+  const D = PDMS_DATA;
+  const I = PDMS.icon;
 
-const content = document.getElementById('content');
-content.innerHTML = `
+  function renderDashboard(){
+    try {
+      if (!user) {
+        const c = document.getElementById('content');
+        if(c) c.innerHTML = '<div class="card"><div class="card-body"><p class="text-muted">Please log in to view the dashboard.</p></div></div>';
+        return;
+      }
+      
+      const total = D.projects.length;
+      const completed = D.projects.filter(p=>p.status==='Completed').length;
+      const inProgress = D.projects.filter(p=>p.status==='In Progress').length;
+      const today = new Date().toISOString().slice(0,10);
+      const week = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+      const delayed = D.projects.filter(p=>p.due<today && !['Completed','Closed','Cancelled'].includes(p.status)).length;
+      const dueToday = D.projects.filter(p=>p.due===today).length;
+      const dueWeek = D.projects.filter(p=>p.due>=today && p.due<=week).length;
+      const avail = D.consultants.filter(c=>c.availability==='Available').length;
+      const busy = D.consultants.length - avail;
+      const isConsultant = user && user.role === 'Consultant';
+      const consultantProjects = isConsultant ? D.projects.filter(p => {
+        const consultantNames = Array.isArray(p.consultants) ? p.consultants.map(String).map(n => n.toLowerCase()) : [];
+        return consultantNames.includes(String(user.name || '').toLowerCase()) || consultantNames.includes(String(user.email || '').toLowerCase());
+      }) : [];
+
+      const content = document.getElementById('content');
+      if (!content) return;
+      
+      content.innerHTML = `
   <div class="page-head">
     <div>
       <div class="breadcrumbs"><span>Home</span><span>Dashboard</span></div>
@@ -78,7 +92,18 @@ content.innerHTML = `
   ${isConsultant ? '' : '<div class="grid mt-4" style="grid-template-columns:2fr 1fr;gap:20px" id="row3"></div>'}
 `;
 
-document.getElementById('row1').innerHTML = isConsultant ? `
+      // Line chart
+      const started=[8,12,18,22,26,30,34,29,38,42,45,50];
+      const done=[6,10,14,18,22,25,30,26,32,38,40,44];
+      const lineCCanvas = document.getElementById('lineC');
+      if(lineCCanvas){
+        PDMS.charts.line(lineCCanvas,[started,done],['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+          ['#4f46e5','#10b981']);
+      }
+
+      const row1 = document.getElementById('row1');
+      if(row1) {
+        row1.innerHTML = isConsultant ? `
   <div class="card">
     <div class="card-head"><div><div class="card-title">My Projects Overview</div><div class="card-sub">Status and progress of assigned projects</div></div>
       <div class="flex gap-2 text-sm text-muted"><span style="color:var(--primary)">● Started</span><span style="color:var(--success)">● Completed</span></div>
@@ -108,26 +133,29 @@ document.getElementById('row1').innerHTML = isConsultant ? `
     </div>
   </div>
 `;
+      }
 
-// Line chart
-const started=[8,12,18,22,26,30,34,29,38,42,45,50];
-const done=[6,10,14,18,22,25,30,26,32,38,40,44];
-PDMS.charts.line(document.getElementById('lineC'),[started,done],['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
-  ['#4f46e5','#10b981']);
+      // Donut - only for non-consultants
+      if(!isConsultant){
+        const projectsForChart = D.projects;
+        const statusCounts = {};
+        D.statuses.forEach(s=>statusCounts[s]=projectsForChart.filter(p=>p.status===s).length);
+        const statusColorHex = {Incoming:'#3b82f6',Approved:'#4f46e5',Assigned:'#8b5cf6',Planning:'#06b6d4','In Progress':'#f59e0b','Awaiting Review':'#eab308',Revision:'#ef4444',Completed:'#10b981',Closed:'#94a3b8',Cancelled:'#dc2626'};
+        const donutCCanvas = document.getElementById('donutC');
+        if(donutCCanvas){
+          PDMS.charts.donut(donutCCanvas,Object.values(statusCounts),Object.keys(statusCounts).map(k=>statusColorHex[k]));
+        }
+        const statLegend = document.getElementById('statLegend');
+        if(statLegend){
+          statLegend.innerHTML = Object.entries(statusCounts).map(([k,v])=>`<div class="flex items-center justify-between text-sm"><span class="flex items-center gap-2"><span style="width:10px;height:10px;border-radius:3px;background:${statusColorHex[k]};display:inline-block"></span>${k}</span><span class="font-semi">${v}</span></div>`).join('');
+        }
+      }
 
-// Donut - only for non-consultants
-if(!isConsultant){
-  const projectsForChart = D.projects;
-  const statusCounts = {};
-  D.statuses.forEach(s=>statusCounts[s]=projectsForChart.filter(p=>p.status===s).length);
-  const statusColorHex = {Incoming:'#3b82f6',Approved:'#4f46e5',Assigned:'#8b5cf6',Planning:'#06b6d4','In Progress':'#f59e0b','Awaiting Review':'#eab308',Revision:'#ef4444',Completed:'#10b981',Closed:'#94a3b8',Cancelled:'#dc2626'};
-  PDMS.charts.donut(document.getElementById('donutC'),Object.values(statusCounts),Object.keys(statusCounts).map(k=>statusColorHex[k]));
-  document.getElementById('statLegend').innerHTML = Object.entries(statusCounts).map(([k,v])=>`<div class="flex items-center justify-between text-sm"><span class="flex items-center gap-2"><span style="width:10px;height:10px;border-radius:3px;background:${statusColorHex[k]};display:inline-block"></span>${k}</span><span class="font-semi">${v}</span></div>`).join('');
-}
-
-// Row 2 - only for non-consultants
-if(!isConsultant){
-  document.getElementById('row2').innerHTML = `
+      // Row 2 - only for non-consultants
+      if(!isConsultant){
+        const row2 = document.getElementById('row2');
+        if(row2) {
+          row2.innerHTML = `
     <div class="card"><div class="card-head"><div class="card-title">Department Performance</div></div>
       <div class="card-body"><div class="chart-wrap" style="height:220px"><canvas id="barC"></canvas></div></div>
     </div>
@@ -153,15 +181,21 @@ if(!isConsultant){
       }</div>
     </div>
   `;
-  PDMS.charts.bar(document.getElementById('barC'),
-    D.departments.slice(0,7).map(d=>Math.floor(Math.random()*80+20)),
-    D.departments.slice(0,7).map(d=>d.name.split(' ')[0].slice(0,8)),
-    '#8b5cf6');
-}
+        }
+        const barCCanvas = document.getElementById('barC');
+        if(barCCanvas){
+          PDMS.charts.bar(barCCanvas,
+            D.departments.slice(0,7).map(d=>Math.floor(Math.random()*80+20)),
+            D.departments.slice(0,7).map(d=>d.name.split(' ')[0].slice(0,8)),
+            '#8b5cf6');
+        }
+      }
 
-// Row 3 - only for non-consultants
-if(!isConsultant){
-  document.getElementById('row3').innerHTML = `
+      // Row 3 - only for non-consultants
+      if(!isConsultant){
+        const row3 = document.getElementById('row3');
+        if(row3) {
+          row3.innerHTML = `
     <div class="card"><div class="card-head"><div class="card-title">Live Activity Feed</div>
       <span class="badge badge-success dot">Live</span></div>
       <div class="card-body" style="padding:8px 20px;max-height:360px;overflow-y:auto">${
@@ -179,7 +213,14 @@ if(!isConsultant){
       }</div>
     </div>
   `;
-}
-PDMS.onRefresh(renderDashboard);
+        }
+      }
+    } catch(e) {
+      console.error('Dashboard render error:', e);
+    }
+  }
+
+  PDMS.onRefresh(renderDashboard);
+});
 </script>
 </body></html>
