@@ -43,6 +43,8 @@ const statTiles = viewParam==='sales'
   ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'Awaiting Approval', match:p=>p.status==='Awaiting Client Approval', color:'warn', icon:'clock'}, {label:'Closed', match:p=>p.status==='Closed', color:'success', icon:'check'}, {label:'On Hold', match:p=>p.status==='On Hold', color:'info', icon:'zap'}]
   : viewParam==='delivery'
   ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'In Progress', match:p=>p.status==='In Progress', color:'warn', icon:'activity'}, {label:'Completed', match:p=>p.status==='Completed', color:'success', icon:'check'}, {label:'Closed', match:p=>p.status==='Closed', color:'info', icon:'zap'}]
+  : (currentUser && currentUser.role==='Consultant')
+  ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'With Active Tasks', match:p=>(p.privateTasks||[]).some(t=>!t.done), color:'warn', icon:'activity', sub:'projects'}, {label:'Tasks Completed', match:p=>(p.privateTasks||[]).length>0&&(p.privateTasks||[]).every(t=>t.done), color:'success', icon:'check', sub:'projects'}]
   : [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'In Progress', match:p=>p.status==='In Progress', color:'warn', icon:'activity'}, {label:'Completed', match:p=>p.status==='Completed', color:'success', icon:'check'}];
 
 // Sales can view the delivery bucket but never create there — only a delivery
@@ -63,7 +65,7 @@ content.innerHTML = `
     <div class="flex gap-2"><button class="btn btn-secondary" id="viewToggle">${defaultToTable ? I('folder')+' Kanban View' : I('folder')+' Table View'}</button>${canCreateHere?`<button class="btn btn-primary" id="newProj">${I('plus')} New Project</button>`:''}</div>
   </div>
   <div class="grid ${(viewParam==='sales'||viewParam==='delivery')?'grid-4':'grid-3'} mb-4">
-    ${statTiles.map((t,i)=>`<div class="stat i-${t.color}"><div class="label">${t.label}</div><div class="value" id="stat-${i}">0</div><div class="icon-wrap">${I(t.icon)}</div></div>`).join('')}
+    ${statTiles.map((t,i)=>`<div class="stat i-${t.color}"><div class="label">${t.label}</div><div class="value" id="stat-${i}">0</div>${t.sub?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${t.sub}</div>`:''}<div class="icon-wrap">${I(t.icon)}</div></div>`).join('')}
   </div>
   <div id="listView" class="table-wrap ${defaultToTable ? '' : 'hidden'}"></div>
   <div id="kanbanView" class="${defaultToTable ? 'hidden' : ''}"></div>

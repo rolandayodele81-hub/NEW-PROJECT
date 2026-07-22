@@ -410,7 +410,8 @@
       canvas.width=W*dpr; canvas.height=H*dpr; ctx.scale(dpr,dpr);
       ctx.clearRect(0,0,W,H);
       const cx=W/2, cy=H/2, r=Math.min(W,H)/2-10, ir=r*0.62;
-      const total = values.reduce((a,b)=>a+b,0)||1;
+      const realTotal = values.reduce((a,b)=>a+b,0);
+      const total = realTotal||1;
       let start=-Math.PI/2;
       values.forEach((v,i)=>{
         const ang = (v/total)*Math.PI*2;
@@ -425,7 +426,7 @@
       ctx.beginPath();ctx.arc(cx,cy,ir,0,Math.PI*2);
       ctx.fillStyle=getCss('--surface');ctx.fill();
       ctx.fillStyle=getCss('--text');ctx.font='700 20px Inter';ctx.textAlign='center';
-      ctx.fillText(total,cx,cy);
+      ctx.fillText(realTotal,cx,cy);
       ctx.fillStyle=getCss('--text-muted');ctx.font='11px Inter';
       ctx.fillText('Total',cx,cy+16);
     }

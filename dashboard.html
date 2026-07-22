@@ -48,6 +48,18 @@ requestAnimationFrame(() => {
         return assigned.includes(String(user.name || '').toLowerCase()) || assigned.includes(String(user.id || '').toLowerCase());
       }) : [];
 
+      const _myName = (user.name||'').toLowerCase();
+      const _myId = (user.id||'').toLowerCase();
+      const _getMyTasks = p => (p.privateTasks||[]).filter(t=>(t.ownerName||'').toLowerCase()===_myName||(t.ownerId||'').toLowerCase()===_myId);
+      const _cCurrent = consultantProjects.filter(p=>!['Completed','Closed','Cancelled'].includes(p.status)).length;
+      const _cInProg = consultantProjects.filter(p=>{ const t=_getMyTasks(p); return t.length>0 && t.some(t=>!t.done); }).length;
+      const _cDone = consultantProjects.filter(p=>{ const t=_getMyTasks(p); return t.length>0 && t.every(t=>t.done); }).length;
+      const consultantStatsHtml = '<div class="grid grid-3 mb-4">'
+        + '<div class="stat i-primary"><div class="label">Current Projects</div><div class="value">'+_cCurrent+'</div><div class="icon-wrap">'+I('folder')+'</div></div>'
+        + '<div class="stat i-warn"><div class="label">With Active Tasks</div><div class="value">'+_cInProg+'</div><div class="sub" style="font-size:11px;color:var(--text-muted);margin-top:2px">projects</div><div class="icon-wrap">'+I('activity')+'</div></div>'
+        + '<div class="stat i-success"><div class="label">Tasks Completed</div><div class="value">'+_cDone+'</div><div class="sub" style="font-size:11px;color:var(--text-muted);margin-top:2px">projects</div><div class="icon-wrap">'+I('check')+'</div></div>'
+        + '</div>';
+
       const content = document.getElementById('content');
       if (!content) return;
       
@@ -65,13 +77,7 @@ requestAnimationFrame(() => {
     </div>
   </div>
 
-  ${isConsultant ? `
-  <div class="grid grid-3 mb-4">
-    <div class="stat i-primary"><div class="label">Current Projects</div><div class="value">${consultantProjects.filter(p=>!['Completed','Closed','Cancelled'].includes(p.status)).length}</div><div class="icon-wrap">${I('folder')}</div></div>
-    <div class="stat i-warn"><div class="label">In Progress</div><div class="value">${consultantProjects.filter(p=>p.status==='In Progress').length}</div><div class="icon-wrap">${I('activity')}</div></div>
-    <div class="stat i-success"><div class="label">Completed</div><div class="value">${consultantProjects.filter(p=>p.status==='Completed').length}</div><div class="icon-wrap">${I('check')}</div></div>
-  </div>
-  ` : `
+  ${isConsultant ? consultantStatsHtml : `
   <div class="grid grid-4 mb-4">
     <div class="stat i-primary"><div class="label">Total Projects</div><div class="value">${total}</div><div class="delta up">${I('trending')} +12% this month</div><div class="icon-wrap">${I('folder')}</div></div>
     <div class="stat i-success"><div class="label">Completed</div><div class="value">${completed}</div><div class="delta up">${I('trending')} +8 this week</div><div class="icon-wrap">${I('check')}</div></div>
@@ -108,46 +114,30 @@ requestAnimationFrame(() => {
   <div class="card">
     <div class="card-head"><div><div class="card-title">Assigned Projects</div><div class="card-sub">${consultantProjects.length} project${consultantProjects.length!==1?'s':''}</div></div><a href="consultants.html" style="font-size:12px;font-weight:600;color:var(--primary)">View all</a></div>
     <div style="padding:0 4px 8px">
-      ${consultantProjects.length ? consultantProjects.map(p=>{
-        const statusCol = D.statusColors[p.status]||'muted';
-        const role = p.pm===user.name?'PM':p.lead===user.name?'Lead':'Consultant';
-        return `<div onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:10px;transition:background .15s" onmouseenter="this.style.background='var(--surface-2)'" onmouseleave="this.style.background='transparent'">
-          <div style="width:36px;height:36px;border-radius:10px;background:rgba(99,102,241,.1);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--primary);flex-shrink:0">${PDMS.esc(p.name||'').charAt(0)}</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(p.name)}</div>
-            <div style="font-size:11px;color:var(--text-soft);margin-top:1px">${PDMS.esc(p.client||'—')} · <span style="color:var(--primary);font-weight:600">${role}</span></div>
-          </div>
-          <span class="badge badge-${statusCol}" style="flex-shrink:0;font-size:10px">${PDMS.esc(p.status)}</span>
-        </div>`;
-      }).join('') : `<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px">No projects assigned yet</div>`}
+      ${(()=>{
+        const myName=(user.name||'').toLowerCase(),myId=(user.id||'').toLowerCase();
+        return consultantProjects.length ? consultantProjects.map(p=>{
+          const myTasks=(p.privateTasks||[]).filter(t=>(t.ownerName||'').toLowerCase()===myName||(t.ownerId||'').toLowerCase()===myId);
+          const total=myTasks.length, done=myTasks.filter(t=>t.done).length;
+          const pct=total?Math.round((done/total)*100):0;
+          const barColor=pct===100?'#10b981':pct>=50?'#f59e0b':'#4f46e5';
+          const taskLabel = total ? `${done}/${total} task${total!==1?'s':''} done` : 'No tasks yet';
+          return `<div onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:10px;transition:background .15s" onmouseenter="this.style.background='var(--surface-2)'" onmouseleave="this.style.background='transparent'">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(99,102,241,.1);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--primary);flex-shrink:0">${PDMS.esc(p.name||'').charAt(0)}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(p.name)}</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${taskLabel}</div>
+            </div>
+          </div>`;
+        }).join('') : `<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px">No projects assigned yet</div>`;
+      })()}
     </div>
   </div>
   <div class="card">
-    <div class="card-head"><div><div class="card-title">Projects Overview</div><div class="card-sub">Status breakdown</div></div></div>
-    <div class="card-body" style="padding:8px 20px 16px">
-      ${(()=>{
-        const statusGroups = {};
-        consultantProjects.forEach(p=>{ statusGroups[p.status]=(statusGroups[p.status]||0)+1; });
-        const total = consultantProjects.length||1;
-        const entries = Object.entries(statusGroups);
-        if(!entries.length) return `<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px">No data yet</div>`;
-        return entries.map(([status,count])=>{
-          const pct = Math.round((count/total)*100);
-          const hex = statusColorHex2[status]||'#94a3b8';
-          return `<div style="margin-bottom:14px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-              <div style="display:flex;align-items:center;gap:7px">
-                <div style="width:8px;height:8px;border-radius:50%;background:${hex};flex-shrink:0"></div>
-                <span style="font-size:12px;font-weight:500;color:var(--text)">${PDMS.esc(status)}</span>
-              </div>
-              <span style="font-size:12px;font-weight:700;color:var(--text)">${count} <span style="color:var(--text-muted);font-weight:400">(${pct}%)</span></span>
-            </div>
-            <div style="height:6px;border-radius:99px;background:var(--border);overflow:hidden">
-              <div style="height:100%;width:${pct}%;background:${hex};border-radius:99px;transition:width .4s"></div>
-            </div>
-          </div>`;
-        }).join('');
-      })()}
+    <div class="card-head"><div><div class="card-title">Projects Overview</div><div class="card-sub">In progress vs completed tasks</div></div></div>
+    <div class="card-body" style="padding:8px 16px 16px">
+      <div class="chart-wrap" style="height:180px"><canvas id="consultDonut"></canvas></div>
+      <div id="consultDonutLegend" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
     </div>
   </div>
 ` : `
@@ -163,6 +153,35 @@ requestAnimationFrame(() => {
     </div>
   </div>
 `;
+      }
+
+      // Consultant donut chart
+      if(isConsultant){
+        const consultDonutCanvas = document.getElementById('consultDonut');
+        const consultDonutLegend = document.getElementById('consultDonutLegend');
+        if(consultDonutCanvas){
+          let totalInProg = 0, totalDone = 0;
+          consultantProjects.forEach(p=>{
+            const t = _getMyTasks(p);
+            totalInProg += t.filter(t=>!t.done).length;
+            totalDone += t.filter(t=>t.done).length;
+          });
+          const vals = [totalInProg, totalDone];
+          const colors = ['#f59e0b','#10b981'];
+          PDMS.charts.donut(consultDonutCanvas, vals, colors);
+          if(consultDonutLegend){
+            consultDonutLegend.innerHTML = [
+              ['In Progress', totalInProg, '#f59e0b'],
+              ['Completed', totalDone, '#10b981']
+            ].map(([label,val,color])=>`
+              <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px">
+                <span style="display:flex;align-items:center;gap:6px">
+                  <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block"></span>${label}
+                </span>
+                <span style="font-weight:700;color:var(--text)">${val}</span>
+              </div>`).join('');
+          }
+        }
       }
 
       // Donut - only for non-consultants
