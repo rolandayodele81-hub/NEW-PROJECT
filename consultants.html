@@ -139,29 +139,37 @@
       return allTasks.sort((a, b) => new Date(a.date || '2999-12-31') - new Date(b.date || '2999-12-31'));
     }
 
-    function renderTaskTimeline(user) {
+    function renderMyTasks(user) {
       const allTasks = getAllUserTasks(user);
-      if (!allTasks.length) {
-        return '<div class="card mb-4"><div class="card-head"><div class="card-title">My Tasks Activity Timeline</div></div><div class="card-body"><div class="text-muted text-sm">No private tasks assigned yet.</div></div></div>';
-      }
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const timeline = allTasks.map((task, idx) => {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const rows = allTasks.map(task => {
         const taskDate = task.date ? new Date(task.date) : null;
-        let state = '';
-        if (taskDate) {
-          taskDate.setHours(0, 0, 0, 0);
-          if (taskDate.getTime() < today.getTime()) {
-            state = 'done';
-          } else if (taskDate.getTime() === today.getTime()) {
-            state = 'active';
-          } else {
-            state = '';
-          }
+        if(taskDate) taskDate.setHours(0,0,0,0);
+        let statusLabel='Upcoming', statusClass='badge-muted';
+        if(taskDate){
+          if(taskDate < today){ statusLabel='Overdue'; statusClass='badge-danger'; }
+          else if(taskDate.getTime()===today.getTime()){ statusLabel='Today'; statusClass='badge-warn'; }
         }
-        return `<div class="tl-item ${state}"><div class="tl-title">${PDMS.esc(task.activity || 'Task')}</div><div class="tl-meta">${PDMS.esc(task.deliverable || 'Deliverable TBD')} • ${PDMS.esc(task.projectName || 'Project')} • ${PDMS.esc(task.date || 'No date set')}</div></div>`;
+        return `<tr>
+          <td><div style="font-weight:600;color:var(--text)">${PDMS.esc(task.activity||'—')}</div></td>
+          <td>${PDMS.esc(task.deliverable||'—')}</td>
+          <td><span style="font-size:12px;color:var(--primary);font-weight:600">${PDMS.esc(task.projectName||'—')}</span></td>
+          <td>${task.date||'—'}</td>
+          <td><span class="badge ${statusClass}">${statusLabel}</span></td>
+        </tr>`;
       }).join('');
-      return `<div class="card mb-4"><div class="card-head"><div class="card-title">My Tasks Activity Timeline</div><div class="card-sub">Personal task schedule across all projects</div></div><div class="card-body"><div class="timeline">${timeline}</div></div></div>`;
+      return `<div class="card mb-4">
+        <div class="card-head">
+          <div><div class="card-title">My Tasks</div><div class="card-sub">Activities and deliverables across all assigned projects</div></div>
+          <button class="btn btn-primary btn-sm" onclick="addTaskGlobal()">${I('plus')} Add Task</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead><tr><th>Activity</th><th>Deliverable</th><th>Project</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody>${rows||`<tr><td colspan="5" style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px">No tasks yet — click Add Task to get started</td></tr>`}</tbody>
+          </table>
+        </div>
+      </div>`;
     }
 
     function renderConsultantWorkspace(user) {
@@ -169,13 +177,12 @@
       document.getElementById('content').innerHTML = `
         <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Consultants</span></div>
           <h1 class="page-title">My Projects</h1><div class="page-sub">Assigned projects, delivery plans, private tasks, and project-specific remarks.</div></div></div>
-        <div class="grid grid-4 mb-4">
-          <div class="stat i-primary"><div class="label">Current Projects</div><div class="value">${projects.length}</div><div class="icon-wrap">${I('folder')}</div></div>
-          <div class="stat i-success"><div class="label">Delivery Plans</div><div class="value">${projects.reduce((sum, project) => sum + projectDocs(project).length, 0)}</div><div class="icon-wrap">${I('upload')}</div></div>
-          <div class="stat i-warn"><div class="label">Private Tasks</div><div class="value">${projects.reduce((sum, project) => sum + projectTasks(project, user).length, 0)}</div><div class="icon-wrap">${I('activity')}</div></div>
-          <div class="stat i-info"><div class="label">Project Remarks</div><div class="value">${projects.reduce((sum, project) => sum + projectReviews(project).length, 0)}</div><div class="icon-wrap">${I('message')}</div></div>
+        <div class="grid grid-3 mb-4">
+          <div class="stat i-primary"><div class="label">Current Projects</div><div class="value">${projects.filter(p=>p.status!=='Completed'&&p.status!=='Closed'&&p.status!=='Cancelled').length}</div><div class="icon-wrap">${I('folder')}</div></div>
+          <div class="stat i-warn"><div class="label">In Progress</div><div class="value">${projects.filter(p=>p.status==='In Progress').length}</div><div class="icon-wrap">${I('activity')}</div></div>
+          <div class="stat i-success"><div class="label">Completed</div><div class="value">${projects.filter(p=>p.status==='Completed').length}</div><div class="icon-wrap">${I('check')}</div></div>
         </div>
-        ${renderTaskTimeline(user)}
+        ${renderMyTasks(user)}
         ${projects.length ? projects.map(project => renderProjectCard(project, user)).join('') : '<div class="card"><div class="card-body"><div class="text-muted">You are not assigned to any projects yet.</div></div></div>'}`;
     }
 
@@ -186,9 +193,10 @@
       document.getElementById('content').innerHTML = `
         <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Consultants</span></div>
           <h1 class="page-title">Consultants</h1><div class="page-sub">Resource pool availability and specialties</div></div></div>
-        <div class="grid grid-2 mb-4">
-          <div class="stat i-primary"><div class="label">Total Consultants</div><div class="value">${consultants.length}</div><div class="icon-wrap">${I('users')}</div></div>
-          <div class="stat i-info"><div class="label">Active Projects</div><div class="value">${consultants.filter(c => liveProjects.some(p => p.pm===c.name||p.lead===c.name||(p.consultants||[]).includes(c.name))).length}</div><div class="icon-wrap">${I('folder')}</div></div>
+        <div class="grid grid-3 mb-4">
+          <div class="stat i-primary"><div class="label">Current Projects</div><div class="value">${liveProjects.filter(p=>PDMS.stageOf(p)==='Delivery'&&p.status!=='Completed'&&p.status!=='Closed'&&p.status!=='Cancelled').length}</div><div class="icon-wrap">${I('folder')}</div></div>
+          <div class="stat i-warn"><div class="label">In Progress</div><div class="value">${liveProjects.filter(p=>p.status==='In Progress').length}</div><div class="icon-wrap">${I('activity')}</div></div>
+          <div class="stat i-success"><div class="label">Completed</div><div class="value">${liveProjects.filter(p=>p.status==='Completed').length}</div><div class="icon-wrap">${I('check')}</div></div>
         </div>
         <div id="tbl" class="table-wrap"></div>`;
       PDMS.renderTable(document.getElementById('tbl'), {
@@ -286,9 +294,42 @@
       };
     }
 
+    function addTaskGlobal() {
+      const user = getUser();
+      const projects = consultantProjects(user);
+      if (!projects.length) { PDMS.toast('No projects', 'You have no assigned projects to add tasks to', 'error'); return; }
+      const projectOptions = projects.map(p => `<option value="${PDMS.esc(p.id)}">${PDMS.esc(p.name)}</option>`).join('');
+      const modal = PDMS.modal('Add Task', `
+        <div class="form-row"><label>Project</label><select id="taskProject">${projectOptions}</select></div>
+        <div class="form-row"><label>Activity</label><input id="taskActivity" placeholder="e.g. Requirements analysis"/></div>
+        <div class="form-row"><label>Deliverable</label><input id="taskDeliverable" placeholder="e.g. Analysis report"/></div>
+        <div class="form-row"><label>Date</label><input id="taskDate" type="date"/></div>
+      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveTaskBtn">Save Task</button>`);
+      modal.querySelector('#saveTaskBtn').onclick = function () {
+        const projectId = modal.querySelector('#taskProject').value;
+        const activity = modal.querySelector('#taskActivity').value.trim();
+        const deliverable = modal.querySelector('#taskDeliverable').value.trim();
+        const date = modal.querySelector('#taskDate').value;
+        if (!activity || !deliverable || !date) {
+          PDMS.toast('Missing fields', 'Please fill in all fields', 'error'); return;
+        }
+        const project = (D.projects || []).find(p => String(p.id) === String(projectId));
+        if (!project) return;
+        const task = { id: 'T-' + Math.floor(1000 + Math.random() * 9000), activity, deliverable, date, ownerId: user?.id || '', ownerName: user?.name || '' };
+        const privateTasks = Array.isArray(project.privateTasks) ? project.privateTasks.slice() : [];
+        privateTasks.unshift(task);
+        saveProject(project, { privateTasks }).then(() => {
+          modal.remove();
+          PDMS.toast('Saved', 'Task added successfully', 'success');
+          render();
+        }).catch(err => PDMS.toast('Error', err.message || 'Could not save task', 'error'));
+      };
+    }
+
     window.uploadDeliveryPlan = uploadDeliveryPlan;
     window.addPrivateTask = addPrivateTask;
     window.addProjectRemark = addProjectRemark;
+    window.addTaskGlobal = addTaskGlobal;
     PDMS.onRefresh(render);
   </script>
 </body>

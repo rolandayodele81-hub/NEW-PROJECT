@@ -91,12 +91,15 @@ if(!p){
   `;
 } else {
   const user = PDMS.getUser();
+  const liveUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users;
   const health = healthOf(p);
   const stages = milestoneStages(p);
   const reviews = projectIssues(p);
   const latest = reviews[0];
   const canUpdate = PDMS.can('Add Remarks');
   const canUploadDoc = canUpdate && !(user && user.role==='HR');
+  const isAssignedConsultant = user && user.role==='Consultant' && Array.isArray(p.consultants) && p.consultants.map(n=>n.toLowerCase()).includes((user.name||'').toLowerCase());
+  const myTasks = isAssignedConsultant ? (p.privateTasks||[]).filter(t=>(t.ownerName||'').toLowerCase()===(user.name||'').toLowerCase()||(t.ownerId||'')===(user.id||'')) : [];
   const canAssign = PDMS.can('Assign Consultant') && PDMS.stageOf(p)==='Delivery';
   const canManageStatus = PDMS.canManageStatus(p);
   const canStartDelivery = PDMS.can('Start Delivery') && PDMS.stageOf(p)==='Sales' && p.status==='Approved';
@@ -143,13 +146,60 @@ if(!p){
 
   <div class="grid" style="grid-template-columns:2fr 1fr;gap:20px">
     <div class="flex flex-col gap-4">
-      <div class="card"><div class="card-head"><div class="card-title">Timeline</div></div>
-        <div class="card-body">
-          <div class="timeline">
-            ${stages.map(s=>`<div class="tl-item ${s.state}"><div class="tl-title">${s.label}</div><div class="tl-meta">${s.state==='done'?'Completed':s.state==='active'?'Ongoing':'Upcoming'}</div></div>`).join('')}
+      <div style="display:grid;grid-template-columns:${isAssignedConsultant?'1fr 1fr':'1fr'};gap:16px">
+        <div class="card"><div class="card-head"><div class="card-title">Project Timeline</div></div>
+          <div class="card-body">
+            <div class="timeline">
+              ${stages.map(s=>`<div class="tl-item ${s.state}"><div class="tl-title">${s.label}</div><div class="tl-meta">${s.state==='done'?'Completed':s.state==='active'?'Ongoing':'Upcoming'}</div></div>`).join('')}
+            </div>
           </div>
         </div>
+        ${isAssignedConsultant ? `
+        <div class="card"><div class="card-head"><div class="card-title">Task Timeline</div><div class="card-sub">Your scheduled activities</div></div>
+          <div class="card-body">
+            <div class="timeline">
+              ${myTasks.length ? myTasks.map(t=>{
+                const done = t.done===true;
+                const today = new Date(); today.setHours(0,0,0,0);
+                const td = t.date ? new Date(t.date) : null;
+                if(td) td.setHours(0,0,0,0);
+                const state = done ? 'done' : !td ? '' : td<today ? 'done' : td.getTime()===today.getTime() ? 'active' : '';
+                return `<div class="tl-item ${state}"><div class="tl-title">${PDMS.esc(t.activity||'Task')}</div><div class="tl-meta">${PDMS.esc(t.deliverable||'—')} · ${PDMS.esc(t.date||'No date')}</div></div>`;
+              }).join('') : '<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">No tasks yet</div>'}
+            </div>
+          </div>
+        </div>` : ''}
       </div>
+
+      ${isAssignedConsultant ? `
+      <!-- My Tasks — consultant only -->
+      <div class="card">
+        <div class="card-head">
+          <div><div class="card-title">My Tasks</div><div class="card-sub">Your activities and deliverables for this project</div></div>
+          <button class="btn btn-primary btn-sm" onclick="addConsultantTask()">${I('plus')} Add Task</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead><tr><th>Activity</th><th>Deliverable</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody>
+              ${myTasks.length ? myTasks.map(t=>{
+                const done = t.done === true;
+                const today = new Date(); today.setHours(0,0,0,0);
+                const td = t.date ? new Date(t.date) : null;
+                if(td) td.setHours(0,0,0,0);
+                const statusLabel = done ? 'Done' : !td ? 'Upcoming' : td<today ? 'Overdue' : td.getTime()===today.getTime() ? 'Today' : 'Upcoming';
+                const statusClass = done?'badge-success':statusLabel==='Overdue'?'badge-danger':statusLabel==='Today'?'badge-warn':'badge-muted';
+                return `<tr style="${done?'opacity:.6':''}">
+                  <td style="font-weight:600;${done?'text-decoration:line-through;color:var(--text-muted)':''}">${PDMS.esc(t.activity||'—')}</td>
+                  <td>${PDMS.esc(t.deliverable||'—')}</td>
+                  <td>${PDMS.esc(t.date||'—')}</td>
+                  <td><div style="display:flex;align-items:center;gap:8px"><span class="badge ${statusClass}">${statusLabel}</span><input type="checkbox" ${done?'checked':''} onchange="toggleConsultantTask('${t.id}',this.checked)" title="Mark done" style="width:15px;height:15px;cursor:pointer;accent-color:var(--primary);flex-shrink:0"/></div></td>
+                </tr>`;
+              }).join('') : `<tr><td colspan="4" style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px">No tasks yet — click Add Task to get started</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>` : ''}
 
       <!-- Issues & Remarks — comment section style -->
       <div class="card" style="display:flex;flex-direction:column">
@@ -198,11 +248,11 @@ if(!p){
         <div class="card-body">
           <div class="mb-3"><div class="text-sm text-muted">Project Manager</div><div class="flex items-center gap-2 mt-2">${p.pm?`<div class="avatar avatar-sm">${PDMS.initials(p.pm)}</div><div class="font-semi">${PDMS.esc(p.pm)}</div>`:`<div class="text-muted text-sm">Unassigned</div>`}</div></div>
           <div class="mb-3"><div class="text-sm text-muted">Project Lead</div><div class="flex items-center gap-2 mt-2">${p.lead?`<div class="avatar avatar-sm">${PDMS.initials(p.lead)}</div><div class="font-semi">${PDMS.esc(p.lead)}</div>`:`<div class="text-muted text-sm">Unassigned</div>`}</div></div>
-          <div><div class="text-sm text-muted mb-2">Assigned Consultants (${p.consultants.length})</div>${p.consultants.map(c=>`<div class="flex items-center gap-2 mb-2"><div class="avatar avatar-sm">${PDMS.initials(c)}</div><div class="text-sm">${PDMS.esc(c)}</div></div>`).join('')||'<div class="text-muted text-sm">None assigned</div>'}</div>
+          <div><div class="text-sm text-muted mb-2">Assigned Consultants (${p.consultants.length})</div>${p.consultants.map(c=>{const cu=(liveUsers||D.users).find(u=>u.name===c||u.id===c);const skill=(p.consultantRoles||{})[c]||'';return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div class="avatar avatar-sm">${PDMS.initials(c)}</div><div style="min-width:0"><div class="text-sm font-semi">${PDMS.esc(c)}</div>${skill?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${PDMS.esc(skill)}</div>`:''}</div></div>`;}).join('')||'<div class="text-muted text-sm">None assigned</div>'}</div>
           ${canAssign?`<button class="btn btn-secondary w-full mt-2" style="justify-content:center" onclick="assignTeam()">${I('user-plus')} Assign Team</button>`:''}
         </div>
       </div>
-      <div class="card"><div class="card-head"><div class="card-title">Documents</div><div class="card-sub">Reports & project files</div>${canUploadDoc?`<button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button>`:''}</div>
+      <div class="card"><div class="card-head"><div class="card-title">Documents</div><div class="card-sub">Delivery Plan</div>${canUploadDoc?`<button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button>`:''}</div>
         <div class="card-body" style="padding:8px 20px">
           <div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>
         </div>
@@ -213,6 +263,42 @@ if(!p){
 }
 }
 PDMS.onRefresh(render);
+
+function addConsultantTask(){
+  const user = PDMS.getUser();
+  const modal = PDMS.modal('Add Task',`
+    <div class="form-row"><label>Activity</label><input id="ctActivity" placeholder="e.g. Requirements analysis"/></div>
+    <div class="form-row"><label>Deliverable</label><input id="ctDeliverable" placeholder="e.g. Analysis report"/></div>
+    <div class="form-row"><label>Date</label><input id="ctDate" type="date"/></div>
+  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ctSaveBtn">Save Task</button>`);
+  modal.querySelector('#ctSaveBtn').onclick = function(){
+    const btn = this;
+    const activity = modal.querySelector('#ctActivity').value.trim();
+    const deliverable = modal.querySelector('#ctDeliverable').value.trim();
+    const date = modal.querySelector('#ctDate').value;
+    if(!activity||!deliverable||!date){ PDMS.toast('Missing fields','Please fill in all fields','error'); return; }
+    PDMS.setButtonLoading(btn, true, 'Saving…');
+    const task = { id:'T-'+Math.floor(1000+Math.random()*9000), activity, deliverable, date, ownerId:user?.id||'', ownerName:user?.name||'' };
+    const privateTasks = Array.isArray(p.privateTasks) ? p.privateTasks.slice() : [];
+    privateTasks.unshift(task);
+    PDMS.api.update('projects', p.id, { privateTasks }).then(saved=>{
+      Object.assign(p, saved);
+      modal.remove();
+      PDMS.toast('Saved','Task added','success');
+      render();
+    }).catch(err=>{ PDMS.setButtonLoading(btn, false); PDMS.toast('Error', err.message||'Could not save task','error'); });
+  };
+}
+window.addConsultantTask = addConsultantTask;
+
+function toggleConsultantTask(taskId, done){
+  const privateTasks = (p.privateTasks||[]).map(t=> t.id===taskId ? Object.assign({},t,{done}) : t);
+  PDMS.api.update('projects', p.id, { privateTasks }).then(saved=>{
+    Object.assign(p, saved);
+    render();
+  }).catch(err=>PDMS.toast('Error', err.message||'Could not update task','error'));
+}
+window.toggleConsultantTask = toggleConsultantTask;
 
 function postProjectReview(){
   const modal = PDMS.modal('Post Issue / Remark',`
@@ -258,129 +344,118 @@ function submitInlineIssue(){
   }).catch(()=>{ D.issues.unshift(record); PDMS.toast('Saved locally','Issue recorded','success'); render(); });
 }
 function assignTeam(){
-  // State held in closure — avoids global pollution
   const state = {
     pm: p.pm||'',
     lead: p.lead||'',
-    consultants: [...(p.consultants||[])]
+    consultantMap: (p.consultants||[]).map(name=>({ name, role: (p.consultantRoles||{})[name]||'' }))
   };
   const allUsers = D.users;
 
   function buildModal(){
-    const chips = state.consultants.map(name=>`
-      <span class="assign-chip">${PDMS.esc(name)}
-        <button type="button" class="assign-chip-x" data-name="${PDMS.esc(name)}">×</button>
-      </span>`).join('');
+    const chips = state.consultantMap.map(({name,role})=>`
+      <div class="assign-chip" style="flex-direction:column;align-items:flex-start;padding:6px 10px;border-radius:10px;gap:2px">
+        <div style="display:flex;align-items:center;gap:6px;width:100%">
+          <div class="assign-ac-avatar" style="width:22px;height:22px;font-size:10px">${PDMS.initials(name)}</div>
+          <span style="flex:1;font-size:13px;font-weight:600">${PDMS.esc(name)}</span>
+          <button type="button" class="assign-chip-x" data-name="${PDMS.esc(name)}">×</button>
+        </div>
+        <input type="text" class="chip-role-input" data-name="${PDMS.esc(name)}" value="${PDMS.esc(role)}" placeholder="Role / skill in this project…" style="width:100%;border:none;border-top:1px solid rgba(99,102,241,.2);background:transparent;color:var(--text);font-size:12px;padding:4px 0 0;outline:none;font-family:inherit"/>
+      </div>`).join('');
     return `
       <style>
-        .assign-ac-wrap{position:relative}
-        .assign-ac-wrap input{width:100%;box-sizing:border-box}
+        .assign-ac-wrap{position:relative}.assign-ac-wrap input{width:100%;box-sizing:border-box}
         .assign-ac-drop{position:absolute;top:100%;left:0;right:0;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:180px;overflow-y:auto;display:none}
         .assign-ac-drop.open{display:block}
         .assign-ac-item{padding:8px 12px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px}
-        .assign-ac-item:hover,.assign-ac-item.focused{background:var(--primary-10,rgba(99,102,241,.08))}
+        .assign-ac-item:hover{background:rgba(99,102,241,.08)}
         .assign-ac-avatar{width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
-        .assign-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:10px}
-        .assign-chip{display:inline-flex;align-items:center;gap:4px;background:var(--primary-10,rgba(99,102,241,.1));color:var(--primary);border-radius:20px;padding:4px 10px;font-size:13px;font-weight:500}
-        .assign-chip-x{background:none;border:none;cursor:pointer;color:var(--primary);font-size:16px;line-height:1;padding:0 0 0 2px}
+        .assign-chips{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+        .assign-chip{display:flex;background:rgba(99,102,241,.08);color:var(--primary);border-radius:10px;padding:6px 10px;border:1px solid rgba(99,102,241,.15)}
+        .assign-chip-x{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;line-height:1;padding:0}
       </style>
       <div class="form-grid">
-        <div class="form-row">
-          <label>Project Manager</label>
-          <div class="assign-ac-wrap">
-            <input id="assignPm" autocomplete="off" placeholder="Search by name…" value="${PDMS.esc(state.pm)}"/>
-            <div class="assign-ac-drop" id="pmDrop"></div>
-          </div>
+        <div class="form-row"><label>Project Manager</label>
+          <div class="assign-ac-wrap"><input id="assignPm" autocomplete="off" placeholder="Search by name…" value="${PDMS.esc(state.pm)}"/><div class="assign-ac-drop" id="pmDrop"></div></div>
         </div>
-        <div class="form-row">
-          <label>Project Lead</label>
-          <div class="assign-ac-wrap">
-            <input id="assignLead" autocomplete="off" placeholder="Search by name…" value="${PDMS.esc(state.lead)}"/>
-            <div class="assign-ac-drop" id="leadDrop"></div>
-          </div>
+        <div class="form-row"><label>Project Lead</label>
+          <div class="assign-ac-wrap"><input id="assignLead" autocomplete="off" placeholder="Search by name…" value="${PDMS.esc(state.lead)}"/><div class="assign-ac-drop" id="leadDrop"></div></div>
         </div>
       </div>
       <div class="form-row">
-        <label>Consultants</label>
+        <label>Consultants <span style="font-weight:400;color:var(--text-muted);font-size:12px">— enter each consultant's role/skill in this project</span></label>
         <div class="assign-chips" id="consultChips">${chips}</div>
         <div class="assign-ac-wrap">
-          <input id="assignConsult" autocomplete="off" placeholder="Search and add consultants…"/>
+          <input id="assignConsult" autocomplete="off" placeholder="Search and add consultant…"/>
           <div class="assign-ac-drop" id="consultDrop"></div>
         </div>
-      </div>
-    `;
+      </div>`;
   }
 
   const modal = PDMS.modal('Assign Team', buildModal(),
     `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveAssignBtn">Save Assignment</button>`);
 
-  function acItem(name, role){
-    return `<div class="assign-ac-item" data-name="${PDMS.esc(name)}"><div class="assign-ac-avatar">${PDMS.initials(name)}</div><div><div style="font-weight:600">${PDMS.esc(name)}</div><div style="font-size:12px;color:var(--text-muted)">${PDMS.esc(role||'')}</div></div></div>`;
-  }
+  function acItem(name, role){ return `<div class="assign-ac-item" data-name="${PDMS.esc(name)}"><div class="assign-ac-avatar">${PDMS.initials(name)}</div><div><div style="font-weight:600">${PDMS.esc(name)}</div><div style="font-size:12px;color:var(--text-muted)">${PDMS.esc(role||'')}</div></div></div>`; }
   function showDrop(drop, items, onPick){
     drop.innerHTML = items.map(u=>acItem(u.name, u.role)).join('') || '<div class="assign-ac-item" style="color:var(--text-muted)">No matches</div>';
     drop.classList.add('open');
-    drop.querySelectorAll('.assign-ac-item[data-name]').forEach(el=>{
-      el.onmousedown = e=>{ e.preventDefault(); onPick(el.dataset.name); };
-    });
+    drop.querySelectorAll('.assign-ac-item[data-name]').forEach(el=>{ el.onmousedown = e=>{ e.preventDefault(); onPick(el.dataset.name); }; });
   }
   function hideDrop(drop){ drop.classList.remove('open'); }
 
-  // PM autocomplete
-  const pmInput = modal.querySelector('#assignPm');
-  const pmDrop = modal.querySelector('#pmDrop');
-  pmInput.oninput = ()=>{
-    const q = pmInput.value.trim().toLowerCase();
-    const matches = allUsers.filter(u=>u.name.toLowerCase().includes(q)).slice(0,8);
-    if(q && matches.length) showDrop(pmDrop, matches, name=>{ pmInput.value=name; state.pm=name; hideDrop(pmDrop); });
-    else hideDrop(pmDrop);
-  };
-  pmInput.onblur = ()=>setTimeout(()=>hideDrop(pmDrop),150);
-  pmInput.onchange = ()=>{ state.pm = pmInput.value.trim(); };
+  function syncRolesFromDOM(){
+    modal.querySelectorAll('.chip-role-input').forEach(inp=>{
+      const entry = state.consultantMap.find(e=>e.name===inp.dataset.name);
+      if(entry) entry.role = inp.value.trim();
+    });
+  }
 
-  // Lead autocomplete
-  const leadInput = modal.querySelector('#assignLead');
-  const leadDrop = modal.querySelector('#leadDrop');
-  leadInput.oninput = ()=>{
-    const q = leadInput.value.trim().toLowerCase();
-    const matches = allUsers.filter(u=>u.name.toLowerCase().includes(q)).slice(0,8);
-    if(q && matches.length) showDrop(leadDrop, matches, name=>{ leadInput.value=name; state.lead=name; hideDrop(leadDrop); });
-    else hideDrop(leadDrop);
-  };
-  leadInput.onblur = ()=>setTimeout(()=>hideDrop(leadDrop),150);
-  leadInput.onchange = ()=>{ state.lead = leadInput.value.trim(); };
-
-  // Consultant chip management
   function refreshChips(){
-    modal.querySelector('#consultChips').innerHTML = state.consultants.map(name=>`
-      <span class="assign-chip">${PDMS.esc(name)}
-        <button type="button" class="assign-chip-x" data-name="${PDMS.esc(name)}">×</button>
-      </span>`).join('');
+    syncRolesFromDOM();
+    modal.querySelector('#consultChips').innerHTML = state.consultantMap.map(({name,role})=>`
+      <div class="assign-chip" style="flex-direction:column;align-items:flex-start;padding:6px 10px;border-radius:10px;gap:2px">
+        <div style="display:flex;align-items:center;gap:6px;width:100%">
+          <div class="assign-ac-avatar" style="width:22px;height:22px;font-size:10px">${PDMS.initials(name)}</div>
+          <span style="flex:1;font-size:13px;font-weight:600">${PDMS.esc(name)}</span>
+          <button type="button" class="assign-chip-x" data-name="${PDMS.esc(name)}">×</button>
+        </div>
+        <input type="text" class="chip-role-input" data-name="${PDMS.esc(name)}" value="${PDMS.esc(role)}" placeholder="Role / skill in this project…" style="width:100%;border:none;border-top:1px solid rgba(99,102,241,.2);background:transparent;color:var(--text);font-size:12px;padding:4px 0 0;outline:none;font-family:inherit"/>
+      </div>`).join('');
     modal.querySelectorAll('.assign-chip-x').forEach(btn=>{
-      btn.onclick = ()=>{ state.consultants = state.consultants.filter(n=>n!==btn.dataset.name); refreshChips(); };
+      btn.onclick = ()=>{ syncRolesFromDOM(); state.consultantMap = state.consultantMap.filter(e=>e.name!==btn.dataset.name); refreshChips(); };
     });
   }
   refreshChips();
 
-  const consultInput = modal.querySelector('#assignConsult');
-  const consultDrop = modal.querySelector('#consultDrop');
+  const pmInput = modal.querySelector('#assignPm'), pmDrop = modal.querySelector('#pmDrop');
+  pmInput.oninput = ()=>{ const q=pmInput.value.trim().toLowerCase(); const m=allUsers.filter(u=>u.name.toLowerCase().includes(q)).slice(0,8); if(q&&m.length) showDrop(pmDrop,m,name=>{pmInput.value=name;state.pm=name;hideDrop(pmDrop);}); else hideDrop(pmDrop); };
+  pmInput.onblur = ()=>setTimeout(()=>hideDrop(pmDrop),150);
+  pmInput.onchange = ()=>{ state.pm=pmInput.value.trim(); };
+
+  const leadInput = modal.querySelector('#assignLead'), leadDrop = modal.querySelector('#leadDrop');
+  leadInput.oninput = ()=>{ const q=leadInput.value.trim().toLowerCase(); const m=allUsers.filter(u=>u.name.toLowerCase().includes(q)).slice(0,8); if(q&&m.length) showDrop(leadDrop,m,name=>{leadInput.value=name;state.lead=name;hideDrop(leadDrop);}); else hideDrop(leadDrop); };
+  leadInput.onblur = ()=>setTimeout(()=>hideDrop(leadDrop),150);
+  leadInput.onchange = ()=>{ state.lead=leadInput.value.trim(); };
+
+  const consultInput = modal.querySelector('#assignConsult'), consultDrop = modal.querySelector('#consultDrop');
   consultInput.oninput = ()=>{
     const q = consultInput.value.trim().toLowerCase();
     if(!q){ hideDrop(consultDrop); return; }
-    const matches = allUsers.filter(u=>u.name.toLowerCase().includes(q) && !state.consultants.includes(u.name)).slice(0,8);
-    showDrop(consultDrop, matches, name=>{
-      state.consultants.push(name);
-      consultInput.value='';
-      hideDrop(consultDrop);
-      refreshChips();
-    });
+    const taken = state.consultantMap.map(e=>e.name);
+    const matches = allUsers.filter(u=>u.name.toLowerCase().includes(q) && !taken.includes(u.name)).slice(0,8);
+    showDrop(consultDrop, matches, name=>{ state.consultantMap.push({name, role:''}); consultInput.value=''; hideDrop(consultDrop); refreshChips(); });
   };
   consultInput.onblur = ()=>setTimeout(()=>hideDrop(consultDrop),150);
 
   modal.querySelector('#saveAssignBtn').onclick = function(){
+    syncRolesFromDOM();
     state.pm = pmInput.value.trim() || state.pm;
     state.lead = leadInput.value.trim() || state.lead;
-    PDMS.api.update('projects',p.id,{pm:state.pm, lead:state.lead, consultants:state.consultants}).then(saved=>{
+    const consultants = state.consultantMap.map(e=>e.name);
+    const consultantRoles = {};
+    state.consultantMap.forEach(e=>{ if(e.role) consultantRoles[e.name]=e.role; });
+    const btn = this;
+    PDMS.setButtonLoading(btn, true, 'Saving…');
+    PDMS.api.update('projects',p.id,{pm:state.pm, lead:state.lead, consultants, consultantRoles}).then(saved=>{
       Object.assign(p,saved);
       modal.remove();
       PDMS.toast('Team updated','Assignment saved','success');
@@ -388,10 +463,10 @@ function assignTeam(){
       const parts = [];
       if(state.pm) parts.push('PM: '+state.pm);
       if(state.lead) parts.push('Lead: '+state.lead);
-      if(state.consultants.length) parts.push(state.consultants.length+' consultant(s)');
+      if(consultants.length) parts.push(consultants.length+' consultant(s)');
       PDMS.notify('Team Assigned', `${assignUser.name} (${assignUser.role}) assigned team on "${p.name}" — ${parts.join(', ')}`, 'users', 'project-details.html#id='+p.id);
       render();
-    }).catch(err=>PDMS.toast('Error',err.message||'Could not update assignment','error'));
+    }).catch(err=>{ PDMS.setButtonLoading(btn,false); PDMS.toast('Error',err.message||'Could not update assignment','error'); });
   };
 }
 function uploadDoc(){

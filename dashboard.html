@@ -42,9 +42,10 @@ requestAnimationFrame(() => {
       const avail = D.consultants.filter(c=>c.availability==='Available').length;
       const busy = D.consultants.length - avail;
       const isConsultant = user && user.role === 'Consultant';
-      const consultantProjects = isConsultant ? D.projects.filter(p => {
-        const consultantNames = Array.isArray(p.consultants) ? p.consultants.map(String).map(n => n.toLowerCase()) : [];
-        return consultantNames.includes(String(user.name || '').toLowerCase()) || consultantNames.includes(String(user.email || '').toLowerCase());
+      const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+      const consultantProjects = isConsultant ? liveProjects.filter(p => {
+        const assigned = Array.isArray(p.consultants) ? p.consultants.map(String).map(n => n.toLowerCase()) : [];
+        return assigned.includes(String(user.name || '').toLowerCase()) || assigned.includes(String(user.id || '').toLowerCase());
       }) : [];
 
       const content = document.getElementById('content');
@@ -65,11 +66,10 @@ requestAnimationFrame(() => {
   </div>
 
   ${isConsultant ? `
-  <div class="grid grid-4 mb-4">
-    <div class="stat i-primary"><div class="label">Current Projects</div><div class="value">${consultantProjects.length}</div><div class="icon-wrap">${I('folder')}</div></div>
-    <div class="stat i-success"><div class="label">Completed</div><div class="value">${consultantProjects.filter(p=>p.status==='Completed').length}</div><div class="icon-wrap">${I('check')}</div></div>
+  <div class="grid grid-3 mb-4">
+    <div class="stat i-primary"><div class="label">Current Projects</div><div class="value">${consultantProjects.filter(p=>!['Completed','Closed','Cancelled'].includes(p.status)).length}</div><div class="icon-wrap">${I('folder')}</div></div>
     <div class="stat i-warn"><div class="label">In Progress</div><div class="value">${consultantProjects.filter(p=>p.status==='In Progress').length}</div><div class="icon-wrap">${I('activity')}</div></div>
-    <div class="stat i-info"><div class="label">Delayed</div><div class="value">${consultantProjects.filter(p=>p.due<today && !['Completed','Closed','Cancelled'].includes(p.status)).length}</div><div class="icon-wrap">${I('clock')}</div></div>
+    <div class="stat i-success"><div class="label">Completed</div><div class="value">${consultantProjects.filter(p=>p.status==='Completed').length}</div><div class="icon-wrap">${I('check')}</div></div>
   </div>
   ` : `
   <div class="grid grid-4 mb-4">
@@ -103,22 +103,52 @@ requestAnimationFrame(() => {
 
       const row1 = document.getElementById('row1');
       if(row1) {
+        const statusColorHex2 = {'Not Started':'#94a3b8','In Progress':'#f59e0b','Awaiting Review':'#eab308','Testing / Quality Assurance':'#8b5cf6','Completed':'#10b981','On Hold':'#64748b','Incoming':'#3b82f6','Proposal Sent':'#f97316','SLA Signed':'#10b981','Closed':'#4f46e5','Cancelled':'#ef4444'};
         row1.innerHTML = isConsultant ? `
   <div class="card">
-    <div class="card-head"><div><div class="card-title">My Projects Overview</div><div class="card-sub">Status and progress of assigned projects</div></div>
-      <div class="flex gap-2 text-sm text-muted"><span style="color:var(--primary)">● Started</span><span style="color:var(--success)">● Completed</span></div>
+    <div class="card-head"><div><div class="card-title">Assigned Projects</div><div class="card-sub">${consultantProjects.length} project${consultantProjects.length!==1?'s':''}</div></div><a href="consultants.html" style="font-size:12px;font-weight:600;color:var(--primary)">View all</a></div>
+    <div style="padding:0 4px 8px">
+      ${consultantProjects.length ? consultantProjects.map(p=>{
+        const statusCol = D.statusColors[p.status]||'muted';
+        const role = p.pm===user.name?'PM':p.lead===user.name?'Lead':'Consultant';
+        return `<div onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:10px;transition:background .15s" onmouseenter="this.style.background='var(--surface-2)'" onmouseleave="this.style.background='transparent'">
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(99,102,241,.1);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--primary);flex-shrink:0">${PDMS.esc(p.name||'').charAt(0)}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(p.name)}</div>
+            <div style="font-size:11px;color:var(--text-soft);margin-top:1px">${PDMS.esc(p.client||'—')} · <span style="color:var(--primary);font-weight:600">${role}</span></div>
+          </div>
+          <span class="badge badge-${statusCol}" style="flex-shrink:0;font-size:10px">${PDMS.esc(p.status)}</span>
+        </div>`;
+      }).join('') : `<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px">No projects assigned yet</div>`}
     </div>
-    <div class="card-body"><div class="chart-wrap" style="height:260px"><canvas id="lineC"></canvas></div></div>
   </div>
-  <div class="card"><div class="card-head"><div class="card-title">Quick Access</div><div class="card-sub">Your active projects</div></div>
-    <div class="card-body" style="padding:12px">${
-      consultantProjects.length ? consultantProjects.map(p=>`
-        <a href="project-details.html#id=${p.id}" style="display:block;padding:10px;margin:6px 0;background:var(--surface-2);border-radius:8px;text-decoration:none;color:inherit;border-left:3px solid var(--primary);transition:all 0.2s">
-          <div class="font-semi text-sm">${PDMS.esc(p.name)}</div>
-          <div class="text-sm text-muted mt-1">${PDMS.esc(p.client)} • ${p.progress}% complete</div>
-        </a>`).join('')
-      : '<div class="text-muted text-sm">No active projects</div>'
-    }</div>
+  <div class="card">
+    <div class="card-head"><div><div class="card-title">Projects Overview</div><div class="card-sub">Status breakdown</div></div></div>
+    <div class="card-body" style="padding:8px 20px 16px">
+      ${(()=>{
+        const statusGroups = {};
+        consultantProjects.forEach(p=>{ statusGroups[p.status]=(statusGroups[p.status]||0)+1; });
+        const total = consultantProjects.length||1;
+        const entries = Object.entries(statusGroups);
+        if(!entries.length) return `<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px">No data yet</div>`;
+        return entries.map(([status,count])=>{
+          const pct = Math.round((count/total)*100);
+          const hex = statusColorHex2[status]||'#94a3b8';
+          return `<div style="margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+              <div style="display:flex;align-items:center;gap:7px">
+                <div style="width:8px;height:8px;border-radius:50%;background:${hex};flex-shrink:0"></div>
+                <span style="font-size:12px;font-weight:500;color:var(--text)">${PDMS.esc(status)}</span>
+              </div>
+              <span style="font-size:12px;font-weight:700;color:var(--text)">${count} <span style="color:var(--text-muted);font-weight:400">(${pct}%)</span></span>
+            </div>
+            <div style="height:6px;border-radius:99px;background:var(--border);overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${hex};border-radius:99px;transition:width .4s"></div>
+            </div>
+          </div>`;
+        }).join('');
+      })()}
+    </div>
   </div>
 ` : `
   <div class="card">

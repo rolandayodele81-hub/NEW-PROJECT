@@ -63,9 +63,24 @@ function markAllRead(){
 }
 
 function render(){
-  const total = D.notifications.length;
-  const unreadCount = D.notifications.filter(n=>n.unread).length;
-  const sorted = D.notifications.slice().sort((a,b)=>new Date(b.time)-new Date(a.time));
+  const user = PDMS.getUser();
+  const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+  const liveNotifs = (window.PDMS_REMOTE && window.PDMS_REMOTE.notifications) || D.notifications;
+
+  let visibleNotifs = liveNotifs;
+  if(user && user.role === 'Consultant'){
+    const myProjectIds = new Set(
+      liveProjects.filter(p=>{
+        const assigned = Array.isArray(p.consultants) ? p.consultants.map(n=>n.toLowerCase()) : [];
+        return assigned.includes((user.name||'').toLowerCase()) || assigned.includes((user.id||'').toLowerCase());
+      }).map(p=>String(p.id))
+    );
+    visibleNotifs = liveNotifs.filter(n=> n.projectId && myProjectIds.has(String(n.projectId)));
+  }
+
+  const total = visibleNotifs.length;
+  const unreadCount = visibleNotifs.filter(n=>n.unread).length;
+  const sorted = visibleNotifs.slice().sort((a,b)=>new Date(b.time)-new Date(a.time));
 
   document.getElementById('content').innerHTML = `
   <div class="page-head">

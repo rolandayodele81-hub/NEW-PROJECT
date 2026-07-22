@@ -43,7 +43,8 @@
       return '<div class="nav-section"><div class="nav-title">'+s.section+'</div>'+
         items.map(it=>{
           const href = it.id==='dashboard' ? PDMS.dashboardFor(user) : it.href;
-          return '<a class="nav-item '+(activeId===it.id?'active':'')+'" href="'+href+'">'+I(it.icon)+'<span>'+it.label+'</span>'+(it.badge?'<span class="badge">'+it.badge+'</span>':'')+'</a>';
+          const label = (it.id==='projects' && role==='Consultant') ? 'My Projects' : it.label;
+          return '<a class="nav-item '+(activeId===it.id?'active':'')+'" href="'+href+'">'+I(it.icon)+'<span>'+label+'</span>'+(it.badge?'<span class="badge">'+it.badge+'</span>':'')+'</a>';
         }).join('')+
       '</div>';
     }).join('');

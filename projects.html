@@ -23,9 +23,18 @@ const pageInfo = viewParam==='sales' ? {title:'Sales Pipeline', sub:'Projects cr
 // created by Sales stays in Sales Pipeline for its whole life; a project created
 // by a delivery role stays in Projects in Delivery for its whole life.
 function scopedProjects(){
-  if(viewParam==='sales') return D.projects.filter(p=>PDMS.stageOf(p)==='Sales');
-  if(viewParam==='delivery') return D.projects.filter(p=>PDMS.stageOf(p)==='Delivery');
-  return D.projects;
+  const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+  if(currentUser && currentUser.role === 'Consultant'){
+    const myName = (currentUser.name||'').toLowerCase();
+    const myId = (currentUser.id||'').toLowerCase();
+    return liveProjects.filter(p=>{
+      const assigned = Array.isArray(p.consultants) ? p.consultants.map(String).map(n=>n.toLowerCase()) : [];
+      return assigned.includes(myName) || assigned.includes(myId);
+    });
+  }
+  if(viewParam==='sales') return liveProjects.filter(p=>PDMS.stageOf(p)==='Sales');
+  if(viewParam==='delivery') return liveProjects.filter(p=>PDMS.stageOf(p)==='Delivery');
+  return liveProjects;
 }
 // Each bucket is filtered/kanban'd using its own status vocabulary.
 const bucketStatuses = viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : D.statuses;
@@ -34,7 +43,7 @@ const statTiles = viewParam==='sales'
   ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'Awaiting Approval', match:p=>p.status==='Awaiting Client Approval', color:'warn', icon:'clock'}, {label:'Closed', match:p=>p.status==='Closed', color:'success', icon:'check'}, {label:'On Hold', match:p=>p.status==='On Hold', color:'info', icon:'zap'}]
   : viewParam==='delivery'
   ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'In Progress', match:p=>p.status==='In Progress', color:'warn', icon:'activity'}, {label:'Completed', match:p=>p.status==='Completed', color:'success', icon:'check'}, {label:'Closed', match:p=>p.status==='Closed', color:'info', icon:'zap'}]
-  : [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'In Progress', match:p=>p.status==='In Progress', color:'warn', icon:'activity'}, {label:'Completed', match:p=>p.status==='Completed', color:'success', icon:'check'}, {label:'Incoming', match:p=>p.status==='Incoming', color:'info', icon:'zap'}];
+  : [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'In Progress', match:p=>p.status==='In Progress', color:'warn', icon:'activity'}, {label:'Completed', match:p=>p.status==='Completed', color:'success', icon:'check'}];
 
 // Sales can view the delivery bucket but never create there — only a delivery
 // role creates projects that belong in Projects in Delivery.
@@ -44,7 +53,7 @@ const canCreateHere = viewParam==='sales' ? PDMS.isSalesRole(currentUser)
 
 // Sales Pipeline and Projects in Delivery default to Table view; the plain
 // Projects page (used by delivery roles day-to-day) defaults to Kanban.
-const defaultToTable = viewParam==='sales' || viewParam==='delivery';
+const defaultToTable = viewParam==='sales' || viewParam==='delivery' || (currentUser && currentUser.role==='Consultant');
 
 const content = document.getElementById('content');
 content.innerHTML = `
@@ -53,7 +62,7 @@ content.innerHTML = `
       <h1 class="page-title">${pageInfo.title}</h1><div class="page-sub">${pageInfo.sub}</div></div>
     <div class="flex gap-2"><button class="btn btn-secondary" id="viewToggle">${defaultToTable ? I('folder')+' Kanban View' : I('folder')+' Table View'}</button>${canCreateHere?`<button class="btn btn-primary" id="newProj">${I('plus')} New Project</button>`:''}</div>
   </div>
-  <div class="grid grid-4 mb-4">
+  <div class="grid ${(viewParam==='sales'||viewParam==='delivery')?'grid-4':'grid-3'} mb-4">
     ${statTiles.map((t,i)=>`<div class="stat i-${t.color}"><div class="label">${t.label}</div><div class="value" id="stat-${i}">0</div><div class="icon-wrap">${I(t.icon)}</div></div>`).join('')}
   </div>
   <div id="listView" class="table-wrap ${defaultToTable ? '' : 'hidden'}"></div>
