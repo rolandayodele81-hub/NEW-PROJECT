@@ -89,10 +89,6 @@
       const activeStaff = D.users.filter(u => u.status === 'Active').length;
       const consultants = D.users.filter(u => u.role === 'Consultant');
       const totalConsultants = consultants.length;
-      const availableConsultants = consultants.filter(c => c.availability === 'Available').length;
-
-      // Readiness calculation
-      const readiness = Math.round((availableConsultants / Math.max(totalConsultants, 1)) * 100);
 
       const salesProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Sales');
       // All projects currently in delivery stage, regardless of origin.
@@ -119,38 +115,26 @@
         </div>
       </div>
       <div class="hr-hero-card">
-        <div class="ring" style="--p:${readiness};--sz:92px;--th:8px;--c:#ffffff"><span class="ring-val">${readiness}%</span></div>
+        <div style="width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,0.2);display:grid;place-items:center;font-size:28px;flex-shrink:0">${I('users')}</div>
         <div>
-          <div class="hero-card-title">Talent Readiness</div>
-          <div class="hero-card-text">${availableConsultants} of ${totalConsultants} consultants are ready for deployment.</div>
-          <div class="hero-card-foot">Capacity Managed</div>
+          <div class="hero-card-title">Consultant Bench</div>
+          <div class="hero-card-text">${totalConsultants} consultant${totalConsultants !== 1 ? 's' : ''} on the bench. All staff are available for assignment.</div>
+          <div class="hero-card-foot">Always Available</div>
         </div>
       </div>
     </div>
 
-    <div class="grid grid-4 mb-4">
+    <div class="grid grid-2 mb-4">
       <div class="stat i-primary">
         <div class="label">Total Staff</div>
         <div class="value">${totalStaff}</div>
         <div class="delta up">Global directory</div>
         <div class="icon-wrap">${I('users')}</div>
       </div>
-      <div class="stat i-success">
-        <div class="label">Active Talent</div>
-        <div class="value">${activeStaff}</div>
-        <div class="delta up">Logged in / Active</div>
-        <div class="icon-wrap">${I('check')}</div>
-      </div>
-      <div class="stat i-warn">
-        <div class="label">On Leave</div>
-        <div class="value">${D.users.filter(u => u.status === 'On Leave').length}</div>
-        <div class="delta down">Out of office</div>
-        <div class="icon-wrap">${I('clock')}</div>
-      </div>
       <div class="stat i-info">
-        <div class="label">Available Consultants</div>
-        <div class="value">${availableConsultants}</div>
-        <div class="delta up">Unallocated bench</div>
+        <div class="label">Consultants</div>
+        <div class="value">${totalConsultants}</div>
+        <div class="delta up">On bench, all available</div>
         <div class="icon-wrap">${I('briefcase')}</div>
       </div>
     </div>
@@ -177,23 +161,23 @@
       <div class="card">
         <div class="card-head">
           <div>
-            <div class="card-title">High Utilization Staff</div>
-            <div class="card-sub">Top employees by allocated workload</div>
+            <div class="card-title">Staff by Project Count</div>
+            <div class="card-sub">Employees with the most active project assignments</div>
           </div>
-          <span class="badge badge-danger">High Load</span>
+          <span class="badge badge-info">By Assignments</span>
         </div>
         <div class="card-body" style="padding:8px 20px">
-          ${D.users.slice().sort((a, b) => b.workload - a.workload).slice(0, 5).map(u => `
+          ${D.users.map(u => ({
+            ...u,
+            projCount: D.projects.filter(p => p.pm===u.name||p.lead===u.name||(p.consultants||[]).includes(u.name)).length
+          })).sort((a,b) => b.projCount - a.projCount).slice(0,5).map(u => `
             <div class="flex items-center gap-3" style="padding:12px 0;border-bottom:1px solid var(--border)">
               <div class="avatar avatar-sm">${PDMS.initials(u.name)}</div>
               <div style="flex:1">
                 <div class="font-semi text-sm">${PDMS.esc(u.name)}</div>
-                <div class="text-sm text-muted">${PDMS.esc(u.role)} · ${PDMS.esc(u.dept)}</div>
+                <div class="text-sm text-muted">${PDMS.esc(u.role)} · ${PDMS.esc(u.dept||'—')}</div>
               </div>
-              <div style="width:140px" class="progress-inline">
-                <div class="progress"><div class="bar" style="width:${u.workload}%; background: ${u.workload > 80 ? 'var(--danger)' : 'var(--gradient)'}"></div></div>
-                <span class="pct">${u.workload}%</span>
-              </div>
+              <span class="badge badge-primary">${u.projCount} project${u.projCount !== 1 ? 's' : ''}</span>
             </div>`).join('')}
         </div>
       </div>
@@ -211,11 +195,11 @@
               <div class="font-bold" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(p.name)}</div>
               <span class="badge badge-${D.statusColors[p.status] || 'muted'} dot" style="flex-shrink:0">${PDMS.esc(p.status)}</span>
             </div>
-            <div class="text-sm text-muted mb-3">Client: ${PDMS.esc(p.client || 'TBD')}</div>
-            <div class="flex items-center justify-between text-sm mb-1"><span class="text-muted">Progress</span><span class="font-semi">${p.progress || 0}%</span></div>
-            <div class="progress mb-3"><div class="bar" style="width:${p.progress || 0}%"></div></div>
+            <div class="text-sm text-muted mb-1">Client: ${PDMS.esc(p.client || 'TBD')}</div>
+            <div class="text-sm text-muted mb-1">Workstream: ${PDMS.esc(p.workstream||p.dept||'—')}</div>
             <div class="text-sm text-muted">Start Date: ${p.start || 'TBD'}</div>
-            <div class="text-sm text-muted mb-3">Expected End: ${p.due || 'TBD'}</div>
+            <div class="text-sm text-muted">Planned Completion: ${p.due || 'TBD'}</div>
+            <div class="text-sm text-muted mb-3">Actual Completion: ${p.actualCompletion || '—'}</div>
             <a href="project-details.html#id=${p.id}" class="text-sm font-semi" style="color:var(--primary)">View Details →</a>
           </div>
         </div>`).join('') || `<div class="text-muted" style="padding:24px;text-align:center;grid-column:1/-1">${PDMS.emptyOrLoading('No projects in delivery yet')}</div>`}
@@ -235,13 +219,13 @@
       <div class="card-body" style="padding:0">
         <div style="overflow-x:auto">
           <table class="data">
-            <thead><tr><th>Project</th><th>Client</th><th>Priority</th><th>Status</th></tr></thead>
+            <thead><tr><th>Project</th><th>Client</th><th>Workstream</th><th>Status</th></tr></thead>
             <tbody>
               ${salesProjects.map(p => `
                 <tr>
                   <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
                   <td>${PDMS.esc(p.client)}</td>
-                  <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
+                  <td>${PDMS.esc(p.workstream||p.dept||'—')}</td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
                 </tr>`).join('') || `<tr><td colspan="4" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects')}</td></tr>`}
             </tbody>
@@ -265,14 +249,14 @@
               <thead>
                 <tr>
                   <th>Consultant</th>
-                  <th>Specialty</th>
-                  <th>Status</th>
-                  <th>Availability</th>
-                  <th>Actions</th>
+                  <th>Skill Set</th>
+                  <th>Projects</th>
                 </tr>
               </thead>
               <tbody>
-                ${consultants.slice(0, 5).map(c => `
+                ${consultants.slice(0, 5).map(c => {
+                  const projCount = D.projects.filter(p => p.pm===c.name||p.lead===c.name||(p.consultants||[]).includes(c.name)).length;
+                  return `
                   <tr>
                     <td>
                       <a href="user-details.html#id=${c.id}" class="flex items-center gap-2" style="color:inherit;text-decoration:none">
@@ -283,15 +267,10 @@
                         </div>
                       </a>
                     </td>
-                    <td><span class="badge badge-purple">${PDMS.esc(c.dept || '—')}</span></td>
-                    <td><span class="badge badge-${c.status === 'Active' ? 'success' : 'danger'}">${PDMS.esc(c.status)}</span></td>
-                    <td>
-                      <span class="badge badge-${c.availability === 'Available' ? 'success' : 'warn'}">${PDMS.esc(c.availability || '—')}</span>
-                    </td>
-                    <td>
-                      <button class="btn btn-secondary btn-sm" onclick="toggleAvailability('${c.id}')">Toggle Availability</button>
-                    </td>
-                  </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No consultants yet')}</td></tr>`}
+                    <td><span class="badge badge-purple">${PDMS.esc(c.skillSet||c.dept||'—')}</span></td>
+                    <td><span class="badge badge-primary">${projCount} project${projCount!==1?'s':''}</span></td>
+                  </tr>`;
+                }).join('') || `<tr><td colspan="3" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No consultants yet')}</td></tr>`}
               </tbody>
             </table>
           </div>
@@ -300,19 +279,23 @@
 
       <div class="card">
         <div class="card-head">
-          <div class="card-title">People Activities</div>
+          <div class="card-title">Notification Log</div>
+          <div class="card-sub">Recent system notifications</div>
         </div>
         <div class="card-body" style="padding: 8px 20px">
-          ${D.activities.filter(a => a.action.includes('onboard') || a.action.includes('assign') || a.role === 'HR').slice(0, 5).map(a => `
-            <div class="activity">
-              <div class="a-icon">${I('activity')}</div>
-              <div>
-                <div class="a-text"><b>${PDMS.esc(a.user)}</b> ${PDMS.esc(a.action)} <b>${PDMS.esc(a.target)}</b></div>
-                <div class="a-time">${a.time}</div>
-              </div>
-            </div>`).join('')}
-          ${D.activities.filter(a => a.action.includes('onboard') || a.action.includes('assign') || a.role === 'HR').length === 0 ? `
-            <div class="text-muted text-center" style="padding: 24px 0">${PDMS.emptyOrLoading('No recent HR-related events')}</div>` : ''}
+          ${(() => {
+            const notifs = (D.notifications || []).slice().reverse().slice(0, 8);
+            if (!notifs.length) return `<div class="text-muted text-center" style="padding:24px 0">${PDMS.emptyOrLoading('No notifications yet')}</div>`;
+            return notifs.map(n => `
+              <div class="activity">
+                <div class="a-icon" style="background:var(--primary-faint);color:var(--primary)">${I('bell')}</div>
+                <div style="flex:1;min-width:0">
+                  <div class="a-text font-semi" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(n.title||'Notification')}</div>
+                  <div class="text-sm text-muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(n.message||n.body||'')}</div>
+                  <div class="a-time">${n.time||n.createdAt||''}</div>
+                </div>
+              </div>`).join('');
+          })()}
         </div>
       </div>
     </div>

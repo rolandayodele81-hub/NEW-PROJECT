@@ -181,34 +181,23 @@
 
     function renderConsultantDirectory() {
       const consultants = D.users.filter(u => u.role === 'Consultant');
-      const projectMap = {};
-      (D.projects || []).forEach(project => {
-        (Array.isArray(project.consultants) ? project.consultants : []).forEach(name => {
-          const key = String(name).trim().toLowerCase();
-          if (!projectMap[key]) projectMap[key] = 0;
-          projectMap[key] += 1;
-        });
-      });
       document.getElementById('content').innerHTML = `
         <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Consultants</span></div>
           <h1 class="page-title">Consultants</h1><div class="page-sub">Resource pool availability and specialties</div></div></div>
-        <div class="grid grid-4 mb-4">
-          <div class="stat i-primary"><div class="label">Total</div><div class="value">${consultants.length}</div><div class="icon-wrap">${I('users')}</div></div>
-          <div class="stat i-success"><div class="label">Available</div><div class="value">${consultants.filter(c => c.availability === 'Available').length}</div><div class="icon-wrap">${I('check')}</div></div>
-          <div class="stat i-warn"><div class="label">Busy</div><div class="value">${consultants.filter(c => c.availability === 'Busy').length}</div><div class="icon-wrap">${I('activity')}</div></div>
-          <div class="stat i-info"><div class="label">Current Projects</div><div class="value">${consultants.reduce((sum, consultant) => sum + (projectMap[String(consultant.name || '').trim().toLowerCase()] || 0), 0)}</div><div class="icon-wrap">${I('folder')}</div></div>
+        <div class="grid grid-2 mb-4">
+          <div class="stat i-primary"><div class="label">Total Consultants</div><div class="value">${consultants.length}</div><div class="icon-wrap">${I('users')}</div></div>
+          <div class="stat i-info"><div class="label">Active Projects</div><div class="value">${consultants.filter(c => D.projects.some(p => p.pm===c.name||p.lead===c.name||(p.consultants||[]).includes(c.name))).length}</div><div class="icon-wrap">${I('folder')}</div></div>
         </div>
         <div id="tbl" class="table-wrap"></div>`;
       PDMS.renderTable(document.getElementById('tbl'), {
         columns: [
           { key: 'name', label: 'Consultant', render: r => `<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.name)}</div><div><div class="font-semi">${PDMS.esc(r.name)}</div><div class="text-sm text-muted">${PDMS.esc(r.email)}</div></div></div>` },
           { key: 'dept', label: 'Skill Set' },
-          { key: 'availability', label: 'Availability', render: r => `<span class="badge badge-${r.availability === 'Available' ? 'success' : 'warn'} dot">${r.availability || '—'}</span>` },
-          { key: 'projects', label: 'Projects', render: r => `<span class="badge badge-muted">${projectMap[String(r.name || '').trim().toLowerCase()] || 0}</span>` },
-          { key: 'joined', label: 'Joined' }
-        ], rows: consultants.map(consultant => Object.assign({}, consultant, { projects: projectMap[String(consultant.name || '').trim().toLowerCase()] || 0 })), pageSize: 10, searchKeys: ['name', 'dept', 'email'],
+          { key: 'projects', label: 'Projects', render: r => { const n = D.projects.filter(p => p.pm===r.name||p.lead===r.name||(p.consultants||[]).includes(r.name)).length; return `<span class="badge badge-primary">${n} project${n!==1?'s':''}</span>`; } },
+          { key: 'dateOfEntry', label: 'Date of Entry', render: r => PDMS.esc(r.dateOfEntry || '—') }
+        ], rows: consultants, pageSize: 10, searchKeys: ['name', 'dept', 'email'],
         rowHref: r => 'user-details.html#id=' + r.id,
-        filterOptions: [{ key: 'availability', label: 'Availability', options: ['Available', 'Busy'] }]
+        filterOptions: []
       });
     }
 

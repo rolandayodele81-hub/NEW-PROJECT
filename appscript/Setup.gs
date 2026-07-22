@@ -12,8 +12,8 @@ function initializeSheets() {
       rows: []
     },
     Users: {
-      headers: ['id', 'name', 'email', 'passwordHash', 'role', 'dept', 'status', 'availability', 'workload', 'phone', 'joined', 'birthday'],
-      textColumns: ['joined', 'birthday'],
+      headers: ['id', 'name', 'email', 'passwordHash', 'role', 'dept', 'status', 'availability', 'workload', 'phone', 'joined', 'birthday', 'dateOfEntry'],
+      textColumns: ['joined', 'birthday', 'dateOfEntry'],
       rows: [
         ['U000', 'System Administrator', 'admin@pse.com', hashPassword_('Admin@2026!'), 'System Administrator', 'Information Technology', 'Active', 'Available', 0, '+0000000000', '2026-01-15', ''],
         ['U001', 'HR Manager', 'hr@pse.com', hashPassword_('HR@2026!'), 'HR', 'Human Resources', 'Active', 'Available', 0, '+0000000000', '2026-01-15', '']
@@ -29,8 +29,8 @@ function initializeSheets() {
       rows: []
     },
     Projects: {
-      headers: ['id', 'name', 'client', 'type', 'dept', 'sales', 'pm', 'lead', 'consultants', 'priority', 'budget', 'status', 'stage', 'createdByRole', 'progress', 'start', 'due', 'completion', 'description', 'files', 'remarks'],
-      textColumns: ['start', 'due', 'completion'],
+      headers: ['id', 'name', 'client', 'type', 'dept', 'workstream', 'sales', 'pm', 'lead', 'consultants', 'priority', 'status', 'stage', 'createdByRole', 'progress', 'start', 'due', 'actualCompletion', 'completion', 'description', 'files', 'remarks'],
+      textColumns: ['start', 'due', 'actualCompletion', 'completion'],
       rows: []
     },
     Notifications: {

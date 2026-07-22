@@ -81,7 +81,7 @@
   };
 
   // Infer stage from status when the `stage` field is absent (legacy rows).
-  const SALES_STATUSES = ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','Approved','On Hold','Rejected'];
+  const SALES_STATUSES = ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','PO / Award Granted','SLA Signed','Awaiting Client Approval','Closed','On Hold','Cancelled'];
   PDMS.stageOf = function(project){
     if(project.stage) return project.stage;
     // createdByRole is more reliable than status (some statuses appear in both lists)

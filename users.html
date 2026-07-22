@@ -25,11 +25,9 @@
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Users</span></div>
     <h1 class="page-title">Users & Staff</h1><div class="page-sub">Manage employees, roles and access</div></div>
     <div class="flex gap-2">${PDMS.can('Onboard User') ? `<button class="btn btn-primary" onclick="newUser()">${I('user-plus')} Add User</button>` : ''}</div></div>
-  <div class="grid grid-4 mb-4">
+  <div class="grid grid-2 mb-4">
     <div class="stat i-primary"><div class="label">Total Users</div><div class="value">${D.users.length}</div><div class="icon-wrap">${I('users')}</div></div>
-    <div class="stat i-success"><div class="label">Active</div><div class="value">${D.users.filter(u => u.status === 'Active').length}</div><div class="icon-wrap">${I('check')}</div></div>
-    <div class="stat i-warn"><div class="label">On Leave</div><div class="value">${D.users.filter(u => u.status === 'On Leave').length}</div><div class="icon-wrap">${I('clock')}</div></div>
-    <div class="stat i-info"><div class="label">Suspended</div><div class="value">${D.users.filter(u => u.status === 'Suspended').length}</div><div class="icon-wrap">${I('shield')}</div></div>
+    <div class="stat i-info"><div class="label">Total Consultants</div><div class="value">${D.users.filter(u => u.role === 'Consultant').length}</div><div class="icon-wrap">${I('briefcase')}</div></div>
   </div>
   <div id="tbl" class="table-wrap"></div>
 `;
@@ -41,8 +39,7 @@
         columns: [
           { key: 'name', label: 'User', render: r => `<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.name)}</div><div><div class="font-semi">${PDMS.esc(r.name)}</div><div class="text-sm text-muted">${PDMS.esc(r.email)}</div></div></div>` },
           { key: 'role', label: 'Role', render: r => `<span class="badge badge-primary">${r.role}</span>` },
-          { key: 'dept', label: 'Department' },
-          { key: 'workload', label: 'Workload', render: r => `<div class="progress-inline"><div class="progress"><div class="bar" style="width:${r.workload}%"></div></div><span class="pct">${r.workload}%</span></div>` }
+          { key: 'dept', label: 'Skill Set' }
         ],
         rows: D.users, pageSize: 10, searchKeys: ['name', 'email', 'role', 'dept'],
         rowHref: r => 'user-details.html#id=' + r.id,
@@ -51,7 +48,7 @@
     }
 
     function newUser() {
-      const modal = PDMS.modal('Create User', `<div class="form-grid"><div class="form-row"><label>Full Name</label><input id="newUserName"/></div><div class="form-row"><label>Email</label><input id="newUserEmail" type="email"/></div><div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div><div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Skill Set</label><input id="newUserDept" type="text" placeholder="e.g. Cyber Security"/></div><div class="form-row"><label>Phone</label><input id="newUserPhone" type="text" placeholder="e.g. +1 555 123 4567"/></div><div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="date"/></div></div>`,
+      const modal = PDMS.modal('Create User', `<div class="form-grid"><div class="form-row"><label>Full Name</label><input id="newUserName"/></div><div class="form-row"><label>Email</label><input id="newUserEmail" type="email"/></div><div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div><div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Skill Set</label><input id="newUserDept" type="text" placeholder="e.g. Cyber Security"/></div><div class="form-row"><label>Phone</label><input id="newUserPhone" type="text" placeholder="e.g. +1 555 123 4567"/></div><div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="date"/></div><div class="form-row"><label>Date of Entry</label><input id="newUserEntry" type="date"/></div></div>`,
         `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">Create</button>`);
       modal.querySelector('#createUserBtn').onclick = function () {
         const name = modal.querySelector('#newUserName').value.trim();
@@ -61,6 +58,7 @@
         const dept = modal.querySelector('#newUserDept').value.trim();
         const phone = modal.querySelector('#newUserPhone').value.trim();
         const birthday = modal.querySelector('#newUserBirthday').value;
+        const dateOfEntry = modal.querySelector('#newUserEntry').value;
         if (!name || !email || !password) {
           PDMS.toast('Missing user info', 'Name, email, and password are required', 'error');
           return;
@@ -70,7 +68,7 @@
           PDMS.toast('Email already in use', 'A user with this email address already exists.', 'error');
           return;
         }
-        const record = { name, email, password, role, dept, birthday: birthday || '', workload: 0, phone, joined: new Date().toISOString().slice(0, 10) };
+        const record = { name, email, password, role, dept, birthday: birthday || '', dateOfEntry: dateOfEntry || '', workload: 0, phone, joined: new Date().toISOString().slice(0, 10) };
         PDMS.api.register(record).then(saved => {
           D.users.unshift(saved);
           modal.remove();

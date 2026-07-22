@@ -1,37 +1,240 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Project Timeline — PSE PDMS</title>
+<title>Project Overview — PSE PDMS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css"/></head><body>
 <script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
 <script>
 PDMS.mountShell('timeline');
-const D=PDMS_DATA;const I=PDMS.icon;
-const days = 30;
-const today = new Date();
-function render(){
-const projects = D.projects.slice(0,20);
-document.getElementById('content').innerHTML = `
-  <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Timeline</span></div>
-    <h1 class="page-title">Project Timeline</h1><div class="page-sub">Gantt-style view of all active engagements</div></div></div>
-  <div class="card"><div class="card-head"><div class="card-title">Delivery Roadmap</div>
-    <div class="flex gap-2"><button class="btn btn-secondary btn-sm">${I('calendar')} Month</button><button class="btn btn-secondary btn-sm">Week</button></div></div>
-    <div style="overflow-x:auto"><div style="min-width:900px;padding:16px 20px">
-      <div style="display:grid;grid-template-columns:200px repeat(${days},1fr);gap:2px;margin-bottom:8px;font-size:10px;color:var(--text-muted);font-weight:600">
-        <div>PROJECT</div>${Array.from({length:days},(_,i)=>{const d=new Date(today);d.setDate(d.getDate()+i);return `<div style="text-align:center">${d.getDate()}</div>`}).join('')}
-      </div>
-      ${projects.map((p,idx)=>{
-        const startOffset = idx%25;
-        const dur = 5 + (idx%12);
-        return `<div style="display:grid;grid-template-columns:200px 1fr;gap:8px;padding:6px 0;border-top:1px solid var(--border);align-items:center">
-          <div><div class="font-semi text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(p.name)}</div><div class="text-sm text-muted">${PDMS.esc(p.client)}</div></div>
-          <div style="position:relative;height:26px;background:var(--surface-2);border-radius:6px">
-            <div title="${PDMS.esc(p.name)} • ${p.progress}%" style="position:absolute;top:3px;bottom:3px;left:${(startOffset/days)*100}%;width:${(dur/days)*100}%;background:var(--gradient);border-radius:5px;display:flex;align-items:center;padding:0 8px;color:#fff;font-size:11px;font-weight:600;overflow:hidden">${p.progress}%</div>
-          </div></div>`;
-      }).join('')}
-    </div></div>
-  </div>
-`;
+const D = PDMS_DATA;
+const I = PDMS.icon;
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  const diff = Date.now() - d.getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days < 0) return Math.abs(days) + 'd away';
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 30) return days + 'd ago';
+  const months = Math.floor(days / 30);
+  return months + 'mo ago';
 }
+
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  return Math.ceil((d.getTime() - Date.now()) / 86400000);
+}
+
+function priorityColor(p) {
+  if (p === 'Critical') return 'var(--danger)';
+  if (p === 'High') return '#f97316';
+  if (p === 'Medium') return '#eab308';
+  return 'var(--text-muted)';
+}
+
+
+function statusBadge(s) {
+  const colors = {
+    'Active': 'var(--success)', 'In Progress': 'var(--success)',
+    'On Hold': '#f97316', 'Delayed': 'var(--danger)',
+    'Completed': 'var(--primary)', 'Planning': '#8b5cf6'
+  };
+  const c = colors[s] || 'var(--text-muted)';
+  return `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:600;background:${c}22;color:${c}">
+    <span style="width:6px;height:6px;border-radius:50%;background:${c};display:inline-block"></span>${PDMS.esc(s)}
+  </span>`;
+}
+
+function render() {
+  const deliveryProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Delivery');
+  const allProjects = D.projects;
+  const users = D.users || [];
+
+  // ── Section A: Project Health Board ──────────────────────────────────
+  const healthCards = deliveryProjects.length
+    ? deliveryProjects.map(p => {
+        const du = daysUntil(p.due);
+        const duLabel = du === null ? '—' : du < 0 ? `${Math.abs(du)}d overdue` : du === 0 ? 'Due today' : `${du}d left`;
+        const duColor = du !== null && du < 0 ? 'var(--danger)' : du !== null && du <= 7 ? '#f97316' : 'var(--text-muted)';
+        return `<div class="card" style="display:flex;flex-direction:column;gap:12px;padding:20px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div style="flex:1;min-width:0">
+              <div class="font-semi" style="font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(p.name)}</div>
+              <div class="text-sm text-muted" style="margin-top:2px">${PDMS.esc(p.client)}</div>
+            </div>
+            ${statusBadge(p.status)}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px">
+              ${I('user')}<span class="text-muted">PM:</span>
+              <span class="font-semi">${PDMS.esc(p.pm || '—')}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px">
+              ${I('briefcase')}<span class="text-muted">Lead:</span>
+              <span class="font-semi">${PDMS.esc(p.lead || '—')}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:${duColor}">
+              ${I('calendar')}<span>${duLabel}</span>
+            </div>
+          </div>
+          ${(()=>{
+            const cons = Array.isArray(p.consultants) ? p.consultants : (p.consultants||'').split(',').map(s=>s.trim()).filter(Boolean);
+            return cons.length ? `<div style="border-top:1px solid var(--border);padding-top:10px">
+              <div class="text-sm text-muted" style="margin-bottom:6px">Consultants (${cons.length})</div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px">
+                ${cons.map(c=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:11px;background:var(--surface-2);border:1px solid var(--border)"><div style="width:18px;height:18px;border-radius:50%;background:var(--primary);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${PDMS.initials(c)}</div>${PDMS.esc(c)}</span>`).join('')}
+              </div>
+            </div>` : '';
+          })()}
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:12px;font-weight:700;color:${priorityColor(p.priority)}">${I('zap')} ${PDMS.esc(p.priority||'Normal')}</span>
+            <a href="project-details.html#id=${p.id}" class="btn btn-ghost btn-sm" style="font-size:12px">View →</a>
+          </div>
+        </div>`;
+      }).join('')
+    : `<div class="text-muted text-sm" style="padding:24px">No delivery projects found.</div>`;
+
+  // ── Section B: Workload Overview ──────────────────────────────────────
+  const staffRoles = ['Project Manager', 'HTD', 'COO', 'PMO', 'Consultant'];
+  const staffMembers = users.filter(u => staffRoles.includes(u.role));
+
+  const workloadRows = staffMembers.length
+    ? staffMembers.map(u => {
+        const assigned = allProjects.filter(p =>
+          p.pm === u.name || p.lead === u.name ||
+          (Array.isArray(p.consultants) ? p.consultants.includes(u.name) : (p.consultants||'').split(',').map(s=>s.trim()).includes(u.name))
+        );
+        const count = assigned.length;
+        return `<tr>
+          <td style="padding:12px 16px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="avatar avatar-sm" style="width:32px;height:32px;font-size:12px">${PDMS.initials(u.name)}</div>
+              <div>
+                <div class="font-semi text-sm">${PDMS.esc(u.name)}</div>
+                <div class="text-sm text-muted">${PDMS.esc(u.role)}</div>
+              </div>
+            </div>
+          </td>
+          <td style="padding:12px 16px">
+            <span class="font-semi text-sm">${count} project${count !== 1 ? 's' : ''}</span>
+          </td>
+          <td style="padding:12px 16px">
+            <div style="display:flex;flex-wrap:wrap;gap:4px;max-width:260px">
+              ${assigned.length
+                ? assigned.map(p => `<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:500;background:var(--surface-2);border:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px" title="${PDMS.esc(p.name)}">${PDMS.esc(p.name)}</span>`).join('')
+                : '<span class="text-muted text-sm">—</span>'}
+            </div>
+          </td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="3" style="padding:24px;color:var(--text-muted);text-align:center">No staff members found.</td></tr>`;
+
+  // ── Section C: Delivery Milestones ────────────────────────────────────
+  const withDue = allProjects
+    .filter(p => p.due)
+    .map(p => ({ ...p, _du: daysUntil(p.due) }))
+    .sort((a, b) => (a._du || 0) - (b._du || 0));
+
+  // Group by month
+  const grouped = {};
+  withDue.forEach(p => {
+    const d = new Date(p.due);
+    if (isNaN(d)) return;
+    const key = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(p);
+  });
+
+  const milestoneHtml = Object.keys(grouped).length
+    ? Object.entries(grouped).map(([month, projects]) => `
+        <div style="margin-bottom:28px">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">${month}</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            ${projects.map(p => {
+              const du = p._du;
+              const duLabel = du < 0 ? `${Math.abs(du)}d overdue` : du === 0 ? 'Due today' : `${du}d`;
+              const duColor = du < 0 ? 'var(--danger)' : du <= 7 ? '#f97316' : 'var(--success)';
+              return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface-2);border-radius:10px;border-left:3px solid ${priorityColor(p.priority)}">
+                <div style="flex:1;min-width:0">
+                  <div class="font-semi text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(p.name)}</div>
+                  <div class="text-sm text-muted">${PDMS.esc(p.client)} • ${PDMS.esc(p.pm||'No PM')}</div>
+                </div>
+                <div style="text-align:right;flex-shrink:0">
+                  ${statusBadge(p.status)}
+                  <div style="font-size:11px;font-weight:700;color:${duColor};margin-top:4px">${new Date(p.due).toLocaleDateString('en-US',{month:'short',day:'numeric'})} · ${duLabel}</div>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`).join('')
+    : `<div class="text-muted text-sm" style="padding:24px">No projects with due dates found.</div>`;
+
+  document.getElementById('content').innerHTML = `
+    <div class="page-head">
+      <div>
+        <div class="breadcrumbs"><span>Home</span><span>Project Overview</span></div>
+        <h1 class="page-title">Project Overview</h1>
+        <div class="page-sub">Health, workload, and milestones across all engagements</div>
+      </div>
+    </div>
+
+    <!-- ── A: Project Health Board ── -->
+    <div style="margin-bottom:32px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="width:4px;height:24px;background:var(--primary);border-radius:2px"></div>
+        <div>
+          <div class="font-semi" style="font-size:17px">Project Health Board</div>
+          <div class="text-sm text-muted">Progress, assignments, and deadlines for all delivery projects</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
+        ${healthCards}
+      </div>
+    </div>
+
+    <!-- ── B: Workload Overview ── -->
+    <div style="margin-bottom:32px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="width:4px;height:24px;background:#8b5cf6;border-radius:2px"></div>
+        <div>
+          <div class="font-semi" style="font-size:17px">Workload Overview</div>
+          <div class="text-sm text-muted">Project load per staff member — spot over-allocation at a glance</div>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:var(--surface-2)">
+              <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">Staff Member</th>
+              <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);min-width:180px">Project Load</th>
+              <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">Assigned To</th>
+            </tr>
+          </thead>
+          <tbody style="divide-y">
+            ${workloadRows}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── C: Delivery Milestones ── -->
+    <div style="margin-bottom:32px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="width:4px;height:24px;background:#f97316;border-radius:2px"></div>
+        <div>
+          <div class="font-semi" style="font-size:17px">Delivery Milestones</div>
+          <div class="text-sm text-muted">Upcoming project due dates sorted chronologically</div>
+        </div>
+      </div>
+      ${milestoneHtml}
+    </div>
+  `;
+}
+
 PDMS.onRefresh(render);
 </script></body></html>

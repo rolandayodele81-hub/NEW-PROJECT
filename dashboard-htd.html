@@ -164,8 +164,13 @@
       const activeDelivery = deliveryProjects.filter(p => p.status === 'In Progress').length;
       const criticalCount = deliveryProjects.filter(p => p.priority === 'Critical').length;
       const consultants = D.users.filter(u => u.role === 'Consultant');
-      const allocated = consultants.filter(c => c.availability !== 'Available').length;
+      const allocated = consultants.filter(c => { const assigned = D.projects.filter(p => p.pm===c.name||p.lead===c.name||(p.consultants||[]).includes(c.name)); return assigned.length > 0; }).length;
       const utilization = Math.round((allocated / Math.max(consultants.length, 1)) * 100);
+      const awaitingApproval = salesProjects.filter(p => p.status === 'Awaiting Client Approval').length;
+      const today = new Date(); today.setHours(0,0,0,0);
+      const in14 = new Date(today); in14.setDate(in14.getDate()+14);
+      const dueForCompletion = deliveryProjects.filter(p => { if(!p.due||p.status==='Completed'||p.status==='Closed') return false; const d=new Date(p.due); return d>=today && d<=in14; }).length;
+      const onHoldInactive = D.projects.filter(p => p.status === 'On Hold').length;
 
       document.getElementById('content').innerHTML = `
   <div class="htd-hero">
@@ -178,7 +183,6 @@
       </div>
     </div>
     <div class="htd-hero-card">
-      <div class="ring" style="--p:${utilization};--sz:92px;--th:8px;--c:#8b5cf6"><span class="ring-val">${utilization}%</span></div>
       <div>
         <div class="hero-card-title">Bench Utilization</div>
         <div class="hero-card-text">${allocated} of ${consultants.length} consultants are actively staffed.</div>
@@ -187,7 +191,7 @@
     </div>
   </div>
 
-  <div class="grid grid-4 mb-4">
+  <div class="grid grid-4 mb-3">
     <div class="stat i-primary">
       <div class="label">Active Delivery</div>
       <div class="value">${activeDelivery}</div>
@@ -201,16 +205,30 @@
       <div class="icon-wrap">${I('zap')}</div>
     </div>
     <div class="stat i-success">
-      <div class="label">Sales Pipeline</div>
-      <div class="value">${salesProjects.length}</div>
-      <div class="delta up">Prospects in pipeline</div>
-      <div class="icon-wrap">${I('trending')}</div>
+      <div class="label">Awaiting Approval</div>
+      <div class="value">${awaitingApproval}</div>
+      <div class="delta up">Pending client sign-off</div>
+      <div class="icon-wrap">${I('clock')}</div>
     </div>
     <div class="stat i-info">
       <div class="label">Total Bench Size</div>
       <div class="value">${consultants.length}</div>
       <div class="delta up">Engineers & Analysts</div>
       <div class="icon-wrap">${I('users')}</div>
+    </div>
+  </div>
+  <div class="grid grid-4 mb-4" style="grid-template-columns:1fr 1fr 1fr 1fr">
+    <div class="stat i-danger" style="grid-column:span 2">
+      <div class="label">Due for Completion</div>
+      <div class="value">${dueForCompletion}</div>
+      <div class="delta down">Delivery projects due within 14 days</div>
+      <div class="icon-wrap">${I('calendar')}</div>
+    </div>
+    <div class="stat i-muted" style="grid-column:span 2">
+      <div class="label">On Hold / Inactive</div>
+      <div class="value">${onHoldInactive}</div>
+      <div class="delta">Projects paused across all stages</div>
+      <div class="icon-wrap">${I('activity')}</div>
     </div>
   </div>
 
@@ -273,7 +291,7 @@
     <div class="card-body" style="padding:0">
       <div style="overflow-x:auto">
         <table class="data">
-          <thead><tr><th>Project</th><th>Client</th><th>Status</th><th>PM</th><th>Lead</th><th>Progress</th><th>Action</th></tr></thead>
+          <thead><tr><th>Project</th><th>Client</th><th>Status</th><th>PM</th><th>Lead</th><th>Action</th></tr></thead>
           <tbody>
             ${deliveryProjects.slice(0, 8).map(p => `
               <tr>
@@ -296,12 +314,6 @@
                       onblur="saveField(this,'${p.id}','lead',150)"
                       onchange="saveField(this,'${p.id}','lead',0)"/>
                     <div class="ht-ac-drop" id="drop-lead-${p.id}"></div>
-                  </div>
-                </td>
-                <td>
-                  <div class="progress-inline" style="min-width:80px">
-                    <div class="progress"><div class="bar" style="width:${p.progress || 0}%"></div></div>
-                    <span class="pct">${p.progress || 0}%</span>
                   </div>
                 </td>
                 <td><button class="btn btn-secondary btn-sm" onclick="manageConsultants('${p.id}')">Staff</button></td>
@@ -459,6 +471,8 @@
       <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
       <div class="form-row"><label>Skill Set</label><input id="newUserDept" type="text" placeholder="e.g. Cyber Security"/></div>
       <div class="form-row"><label>Phone</label><input id="newUserPhone" type="text" placeholder="+1 555 123 4567"/></div>
+      <div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="date"/></div>
+      <div class="form-row"><label>Date of Entry</label><input id="newUserEntry" type="date"/></div>
     </div>
   `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">${I('check')} Onboard</button>`);
 
@@ -469,9 +483,11 @@
         const role = modal.querySelector('#newUserRole').value;
         const dept = modal.querySelector('#newUserDept').value.trim();
         const phone = modal.querySelector('#newUserPhone').value.trim();
+        const birthday = modal.querySelector('#newUserBirthday').value;
+        const dateOfEntry = modal.querySelector('#newUserEntry').value;
         if (!name || !email || !password) { PDMS.toast('Missing info', 'Name, email and password are required', 'error'); return; }
         if (D.users.some(u => u.email.toLowerCase() === email)) { PDMS.toast('Email in use', 'A user with this email already exists', 'error'); return; }
-        const record = { name, email, password, role, dept, phone, workload: 0, joined: new Date().toISOString().slice(0, 10), status: 'Active' };
+        const record = { name, email, password, role, dept, phone, birthday: birthday||'', dateOfEntry: dateOfEntry||'', workload: 0, joined: new Date().toISOString().slice(0, 10), status: 'Active' };
         PDMS.api.register(record).then(saved => {
           D.users.unshift(saved);
           modal.remove();

@@ -54,8 +54,14 @@
         document.dispatchEvent(new CustomEvent('pdms:refresh', { detail: json.data }));
       })
       .catch(function () {
-        /* keep showing cached/seed data if the backend is unreachable */
-        document.dispatchEvent(new CustomEvent('pdms:loading-end'));
+        /* Backend unreachable — treat local seed data as the source of truth so
+           pages render properly instead of staying in "Loading..." forever. */
+        if (global.PDMS_DATA) {
+          global.PDMS_REMOTE = global.PDMS_DATA;
+          document.dispatchEvent(new CustomEvent('pdms:refresh', { detail: global.PDMS_DATA }));
+        } else {
+          document.dispatchEvent(new CustomEvent('pdms:loading-end'));
+        }
       });
   };
 

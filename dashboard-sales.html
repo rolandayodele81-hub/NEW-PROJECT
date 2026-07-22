@@ -91,15 +91,15 @@
       const deliveryProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Delivery' && PDMS.isDeliveryRole({ role: PDMS.createdByRoleOf(p) }));
       const activePipeline = salesProjects.filter(p => p.status === 'Incoming').length;
       const awaitingApproval = salesProjects.filter(p => p.status === 'Awaiting Client Approval').length;
-      const approvedCount = salesProjects.filter(p => p.status === 'Approved').length;
+      const closedCount = salesProjects.filter(p => p.status === 'Closed').length;
       const totalClients = D.clients.length;
 
       // Pipeline conversion funnel: how many projects are sitting at each stage right now.
-      const funnelStages = ['Incoming', 'Initial Contact', 'Requirement Gathering', 'Proposal Sent', 'Negotiation', 'Awaiting Client Approval', 'Approved'];
+      const funnelStages = ['Incoming', 'Initial Contact', 'Requirement Gathering', 'Proposal Sent', 'Negotiation', 'PO / Award Granted', 'SLA Signed', 'Awaiting Client Approval', 'Closed'];
       const funnelCounts = funnelStages.map(s => salesProjects.filter(p => p.status === s).length);
       const funnelMax = Math.max(...funnelCounts, 1);
       const offRampCounts = {
-        Rejected: salesProjects.filter(p => p.status === 'Rejected').length,
+        Cancelled: salesProjects.filter(p => p.status === 'Cancelled').length,
         'On Hold': salesProjects.filter(p => p.status === 'On Hold').length
       };
 
@@ -114,10 +114,10 @@
         </div>
       </div>
       <div class="sales-hero-card">
-        <div class="ring" style="--p:62;--sz:92px;--th:8px;--c:#f59e0b"><span class="ring-val">62%</span></div>
+        <div style="width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,0.2);display:grid;place-items:center;font-size:28px;flex-shrink:0">${I('chart')}</div>
         <div>
-          <div class="hero-card-title">Pipeline Target</div>
-          <div class="hero-card-text">Close velocity for this quarter is on track to meet delivery targets.</div>
+          <div class="hero-card-title">Pipeline Overview</div>
+          <div class="hero-card-text">${salesProjects.length} deal${salesProjects.length !== 1 ? 's' : ''} in pipeline · ${closedCount} closed this cycle.</div>
           <div class="hero-card-foot">Live Tracking</div>
         </div>
       </div>
@@ -143,9 +143,9 @@
         <div class="icon-wrap">${I('clock')}</div>
       </div>
       <div class="stat i-info">
-        <div class="label">Approved</div>
-        <div class="value">${approvedCount}</div>
-        <div class="delta up">Client-approved projects</div>
+        <div class="label">Closed</div>
+        <div class="value">${closedCount}</div>
+        <div class="delta up">Closed deals</div>
         <div class="icon-wrap">${I('chart')}</div>
       </div>
     </div>
@@ -169,7 +169,7 @@
               <div class="progress"><div class="bar" style="width:${Math.max((funnelCounts[i] / funnelMax) * 100, funnelCounts[i] ? 4 : 0)}%; background:${D.statusColors[s] === 'primary' ? 'var(--gradient)' : D.statusColors[s] === 'success' ? 'var(--gradient-3)' : 'var(--gradient-2)'}"></div></div>
             </div>`).join('')}
           <div class="flex gap-4 mt-3 pt-3" style="border-top:1px solid var(--border)">
-            <div class="text-sm text-muted">Rejected: <span class="font-semi" style="color:var(--danger)">${offRampCounts.Rejected}</span></div>
+            <div class="text-sm text-muted">Cancelled: <span class="font-semi" style="color:var(--danger)">${offRampCounts.Cancelled}</span></div>
             <div class="text-sm text-muted">On Hold: <span class="font-semi">${offRampCounts['On Hold']}</span></div>
           </div>
         </div>
@@ -218,7 +218,7 @@
                 <th>Project ID</th>
                 <th>Project Name</th>
                 <th>Client Partner</th>
-                <th>Priority</th>
+                <th>Workstream</th>
                 <th>Stage</th>
                 <th>Action</th>
               </tr>
@@ -229,7 +229,7 @@
                   <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
                   <td class="font-bold">${PDMS.esc(p.name)}</td>
                   <td>${PDMS.esc(p.client)}</td>
-                  <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
+                  <td>${PDMS.esc(p.workstream||p.dept||'—')}</td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
                   <td><a href="project-details.html#id=${p.id}" class="btn btn-secondary btn-sm">Manage</a></td>
                 </tr>`).join('') || `<tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects yet')}</td></tr>`}
@@ -258,9 +258,9 @@
                 <th>Project ID</th>
                 <th>Project Name</th>
                 <th>Client Partner</th>
+                <th>Workstream</th>
                 <th>PM</th>
                 <th>Status</th>
-                <th>Progress</th>
               </tr>
             </thead>
             <tbody>
@@ -269,9 +269,9 @@
                   <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
                   <td class="font-bold">${PDMS.esc(p.name)}</td>
                   <td>${PDMS.esc(p.client)}</td>
+                  <td>${PDMS.esc(p.workstream||p.dept||'—')}</td>
                   <td>${PDMS.esc(p.pm || 'TBD')}</td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
-                  <td><div class="progress-inline"><div class="progress"><div class="bar" style="width:${p.progress || 0}%"></div></div><span class="pct">${p.progress || 0}%</span></div></td>
                 </tr>`).join('') || `<tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No projects in delivery yet')}</td></tr>`}
             </tbody>
           </table>
@@ -285,14 +285,13 @@
       const statusOptions = D.salesStatuses;
       const modal = PDMS.modal('New Deal Intake', `
     <div class="form-grid">
-      <div class="form-row"><label>Project Name</label><input id="newProjName" placeholder="e.g. Falcon Migration"/></div>
       <div class="form-row"><label>Client</label><select id="newProjClient">${D.clients.map(c => `<option>${c.name}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Project Name</label><input id="newProjName" placeholder="e.g. Falcon Migration"/></div>
       <div class="form-row"><label>Type</label><input id="newProjType" type="text" placeholder="e.g. Software Development"/></div>
-      <div class="form-row"><label>Priority</label><select id="newProjPriority">${D.priorities.map(p => `<option>${p}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Workstream</label><select id="newProjDept">${(D.workstreams||[]).map(w => `<option>${w}</option>`).join('')}</select></div>
       <div class="form-row"><label>Status</label><select id="newProjStatus">${statusOptions.map(s => `<option${s === 'Incoming' ? ' selected' : ''}>${s}</option>`).join('')}</select></div>
       <div class="form-row"><label>Start Date</label><input id="newProjStart" type="date"/></div>
-      <div class="form-row"><label>Due Date</label><input id="newProjDue" type="date"/></div>
-      <div class="form-row"><label>Skill Set</label><input id="newProjDept" type="text" placeholder="e.g. Cloud Engineering"/></div>
+      <div class="form-row"><label>Planned Completion</label><input id="newProjDue" type="date"/></div>
     </div>
     <div class="form-row"><label>Description</label><textarea id="newProjDesc" rows="3" placeholder="Scope, goals, deliverables..."></textarea></div>
   `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createProjectBtn">${I('plus')} Create Deal</button>`);
@@ -301,11 +300,10 @@
         const name = modal.querySelector('#newProjName').value.trim();
         const client = modal.querySelector('#newProjClient').value;
         const type = modal.querySelector('#newProjType').value.trim();
-        const priority = modal.querySelector('#newProjPriority').value;
+        const workstream = modal.querySelector('#newProjDept').value;
         const status = modal.querySelector('#newProjStatus').value;
         const start = modal.querySelector('#newProjStart').value;
         const due = modal.querySelector('#newProjDue').value;
-        const dept = modal.querySelector('#newProjDept').value.trim();
         const desc = modal.querySelector('#newProjDesc').value.trim();
         if (!name || !client) {
           PDMS.toast('Missing project info', 'Project name and client are required', 'error');
@@ -315,8 +313,8 @@
         PDMS.setButtonLoading(btn, true, 'Creating...');
         setTimeout(() => PDMS.setButtonLoading(btn, false), 10000);
         const record = {
-          name, client, type, dept, sales: 'Sales Team', pm: '', lead: '', consultants: [],
-          priority, status, stage: 'Sales', createdByRole: 'Sales', progress: 0, start: start || '', due: due || '', completion: null,
+          name, client, type, workstream, dept: workstream, sales: 'Sales Team', pm: '', lead: '', consultants: [],
+          status, stage: 'Sales', createdByRole: 'Sales', progress: 0, start: start || '', due: due || '', completion: null,
           description: desc, files: 0, remarks: 0
         };
 

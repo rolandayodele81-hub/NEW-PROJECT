@@ -29,7 +29,8 @@ function timeAgo(iso){
 }
 function healthOf(proj){
   if(proj.status==='Completed') return {label:'Completed', cls:'badge-success'};
-  if(proj.status==='Rejected') return {label:'Rejected', cls:'badge-danger'};
+  if(proj.status==='Cancelled') return {label:'Cancelled', cls:'badge-danger'};
+  if(proj.status==='Closed') return {label:'Closed', cls:'badge-primary'};
   if(proj.status==='On Hold') return {label:'On Hold', cls:'badge-muted'};
   const start = new Date(proj.start), due = new Date(proj.due), today = new Date();
   if(isNaN(start)||isNaN(due)||due<=start) return {label:'On Track', cls:'badge-success'};
@@ -45,13 +46,12 @@ function milestoneStages(proj){
   // main sequence, which normally ends at Approved (Sales) / Completed (Delivery).
   const isSales = PDMS.stageOf(proj)==='Sales';
   const mainSequence = isSales
-    ? ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','Approved']
+    ? ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','PO / Award Granted','SLA Signed','Awaiting Client Approval','Closed']
     : ['Not Started','In Progress','Awaiting Review','Testing / Quality Assurance','Completed'];
   const status = proj.status;
 
-  if(status==='Rejected'){
-    // It got rejected at the final gate — everything before that gate stands as done.
-    return mainSequence.map((label,i)=> i===mainSequence.length-1 ? {label:'Rejected', state:'active'} : {label, state:'done'});
+  if(status==='Cancelled'){
+    return mainSequence.map((label,i)=> i===mainSequence.length-1 ? {label:'Cancelled', state:'active'} : {label, state:'done'});
   }
 
   if(status==='On Hold'){
@@ -112,7 +112,6 @@ if(!p){
 
   <div class="proj-head">
     <div class="flex gap-4 items-center" style="flex-wrap:wrap">
-      <div class="ring" style="--p:${p.progress};--sz:100px;--th:10px"><span class="ring-val">${p.progress}%</span></div>
       <div style="flex:1;min-width:200px">
         <div class="flex gap-2 mb-2"><span class="badge badge-muted">${PDMS.stageOf(p)==='Sales'?'Sales Pipeline':'Delivery'}</span><span class="badge badge-${D.statusColors[p.status]}">${p.status}</span><span class="badge ${D.prioColors[p.priority]}">${p.priority}</span><span class="badge ${health.cls}">${health.label}</span><span class="badge badge-muted">${p.id}</span></div>
         <p class="text-muted">${PDMS.esc(p.description)}</p>
@@ -126,10 +125,12 @@ if(!p){
         <div class="card-body">
           <div class="grid grid-2 mb-3" style="gap:12px 24px">
             <div><div class="text-sm text-muted">Start Date</div><div class="font-semi">${p.start||'TBD'}</div></div>
-            <div><div class="text-sm text-muted">Expected Completion</div><div class="font-semi">${p.due||'TBD'}</div></div>
+            <div><div class="text-sm text-muted">Planned Completion</div><div class="font-semi">${p.due||'TBD'}</div></div>
+            <div><div class="text-sm text-muted">Actual Completion</div><div class="font-semi">${p.actualCompletion||'—'}</div></div>
+            <div><div class="text-sm text-muted">Workstream</div><div class="font-semi">${p.workstream||p.dept||'—'}</div></div>
           </div>
           <div class="timeline">
-            ${stages.map(s=>`<div class="tl-item ${s.state}"><div class="tl-title">${s.label}</div><div class="tl-meta">${s.state==='done'?'Completed':s.state==='active'?`Ongoing — ${p.progress}% complete`:'Upcoming'}</div></div>`).join('')}
+            ${stages.map(s=>`<div class="tl-item ${s.state}"><div class="tl-title">${s.label}</div><div class="tl-meta">${s.state==='done'?'Completed':s.state==='active'?'Ongoing':'Upcoming'}</div></div>`).join('')}
           </div>
         </div>
       </div>
