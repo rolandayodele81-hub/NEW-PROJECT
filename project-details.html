@@ -12,10 +12,11 @@ PDMS.mountShell('projects');
 const D = PDMS_DATA; const I = PDMS.icon;
 let p;
 
-// Updates for a project are just Reviews scoped to it — posting one from
-// here or from the Reviews page is the same action, so it shows up in both.
-function projectReviews(proj){
-  return D.reviews.filter(r=>r.projectId===proj.id).slice().sort((a,b)=> new Date(b.time)-new Date(a.time));
+// Project issues are stored in D.issues — separate from D.reviews (the general
+// community reviews page) so they never appear there.
+function projectIssues(proj){
+  if(!D.issues) D.issues = [];
+  return D.issues.filter(r=>r.projectId===proj.id).slice().sort((a,b)=> new Date(b.time)-new Date(a.time));
 }
 function timeAgo(iso){
   if(!iso) return '';
@@ -92,7 +93,7 @@ if(!p){
   const user = PDMS.getUser();
   const health = healthOf(p);
   const stages = milestoneStages(p);
-  const reviews = projectReviews(p);
+  const reviews = projectIssues(p);
   const latest = reviews[0];
   const canUpdate = PDMS.can('Add Remarks');
   const canUploadDoc = canUpdate && !(user && user.role==='HR');
@@ -101,21 +102,42 @@ if(!p){
   const canStartDelivery = PDMS.can('Start Delivery') && PDMS.stageOf(p)==='Sales' && p.status==='Approved';
 
   document.getElementById('content').innerHTML = `
-  <div class="page-head">
-    <div><div class="breadcrumbs"><span><a href="projects.html">Projects</a></span><span>${p.id}</span></div>
-      <h1 class="page-title">${PDMS.esc(p.name)}</h1><div class="page-sub">${PDMS.esc(p.client)} • ${PDMS.esc(p.type)}</div></div>
-    <div class="flex gap-2">
-      ${canStartDelivery?`<button class="btn btn-primary" onclick="startDelivery()">${I('zap')||''} Start Delivery</button>`:''}
-      ${canManageStatus?`<button class="btn btn-primary" onclick="changeStatus()">${I('refresh')} Change Status</button>`:''}
-    </div>
-  </div>
-
-  <div class="proj-head">
-    <div class="flex gap-4 items-center" style="flex-wrap:wrap">
-      <div style="flex:1;min-width:200px">
-        <div class="flex gap-2 mb-2"><span class="badge badge-muted">${PDMS.stageOf(p)==='Sales'?'Sales Pipeline':'Delivery'}</span><span class="badge badge-${D.statusColors[p.status]}">${p.status}</span><span class="badge ${D.prioColors[p.priority]}">${p.priority}</span><span class="badge ${health.cls}">${health.label}</span><span class="badge badge-muted">${p.id}</span></div>
-        <p class="text-muted">${PDMS.esc(p.description)}</p>
+<div style="border-radius:20px;overflow:hidden;margin-bottom:24px;box-shadow:0 8px 32px rgba(29,60,136,.18)">
+    <!-- Hero banner -->
+    <div style="background:linear-gradient(135deg,#090d16 0%,#1d3c88 45%,#8b5cf6 80%,#ec4899 100%);padding:28px 28px 24px;position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 50%,rgba(139,92,246,.25) 0%,transparent 60%)"></div>
+      <div style="position:relative;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+            <span style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;letter-spacing:.6px">${p.id}</span>
+            <span style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;letter-spacing:.6px">${PDMS.stageOf(p)==='Sales'?'SALES PIPELINE':'DELIVERY'}</span>
+            <span class="badge badge-${D.statusColors[p.status]||'muted'}">${p.status}</span>
+            <span class="badge ${health.cls}">${health.label}</span>
+          </div>
+          <h1 style="font-size:26px;font-weight:800;color:#fff;margin:0 0 6px;line-height:1.2;text-wrap:balance">${PDMS.esc(p.name)}</h1>
+          <div style="color:rgba(255,255,255,.7);font-size:13px;margin-bottom:14px">${PDMS.esc(p.client||'—')} &nbsp;·&nbsp; ${PDMS.esc(p.type||'—')}</div>
+          <p style="color:rgba(255,255,255,.65);font-size:13px;line-height:1.6;max-width:520px;margin:0">${PDMS.esc(p.description||'No description provided.')}</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;align-self:flex-start">
+          ${canStartDelivery?`<button class="btn btn-primary" onclick="startDelivery()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('zap')} Start Delivery</button>`:''}
+          ${canManageStatus?`<button class="btn btn-primary" onclick="changeStatus()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('refresh')} Change Status</button>`:''}
+        </div>
       </div>
+    </div>
+
+    <!-- Metadata strip -->
+    <div style="background:var(--surface);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+      ${[
+        {label:'Client', value: p.client||'—'},
+        {label:'Workstream', value: p.workstream||p.dept||'—'},
+        {label:'Start Date', value: p.start||'TBD'},
+        {label:'Planned Completion', value: p.due||'TBD'},
+        {label:'Actual Completion', value: p.actualCompletion||'—'},
+      ].map((f,i,arr) => `
+        <div style="padding:16px 20px;${i<arr.length-1?'border-right:1px solid var(--border)':''}">
+          <div style="font-size:11px;font-weight:600;letter-spacing:.6px;color:var(--text-soft);text-transform:uppercase;margin-bottom:5px">${f.label}</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${PDMS.esc(f.value)}</div>
+        </div>`).join('')}
     </div>
   </div>
 
@@ -123,20 +145,50 @@ if(!p){
     <div class="flex flex-col gap-4">
       <div class="card"><div class="card-head"><div class="card-title">Timeline</div></div>
         <div class="card-body">
-          <div class="grid grid-2 mb-3" style="gap:12px 24px">
-            <div><div class="text-sm text-muted">Start Date</div><div class="font-semi">${p.start||'TBD'}</div></div>
-            <div><div class="text-sm text-muted">Planned Completion</div><div class="font-semi">${p.due||'TBD'}</div></div>
-            <div><div class="text-sm text-muted">Actual Completion</div><div class="font-semi">${p.actualCompletion||'—'}</div></div>
-            <div><div class="text-sm text-muted">Workstream</div><div class="font-semi">${p.workstream||p.dept||'—'}</div></div>
-          </div>
           <div class="timeline">
             ${stages.map(s=>`<div class="tl-item ${s.state}"><div class="tl-title">${s.label}</div><div class="tl-meta">${s.state==='done'?'Completed':s.state==='active'?'Ongoing':'Upcoming'}</div></div>`).join('')}
           </div>
         </div>
       </div>
-      <div class="card"><div class="card-head"><div class="card-title">Documents</div><div class="card-sub">Reports & project files</div>${canUploadDoc?`<button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button>`:''}</div>
-        <div class="card-body" style="padding:8px 20px">
-          <div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>
+
+      <!-- Issues & Remarks — comment section style -->
+      <div class="card" style="display:flex;flex-direction:column">
+        <div class="card-head">
+          <div><div class="card-title">Issues & Remarks</div><div class="card-sub">Visible only on this project</div></div>
+        </div>
+        <div style="padding:16px 20px;display:flex;flex-direction:column;gap:20px">
+
+          ${canUpdate?`
+          <!-- Chat input -->
+          <div style="border:1px solid var(--border);border-radius:16px;background:var(--surface-2);display:flex;flex-direction:column;min-height:120px">
+            <div style="flex:1"></div>
+            <div style="display:flex;gap:10px;align-items:center;padding:10px 14px">
+              <div class="avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0">${PDMS.initials((PDMS.getUser()||{}).name||'?')}</div>
+              <textarea id="inlineIssue" rows="2" placeholder="Type an issue or remark…" style="flex:1;border:none;background:transparent;color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:none;line-height:1.5;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitInlineIssue();}"></textarea>
+              <button onclick="submitInlineIssue()" title="Send" style="background:var(--primary);color:#fff;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </div>
+          </div>`:''}
+
+          <!-- Comments list -->
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">${reviews.length} comment${reviews.length!==1?'s':''}</div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              ${reviews.length ? reviews.map(r=>`
+                <div style="display:flex;gap:12px;align-items:flex-start">
+                  <div class="avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0">${PDMS.initials(r.author||'?')}</div>
+                  <div style="flex:1;background:var(--surface-2);border-radius:10px;padding:12px 16px">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                      <span style="font-size:13px;font-weight:700;color:var(--primary)">${PDMS.esc(r.author||'Unknown')}</span>
+                      <span style="font-size:11px;color:var(--text-soft)">${timeAgo(r.time)}</span>
+                    </div>
+                    <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(r.message)}</div>
+                  </div>
+                </div>`).join('') : `<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No comments yet — be the first to post.')}</div>`}
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -150,13 +202,9 @@ if(!p){
           ${canAssign?`<button class="btn btn-secondary w-full mt-2" style="justify-content:center" onclick="assignTeam()">${I('user-plus')} Assign Team</button>`:''}
         </div>
       </div>
-      <div class="card"><div class="card-head"><div class="card-title">Updates</div></div>
-        <div class="card-body">
-          <div class="text-sm text-muted mb-1">Latest Update</div>
-          ${latest?`<div class="mb-3" style="padding:10px;background:var(--surface-2);border-radius:10px"><div class="flex items-center gap-2"><div class="font-semi text-sm">${PDMS.esc(latest.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(latest.time)}</div></div><div class="text-sm mt-1">${PDMS.esc(latest.message)}</div></div>`:`<div class="text-muted text-sm mb-3">${PDMS.emptyOrLoading('No updates yet.')}</div>`}
-          ${canUpdate?`<button class="btn btn-secondary btn-sm mb-3" onclick="postProjectReview()">${I('message')} Add Remark</button>`:''}
-          <div class="text-sm text-muted mb-2">All Updates (${reviews.length})</div>
-          ${reviews.length?reviews.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="flex items-center gap-2"><div class="font-semi text-sm">${PDMS.esc(r.author||'')}</div><div class="text-sm text-muted" style="margin-left:auto">${timeAgo(r.time)}</div></div><div class="text-sm mt-1">${PDMS.esc(r.message)}</div><a href="reviews.html#review-${r.id}" class="text-sm font-semi" style="color:var(--primary)">View & comment →</a></div>`).join(''):`<div class="text-muted text-sm">${PDMS.emptyOrLoading('No updates yet.')}</div>`}
+      <div class="card"><div class="card-head"><div class="card-title">Documents</div><div class="card-sub">Reports & project files</div>${canUploadDoc?`<button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button>`:''}</div>
+        <div class="card-body" style="padding:8px 20px">
+          <div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>
         </div>
       </div>
     </div>
@@ -167,25 +215,47 @@ if(!p){
 PDMS.onRefresh(render);
 
 function postProjectReview(){
-  const modal = PDMS.modal('Add Remark',`<div class="form-row"><label>Your remark</label><textarea id="prMessage" rows="4" placeholder="Share a progress update..."></textarea></div>`,
+  const modal = PDMS.modal('Post Issue / Remark',`
+    <div class="form-row"><label>Issue or Concern</label><textarea id="prMessage" rows="4" placeholder="Describe the issue, concern or remark for this project..."></textarea></div>`,
     `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="prSaveBtn">Post</button>`);
   modal.querySelector('#prSaveBtn').onclick = function(){
     const message = modal.querySelector('#prMessage').value.trim();
     if(!message){ PDMS.toast('Empty remark','Please write something first','error'); return; }
     const user = PDMS.getUser();
+    if(!D.issues) D.issues = [];
     const record = {
       author: user?user.name:'Unknown', authorRole: user?user.role:'',
       projectId: p.id, projectName: p.name,
-      message, time: new Date().toISOString(), comments: []
+      message, time: new Date().toISOString()
     };
-    PDMS.api.create('reviews', record).then(saved=>{
-      D.reviews.unshift(saved);
+    PDMS.api.create('issues', record).then(saved=>{
+      D.issues.unshift(saved);
       modal.remove();
-      PDMS.toast('Posted','Your remark has been saved','success');
-      PDMS.notify('Project Update', `${record.author} (${record.authorRole}) posted a remark on "${p.name}"`, 'message', 'project-details.html#id='+p.id);
+      PDMS.toast('Posted','Your issue has been recorded','success');
+      PDMS.notify('Project Issue', `${record.author} raised an issue on "${p.name}"`, 'message', 'project-details.html#id='+p.id);
       render();
-    }).catch(err=>PDMS.toast('Error',err.message||'Could not post remark','error'));
+    }).catch(err=>{ D.issues.unshift(record); modal.remove(); PDMS.toast('Saved locally','Issue recorded','success'); render(); });
   };
+}
+function submitInlineIssue(){
+  const ta = document.getElementById('inlineIssue');
+  if(!ta) return;
+  const message = ta.value.trim();
+  if(!message){ PDMS.toast('Empty remark','Please write something first','error'); return; }
+  const user = PDMS.getUser();
+  if(!D.issues) D.issues = [];
+  const record = {
+    author: user?user.name:'Unknown', authorRole: user?user.role:'',
+    projectId: p.id, projectName: p.name,
+    message, time: new Date().toISOString()
+  };
+  ta.value = '';
+  PDMS.api.create('issues', record).then(saved=>{
+    D.issues.unshift(saved);
+    PDMS.toast('Posted','Your issue has been recorded','success');
+    PDMS.notify('Project Issue', `${record.author} raised an issue on "${p.name}"`, 'message', 'project-details.html#id='+p.id);
+    render();
+  }).catch(()=>{ D.issues.unshift(record); PDMS.toast('Saved locally','Issue recorded','success'); render(); });
 }
 function assignTeam(){
   // State held in closure — avoids global pollution
@@ -398,5 +468,5 @@ function startDelivery(){
     }).catch(err=>PDMS.toast('Error',err.message||'Could not start delivery','error'));
   };
 }
-window.postProjectReview=postProjectReview;window.assignTeam=assignTeam;window.uploadDoc=uploadDoc;window.changeStatus=changeStatus;window.startDelivery=startDelivery;
+window.postProjectReview=postProjectReview;window.submitInlineIssue=submitInlineIssue;window.assignTeam=assignTeam;window.uploadDoc=uploadDoc;window.changeStatus=changeStatus;window.startDelivery=startDelivery;
 </script></body></html>

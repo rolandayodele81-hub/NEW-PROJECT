@@ -53,6 +53,7 @@
   const threads = loadCollection('threads', []);
   const activities = loadCollection('activities', []);
   const reviews = loadCollection('reviews', []);
+  const issues = loadCollection('issues', []);
 
   function tasksFor(projectId){
     return [];
@@ -60,7 +61,7 @@
 
   global.PDMS_DATA = {
     departments, users, consultants, clients, projects,
-    notifications, threads, activities, reviews,
+    notifications, threads, activities, reviews, issues,
     roles, types, priorities, workstreams, statuses, salesStatuses, deliveryStatuses,
     statusColors, prioColors,
     tasksFor
