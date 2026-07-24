@@ -64,18 +64,28 @@ requestAnimationFrame(() => {
       if (!content) return;
       
       content.innerHTML = `
+  ${isConsultant ? `
+  <div style="background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);border-radius:16px;padding:24px 28px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55);margin-bottom:8px">Dashboard</div>
+      <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 6px">Good day, ${PDMS.esc(user.name.split(' ')[0])} 👋</h1>
+      <div style="font-size:13px;color:rgba(255,255,255,.7)">Here's your assigned projects and tasks.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <a href="projects.html" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:9px;color:#fff;font-size:13px;font-weight:600;text-decoration:none;transition:background .15s" onmouseenter="this.style.background='rgba(255,255,255,.25)'" onmouseleave="this.style.background='rgba(255,255,255,.15)'">${I('folder')} My Projects</a>
+    </div>
+  </div>` : `
   <div class="page-head">
     <div>
       <div class="breadcrumbs"><span>Home</span><span>Dashboard</span></div>
       <h1 class="page-title">Good day, ${PDMS.esc(user.name.split(' ')[0])} 👋</h1>
-      <div class="page-sub">${isConsultant ? "Here's your assigned projects and tasks." : "Here's what's happening across your workspace today."}</div>
+      <div class="page-sub">Here's what's happening across your workspace today.</div>
     </div>
     <div class="flex gap-2">
-      ${isConsultant ? '' : '<a class="btn btn-secondary" href="reports.html">' + I('chart') + ' Reports</a>'}
-      ${isConsultant ? '' : '<a class="btn btn-primary" href="projects.html">' + I('plus') + ' New Project</a>'}
-      ${isConsultant ? '<a class="btn btn-primary" href="consultants.html">' + I('folder') + ' My Projects</a>' : ''}
+      <a class="btn btn-secondary" href="reports.html">${I('chart')} Reports</a>
+      <a class="btn btn-primary" href="projects.html">${I('plus')} New Project</a>
     </div>
-  </div>
+  </div>`}
 
   ${isConsultant ? consultantStatsHtml : `
   <div class="grid grid-4 mb-4">
