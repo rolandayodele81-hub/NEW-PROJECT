@@ -20,7 +20,8 @@ var ENTITIES = {
   notifications: { sheet: 'Notifications', idPrefix: 'N' },
   threads: { sheet: 'Threads', idPrefix: 'T', jsonFields: ['user', 'messages'] },
   activities: { sheet: 'Activities', idPrefix: 'A' },
-  reviews: { sheet: 'Reviews', idPrefix: 'RV', jsonFields: ['comments'] }
+  reviews: { sheet: 'Reviews', idPrefix: 'RV', jsonFields: ['comments'] },
+  issues: { sheet: 'Issues', idPrefix: 'IS', textFields: ['time'], jsonFields: [] }
 };
 
 function entityConfig_(entityKey) {

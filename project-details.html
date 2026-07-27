@@ -15,8 +15,8 @@ let p;
 // Project issues are stored in D.issues — separate from D.reviews (the general
 // community reviews page) so they never appear there.
 function projectIssues(proj){
-  if(!D.issues) D.issues = [];
-  return D.issues.filter(r=>r.projectId===proj.id).slice().sort((a,b)=> new Date(b.time)-new Date(a.time));
+  const liveIssues = (window.PDMS_REMOTE && window.PDMS_REMOTE.issues) || D.issues || [];
+  return liveIssues.filter(r=>String(r.projectId)===String(proj.id)).slice().sort((a,b)=>new Date(b.time)-new Date(a.time));
 }
 function timeAgo(iso){
   if(!iso) return '';
@@ -315,12 +315,14 @@ function postProjectReview(){
       message, time: new Date().toISOString()
     };
     PDMS.api.create('issues', record).then(saved=>{
+      if(!D.issues) D.issues = [];
       D.issues.unshift(saved);
+      if(window.PDMS_REMOTE){ if(!PDMS_REMOTE.issues) PDMS_REMOTE.issues=[]; PDMS_REMOTE.issues.unshift(saved); }
       modal.remove();
       PDMS.toast('Posted','Your issue has been recorded','success');
       PDMS.notify('Project Issue', `${record.author} raised an issue on "${p.name}"`, 'message', 'project-details.html#id='+p.id);
       render();
-    }).catch(err=>{ D.issues.unshift(record); modal.remove(); PDMS.toast('Saved locally','Issue recorded','success'); render(); });
+    }).catch(err=>{ PDMS.setButtonLoading(modal.querySelector('#prSaveBtn'),false); PDMS.toast('Error',err.message||'Could not save issue','error'); });
   };
 }
 function submitInlineIssue(){
@@ -337,11 +339,13 @@ function submitInlineIssue(){
   };
   ta.value = '';
   PDMS.api.create('issues', record).then(saved=>{
+    if(!D.issues) D.issues = [];
     D.issues.unshift(saved);
+    if(window.PDMS_REMOTE){ if(!PDMS_REMOTE.issues) PDMS_REMOTE.issues=[]; PDMS_REMOTE.issues.unshift(saved); }
     PDMS.toast('Posted','Your issue has been recorded','success');
     PDMS.notify('Project Issue', `${record.author} raised an issue on "${p.name}"`, 'message', 'project-details.html#id='+p.id);
     render();
-  }).catch(()=>{ D.issues.unshift(record); PDMS.toast('Saved locally','Issue recorded','success'); render(); });
+  }).catch(err=>{ PDMS.toast('Error', err.message||'Could not save issue','error'); });
 }
 function assignTeam(){
   const state = {

@@ -17,7 +17,8 @@
     notifications: 'N',
     threads: 'T',
     activities: 'A',
-    reviews: 'RV'
+    reviews: 'RV',
+    issues: 'IS'
   };
 
   function persistLocalData() {
@@ -31,7 +32,8 @@
       notifications: global.PDMS_DATA.notifications,
       threads: global.PDMS_DATA.threads,
       activities: global.PDMS_DATA.activities,
-      reviews: global.PDMS_DATA.reviews
+      reviews: global.PDMS_DATA.reviews,
+      issues: global.PDMS_DATA.issues
     }));
   }
 

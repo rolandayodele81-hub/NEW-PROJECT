@@ -54,9 +54,6 @@ function render(){
         <div style="flex:1;min-width:160px">
           <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:6px">
             <span style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;letter-spacing:.4px">${PDMS.esc(u.role)}</span>
-            <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(34,197,94,0.2);color:#86efac;border:1px solid rgba(34,197,94,0.3);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600">
-              <span style="width:5px;height:5px;border-radius:50%;background:#86efac"></span>${PDMS.esc(u.status||'Active')}
-            </span>
           </div>
           <div style="font-size:20px;font-weight:800;color:#fff;line-height:1.2">${PDMS.esc(u.name)}</div>
           <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px">${PDMS.esc(u.dept||'')}${u.dept&&u.email?' · ':''}${PDMS.esc(u.email||'')}</div>
@@ -98,23 +95,42 @@ function render(){
     <div class="card">
       <div class="card-head">
         <div><div class="card-title">Current Projects</div><div class="card-sub">Ongoing engagements</div></div>
-        <span style="background:rgba(99,102,241,.12);color:var(--primary);border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700">${currentProjects.length}</span>
+        <span style="background:rgba(99,102,241,.1);color:var(--primary);border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700">${currentProjects.length}</span>
       </div>
-      <div style="padding:0">
-        <div style="overflow-x:auto">
-          <table class="data">
-            <thead><tr><th>Project</th><th>Client</th><th>Role</th><th>Status</th></tr></thead>
-            <tbody>
-              ${currentProjects.map(p=>`
-                <tr style="cursor:pointer" onclick="location.href='project-details.html#id=${p.id}'">
-                  <td><div style="font-weight:600;color:var(--primary)">${PDMS.esc(p.name)}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(p.id)}</div></td>
-                  <td>${PDMS.esc(p.client||'—')}</td>
-                  <td><span style="font-size:12px;font-weight:600;color:var(--text-soft)">${p.pm===u.name?'Project Manager':p.lead===u.name?'Project Lead':'Consultant'}</span></td>
-                  <td><span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status)}</span></td>
-                </tr>`).join('')||`<tr><td colspan="4" style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No current projects')}</td></tr>`}
-            </tbody>
-          </table>
-        </div>
+      <div style="overflow-x:auto;padding:0">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:var(--surface-2)">
+              <th style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Project</th>
+              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Client</th>
+              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Workstream</th>
+              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Role</th>
+              <th style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${currentProjects.length ? currentProjects.map((p,i)=>{
+              const role = p.pm===u.name?'Project Manager':p.lead===u.name?'Project Lead':'Consultant';
+              const roleColor = p.pm===u.name?'#4f46e5':p.lead===u.name?'#7c3aed':'#059669';
+              const roleBg = p.pm===u.name?'rgba(79,70,229,.08)':p.lead===u.name?'rgba(124,58,237,.08)':'rgba(5,150,105,.08)';
+              return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s" onmouseenter="this.style.background='var(--surface-2)'" onmouseleave="this.style.background='transparent'">
+                <td style="padding:14px 20px">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <div style="width:32px;height:32px;border-radius:8px;background:rgba(99,102,241,.12);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--primary);flex-shrink:0">${PDMS.esc(p.name).charAt(0)}</div>
+                    <div>
+                      <div style="font-size:13px;font-weight:700;color:var(--text)">${PDMS.esc(p.name)}</div>
+                      <div style="font-size:11px;color:var(--text-soft);margin-top:1px">${PDMS.esc(p.id)}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.client||'—')}</td>
+                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.workstream||p.dept||'—')}</td>
+                <td style="padding:14px 16px"><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${role}</span></td>
+                <td style="padding:14px 20px"><span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status)}</span></td>
+              </tr>`;
+            }).join('') : `<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No current projects')}</td></tr>`}
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -124,21 +140,40 @@ function render(){
         <div><div class="card-title">Project History</div><div class="card-sub">Completed & closed engagements</div></div>
         <span style="background:var(--surface-2);color:var(--text-soft);border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700;border:1px solid var(--border)">${previousProjects.length}</span>
       </div>
-      <div style="padding:0">
-        <div style="overflow-x:auto">
-          <table class="data">
-            <thead><tr><th>Project</th><th>Client</th><th>Role</th><th>Status</th></tr></thead>
-            <tbody>
-              ${previousProjects.map(p=>`
-                <tr style="cursor:pointer" onclick="location.href='project-details.html#id=${p.id}'">
-                  <td><div style="font-weight:600;color:var(--text)">${PDMS.esc(p.name)}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(p.id)}</div></td>
-                  <td>${PDMS.esc(p.client||'—')}</td>
-                  <td><span style="font-size:12px;font-weight:600;color:var(--text-soft)">${p.pm===u.name?'Project Manager':p.lead===u.name?'Project Lead':'Consultant'}</span></td>
-                  <td><span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status)}</span></td>
-                </tr>`).join('')||`<tr><td colspan="4" style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No project history')}</td></tr>`}
-            </tbody>
-          </table>
-        </div>
+      <div style="overflow-x:auto;padding:0">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:var(--surface-2)">
+              <th style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Project</th>
+              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Client</th>
+              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Workstream</th>
+              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Role</th>
+              <th style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${previousProjects.length ? previousProjects.map(p=>{
+              const role = p.pm===u.name?'Project Manager':p.lead===u.name?'Project Lead':'Consultant';
+              const roleColor = p.pm===u.name?'#4f46e5':p.lead===u.name?'#7c3aed':'#059669';
+              const roleBg = p.pm===u.name?'rgba(79,70,229,.08)':p.lead===u.name?'rgba(124,58,237,.08)':'rgba(5,150,105,.08)';
+              return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s" onmouseenter="this.style.background='var(--surface-2)'" onmouseleave="this.style.background='transparent'">
+                <td style="padding:14px 20px">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <div style="width:32px;height:32px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--text-muted);flex-shrink:0">${PDMS.esc(p.name).charAt(0)}</div>
+                    <div>
+                      <div style="font-size:13px;font-weight:700;color:var(--text)">${PDMS.esc(p.name)}</div>
+                      <div style="font-size:11px;color:var(--text-soft);margin-top:1px">${PDMS.esc(p.id)}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.client||'—')}</td>
+                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.workstream||p.dept||'—')}</td>
+                <td style="padding:14px 16px"><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${role}</span></td>
+                <td style="padding:14px 20px"><span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status)}</span></td>
+              </tr>`;
+            }).join('') : `<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No project history')}</td></tr>`}
+          </tbody>
+        </table>
       </div>
     </div>
 

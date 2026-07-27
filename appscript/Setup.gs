@@ -48,6 +48,11 @@ function initializeSheets() {
     Reviews: {
       headers: ['id', 'author', 'authorRole', 'projectId', 'projectName', 'message', 'time', 'comments'],
       rows: []
+    },
+    Issues: {
+      headers: ['id', 'projectId', 'projectName', 'author', 'authorRole', 'message', 'time'],
+      textColumns: ['time'],
+      rows: []
     }
   };
 
@@ -57,20 +62,19 @@ function initializeSheets() {
     if (isNew) sheet = ss.insertSheet(sheetName);
 
     var def = seed[sheetName];
-    if (isNew || sheet.getLastRow() <= 1) {
-      sheet.getRange(1, 1, 1, def.headers.length).setValues([def.headers]);
 
-      // Force date-like columns (e.g. "2026-01-15") to stay plain text —
-      // otherwise Sheets silently converts them to Date cells and JSON.stringify
-      // turns them into timestamps the frontend doesn't expect.
-      (def.textColumns || []).forEach(function (colName) {
-        var colIndex = def.headers.indexOf(colName) + 1;
-        sheet.getRange(2, colIndex, sheet.getMaxRows() - 1, 1).setNumberFormat('@');
-      });
+    // Always write the header row so column names stay in sync with code,
+    // even on existing sheets. Data rows are never touched.
+    sheet.getRange(1, 1, 1, def.headers.length).setValues([def.headers]);
 
-      if (def.rows.length) {
-        sheet.getRange(2, 1, def.rows.length, def.headers.length).setValues(def.rows);
-      }
+    // Force date-like columns to stay plain text on every run.
+    (def.textColumns || []).forEach(function (colName) {
+      var colIndex = def.headers.indexOf(colName) + 1;
+      if (colIndex > 0) sheet.getRange(2, colIndex, sheet.getMaxRows() - 1, 1).setNumberFormat('@');
+    });
+
+    if (isNew && def.rows.length) {
+      sheet.getRange(2, 1, def.rows.length, def.headers.length).setValues(def.rows);
     }
 
     // Bold + frozen header row, applied every run (including sheets that
