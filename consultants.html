@@ -194,9 +194,14 @@
         <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Consultants</span></div>
           <h1 class="page-title">Consultants</h1><div class="page-sub">Resource pool availability and specialties</div></div></div>
         <div class="grid grid-3 mb-4">
-          <div class="stat i-primary"><div class="label">Current Projects</div><div class="value">${liveProjects.filter(p=>PDMS.stageOf(p)==='Delivery'&&p.status!=='Completed'&&p.status!=='Closed'&&p.status!=='Cancelled').length}</div><div class="icon-wrap">${I('folder')}</div></div>
-          <div class="stat i-warn"><div class="label">In Progress</div><div class="value">${liveProjects.filter(p=>p.status==='In Progress').length}</div><div class="icon-wrap">${I('activity')}</div></div>
-          <div class="stat i-success"><div class="label">Completed</div><div class="value">${liveProjects.filter(p=>p.status==='Completed').length}</div><div class="icon-wrap">${I('check')}</div></div>
+          ${(()=>{
+            const withProj = consultants.filter(c=>liveProjects.some(p=>p.pm===c.name||p.lead===c.name||(p.consultants||[]).includes(c.name))).length;
+            const withoutProj = consultants.length - withProj;
+            return `
+          <div class="stat i-primary"><div class="label">Total Consultants</div><div class="value">${consultants.length}</div><div class="icon-wrap">${I('users')}</div></div>
+          <div class="stat i-success"><div class="label">With Projects</div><div class="value">${withProj}</div><div class="icon-wrap">${I('folder')}</div></div>
+          <div class="stat i-warn"><div class="label">Without Projects</div><div class="value">${withoutProj}</div><div class="icon-wrap">${I('activity')}</div></div>`;
+          })()}
         </div>
         <div id="tbl" class="table-wrap"></div>`;
       PDMS.renderTable(document.getElementById('tbl'), {

@@ -89,10 +89,10 @@
       // Only projects a delivery role (COO/HTD/PM Head/PMO) created directly —
       // not sales-originated projects that got promoted via "Start Delivery".
       const deliveryProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Delivery' && PDMS.isDeliveryRole({ role: PDMS.createdByRoleOf(p) }));
-      const activePipeline = salesProjects.filter(p => p.status === 'Incoming').length;
-      const awaitingApproval = salesProjects.filter(p => p.status === 'Awaiting Client Approval').length;
+      const totalInSales = salesProjects.length;
+      const awaitingApproval = salesProjects.filter(p => p.status === 'PO / Award Granted').length;
+      const slaSigned = salesProjects.filter(p => p.status === 'SLA Signed').length;
       const closedCount = salesProjects.filter(p => p.status === 'Closed').length;
-      const totalClients = D.clients.length;
 
       // Pipeline conversion funnel: how many projects are sitting at each stage right now.
       const funnelStages = ['Incoming', 'Initial Contact', 'Requirement Gathering', 'Proposal Sent', 'Negotiation', 'PO / Award Granted', 'SLA Signed', 'Awaiting Client Approval', 'Closed'];
@@ -124,29 +124,29 @@
     </div>
 
     <div class="grid grid-4 mb-4">
-      <div class="stat i-pink">
-        <div class="label">Active Pipeline</div>
-        <div class="value">${activePipeline}</div>
-        <div class="delta up">Incoming prospects</div>
+      <div class="stat i-primary">
+        <div class="label">Total in Sales</div>
+        <div class="value">${totalInSales}</div>
+        <div class="delta up">All pipeline deals</div>
         <div class="icon-wrap">${I('folder')}</div>
       </div>
-      <div class="stat i-success">
-        <div class="label">Total Clients</div>
-        <div class="value">${totalClients}</div>
-        <div class="delta up">Active enterprise accounts</div>
-        <div class="icon-wrap">${I('globe')}</div>
-      </div>
       <div class="stat i-warn">
-        <div class="label">Awaiting Client Approval</div>
+        <div class="label">Award Granted</div>
         <div class="value">${awaitingApproval}</div>
-        <div class="delta down">Proposals sent, pending sign-off</div>
+        <div class="delta up">PO / Award granted</div>
         <div class="icon-wrap">${I('clock')}</div>
       </div>
-      <div class="stat i-info">
+      <div class="stat i-success">
+        <div class="label">SLA Signed</div>
+        <div class="value">${slaSigned}</div>
+        <div class="delta up">Agreements executed</div>
+        <div class="icon-wrap">${I('check')}</div>
+      </div>
+      <div class="stat i-muted">
         <div class="label">Closed</div>
         <div class="value">${closedCount}</div>
-        <div class="delta up">Closed deals</div>
-        <div class="icon-wrap">${I('chart')}</div>
+        <div class="delta">Formally closed deals</div>
+        <div class="icon-wrap">${I('zap')}</div>
       </div>
     </div>
 

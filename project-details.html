@@ -363,7 +363,7 @@ function assignTeam(){
           <span style="flex:1;font-size:13px;font-weight:600">${PDMS.esc(name)}</span>
           <button type="button" class="assign-chip-x" data-name="${PDMS.esc(name)}">×</button>
         </div>
-        <input type="text" class="chip-role-input" data-name="${PDMS.esc(name)}" value="${PDMS.esc(role)}" placeholder="Role / skill in this project…" style="width:100%;border:none;border-top:1px solid rgba(99,102,241,.2);background:transparent;color:var(--text);font-size:12px;padding:4px 0 0;outline:none;font-family:inherit"/>
+        <input type="text" class="chip-role-input" data-name="${PDMS.esc(name)}" value="${PDMS.esc(role)}" placeholder="Role / skill in this project…" style="width:100%;border:none;border-top:1px solid rgba(99,102,241,.2);background:transparent;color:var(--text);font-size:13px;padding:6px 0 2px;outline:none;font-family:inherit"/>
       </div>`).join('');
     return `
       <style>
@@ -422,7 +422,7 @@ function assignTeam(){
           <span style="flex:1;font-size:13px;font-weight:600">${PDMS.esc(name)}</span>
           <button type="button" class="assign-chip-x" data-name="${PDMS.esc(name)}">×</button>
         </div>
-        <input type="text" class="chip-role-input" data-name="${PDMS.esc(name)}" value="${PDMS.esc(role)}" placeholder="Role / skill in this project…" style="width:100%;border:none;border-top:1px solid rgba(99,102,241,.2);background:transparent;color:var(--text);font-size:12px;padding:4px 0 0;outline:none;font-family:inherit"/>
+        <input type="text" class="chip-role-input" data-name="${PDMS.esc(name)}" value="${PDMS.esc(role)}" placeholder="Role / skill in this project…" style="width:100%;border:none;border-top:1px solid rgba(99,102,241,.2);background:transparent;color:var(--text);font-size:13px;padding:6px 0 2px;outline:none;font-family:inherit"/>
       </div>`).join('');
     modal.querySelectorAll('.assign-chip-x').forEach(btn=>{
       btn.onclick = ()=>{ syncRolesFromDOM(); state.consultantMap = state.consultantMap.filter(e=>e.name!==btn.dataset.name); refreshChips(); };

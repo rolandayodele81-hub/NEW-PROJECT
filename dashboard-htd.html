@@ -161,16 +161,17 @@
     function render() {
       const salesProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Sales');
       const deliveryProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Delivery');
-      const activeDelivery = deliveryProjects.filter(p => p.status === 'In Progress').length;
-      const criticalCount = deliveryProjects.filter(p => p.priority === 'Critical').length;
-      const consultants = D.users.filter(u => u.role === 'Consultant');
-      const allocated = consultants.filter(c => { const assigned = D.projects.filter(p => p.pm===c.name||p.lead===c.name||(p.consultants||[]).includes(c.name)); return assigned.length > 0; }).length;
-      const utilization = Math.round((allocated / Math.max(consultants.length, 1)) * 100);
-      const awaitingApproval = salesProjects.filter(p => p.status === 'Awaiting Client Approval').length;
-      const today = new Date(); today.setHours(0,0,0,0);
-      const in14 = new Date(today); in14.setDate(in14.getDate()+14);
-      const dueForCompletion = deliveryProjects.filter(p => { if(!p.due||p.status==='Completed'||p.status==='Closed') return false; const d=new Date(p.due); return d>=today && d<=in14; }).length;
-      const onHoldInactive = D.projects.filter(p => p.status === 'On Hold').length;
+      const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+      const allProjects = liveProjects;
+      const activeProjects = deliveryProjects.length;
+      const ongoingProjects = allProjects.filter(p => p.status === 'In Progress').length;
+      const completedProjects = allProjects.filter(p => p.status === 'Completed').length;
+      const closedProjects = allProjects.filter(p => p.status === 'Closed').length;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const in14 = new Date(today); in14.setDate(in14.getDate() + 14);
+      const dueForCompletion = allProjects.filter(p => { if (!p.due || p.status === 'Completed' || p.status === 'Closed') return false; const d = new Date(p.due); return d >= today && d <= in14; }).length;
+      const consultants = (window.PDMS_REMOTE && window.PDMS_REMOTE.users || D.users).filter(u => u.role === 'Consultant');
+      const allocated = consultants.filter(c => { const assigned = allProjects.filter(p => p.pm === c.name || p.lead === c.name || (p.consultants || []).includes(c.name)); return assigned.length > 0; }).length;
 
       document.getElementById('content').innerHTML = `
   <div class="htd-hero">
@@ -191,44 +192,36 @@
     </div>
   </div>
 
-  <div class="grid grid-4 mb-3">
+  <div class="grid mb-4" style="grid-template-columns:repeat(5,1fr);gap:16px">
     <div class="stat i-primary">
-      <div class="label">Active Delivery</div>
-      <div class="value">${activeDelivery}</div>
-      <div class="delta up">Projects in progress</div>
+      <div class="label">Total In Delivery</div>
+      <div class="value">${activeProjects}</div>
+      <div class="delta up">All delivery projects</div>
       <div class="icon-wrap">${I('folder')}</div>
     </div>
     <div class="stat i-warn">
-      <div class="label">Critical Escalations</div>
-      <div class="value">${criticalCount}</div>
-      <div class="delta down">Requires attention</div>
-      <div class="icon-wrap">${I('zap')}</div>
+      <div class="label">Ongoing</div>
+      <div class="value">${ongoingProjects}</div>
+      <div class="delta up">Currently in progress</div>
+      <div class="icon-wrap">${I('activity')}</div>
     </div>
     <div class="stat i-success">
-      <div class="label">Awaiting Approval</div>
-      <div class="value">${awaitingApproval}</div>
-      <div class="delta up">Pending client sign-off</div>
-      <div class="icon-wrap">${I('clock')}</div>
+      <div class="label">Completed</div>
+      <div class="value">${completedProjects}</div>
+      <div class="delta up">Delivered successfully</div>
+      <div class="icon-wrap">${I('check')}</div>
     </div>
-    <div class="stat i-info">
-      <div class="label">Total Bench Size</div>
-      <div class="value">${consultants.length}</div>
-      <div class="delta up">Engineers & Analysts</div>
-      <div class="icon-wrap">${I('users')}</div>
+    <div class="stat i-muted">
+      <div class="label">Closed</div>
+      <div class="value">${closedProjects}</div>
+      <div class="delta">Formally closed out</div>
+      <div class="icon-wrap">${I('zap')}</div>
     </div>
-  </div>
-  <div class="grid grid-4 mb-4" style="grid-template-columns:1fr 1fr 1fr 1fr">
-    <div class="stat i-danger" style="grid-column:span 2">
+    <div class="stat i-danger">
       <div class="label">Due for Completion</div>
       <div class="value">${dueForCompletion}</div>
-      <div class="delta down">Delivery projects due within 14 days</div>
+      <div class="delta down">Due within 14 days</div>
       <div class="icon-wrap">${I('calendar')}</div>
-    </div>
-    <div class="stat i-muted" style="grid-column:span 2">
-      <div class="label">On Hold / Inactive</div>
-      <div class="value">${onHoldInactive}</div>
-      <div class="delta">Projects paused across all stages</div>
-      <div class="icon-wrap">${I('activity')}</div>
     </div>
   </div>
 
@@ -239,13 +232,13 @@
         <span class="badge badge-primary">${deliveryProjects.length} total</span>
       </div>
       <div class="card-body" style="padding:12px 20px">
-        ${(()=>{
-          const max = Math.max(...D.deliveryStatuses.map(s=>deliveryProjects.filter(p=>p.status===s).length), 1);
-          const sc = {'Not Started':'#94a3b8','In Progress':'#f59e0b','On Hold':'#64748b','Awaiting Review':'#eab308','Testing / Quality Assurance':'#8b5cf6','Completed':'#10b981','Approved':'#4f46e5','Rejected':'#ef4444'};
-          return D.deliveryStatuses.map(s=>{
-            const count = deliveryProjects.filter(p=>p.status===s).length;
-            const pct = Math.round((count/max)*100);
-            const color = sc[s]||'#94a3b8';
+        ${(() => {
+          const max = Math.max(...D.deliveryStatuses.map(s => deliveryProjects.filter(p => p.status === s).length), 1);
+          const sc = { 'Not Started': '#94a3b8', 'In Progress': '#f59e0b', 'On Hold': '#64748b', 'Awaiting Review': '#eab308', 'Testing / Quality Assurance': '#8b5cf6', 'Completed': '#10b981', 'Approved': '#4f46e5', 'Rejected': '#ef4444' };
+          return D.deliveryStatuses.map(s => {
+            const count = deliveryProjects.filter(p => p.status === s).length;
+            const pct = Math.round((count / max) * 100);
+            const color = sc[s] || '#94a3b8';
             return `
             <div style="display:grid;grid-template-columns:160px 1fr 36px;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
               <div class="text-sm" style="display:flex;align-items:center;gap:6px;min-width:0">
@@ -253,101 +246,55 @@
                 <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s}</span>
               </div>
               <div style="background:var(--surface-2);border-radius:6px;height:14px;overflow:hidden">
-                <div style="width:${pct}%;height:100%;background:${color};border-radius:6px;transition:width .4s ease;opacity:${count===0?'0.25':'1'}"></div>
+                <div style="width:${pct}%;height:100%;background:${color};border-radius:6px;transition:width .4s ease;opacity:${count === 0 ? '0.25' : '1'}"></div>
               </div>
-              <div class="text-sm font-semi" style="text-align:right;color:${count===0?'var(--text-muted)':'var(--text)'}">${count}</div>
+              <div class="text-sm font-semi" style="text-align:right;color:${count === 0 ? 'var(--text-muted)' : 'var(--text)'}">${count}</div>
             </div>`;
           }).join('');
         })()}
-        ${deliveryProjects.length===0 ? `<div class="text-muted text-sm text-center" style="padding:16px 0">${PDMS.emptyOrLoading('No delivery projects yet')}</div>` : ''}
+        ${deliveryProjects.length === 0 ? `<div class="text-muted text-sm text-center" style="padding:16px 0">${PDMS.emptyOrLoading('No delivery projects yet')}</div>` : ''}
       </div>
     </div>
     <div class="card">
-      <div class="card-head">
-        <div><div class="card-title">Critical Attention</div><div class="card-sub">Critical priority delivery projects</div></div>
-        <span class="badge badge-warn">Risk Feed</span>
-      </div>
-      <div class="card-body" style="padding:8px 20px">
-        ${deliveryProjects.filter(p => p.priority === 'Critical').slice(0, 5).map(p => `
-          <div class="activity" style="align-items:center;padding:12px 0">
-            <div class="a-icon" style="background:rgba(239,68,68,.12);color:var(--danger)">${I('zap')}</div>
-            <div style="flex:1">
-              <div class="font-semi text-sm"><a href="project-details.html#id=${p.id}" style="color:var(--primary)">${PDMS.esc(p.name)}</a></div>
-              <div class="text-sm text-muted">${PDMS.esc(p.client)} · ${p.progress || 0}% done</div>
-            </div>
-            <span class="badge badge-danger">${p.priority}</span>
-          </div>`).join('')}
-        ${deliveryProjects.filter(p => p.priority === 'Critical').length === 0 ? `<div class="text-muted text-center" style="padding:32px 0">${PDMS.emptyOrLoading('No critical escalations')}</div>` : ''}
+      <div class="card-head"><div><div class="card-title">Project Progress</div><div class="card-sub">Ongoing vs completed</div></div></div>
+      <div class="card-body" style="padding:8px 16px 20px">
+        <div class="chart-wrap" style="height:180px"><canvas id="htdDonut"></canvas></div>
+        <div id="htdDonutLegend" style="margin-top:12px;display:flex;flex-direction:column;gap:8px"></div>
       </div>
     </div>
   </div>
 
-  <!-- Projects in Delivery -->
-  <div class="flex items-center justify-between mb-3">
-    <h2 class="card-title" style="font-size:18px">Projects in Delivery</h2>
-    <a class="btn btn-secondary btn-sm" href="projects.html#view=delivery">View More</a>
-  </div>
-  <div class="card mb-4">
-    <div class="card-body" style="padding:0">
-      <div style="overflow-x:auto">
-        <table class="data">
-          <thead><tr><th>Project</th><th>Client</th><th>Status</th><th>PM</th><th>Lead</th><th>Action</th></tr></thead>
-          <tbody>
-            ${deliveryProjects.slice(0, 8).map(p => `
-              <tr>
-                <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
-                <td class="text-muted">${PDMS.esc(p.client || '—')}</td>
-                <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
-                <td id="pm-cell-${p.id}">
-                  <div class="ht-ac-wrap">
-                    <input autocomplete="off" value="${PDMS.esc(p.pm || '')}" placeholder="Assign PM…"
-                      oninput="acField(this,'${p.id}','pm')"
-                      onblur="saveField(this,'${p.id}','pm',150)"
-                      onchange="saveField(this,'${p.id}','pm',0)"/>
-                    <div class="ht-ac-drop" id="drop-pm-${p.id}"></div>
-                  </div>
-                </td>
-                <td>
-                  <div class="ht-ac-wrap">
-                    <input autocomplete="off" value="${PDMS.esc(p.lead || '')}" placeholder="Assign Lead…"
-                      oninput="acField(this,'${p.id}','lead')"
-                      onblur="saveField(this,'${p.id}','lead',150)"
-                      onchange="saveField(this,'${p.id}','lead',0)"/>
-                    <div class="ht-ac-drop" id="drop-lead-${p.id}"></div>
-                  </div>
-                </td>
-                <td><button class="btn btn-secondary btn-sm" onclick="manageConsultants('${p.id}')">Staff</button></td>
-              </tr>`).join('') || `<tr><td colspan="7" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No delivery projects yet')}</td></tr>`}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Sales Pipeline (view only) -->
+  <!-- Projects Due for Completion -->
   <div class="card mb-4">
     <div class="card-head">
       <div>
-        <div class="card-title">Sales Pipeline</div>
-        <div class="card-sub">Approved prospects ready to transition into delivery</div>
+        <div class="card-title">Projects Due for Completion</div>
+        <div class="card-sub">Delivery projects due within the next 14 days</div>
       </div>
-      <div class="flex items-center gap-2">
-        <span class="badge badge-muted">${salesProjects.length} in pipeline</span>
-        <a class="btn btn-secondary btn-sm" href="projects.html#view=sales">View More</a>
-      </div>
+      <span class="badge badge-danger">${dueForCompletion} due soon</span>
     </div>
     <div class="card-body" style="padding:0">
       <div style="overflow-x:auto">
         <table class="data">
-          <thead><tr><th>Project</th><th>Client</th><th>Priority</th><th>Status</th></tr></thead>
+          <thead><tr><th>Project</th><th>Client</th><th>Workstream</th><th>Due Date</th><th>Status</th></tr></thead>
           <tbody>
-            ${salesProjects.slice(0, 6).map(p => `
-              <tr>
-                <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
-                <td>${PDMS.esc(p.client || '—')}</td>
-                <td><span class="badge ${D.prioColors[p.priority] || ''}">${PDMS.esc(p.priority)}</span></td>
-                <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
-              </tr>`).join('') || `<tr><td colspan="4" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects')}</td></tr>`}
+            ${(() => {
+          const lp = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+          const t = new Date(); t.setHours(0, 0, 0, 0);
+          const i14 = new Date(t); i14.setDate(i14.getDate() + 14);
+          const due = lp.filter(p => { if (!p.due || p.status === 'Completed' || p.status === 'Closed') return false; const d = new Date(p.due); return d >= t && d <= i14; }).sort((a, b) => new Date(a.due) - new Date(b.due));
+          return due.length ? due.map(p => {
+            const daysLeft = Math.ceil((new Date(p.due) - t) / 86400000);
+            const urgency = daysLeft <= 3 ? 'badge-danger' : daysLeft <= 7 ? 'badge-warn' : 'badge-muted';
+            return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer">
+                  <td><div style="font-weight:600;color:var(--primary)">${PDMS.esc(p.name)}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(p.id)}</div></td>
+                  <td class="text-muted">${PDMS.esc(p.client || '—')}</td>
+                  <td class="text-muted">${PDMS.esc(p.workstream || p.dept || '—')}</td>
+                  <td><span class="badge ${urgency}">${PDMS.esc(p.due)} · ${daysLeft}d left</span></td>
+                  <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
+                </tr>`;
+          }).join('') : `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:32px">${PDMS.emptyOrLoading('No projects due in the next 14 days')}</td></tr>`;
+        })()}
           </tbody>
         </table>
       </div>
@@ -487,7 +434,7 @@
         const dateOfEntry = modal.querySelector('#newUserEntry').value;
         if (!name || !email || !password) { PDMS.toast('Missing info', 'Name, email and password are required', 'error'); return; }
         if (D.users.some(u => u.email.toLowerCase() === email)) { PDMS.toast('Email in use', 'A user with this email already exists', 'error'); return; }
-        const record = { name, email, password, role, dept, phone, birthday: birthday||'', dateOfEntry: dateOfEntry||'', workload: 0, joined: new Date().toISOString().slice(0, 10), status: 'Active' };
+        const record = { name, email, password, role, dept, phone, birthday: birthday || '', dateOfEntry: dateOfEntry || '', workload: 0, joined: new Date().toISOString().slice(0, 10), status: 'Active' };
         PDMS.api.register(record).then(saved => {
           D.users.unshift(saved);
           modal.remove();
@@ -512,7 +459,27 @@
     window.acField = acField;
     window.saveField = saveField;
 
-    PDMS.onRefresh(render);
+    function renderHtdDonut() {
+      const canvas = document.getElementById('htdDonut');
+      const legend = document.getElementById('htdDonutLegend');
+      if (!canvas || !legend) return;
+      const lp = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+      const dp = lp.filter(p => PDMS.stageOf(p) === 'Delivery');
+      const ongoing = dp.filter(p => p.status === 'In Progress').length;
+      const completed = dp.filter(p => p.status === 'Completed').length;
+      const rest = dp.length - ongoing - completed;
+      PDMS.charts.donut(canvas, [ongoing, completed], ['#f59e0b', '#10b981']);
+      legend.innerHTML = [
+        ['#f59e0b', 'Ongoing', ongoing],
+        ['#10b981', 'Completed', completed]
+      ].map(([c, l, v]) => `<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px">
+        <div style="display:flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:${c};flex-shrink:0"></span><span style="color:var(--text-muted)">${l}</span></div>
+        <span style="font-weight:700;color:var(--text)">${v}</span>
+      </div>`).join('');
+    }
+
+    function renderAll() { render(); setTimeout(renderHtdDonut, 50); }
+    PDMS.onRefresh(renderAll);
   </script>
 </body>
 

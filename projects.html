@@ -40,7 +40,7 @@ function scopedProjects(){
 const bucketStatuses = viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : D.statuses;
 const kanbanStatuses = viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : ['Incoming','In Progress','Awaiting Review','Completed'];
 const statTiles = viewParam==='sales'
-  ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'Awaiting Approval', match:p=>p.status==='Awaiting Client Approval', color:'warn', icon:'clock'}, {label:'Closed', match:p=>p.status==='Closed', color:'success', icon:'check'}, {label:'On Hold', match:p=>p.status==='On Hold', color:'info', icon:'zap'}]
+  ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'Award Granted', match:p=>p.status==='PO / Award Granted', color:'warn', icon:'clock'}, {label:'SLA Signed', match:p=>p.status==='SLA Signed', color:'success', icon:'check'}, {label:'Closed', match:p=>p.status==='Closed', color:'muted', icon:'zap'}]
   : viewParam==='delivery'
   ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'In Progress', match:p=>p.status==='In Progress', color:'warn', icon:'activity'}, {label:'Completed', match:p=>p.status==='Completed', color:'success', icon:'check'}, {label:'Closed', match:p=>p.status==='Closed', color:'info', icon:'zap'}]
   : (currentUser && currentUser.role==='Consultant')
@@ -109,15 +109,16 @@ document.getElementById('viewToggle').onclick = ()=>{
 };
 
 // Shared typeahead helper for project form
-function makeAc(inputEl, dropEl, getItems, onPick){
+function makeAc(inputEl, dropEl, getItems, itemClass, dropClass){
+  const cls = itemClass || 'proj-ac-item';
   inputEl.addEventListener('input', ()=>{
     const q = inputEl.value.trim().toLowerCase();
     const hits = q ? getItems().filter(x=>x.toLowerCase().includes(q)).slice(0,8) : [];
     if(!hits.length){ dropEl.classList.remove('open'); return; }
-    dropEl.innerHTML = hits.map(v=>`<div class="proj-ac-item" data-val="${PDMS.esc(v)}">${PDMS.esc(v)}</div>`).join('');
+    dropEl.innerHTML = hits.map(v=>`<div class="${cls}" data-val="${PDMS.esc(v)}">${PDMS.esc(v)}</div>`).join('');
     dropEl.classList.add('open');
-    dropEl.querySelectorAll('.proj-ac-item').forEach(el=>{
-      el.addEventListener('mousedown', e=>{ e.preventDefault(); inputEl.value=el.dataset.val; dropEl.classList.remove('open'); onPick && onPick(el.dataset.val); });
+    dropEl.querySelectorAll('.'+cls).forEach(el=>{
+      el.addEventListener('mousedown', e=>{ e.preventDefault(); inputEl.value=el.dataset.val; dropEl.classList.remove('open'); });
     });
   });
   inputEl.addEventListener('blur', ()=>setTimeout(()=>dropEl.classList.remove('open'),150));
@@ -128,43 +129,104 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
   const stage = viewParam==='sales' ? 'Sales' : viewParam==='delivery' ? 'Delivery' : (PDMS.isSalesRole(currentUser) ? 'Sales' : 'Delivery');
   const statusOptions = viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : PDMS.statusOptionsFor(currentUser);
   const defaultStatus = statusOptions[0];
-  const modal = PDMS.modal('Create New Project',`
+  const modal = PDMS.modal('',`
     <style>
-      .proj-ac-wrap{position:relative}
-      .proj-ac-wrap input{width:100%;box-sizing:border-box}
-      .proj-ac-drop{position:absolute;top:100%;left:0;right:0;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:180px;overflow-y:auto;display:none}
-      .proj-ac-drop.open{display:block}
-      .proj-ac-item{padding:8px 12px;cursor:pointer;font-size:14px}
-      .proj-ac-item:hover{background:var(--surface-2)}
+      .np-modal{font-family:Inter,sans-serif}
+      .np-hero{background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 60%,#a855f7 100%);border-radius:16px;padding:20px 22px;margin-bottom:20px;display:flex;align-items:center;gap:14px}
+      .np-hero-icon{width:44px;height:44px;background:rgba(255,255,255,.18);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+      .np-hero-icon svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2}
+      .np-hero-copy .np-title{font-size:17px;font-weight:800;color:#fff;line-height:1.2}
+      .np-hero-copy .np-sub{font-size:12px;color:rgba(255,255,255,.65);margin-top:3px}
+      .np-section{margin-bottom:18px}
+      .np-section-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+      .np-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+      .np-field{display:flex;flex-direction:column;gap:5px}
+      .np-field.full{grid-column:1/-1}
+      .np-field label{font-size:11px;font-weight:600;color:var(--text-soft);letter-spacing:.03em}
+      .np-field input,.np-field select,.np-field textarea{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;font-family:Inter,sans-serif;width:100%;box-sizing:border-box}
+      .np-field input:focus,.np-field select:focus,.np-field textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+      .np-field textarea{resize:vertical;min-height:72px}
+      .np-ac-wrap{position:relative}
+      .np-ac-wrap input{width:100%;box-sizing:border-box}
+      .np-ac-drop{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.13);max-height:180px;overflow-y:auto;display:none}
+      .np-ac-drop.open{display:block}
+      .np-ac-item{padding:9px 13px;cursor:pointer;font-size:13px;color:var(--text)}
+      .np-ac-item:hover{background:var(--surface-2)}
+      .np-required{color:#ef4444;margin-left:2px}
     </style>
-    <div class="form-grid">
-      <div class="form-row"><label>Client</label>
-        <div class="proj-ac-wrap">
-          <input id="newProjClient" autocomplete="off" placeholder="Search or type client name…"/>
-          <div class="proj-ac-drop" id="newClientDrop"></div>
+    <div class="np-modal">
+      <div class="np-hero">
+        <div class="np-hero-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="np-hero-copy">
+          <div class="np-title">Create New Project</div>
+          <div class="np-sub">Fill in the details below to add a project to the pipeline</div>
         </div>
       </div>
-      <div class="form-row"><label>Project Name</label>
-        <div class="proj-ac-wrap">
-          <input id="newProjName" autocomplete="off" placeholder="Search existing or type new project name…"/>
-          <div class="proj-ac-drop" id="newNameDrop"></div>
+
+      <div class="np-section">
+        <div class="np-section-label">Project Information</div>
+        <div class="np-grid">
+          <div class="np-field">
+            <label>Client<span class="np-required">*</span></label>
+            <div class="np-ac-wrap">
+              <input id="newProjClient" autocomplete="off" placeholder="Search or type client name…"/>
+              <div class="np-ac-drop" id="newClientDrop"></div>
+            </div>
+          </div>
+          <div class="np-field">
+            <label>Project Name<span class="np-required">*</span></label>
+            <div class="np-ac-wrap">
+              <input id="newProjName" autocomplete="off" placeholder="Search existing or enter new name…"/>
+              <div class="np-ac-drop" id="newNameDrop"></div>
+            </div>
+          </div>
+          <div class="np-field">
+            <label>Project Type</label>
+            <input id="newProjType" type="text" placeholder="e.g. Software Development"/>
+          </div>
+          <div class="np-field">
+            <label>Workstream</label>
+            <input id="newProjWorkstream" type="text" placeholder="e.g. QMS, FSMS…"/>
+          </div>
+          <div class="np-field full">
+            <label>Status</label>
+            <select id="newProjStatus">${statusOptions.map(s=>`<option${s===defaultStatus?' selected':''}>${s}</option>`).join('')}</select>
+          </div>
         </div>
       </div>
-      <div class="form-row"><label>Type</label><input id="newProjType" type="text" placeholder="e.g. Software Development"/></div>
-      <div class="form-row"><label>Workstream</label><select id="newProjWorkstream">${(D.workstreams||[]).map(w=>`<option>${w}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Status</label><select id="newProjStatus">${statusOptions.map(s=>`<option${s===defaultStatus?' selected':''}>${s}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Start Date</label><input id="newProjStart" type="date"/></div>
-      <div class="form-row"><label>Planned Completion</label><input id="newProjDue" type="date"/></div>
-      <div class="form-row"><label>Actual Completion</label><input id="newProjActual" type="date"/></div>
+
+      <div class="np-section">
+        <div class="np-section-label">Timeline</div>
+        <div class="np-grid">
+          <div class="np-field">
+            <label>Start Date</label>
+            <input id="newProjStart" type="date"/>
+          </div>
+          <div class="np-field">
+            <label>Planned Completion</label>
+            <input id="newProjDue" type="date"/>
+          </div>
+          <div class="np-field full">
+            <label>Actual Completion</label>
+            <input id="newProjActual" type="date"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="np-section" style="margin-bottom:0">
+        <div class="np-section-label">Description</div>
+        <div class="np-field">
+          <textarea id="newProjDesc" placeholder="Scope, goals, deliverables…"></textarea>
+        </div>
+      </div>
     </div>
-    <div class="form-row"><label>Description</label><textarea id="newProjDesc" rows="3" placeholder="Scope, goals, deliverables..."></textarea></div>
-  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createProjectBtn">Create Project</button>`);
+  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createProjectBtn">${I('plus')} Create Project</button>`);
 
   // Wire typeaheads
   makeAc(modal.querySelector('#newProjClient'), modal.querySelector('#newClientDrop'),
-    ()=>D.clients.map(c=>c.name));
+    ()=>D.clients.map(c=>c.name), 'np-ac-item', 'np-ac-drop');
   makeAc(modal.querySelector('#newProjName'), modal.querySelector('#newNameDrop'),
-    ()=>D.projects.map(p=>p.name));
+    ()=>D.projects.map(p=>p.name), 'np-ac-item', 'np-ac-drop');
 
   modal.querySelector('#createProjectBtn').onclick = function(){
     const name = modal.querySelector('#newProjName').value.trim();
