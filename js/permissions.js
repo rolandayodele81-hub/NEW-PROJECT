@@ -8,21 +8,21 @@
   const PDMS = global.PDMS = global.PDMS || {};
 
   const MATRIX = {
-    'Onboard User':        ['HR','HTD','COO','General Admin'],
+    'Onboard User':        ['HR','HTD','COO','PM Head','General Admin'],
     'Create Project':      ['Sales','General Admin'],
-    'Assign Project':      ['HR','HTD','COO','Project Manager','General Admin'],
-    'Assign PM':            ['HR','HTD','COO','General Admin'],
-    'Assign Lead':          ['HR','HTD','COO','Project Manager','General Admin'],
-    'Assign Consultant':    ['HR','HTD','COO','Project Manager','General Admin'],
-    'Reassign Project':     ['HTD','COO','Project Manager','General Admin'],
-    'Reassign Consultant':  ['HTD','COO','Project Manager','General Admin'],
-    'Change Status':        ['HR','HTD','COO','Project Manager','General Admin'],
-    'Close Project':        ['HR','HTD','COO','Project Manager','General Admin'],
-    'Add Remarks':          ['HR','HTD','COO','Sales','Project Manager','General Admin','Consultant'],
-    'View Reports':         ['HR','HTD','COO','Sales','Project Manager','General Admin','Consultant'],
+    'Assign Project':      ['HR','HTD','COO','PM Head','Project Manager','General Admin'],
+    'Assign PM':            ['HR','HTD','COO','PM Head','General Admin'],
+    'Assign Lead':          ['HR','HTD','COO','PM Head','Project Manager','General Admin'],
+    'Assign Consultant':    ['HR','HTD','COO','PM Head','Project Manager','General Admin'],
+    'Reassign Project':     ['HTD','COO','PM Head','Project Manager','General Admin'],
+    'Reassign Consultant':  ['HTD','COO','PM Head','Project Manager','General Admin'],
+    'Change Status':        ['HR','HTD','COO','PM Head','Project Manager','General Admin'],
+    'Close Project':        ['HR','HTD','COO','PM Head','Project Manager','General Admin'],
+    'Add Remarks':          ['HR','HTD','COO','PM Head','Sales','Project Manager','General Admin','Consultant'],
+    'View Reports':         ['HR','HTD','COO','PM Head','Sales','Project Manager','General Admin','Consultant'],
     'Manage Permissions':   ['General Admin'],
     'Confirm Project':      ['Sales','General Admin'],
-    'View Resources':       ['HTD','COO','Sales','Project Manager','General Admin','Consultant']
+    'View Resources':       ['HTD','COO','PM Head','Sales','Project Manager','General Admin','Consultant']
   };
 
   PDMS.PERMISSIONS = MATRIX;
@@ -52,6 +52,7 @@
     'HR': 'dashboard-hr.html',
     'HTD': 'dashboard-htd.html',
     'COO': 'dashboard-htd.html',
+    'PM Head': 'dashboard-htd.html',
     'Project Manager': 'dashboard-htd.html',
     'Sales': 'dashboard-sales.html'
   };
@@ -61,7 +62,7 @@
   };
 
   // Delivery roles are the non-Sales, non-HR operational roles.
-  const DELIVERY_ROLES = ['HTD','COO','Project Manager','PMO','General Admin'];
+  const DELIVERY_ROLES = ['HTD','COO','PM Head','Project Manager','PMO','General Admin'];
   const SALES_ROLES    = ['Sales'];
 
   PDMS.isDeliveryRole = function(user){
