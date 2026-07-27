@@ -68,14 +68,18 @@ function render(){
   const liveNotifs = (window.PDMS_REMOTE && window.PDMS_REMOTE.notifications) || D.notifications;
 
   let visibleNotifs = liveNotifs;
-  if(user && user.role === 'Consultant'){
+  if(user && (user.role === 'Consultant' || user.role === 'PMO')){
+    const myName = (user.name||'').toLowerCase();
+    const myId = (user.id||'').toLowerCase();
     const myProjectIds = new Set(
       liveProjects.filter(p=>{
-        const assigned = Array.isArray(p.consultants) ? p.consultants.map(n=>n.toLowerCase()) : [];
-        return assigned.includes((user.name||'').toLowerCase()) || assigned.includes((user.id||'').toLowerCase());
+        const consultants = Array.isArray(p.consultants) ? p.consultants.map(n=>n.toLowerCase()) : [];
+        return consultants.includes(myName) || consultants.includes(myId)
+          || (p.pm||'').toLowerCase()===myName
+          || (p.lead||'').toLowerCase()===myName;
       }).map(p=>String(p.id))
     );
-    visibleNotifs = liveNotifs.filter(n=> n.projectId && myProjectIds.has(String(n.projectId)));
+    visibleNotifs = liveNotifs.filter(n => n.projectId && myProjectIds.has(String(n.projectId)));
   }
 
   const total = visibleNotifs.length;

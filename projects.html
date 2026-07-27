@@ -24,12 +24,14 @@ const pageInfo = viewParam==='sales' ? {title:'Sales Pipeline', sub:'Projects cr
 // by a delivery role stays in Projects in Delivery for its whole life.
 function scopedProjects(){
   const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
-  if(currentUser && currentUser.role === 'Consultant'){
+  if(currentUser && (currentUser.role === 'Consultant' || currentUser.role === 'PMO')){
     const myName = (currentUser.name||'').toLowerCase();
     const myId = (currentUser.id||'').toLowerCase();
     return liveProjects.filter(p=>{
-      const assigned = Array.isArray(p.consultants) ? p.consultants.map(String).map(n=>n.toLowerCase()) : [];
-      return assigned.includes(myName) || assigned.includes(myId);
+      const consultants = Array.isArray(p.consultants) ? p.consultants.map(String).map(n=>n.toLowerCase()) : [];
+      return consultants.includes(myName) || consultants.includes(myId)
+        || (p.pm||'').toLowerCase()===myName
+        || (p.lead||'').toLowerCase()===myName;
     });
   }
   if(viewParam==='sales') return liveProjects.filter(p=>PDMS.stageOf(p)==='Sales');

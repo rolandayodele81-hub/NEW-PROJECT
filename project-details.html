@@ -100,8 +100,15 @@ if(!p){
   const canUploadDoc = canUpdate && !(user && user.role==='HR');
   const isAssignedConsultant = user && user.role==='Consultant' && Array.isArray(p.consultants) && p.consultants.map(n=>n.toLowerCase()).includes((user.name||'').toLowerCase());
   const myTasks = isAssignedConsultant ? (p.privateTasks||[]).filter(t=>(t.ownerName||'').toLowerCase()===(user.name||'').toLowerCase()||(t.ownerId||'')===(user.id||'')) : [];
-  const canAssign = PDMS.can('Assign Consultant') && PDMS.stageOf(p)==='Delivery';
-  const canManageStatus = PDMS.canManageStatus(p);
+  const isPMO = user && user.role==='PMO';
+  const myName = (user&&user.name||'').toLowerCase();
+  const isAssignedPMO = isPMO && (
+    (p.pm||'').toLowerCase()===myName ||
+    (p.lead||'').toLowerCase()===myName ||
+    (Array.isArray(p.consultants) && p.consultants.map(n=>n.toLowerCase()).includes(myName))
+  );
+  const canAssign = PDMS.can('Assign Consultant') && PDMS.stageOf(p)==='Delivery' && (!isPMO || isAssignedPMO);
+  const canManageStatus = PDMS.canManageStatus(p) && (!isPMO || isAssignedPMO);
   const canStartDelivery = PDMS.can('Start Delivery') && PDMS.stageOf(p)==='Sales' && p.status==='Approved';
 
   document.getElementById('content').innerHTML = `

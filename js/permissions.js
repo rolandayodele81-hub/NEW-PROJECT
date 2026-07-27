@@ -10,19 +10,19 @@
   const MATRIX = {
     'Onboard User':        ['HR','HTD','COO','PM Head','General Admin'],
     'Create Project':      ['Sales','General Admin'],
-    'Assign Project':      ['HR','HTD','COO','PM Head','Project Manager','General Admin'],
-    'Assign PM':            ['HR','HTD','COO','PM Head','General Admin'],
-    'Assign Lead':          ['HR','HTD','COO','PM Head','Project Manager','General Admin'],
-    'Assign Consultant':    ['HR','HTD','COO','PM Head','Project Manager','General Admin'],
-    'Reassign Project':     ['HTD','COO','PM Head','Project Manager','General Admin'],
-    'Reassign Consultant':  ['HTD','COO','PM Head','Project Manager','General Admin'],
-    'Change Status':        ['HR','HTD','COO','PM Head','Project Manager','General Admin'],
-    'Close Project':        ['HR','HTD','COO','PM Head','Project Manager','General Admin'],
-    'Add Remarks':          ['HR','HTD','COO','PM Head','Sales','Project Manager','General Admin','Consultant'],
-    'View Reports':         ['HR','HTD','COO','PM Head','Sales','Project Manager','General Admin','Consultant'],
+    'Assign Project':      ['HR','HTD','COO','PM Head','PMO','Project Manager','General Admin'],
+    'Assign PM':            ['HR','HTD','COO','PM Head','PMO','General Admin'],
+    'Assign Lead':          ['HR','HTD','COO','PM Head','PMO','Project Manager','General Admin'],
+    'Assign Consultant':    ['HR','HTD','COO','PM Head','PMO','Project Manager','General Admin'],
+    'Reassign Project':     ['HTD','COO','PM Head','PMO','Project Manager','General Admin'],
+    'Reassign Consultant':  ['HTD','COO','PM Head','PMO','Project Manager','General Admin'],
+    'Change Status':        ['HR','HTD','COO','PM Head','PMO','Project Manager','General Admin'],
+    'Close Project':        ['HR','HTD','COO','PM Head','PMO','Project Manager','General Admin'],
+    'Add Remarks':          ['HR','HTD','COO','PM Head','PMO','Sales','Project Manager','General Admin','Consultant'],
+    'View Reports':         ['HR','HTD','COO','PM Head','PMO','Sales','Project Manager','General Admin','Consultant'],
     'Manage Permissions':   ['General Admin'],
     'Confirm Project':      ['Sales','General Admin'],
-    'View Resources':       ['HTD','COO','PM Head','Sales','Project Manager','General Admin','Consultant']
+    'View Resources':       ['HTD','COO','PM Head','PMO','Sales','Project Manager','General Admin','Consultant']
   };
 
   PDMS.PERMISSIONS = MATRIX;
@@ -53,6 +53,7 @@
     'HTD': 'dashboard-htd.html',
     'COO': 'dashboard-htd.html',
     'PM Head': 'dashboard-htd.html',
+    'PMO': 'dashboard-htd.html',
     'Project Manager': 'dashboard-htd.html',
     'Sales': 'dashboard-sales.html'
   };
@@ -118,5 +119,5 @@
   };
 
   // Whether a user can start delivery (move a Sales-Approved project into delivery).
-  PDMS.PERMISSIONS['Start Delivery'] = ['HTD','COO','General Admin'];
+  PDMS.PERMISSIONS['Start Delivery'] = ['HTD','COO','PM Head','General Admin'];
 })(window);

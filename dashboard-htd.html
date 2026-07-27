@@ -159,10 +159,18 @@
     const D = PDMS_DATA; const I = PDMS.icon;
 
     function render() {
-      const salesProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Sales');
-      const deliveryProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Delivery');
+      const currentUser = PDMS.getUser();
+      const isPMO = currentUser && currentUser.role === 'PMO';
       const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
-      const allProjects = liveProjects;
+      const salesProjects = liveProjects.filter(p => PDMS.stageOf(p) === 'Sales');
+      const deliveryProjects = isPMO
+        ? liveProjects.filter(p => {
+            const myName = (currentUser.name || '').toLowerCase();
+            const consultants = Array.isArray(p.consultants) ? p.consultants.map(n => n.toLowerCase()) : [];
+            return (p.pm || '').toLowerCase() === myName || (p.lead || '').toLowerCase() === myName || consultants.includes(myName);
+          })
+        : liveProjects.filter(p => PDMS.stageOf(p) === 'Delivery');
+      const allProjects = isPMO ? deliveryProjects : liveProjects;
       const activeProjects = deliveryProjects.length;
       const ongoingProjects = allProjects.filter(p => p.status === 'In Progress').length;
       const completedProjects = allProjects.filter(p => p.status === 'Completed').length;
@@ -179,8 +187,8 @@
       <h1 class="page-title" style="font-size:30px;line-height:1.1;margin-top:10px">Delivery & Operations Dashboard</h1>
       <p class="page-sub" style="font-size:14px;max-width:640px;color:rgba(255,255,255,.9);margin-top:8px">Onboard delivery leaders, assign PMs and Leads, manage consultant allocations, and oversee technical governance.</p>
       <div class="hero-actions">
-        <button class="btn btn-primary" onclick="newUser()">${I('user-plus')} Onboard Staff</button>
-        <a class="btn btn-secondary" href="consultants.html" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18)">${I('briefcase')} View Resources</a>
+        ${isPMO ? '' : `<button class="btn btn-primary" onclick="newProject()">${I('plus')} Onboard Project</button>`}
+        <a class="btn btn-secondary" href="projects.html#view=delivery" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18)">${I('folder')} View Projects</a>
       </div>
     </div>
     <div class="htd-hero-card">
@@ -454,6 +462,151 @@
       modal.querySelector('.modal').classList.add('modal-sm');
     }
 
+    function npMakeAc(inputEl, dropEl, getItems) {
+      inputEl.addEventListener('input', () => {
+        const q = inputEl.value.trim().toLowerCase();
+        const hits = q ? getItems().filter(x => x.toLowerCase().includes(q)).slice(0, 8) : [];
+        if (!hits.length) { dropEl.classList.remove('open'); return; }
+        dropEl.innerHTML = hits.map(v => `<div class="np-ac-item" data-val="${PDMS.esc(v)}">${PDMS.esc(v)}</div>`).join('');
+        dropEl.classList.add('open');
+        dropEl.querySelectorAll('.np-ac-item').forEach(el => {
+          el.addEventListener('mousedown', e => { e.preventDefault(); inputEl.value = el.dataset.val; dropEl.classList.remove('open'); });
+        });
+      });
+      inputEl.addEventListener('blur', () => setTimeout(() => dropEl.classList.remove('open'), 150));
+    }
+
+    function newProject() {
+      const user = PDMS.getUser();
+      const statusOptions = D.deliveryStatuses;
+      const defaultStatus = statusOptions[0];
+      const modal = PDMS.modal('', `
+        <style>
+          .np-hero{background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 60%,#a855f7 100%);border-radius:16px;padding:20px 22px;margin-bottom:20px;display:flex;align-items:center;gap:14px}
+          .np-hero-icon{width:44px;height:44px;background:rgba(255,255,255,.18);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+          .np-hero-icon svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round}
+          .np-hero-copy .np-title{font-size:17px;font-weight:800;color:#fff;line-height:1.2}
+          .np-hero-copy .np-sub{font-size:12px;color:rgba(255,255,255,.65);margin-top:3px}
+          .np-section{margin-bottom:18px}
+          .np-section-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+          .np-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+          .np-field{display:flex;flex-direction:column;gap:5px}
+          .np-field.full{grid-column:1/-1}
+          .np-field label{font-size:11px;font-weight:600;color:var(--text-soft);letter-spacing:.03em}
+          .np-field input,.np-field select,.np-field textarea{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;font-family:Inter,sans-serif;width:100%;box-sizing:border-box}
+          .np-field input:focus,.np-field select:focus,.np-field textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+          .np-field textarea{resize:vertical;min-height:72px}
+          .np-ac-wrap{position:relative}
+          .np-ac-wrap input{width:100%;box-sizing:border-box}
+          .np-ac-drop{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.13);max-height:180px;overflow-y:auto;display:none}
+          .np-ac-drop.open{display:block}
+          .np-ac-item{padding:9px 13px;cursor:pointer;font-size:13px;color:var(--text)}
+          .np-ac-item:hover{background:var(--surface-2)}
+          .np-required{color:#ef4444;margin-left:2px}
+        </style>
+        <div>
+          <div class="np-hero">
+            <div class="np-hero-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+            <div class="np-hero-copy">
+              <div class="np-title">Onboard New Project</div>
+              <div class="np-sub">Fill in the details below to add a delivery project</div>
+            </div>
+          </div>
+          <div class="np-section">
+            <div class="np-section-label">Project Information</div>
+            <div class="np-grid">
+              <div class="np-field">
+                <label>Client<span class="np-required">*</span></label>
+                <div class="np-ac-wrap">
+                  <input id="npClient" autocomplete="off" placeholder="Search or type client name…"/>
+                  <div class="np-ac-drop" id="npClientDrop"></div>
+                </div>
+              </div>
+              <div class="np-field">
+                <label>Project Name<span class="np-required">*</span></label>
+                <div class="np-ac-wrap">
+                  <input id="npName" autocomplete="off" placeholder="Enter project name…"/>
+                  <div class="np-ac-drop" id="npNameDrop"></div>
+                </div>
+              </div>
+              <div class="np-field">
+                <label>Project Type</label>
+                <input id="npType" type="text" placeholder="e.g. Software Development"/>
+              </div>
+              <div class="np-field">
+                <label>Workstream</label>
+                <input id="npWorkstream" type="text" placeholder="e.g. QMS, FSMS…"/>
+              </div>
+              <div class="np-field full">
+                <label>Status</label>
+                <select id="npStatus">${statusOptions.map(s => `<option${s === defaultStatus ? ' selected' : ''}>${s}</option>`).join('')}</select>
+              </div>
+            </div>
+          </div>
+          <div class="np-section">
+            <div class="np-section-label">Timeline</div>
+            <div class="np-grid">
+              <div class="np-field">
+                <label>Start Date</label>
+                <input id="npStart" type="date"/>
+              </div>
+              <div class="np-field">
+                <label>Planned Completion</label>
+                <input id="npDue" type="date"/>
+              </div>
+              <div class="np-field full">
+                <label>Actual Completion</label>
+                <input id="npActual" type="date"/>
+              </div>
+            </div>
+          </div>
+          <div class="np-section" style="margin-bottom:0">
+            <div class="np-section-label">Description</div>
+            <div class="np-field">
+              <textarea id="npDesc" placeholder="Scope, goals, deliverables…"></textarea>
+            </div>
+          </div>
+        </div>
+      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="npCreateBtn">${I('plus')} Create Project</button>`);
+
+      npMakeAc(modal.querySelector('#npClient'), modal.querySelector('#npClientDrop'), () => D.clients.map(c => c.name));
+      npMakeAc(modal.querySelector('#npName'), modal.querySelector('#npNameDrop'), () => D.projects.map(p => p.name));
+
+      modal.querySelector('#npCreateBtn').onclick = function () {
+        const name = modal.querySelector('#npName').value.trim();
+        const clientTyped = modal.querySelector('#npClient').value.trim();
+        const type = modal.querySelector('#npType').value.trim();
+        const workstream = modal.querySelector('#npWorkstream').value.trim();
+        const status = modal.querySelector('#npStatus').value;
+        const start = modal.querySelector('#npStart').value;
+        const due = modal.querySelector('#npDue').value;
+        const actualCompletion = modal.querySelector('#npActual').value;
+        const desc = modal.querySelector('#npDesc').value.trim();
+        if (!name || !clientTyped) { PDMS.toast('Missing info', 'Project name and client are required', 'error'); return; }
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Creating...');
+        setTimeout(() => PDMS.setButtonLoading(btn, false), 10000);
+        const existingClient = D.clients.find(cl => cl.name.toLowerCase() === clientTyped.toLowerCase());
+        const ensureClient = existingClient ? Promise.resolve(existingClient) : PDMS.api.create('clients', { name: clientTyped, industry: '', email: '', phone: '', address: '', projects: 0 });
+        ensureClient.then(client => {
+          if (!existingClient) D.clients.unshift(client);
+          return PDMS.api.create('projects', {
+            name, client: client.name, type, workstream, dept: workstream,
+            sales: '', pm: '', lead: '', consultants: [],
+            status, stage: 'Delivery', createdByRole: user ? user.role : 'HTD', progress: 0,
+            start: start || '', due: due || '', actualCompletion: actualCompletion || '', completion: null,
+            description: desc, files: 0, remarks: 0
+          });
+        }).then(saved => {
+          D.projects.unshift(saved);
+          modal.remove();
+          PDMS.toast('Project created', 'New delivery project onboarded', 'success');
+          PDMS.notify('Project Onboarded', `${user ? user.name : 'HTD'} onboarded "${saved.name}" for ${saved.client}`, 'folder', 'project-details.html#id=' + saved.id);
+          renderAll();
+        }).catch(err => PDMS.toast('Error', err.message || 'Could not create project', 'error'));
+      };
+    }
+    window.newProject = newProject;
     window.newUser = newUser;
     window.manageConsultants = manageConsultants;
     window.acField = acField;
