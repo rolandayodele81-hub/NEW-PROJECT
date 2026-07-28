@@ -35,7 +35,11 @@ function scopedProjects(){
     });
   }
   if(viewParam==='sales') return liveProjects.filter(p=>PDMS.stageOf(p)==='Sales');
-  if(viewParam==='delivery') return liveProjects.filter(p=>PDMS.stageOf(p)==='Delivery');
+  if(viewParam==='delivery') return liveProjects.filter(p=>{
+    if(PDMS.stageOf(p)==='Delivery') return true;
+    // Also catch projects whose stage wasn't saved but status is clearly a delivery status
+    return D.deliveryStatuses && D.deliveryStatuses.includes(p.status);
+  });
   return liveProjects;
 }
 // Each bucket is filtered/kanban'd using its own status vocabulary.

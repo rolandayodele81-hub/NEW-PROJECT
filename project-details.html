@@ -45,7 +45,9 @@ function milestoneStages(proj){
   // 'Approved'/'Rejected'/'On Hold' are outcomes, not sequential steps — they
   // can't all sit in the same line at once. The timeline only ever walks the
   // main sequence, which normally ends at Approved (Sales) / Completed (Delivery).
-  const isSales = PDMS.stageOf(proj)==='Sales';
+  const viewer = PDMS.getUser();
+  const isConsultantView = viewer && (viewer.role === 'Consultant' || viewer.role === 'PMO');
+  const isSales = !isConsultantView && PDMS.stageOf(proj)==='Sales';
   const mainSequence = isSales
     ? ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','PO / Award Granted','SLA Signed','Awaiting Client Approval','Closed']
     : ['Not Started','In Progress','Awaiting Review','Testing / Quality Assurance','Completed'];
@@ -253,9 +255,15 @@ if(!p){
     <div class="flex flex-col gap-4">
       <div class="card"><div class="card-head"><div class="card-title">Project Team</div></div>
         <div class="card-body">
-          <div class="mb-3"><div class="text-sm text-muted">Project Manager</div><div class="flex items-center gap-2 mt-2">${p.pm?`<div class="avatar avatar-sm">${PDMS.initials(p.pm)}</div><div class="font-semi">${PDMS.esc(p.pm)}</div>`:`<div class="text-muted text-sm">Unassigned</div>`}</div></div>
-          <div class="mb-3"><div class="text-sm text-muted">Project Lead</div><div class="flex items-center gap-2 mt-2">${p.lead?`<div class="avatar avatar-sm">${PDMS.initials(p.lead)}</div><div class="font-semi">${PDMS.esc(p.lead)}</div>`:`<div class="text-muted text-sm">Unassigned</div>`}</div></div>
-          <div><div class="text-sm text-muted mb-2">Assigned Consultants (${p.consultants.length})</div>${p.consultants.map(c=>{const cu=(liveUsers||D.users).find(u=>u.name===c||u.id===c);const skill=(p.consultantRoles||{})[c]||'';return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div class="avatar avatar-sm">${PDMS.initials(c)}</div><div style="min-width:0"><div class="text-sm font-semi">${PDMS.esc(c)}</div>${skill?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${PDMS.esc(skill)}</div>`:''}</div></div>`;}).join('')||'<div class="text-muted text-sm">None assigned</div>'}</div>
+          ${(()=>{
+            function safeArr(v){if(Array.isArray(v))return v;if(typeof v==='string'&&v.trim().startsWith('[')){try{const r=JSON.parse(v);return Array.isArray(r)?r:[];}catch(e){}}return[];}
+            function safeStr(v){if(!v)return '';if(typeof v==='string'&&v.trim().startsWith('[')){try{const r=JSON.parse(v);return Array.isArray(r)?r[0]||'':'';}catch(e){return '';}}return v;}
+            const pm=safeStr(p.pm); const lead=safeStr(p.lead); const cons=safeArr(p.consultants);
+            return `
+          <div class="mb-3"><div class="text-sm text-muted">Project Manager</div><div class="flex items-center gap-2 mt-2">${pm?`<div class="avatar avatar-sm">${PDMS.initials(pm)}</div><div class="font-semi">${PDMS.esc(pm)}</div>`:`<div class="text-muted text-sm">Unassigned</div>`}</div></div>
+          <div class="mb-3"><div class="text-sm text-muted">Project Lead</div><div class="flex items-center gap-2 mt-2">${lead?`<div class="avatar avatar-sm">${PDMS.initials(lead)}</div><div class="font-semi">${PDMS.esc(lead)}</div>`:`<div class="text-muted text-sm">Unassigned</div>`}</div></div>
+          <div><div class="text-sm text-muted mb-2">Assigned Consultants (${cons.length})</div>${cons.map(c=>{const skill=(p.consultantRoles||{})[c]||'';return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div class="avatar avatar-sm">${PDMS.initials(c)}</div><div style="min-width:0"><div class="text-sm font-semi">${PDMS.esc(c)}</div>${skill?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${PDMS.esc(skill)}</div>`:''}</div></div>`;}).join('')||'<div class="text-muted text-sm">None assigned</div>'}</div>`;
+          })()}
           ${canAssign?`<button class="btn btn-secondary w-full mt-2" style="justify-content:center" onclick="assignTeam()">${I('user-plus')} Assign Team</button>`:''}
         </div>
       </div>

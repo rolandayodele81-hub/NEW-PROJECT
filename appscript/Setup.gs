@@ -25,11 +25,11 @@ function initializeSheets() {
       rows: []
     },
     Clients: {
-      headers: ['id', 'name', 'industry', 'contact', 'email', 'phone', 'projects', 'revenue'],
+      headers: ['id', 'name', 'industry', 'contact', 'email', 'phone', 'address', 'projects', 'revenue'],
       rows: []
     },
     Projects: {
-      headers: ['id', 'name', 'client', 'type', 'dept', 'workstream', 'sales', 'pm', 'lead', 'consultants', 'priority', 'status', 'stage', 'createdByRole', 'progress', 'start', 'due', 'actualCompletion', 'completion', 'description', 'files', 'remarks'],
+      headers: ['id', 'name', 'client', 'type', 'dept', 'workstream', 'sales', 'pm', 'lead', 'consultants', 'priority', 'status', 'stage', 'createdByRole', 'progress', 'start', 'due', 'actualCompletion', 'completion', 'description', 'files', 'remarks', 'privateTasks', 'documents', 'milestones'],
       textColumns: ['start', 'due', 'actualCompletion', 'completion'],
       rows: []
     },

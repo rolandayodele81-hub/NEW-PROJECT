@@ -44,11 +44,13 @@ function openClientModal(){
       PDMS.toast('Missing info','Industry name and industry type are required','error');
       return;
     }
+    const btn = this;
+    PDMS.setButtonLoading(btn, true, 'Creating...');
     PDMS.api.create('clients',{name,industry,email,phone,address,projects:0}).then(()=>{
       modal.remove();
       PDMS.toast('Client created','New client added','success');
       location.reload();
-    }).catch(err=>PDMS.toast('Error',err.message||'Could not create client','error'));
+    }).catch(err=>{ PDMS.setButtonLoading(btn, false); PDMS.toast('Error',err.message||'Could not create client','error'); });
   };
 }
 </script></body></html>

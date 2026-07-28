@@ -85,10 +85,24 @@
     const D = PDMS_DATA; const I = PDMS.icon;
 
     function render() {
-      const salesProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Sales');
-      // Only projects a delivery role (COO/HTD/PM Head/PMO) created directly —
-      // not sales-originated projects that got promoted via "Start Delivery".
-      const deliveryProjects = D.projects.filter(p => PDMS.stageOf(p) === 'Delivery' && PDMS.isDeliveryRole({ role: PDMS.createdByRoleOf(p) }));
+      const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+      // Sales Pipeline: projects created by Sales (stage=Sales or createdByRole=Sales)
+      const salesProjects = liveProjects.filter(p => {
+        const role = p.createdByRole || '';
+        const stage = p.stage || '';
+        if(stage === 'Sales') return true;
+        if(role === 'Sales' || role === 'Sales Team') return true;
+        if(!stage && !role) return PDMS.stageOf(p) === 'Sales';
+        return false;
+      });
+      // Projects in Delivery: projects created directly by a delivery role (not promoted from Sales)
+      const deliveryProjects = liveProjects.filter(p => {
+        const role = p.createdByRole || '';
+        const stage = p.stage || '';
+        if(PDMS.isDeliveryRole({ role })) return true;
+        if(stage === 'Delivery' && role !== 'Sales' && role !== 'Sales Team') return true;
+        return false;
+      });
       const totalInSales = salesProjects.length;
       const awaitingApproval = salesProjects.filter(p => p.status === 'PO / Award Granted').length;
       const slaSigned = salesProjects.filter(p => p.status === 'SLA Signed').length;
