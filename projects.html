@@ -34,12 +34,9 @@ function scopedProjects(){
         || (p.lead||'').toLowerCase()===myName;
     });
   }
-  if(viewParam==='sales') return liveProjects.filter(p=>PDMS.stageOf(p)==='Sales');
-  if(viewParam==='delivery') return liveProjects.filter(p=>{
-    if(PDMS.stageOf(p)==='Delivery') return true;
-    // Also catch projects whose stage wasn't saved but status is clearly a delivery status
-    return D.deliveryStatuses && D.deliveryStatuses.includes(p.status);
-  });
+  // Bucket purely by current status: sales statuses → Sales Pipeline, delivery statuses → Delivery
+  if(viewParam==='sales') return liveProjects.filter(p => D.salesStatuses && D.salesStatuses.includes(p.status));
+  if(viewParam==='delivery') return liveProjects.filter(p => (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)) || p.status==='SLA Signed');
   return liveProjects;
 }
 // Each bucket is filtered/kanban'd using its own status vocabulary.
@@ -88,6 +85,8 @@ function renderStats(rows){
   statTiles.forEach((t,i)=>{ document.getElementById('stat-'+i).textContent = rows.filter(t.match).length; });
 }
 function renderProjects(){
+  const liveAll = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+  console.log('[Projects Debug] total loaded:', liveAll.length, liveAll.map(p=>({id:p.id,stage:p.stage,createdByRole:p.createdByRole,status:p.status})));
   const rows = scopedProjects();
   renderStats(rows);
   PDMS.renderTable(document.getElementById('listView'),{

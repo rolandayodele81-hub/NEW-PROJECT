@@ -7,9 +7,9 @@
   const priorities = ['Critical','High','Medium','Low'];
   const workstreams = ['Cloud Engineering','Cybersecurity','Data Analytics','Digital Transformation','ERP Implementation','Infrastructure','Mobile Development','Software Development','Web Platform','Business Consulting','General'];
   // Sales pipeline stages in order; Delivery uses its own vocabulary.
-  const salesStatuses = ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','PO / Award Granted','SLA Signed','Awaiting Client Approval','Closed','On Hold','Cancelled'];
+  const salesStatuses = ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','PO / Award Granted','SLA Signed','Closed','On Hold','Cancelled'];
   const deliveryStatuses = ['Not Started','In Progress','On Hold','Awaiting Review','Testing / Quality Assurance','Completed','Closed','Cancelled'];
-  const statuses = ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','PO / Award Granted','SLA Signed','Awaiting Client Approval','Closed','Cancelled','On Hold','Not Started','In Progress','Awaiting Review','Testing / Quality Assurance','Completed'];
+  const statuses = ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','PO / Award Granted','SLA Signed','Closed','Cancelled','On Hold','Not Started','In Progress','Awaiting Review','Testing / Quality Assurance','Completed'];
   const statusColors = {
     'Incoming':'info','Initial Contact':'primary','Requirement Gathering':'purple',
     'Proposal Sent':'warn','Negotiation':'warn','PO / Award Granted':'warn',

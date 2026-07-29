@@ -47,9 +47,14 @@ function milestoneStages(proj){
   // main sequence, which normally ends at Approved (Sales) / Completed (Delivery).
   const viewer = PDMS.getUser();
   const isConsultantView = viewer && (viewer.role === 'Consultant' || viewer.role === 'PMO');
-  const isSales = !isConsultantView && PDMS.stageOf(proj)==='Sales';
+  const D = window.PDMS_DATA;
+  const hasDeliveryStatus = D && D.deliveryStatuses && D.deliveryStatuses.includes(proj.status);
+  const hasSalesStatus = D && D.salesStatuses && D.salesStatuses.includes(proj.status);
+  // Use delivery timeline if the project is currently on a delivery status,
+  // or if viewer is a Consultant/PMO (always delivery context).
+  const isSales = !isConsultantView && !hasDeliveryStatus && hasSalesStatus;
   const mainSequence = isSales
-    ? ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','PO / Award Granted','SLA Signed','Awaiting Client Approval','Closed']
+    ? ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','PO / Award Granted','SLA Signed','Closed']
     : ['Not Started','In Progress','Awaiting Review','Testing / Quality Assurance','Completed'];
   const status = proj.status;
 
@@ -76,9 +81,10 @@ function milestoneStages(proj){
 }
 
 function render(){
-const hasProjects = Array.isArray(D.projects) && D.projects.length > 0;
-const id = hasProjects ? new URLSearchParams(location.hash.replace(/^#/,'')).get('id') || D.projects[0].id : null;
-p = hasProjects ? D.projects.find(x=>x.id===id) || D.projects[0] : null;
+const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+const hasProjects = Array.isArray(liveProjects) && liveProjects.length > 0;
+const id = hasProjects ? new URLSearchParams(location.hash.replace(/^#/,'')).get('id') || liveProjects[0].id : null;
+p = hasProjects ? liveProjects.find(x=>x.id===id) || liveProjects[0] : null;
 
 if(!p){
   document.getElementById('content').innerHTML = window.PDMS_REMOTE ? `
@@ -109,9 +115,26 @@ if(!p){
     (p.lead||'').toLowerCase()===myName ||
     (Array.isArray(p.consultants) && p.consultants.map(n=>n.toLowerCase()).includes(myName))
   );
-  const canAssign = PDMS.can('Assign Consultant') && PDMS.stageOf(p)==='Delivery' && (!isPMO || isAssignedPMO);
-  const canManageStatus = PDMS.canManageStatus(p) && (!isPMO || isAssignedPMO);
-  const canStartDelivery = PDMS.can('Start Delivery') && PDMS.stageOf(p)==='Sales' && p.status==='Approved';
+  // Determine effective stage from current status (more reliable than stored stage field,
+  // since projects moved from sales still carry stage='Sales' in the sheet).
+  const _D = window.PDMS_DATA;
+  const pStage = (_D && _D.deliveryStatuses && _D.deliveryStatuses.includes(p.status)) ? 'Delivery'
+    : (_D && _D.salesStatuses && _D.salesStatuses.includes(p.status)) ? 'Sales'
+    : PDMS.stageOf(p);
+  const isDeliveryStage = pStage === 'Delivery';
+  const isSalesStage = pStage === 'Sales';
+  const canAssign = PDMS.can('Assign Consultant') && isDeliveryStage && (!isPMO || isAssignedPMO);
+  const canManageStatus = user && (
+    (PDMS.isSalesRole(user) && isSalesStage) ||
+    (['HTD','COO','PM Head'].includes(user.role) && isDeliveryStage) ||
+    (isPMO && isDeliveryStage && isAssignedPMO)
+  );
+  const canStartDelivery = PDMS.can('Start Delivery') && isSalesStage && p.status==='Approved';
+  const canEditDetails = user && (
+    (PDMS.isSalesRole(user) && isSalesStage) ||
+    (['HTD','COO','PM Head'].includes(user.role) && isDeliveryStage) ||
+    (isPMO && isDeliveryStage && isAssignedPMO)
+  );
 
   document.getElementById('content').innerHTML = `
 <div style="border-radius:20px;overflow:hidden;margin-bottom:24px;box-shadow:0 8px 32px rgba(29,60,136,.18)">
@@ -133,6 +156,7 @@ if(!p){
         <div style="display:flex;gap:8px;flex-shrink:0;align-self:flex-start">
           ${canStartDelivery?`<button class="btn btn-primary" onclick="startDelivery()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('zap')} Start Delivery</button>`:''}
           ${canManageStatus?`<button class="btn btn-primary" onclick="changeStatus()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('refresh')} Change Status</button>`:''}
+          ${canEditDetails?`<button class="btn btn-primary" onclick="editDetails()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('edit')} Edit Details</button>`:''}
         </div>
       </div>
     </div>
@@ -492,6 +516,47 @@ function uploadDoc(){
   PDMS.modal('Upload Document',`<div class="form-row"><label>File</label><input type="file"/></div><div class="form-row"><label>Description</label><input placeholder="What is this?"/></div>`,
     `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" onclick="this.closest('.modal-backdrop').remove();PDMS.toast('Uploaded','Document uploaded successfully','success')">Upload</button>`);
 }
+function editDetails(){
+  const isSales = PDMS.stageOf(p) === 'Sales';
+  const liveClients = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients) || D.clients;
+  const clientOpts = liveClients.map(c=>`<option value="${PDMS.esc(c.name)}" ${c.name===p.client?'selected':''}>${PDMS.esc(c.name)}</option>`).join('');
+  const typeOpts = D.types.map(t=>`<option ${t===p.type?'selected':''}>${t}</option>`).join('');
+  const prioOpts = D.priorities.map(pr=>`<option ${pr===p.priority?'selected':''}>${pr}</option>`).join('');
+  const modal = PDMS.modal('Edit Project Details',`
+    <div class="form-row"><label>Project Name</label><input id="ed-name" value="${PDMS.esc(p.name||'')}"/></div>
+    <div class="form-row"><label>Client</label><select id="ed-client"><option value="">— Select —</option>${clientOpts}</select></div>
+    <div class="form-row"><label>Type</label><select id="ed-type"><option value="">— Select —</option>${typeOpts}</select></div>
+    <div class="form-row"><label>Workstream</label><input id="ed-workstream" value="${PDMS.esc(p.workstream||p.dept||'')}"/></div>
+    <div class="form-row"><label>Priority</label><select id="ed-priority"><option value="">— Select —</option>${prioOpts}</select></div>
+    <div class="form-row"><label>Start Date</label><input id="ed-start" type="date" value="${PDMS.esc(p.start||'')}"/></div>
+    <div class="form-row"><label>Planned Completion</label><input id="ed-due" type="date" value="${PDMS.esc(p.due||'')}"/></div>
+    ${!isSales?`<div class="form-row"><label>Actual Completion</label><input id="ed-actual" type="date" value="${PDMS.esc(p.actualCompletion||'')}"/></div>`:''}
+    <div class="form-row"><label>Description</label><textarea id="ed-desc" rows="3" style="resize:vertical">${PDMS.esc(p.description||'')}</textarea></div>
+  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ed-save">Save Changes</button>`);
+  modal.querySelector('#ed-save').onclick = function(){
+    const name = modal.querySelector('#ed-name').value.trim();
+    if(!name){ PDMS.toast('Required','Project name is required','error'); return; }
+    const patch = {
+      name,
+      client: modal.querySelector('#ed-client').value,
+      type: modal.querySelector('#ed-type').value,
+      workstream: modal.querySelector('#ed-workstream').value.trim(),
+      priority: modal.querySelector('#ed-priority').value,
+      start: modal.querySelector('#ed-start').value,
+      due: modal.querySelector('#ed-due').value,
+      description: modal.querySelector('#ed-desc').value.trim(),
+    };
+    if(!isSales) patch.actualCompletion = modal.querySelector('#ed-actual').value;
+    const btn = this;
+    PDMS.setButtonLoading(btn, true, 'Saving...');
+    PDMS.api.update('projects', p.id, patch).then(saved=>{
+      Object.assign(p, patch);
+      modal.remove();
+      PDMS.toast('Saved','Project details updated','success');
+      renderProject();
+    }).catch(err=>{ PDMS.setButtonLoading(btn,false); PDMS.toast('Error',err.message||'Could not save','error'); });
+  };
+}
 function changeStatus(){
   const options = PDMS.statusOptionsFor();
   const modal = PDMS.modal('Change Project Status',`<div class="form-row"><label>New Status</label><select id="ns">${options.map(s=>`<option ${s===p.status?'selected':''}>${s}</option>`).join('')}</select></div>`,
@@ -502,12 +567,17 @@ function changeStatus(){
       PDMS.toast('Not allowed',"You don't have permission to set this status",'error');
       return;
     }
-    PDMS.api.update('projects',p.id,{status:newStatus}).then(saved=>{
+    // SLA Signed moves project to delivery — reset to "Not Started" so the
+    // delivery timeline begins fresh rather than sitting at a sales milestone.
+    const savedStatus = newStatus === 'SLA Signed' ? 'Not Started' : newStatus;
+    PDMS.api.update('projects',p.id,{status:savedStatus, stage:'Delivery'}).then(saved=>{
       Object.assign(p,saved);
       modal.remove();
-      PDMS.toast('Status updated','Project status has been updated','success');
+      const label = newStatus === 'SLA Signed' ? 'Moved to Delivery' : 'Status updated';
+      const detail = newStatus === 'SLA Signed' ? `"${p.name}" moved to Projects in Delivery (Not Started)` : 'Project status has been updated';
+      PDMS.toast(label, detail,'success');
       const statusUser = PDMS.getUser();
-      PDMS.notify('Status Changed', `${statusUser.name} (${statusUser.role}) changed "${p.name}" status to "${newStatus}"`, 'refresh', 'project-details.html#id='+p.id);
+      PDMS.notify('Status Changed', `${statusUser.name} (${statusUser.role}) changed "${p.name}" status to "${savedStatus}"`, 'refresh', 'project-details.html#id='+p.id);
       render();
     }).catch(err=>PDMS.toast('Error',err.message||'Could not update status','error'));
   };

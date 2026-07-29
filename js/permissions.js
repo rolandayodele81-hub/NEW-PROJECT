@@ -16,7 +16,7 @@
     'Assign Consultant':    ['HR','HTD','COO','PM Head','PMO','Project Manager','General Admin'],
     'Reassign Project':     ['HTD','COO','PM Head','PMO','Project Manager','General Admin'],
     'Reassign Consultant':  ['HTD','COO','PM Head','PMO','Project Manager','General Admin'],
-    'Change Status':        ['HR','HTD','COO','PM Head','PMO','Project Manager','General Admin'],
+    'Change Status':        ['HR','HTD','COO','PM Head','PMO','Project Manager','Sales','General Admin'],
     'Close Project':        ['HR','HTD','COO','PM Head','PMO','Project Manager','General Admin'],
     'Add Remarks':          ['HR','HTD','COO','PM Head','PMO','Sales','Project Manager','General Admin','Consultant'],
     'View Reports':         ['HR','HTD','COO','PM Head','PMO','Sales','Project Manager','General Admin','Consultant'],

@@ -86,23 +86,22 @@
 
     function render() {
       const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
-      // Sales Pipeline: projects created by Sales (stage=Sales or createdByRole=Sales)
-      const salesProjects = liveProjects.filter(p => {
-        const role = p.createdByRole || '';
-        const stage = p.stage || '';
-        if(stage === 'Sales') return true;
-        if(role === 'Sales' || role === 'Sales Team') return true;
-        if(!stage && !role) return PDMS.stageOf(p) === 'Sales';
+      console.log('[Sales Debug] liveProjects total:', liveProjects.length, liveProjects.map(p=>({id:p.id,stage:p.stage,createdByRole:p.createdByRole,status:p.status})));
+      // Only SLA Signed moves to delivery; Closed stays in sales (lost/cancelled deal)
+      const SLA_DELIVERY_STATUSES = ['SLA Signed'];
+      const DELIVERY_ROLES_LIST = ['HTD','COO','PM Head','Project Manager','PMO','General Admin','HR'];
+      const isSalesProject = p => {
+        const role = (p.createdByRole || '').trim();
+        const stage = (p.stage || '').trim();
+        if(stage === 'Delivery' || DELIVERY_ROLES_LIST.includes(role)) return false;
+        if(stage === 'Sales' || role === 'Sales' || role === 'Sales Team') return true;
+        // Legacy rows with no stage/role: infer from sales status vocabulary
+        if(!stage && !role) return D.salesStatuses && D.salesStatuses.includes(p.status);
         return false;
-      });
-      // Projects in Delivery: projects created directly by a delivery role (not promoted from Sales)
-      const deliveryProjects = liveProjects.filter(p => {
-        const role = p.createdByRole || '';
-        const stage = p.stage || '';
-        if(PDMS.isDeliveryRole({ role })) return true;
-        if(stage === 'Delivery' && role !== 'Sales' && role !== 'Sales Team') return true;
-        return false;
-      });
+      };
+      // Bucket purely by current status
+      const salesProjects = liveProjects.filter(p => D.salesStatuses && D.salesStatuses.includes(p.status));
+      const deliveryProjects = liveProjects.filter(p => (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)) || p.status==='SLA Signed');
       const totalInSales = salesProjects.length;
       const awaitingApproval = salesProjects.filter(p => p.status === 'PO / Award Granted').length;
       const slaSigned = salesProjects.filter(p => p.status === 'SLA Signed').length;
