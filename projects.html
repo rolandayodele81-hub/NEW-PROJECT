@@ -2,8 +2,9 @@
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Projects — PSE PDMS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css"/></head><body>
-<script src="js/config.js"></script><script src="js/data.js"></script><script src="js/utils.js"></script><script src="js/api.js"></script><script src="js/permissions.js"></script><script src="js/app.js"></script>
+<link rel="preload" href="dist/style.css" as="style">
+  <link rel="stylesheet" href="dist/style.css"></head><body>
+<script src="dist/bundle.js" defer></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -329,3 +330,4 @@ function editProject(id){
 }
 window.editProject = editProject;
 </script></body></html>
+

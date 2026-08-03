@@ -6,16 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Users — PSE PDMS</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="preload" href="dist/style.css" as="style">
+  <link rel="stylesheet" href="dist/style.css">
 </head>
 
 <body>
-  <script src="js/config.js"></script>
-  <script src="js/data.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/permissions.js"></script>
-  <script src="js/app.js"></script>
+  <script src="dist/bundle.js" defer></script>
   <script>
     PDMS.mountShell('users');
     const D = PDMS_DATA; const I = PDMS.icon;

@@ -3,15 +3,18 @@ import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import User from '../models/user.model.js';
 import AuditLog from '../models/auditLog.model.js';
+import logger from '../logger.js';
 
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'PSE_SECRET_KEY';
 const JWT_EXPIRES = process.env.JWT_EXPIRES || '2h';
+function isValidEmail(email){ return String(email || '').trim().toLowerCase().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/); }
 
 export const login = async (req, res) => {
   try {
     const { email, password, remember } = req.body;
     if (!email || !password) return res.status(400).json({ message: 'Email and password are required.' });
+    if (!isValidEmail(email)) return res.status(400).json({ message: 'Invalid email format.' });
 
     const user = await User.findOne({ where: { email: email.toLowerCase().trim() } });
     if (!user || !user.is_active) return res.status(401).json({ message: 'Invalid credentials.' });
@@ -31,7 +34,7 @@ export const login = async (req, res) => {
       user: { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department },
     });
   } catch (err) {
-    console.error(err);
+    logger.error('Authentication failed: %o', err);
     return res.status(500).json({ message: 'Authentication failed.', error: err.message });
   }
 };

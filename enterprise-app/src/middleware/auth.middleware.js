@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import User from '../models/user.model.js';
+import logger from '../logger.js';
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ export const authenticate = async (req, res, next) => {
     req.user = { id: user.id, role: user.role, email: user.email, name: user.name };
     next();
   } catch (error) {
+    logger.warn('Unauthorized request: %o', error);
     return res.status(401).json({ message: 'Unauthorized.', error: error.message });
   }
 };
