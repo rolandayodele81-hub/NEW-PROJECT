@@ -66,19 +66,38 @@
   const types = ['Infrastructure','Software Development','Consulting','Digital Transformation','Cloud Migration','ERP Implementation','Cybersecurity','Data Analytics','Mobile App','Web Platform'];
   const priorities = ['Critical','High','Medium','Low'];
   const workstreams = ['Cloud Engineering','Cybersecurity','Data Analytics','Digital Transformation','ERP Implementation','Infrastructure','Mobile Development','Software Development','Web Platform','Business Consulting','General'];
-  const salesStatuses = ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','PO / Award Granted','SLA Signed','Closed','On Hold','Cancelled'];
+  const salesJourney = ['Initial Proposal','Lead','Opportunity','Negotiation','Invoicing','Award/SLA'];
+  const salesStatusAliases = {
+    'Incoming': 'Lead',
+    'Initial Contact': 'Lead',
+    'Requirement Gathering': 'Opportunity',
+    'Proposal Sent': 'Initial Proposal',
+    'Awaiting Client Approval': 'Award/SLA',
+    'PO / Award Granted': 'Award/SLA',
+    'SLA Signed': 'Award/SLA',
+    'Awaiting Account Approval': 'Award/SLA'
+  };
+  const salesStatuses = [...salesJourney, 'Closed','On Hold','Cancelled'];
   const deliveryStatuses = ['Not Started','In Progress','On Hold','Awaiting Review','Testing / Quality Assurance','Completed','Closed','Cancelled'];
   const statuses = [...salesStatuses, 'Awaiting Account Approval', ...deliveryStatuses.filter(s=>!salesStatuses.includes(s))];
   const statusColors = {
-    'Incoming':'info','Initial Contact':'primary','Requirement Gathering':'purple',
-    'Proposal Sent':'warn','Negotiation':'warn','PO / Award Granted':'warn',
-    'SLA Signed':'success','Awaiting Client Approval':'warn',
+    'Initial Proposal':'primary','Lead':'info','Opportunity':'purple',
+    'Negotiation':'warn','Invoicing':'warn','Award/SLA':'success',
     'Awaiting Account Approval':'purple',
     'Closed':'primary','Cancelled':'danger','On Hold':'muted',
     'Not Started':'muted','In Progress':'warn','Awaiting Review':'warn',
     'Testing / Quality Assurance':'purple','Completed':'success'
   };
+  Object.assign(statusColors, {
+    'Incoming':'info','Initial Contact':'info','Requirement Gathering':'purple',
+    'Proposal Sent':'primary','Awaiting Client Approval':'success',
+    'PO / Award Granted':'success','SLA Signed':'success'
+  });
   const prioColors = {'Critical':'prio-critical','High':'prio-high','Medium':'prio-medium','Low':'prio-low'};
+
+  function normalizeStatus(status){
+    return salesStatusAliases[status] || status;
+  }
 
   // -----------------------------
   // Persisted data collections
@@ -122,10 +141,12 @@
   global.PDMS_DATA = {
     departments, users, consultants, clients, projects,
     notifications, threads, activities, reviews, issues,
-    roles, types, priorities, workstreams, statuses, salesStatuses, deliveryStatuses,
+    roles, types, priorities, workstreams, statuses, salesJourney, salesStatuses, salesStatusAliases, deliveryStatuses,
     statusColors, prioColors,
     tasksFor
   };
+  global.PDMS = global.PDMS || {};
+  global.PDMS.normalizeStatus = normalizeStatus;
 })(window);/* PDMS Utils */
 (function(g){
   const PDMS = g.PDMS = g.PDMS || {};
@@ -785,10 +806,15 @@
   };
 
   PDMS.stageOf = function(project){
+    if(project && project.status === 'Awaiting Account Approval') return 'Delivery';
+    const salesStatuses = (window.PDMS_DATA && window.PDMS_DATA.salesStatuses) || [];
+    const deliveryStatuses = (window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || [];
+    const normalized = PDMS.normalizeStatus ? PDMS.normalizeStatus(project.status) : project.status;
+    if(deliveryStatuses.includes(normalized) || deliveryStatuses.includes(project.status)) return 'Delivery';
+    if(salesStatuses.includes(normalized)) return 'Sales';
     if(project.stage) return project.stage;
     if(project.createdByRole) return DELIVERY_ROLES.includes(project.createdByRole) ? 'Delivery' : 'Sales';
-    const salesStatuses = (window.PDMS_DATA && window.PDMS_DATA.salesStatuses) || [];
-    return salesStatuses.includes(project.status) ? 'Sales' : 'Delivery';
+    return 'Delivery';
   };
 
   PDMS.statusOptionsFor = function(user){
@@ -803,7 +829,8 @@
 
   // Shared status/bucket helpers used across all dashboard pages.
   PDMS.isSalesStatus = function(status){
-    return ((window.PDMS_DATA && window.PDMS_DATA.salesStatuses) || []).includes(status);
+    const normalized = PDMS.normalizeStatus ? PDMS.normalizeStatus(status) : status;
+    return ((window.PDMS_DATA && window.PDMS_DATA.salesStatuses) || []).includes(normalized);
   };
   PDMS.isDeliveryStatus = function(status){
     return ((window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || []).includes(status);
@@ -825,7 +852,7 @@
   const NAV = [
     {section:'Main',items:[
       {id:'dashboard',label:'Dashboard',icon:'dashboard',href:'dashboard.html',roles:'*'},
-      {id:'projects',label:'Projects',icon:'folder',href:'projects.html',roles:['COO','PM Head','Consultant']},
+      {id:'projects',label:'Projects',icon:'folder',href:'projects.html',roles:['COO','Consultant']},
       {id:'clients',label:'Clients',icon:'globe',href:'clients.html',roles:['Sales']},
       {id:'sales-pipeline',label:'Sales Pipeline',icon:'zap',href:'projects.html#view=sales',roles:['Sales','HR','HTD','COO','PM Head','Project Manager']},
       {id:'delivery-projects',label:'Projects in Delivery',icon:'folder',href:'projects.html#view=delivery',roles:['Sales','HR','HTD','COO','PM Head','PMO','Project Manager']},

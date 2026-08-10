@@ -50,14 +50,14 @@ function milestoneStages(proj){
   const isConsultantView = viewer && (viewer.role === 'Consultant' || viewer.role === 'PMO');
   const D = window.PDMS_DATA;
   const hasDeliveryStatus = D && D.deliveryStatuses && D.deliveryStatuses.includes(proj.status);
-  const hasSalesStatus = D && D.salesStatuses && D.salesStatuses.includes(proj.status);
+  const hasSalesStatus = PDMS.isSalesStatus(proj.status);
   // Use delivery timeline if the project is currently on a delivery status,
   // or if viewer is a Consultant/PMO (always delivery context).
   const isSales = !isConsultantView && !hasDeliveryStatus && hasSalesStatus;
   const mainSequence = isSales
-    ? ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','PO / Award Granted','SLA Signed','Closed']
+    ? ['Initial Proposal','Lead','Opportunity','Negotiation','Invoicing','Award/SLA','Closed']
     : ['Not Started','In Progress','Awaiting Review','Testing / Quality Assurance','Completed'];
-  const status = proj.status;
+  const status = PDMS.normalizeStatus ? PDMS.normalizeStatus(proj.status) : proj.status;
 
   if(status==='Cancelled'){
     return mainSequence.map((label,i)=> i===mainSequence.length-1 ? {label:'Cancelled', state:'active'} : {label, state:'done'});
@@ -154,8 +154,9 @@ if(!p){
   // Determine effective stage from current status (more reliable than stored stage field,
   // since projects moved from sales still carry stage='Sales' in the sheet).
   const _D = window.PDMS_DATA;
-  const pStage = (_D && _D.deliveryStatuses && _D.deliveryStatuses.includes(p.status)) ? 'Delivery'
-    : (_D && _D.salesStatuses && _D.salesStatuses.includes(p.status)) ? 'Sales'
+  const normalizedStatus = PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status;
+  const pStage = (_D && _D.deliveryStatuses && (_D.deliveryStatuses.includes(p.status) || _D.deliveryStatuses.includes(normalizedStatus))) ? 'Delivery'
+    : PDMS.isSalesStatus(p.status) ? 'Sales'
     : PDMS.stageOf(p);
   const isDeliveryStage = pStage === 'Delivery';
   const isSalesStage = pStage === 'Sales';
@@ -817,15 +818,15 @@ function changeStatus(){
       PDMS.toast('Not allowed',"You don't have permission to set this status",'error');
       return;
     }
-    // SLA Signed → sent to Accounts for approval before delivery begins.
-    const savedStatus = newStatus === 'SLA Signed' ? 'Awaiting Account Approval' : newStatus;
-    const savedStage  = newStatus === 'SLA Signed' ? 'Delivery' : undefined;
+    // Award/SLA → sent to Accounts for approval before delivery begins.
+    const savedStatus = newStatus === 'Award/SLA' ? 'Awaiting Account Approval' : newStatus;
+    const savedStage  = newStatus === 'Award/SLA' ? 'Delivery' : undefined;
     const patch = savedStage ? {status:savedStatus, stage:savedStage} : {status:savedStatus};
     PDMS.api.update('projects',p.id,patch).then(saved=>{
       Object.assign(p,saved);
       modal.remove();
-      const label = newStatus === 'SLA Signed' ? 'Sent for Account Approval' : 'Status updated';
-      const detail = newStatus === 'SLA Signed' ? `"${p.name}" is awaiting financial approval before delivery begins` : 'Project status has been updated';
+      const label = newStatus === 'Award/SLA' ? 'Sent for Account Approval' : 'Status updated';
+      const detail = newStatus === 'Award/SLA' ? `"${p.name}" is awaiting financial approval before delivery begins` : 'Project status has been updated';
       PDMS.toast(label, detail,'success');
       const statusUser = PDMS.getUser();
       PDMS.notify('Status Changed', `${statusUser.name} (${statusUser.role}) changed "${p.name}" status to "${savedStatus}"`, 'refresh', 'project-details.html#id='+p.id);

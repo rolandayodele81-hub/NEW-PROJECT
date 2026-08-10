@@ -158,7 +158,7 @@
       const currentUser = PDMS.getUser();
       const isPMO = currentUser && currentUser.role === 'PMO';
       const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
-      const salesProjects = liveProjects.filter(p => D.salesStatuses && D.salesStatuses.includes(p.status));
+      const salesProjects = liveProjects.filter(p => PDMS.isSalesStatus(p.status));
       const deliveryProjects = isPMO
         ? liveProjects.filter(p => {
             const myName = (currentUser.name || '').toLowerCase();
@@ -563,13 +563,6 @@
                 </div>
               </div>
               <div class="np-field">
-                <label>Project Name<span class="np-required">*</span></label>
-                <div class="np-ac-wrap">
-                  <input id="npName" autocomplete="off" placeholder="Enter project name…"/>
-                  <div class="np-ac-drop" id="npNameDrop"></div>
-                </div>
-              </div>
-              <div class="np-field">
                 <label>Project Type</label>
                 <input id="npType" type="text" placeholder="e.g. Software Development"/>
               </div>
@@ -610,10 +603,8 @@
       `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="npCreateBtn">${I('plus')} Create Project</button>`);
 
       npMakeAc(modal.querySelector('#npClient'), modal.querySelector('#npClientDrop'), () => D.clients.map(c => c.name));
-      npMakeAc(modal.querySelector('#npName'), modal.querySelector('#npNameDrop'), () => D.projects.map(p => p.name));
 
       modal.querySelector('#npCreateBtn').onclick = function () {
-        const name = modal.querySelector('#npName').value.trim();
         const clientTyped = modal.querySelector('#npClient').value.trim();
         const type = modal.querySelector('#npType').value.trim();
         const workstream = modal.querySelector('#npWorkstream').value.trim();
@@ -622,7 +613,7 @@
         const due = modal.querySelector('#npDue').value;
         const actualCompletion = modal.querySelector('#npActual').value;
         const desc = modal.querySelector('#npDesc').value.trim();
-        if (!name || !clientTyped) { PDMS.toast('Missing info', 'Project name and client are required', 'error'); return; }
+        if (!clientTyped) { PDMS.toast('Missing info', 'Client is required', 'error'); return; }
         const btn = this;
         PDMS.setButtonLoading(btn, true, 'Creating...');
         setTimeout(() => PDMS.setButtonLoading(btn, false), 10000);
@@ -631,7 +622,7 @@
         ensureClient.then(client => {
           if (!existingClient) D.clients.unshift(client);
           return PDMS.api.create('projects', {
-            name, client: client.name, type, workstream, dept: workstream,
+            name: client.name, client: client.name, type, workstream, dept: workstream,
             sales: '', pm: '', lead: '', consultants: [],
             status, stage: 'Delivery', createdByRole: user ? user.role : 'HTD', progress: 0,
             start: start || '', due: due || '', actualCompletion: actualCompletion || '', completion: null,

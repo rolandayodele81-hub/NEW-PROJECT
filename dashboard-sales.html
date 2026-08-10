@@ -83,16 +83,15 @@
     function render() {
       const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
       // Bucket purely by current status
-      const salesProjects = liveProjects.filter(p => D.salesStatuses && D.salesStatuses.includes(p.status));
-      const deliveryProjects = liveProjects.filter(p => (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)) || p.status==='SLA Signed');
+      const salesProjects = liveProjects.filter(p => PDMS.isSalesStatus(p.status));
+      const deliveryProjects = liveProjects.filter(p => (D.deliveryStatuses && D.deliveryStatuses.includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status)) || p.status==='Awaiting Account Approval');
       const totalInSales = salesProjects.length;
-      const awaitingApproval = salesProjects.filter(p => p.status === 'PO / Award Granted').length;
-      const slaSigned = salesProjects.filter(p => p.status === 'SLA Signed').length;
+      const awardSla = salesProjects.filter(p => ['Award/SLA','Awaiting Account Approval'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status)).length;
       const closedCount = salesProjects.filter(p => p.status === 'Closed').length;
 
       // Pipeline conversion funnel: how many projects are sitting at each stage right now.
-      const funnelStages = ['Incoming', 'Initial Contact', 'Requirement Gathering', 'Proposal Sent', 'Negotiation', 'PO / Award Granted', 'SLA Signed', 'Awaiting Client Approval', 'Closed'];
-      const funnelCounts = funnelStages.map(s => salesProjects.filter(p => p.status === s).length);
+      const funnelStages = ['Initial Proposal', 'Lead', 'Opportunity', 'Negotiation', 'Invoicing', 'Award/SLA'];
+      const funnelCounts = funnelStages.map(s => salesProjects.filter(p => (PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status) === s).length);
       const funnelMax = Math.max(...funnelCounts, 1);
       const offRampCounts = {
         Cancelled: salesProjects.filter(p => p.status === 'Cancelled').length,
@@ -127,21 +126,21 @@
         <div class="icon-wrap">${I('folder')}</div>
       </div>
       <div class="stat i-warn">
-        <div class="label">Award Granted</div>
-        <div class="value">${awaitingApproval}</div>
-        <div class="delta up">PO / Award granted</div>
+        <div class="label">Award/SLA</div>
+        <div class="value">${awardSla}</div>
+        <div class="delta up">Awards and SLA handoffs</div>
         <div class="icon-wrap">${I('clock')}</div>
       </div>
       <div class="stat i-success">
-        <div class="label">SLA Signed</div>
-        <div class="value">${slaSigned}</div>
-        <div class="delta up">Agreements executed</div>
+        <div class="label">Closed</div>
+        <div class="value">${closedCount}</div>
+        <div class="delta up">Formally closed deals</div>
         <div class="icon-wrap">${I('check')}</div>
       </div>
       <div class="stat i-muted">
-        <div class="label">Closed</div>
-        <div class="value">${closedCount}</div>
-        <div class="delta">Formally closed deals</div>
+        <div class="label">Pipeline Stages</div>
+        <div class="value">6</div>
+        <div class="delta">Updated journey</div>
         <div class="icon-wrap">${I('zap')}</div>
       </div>
     </div>
@@ -212,7 +211,6 @@
             <thead>
               <tr>
                 <th>Project ID</th>
-                <th>Project Name</th>
                 <th>Client Partner</th>
                 <th>Workstream</th>
                 <th>Stage</th>
@@ -223,12 +221,11 @@
               ${salesProjects.map(p => `
                 <tr>
                   <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
-                  <td class="font-bold">${PDMS.esc(p.name)}</td>
-                  <td>${PDMS.esc(p.client)}</td>
+                  <td class="font-bold">${PDMS.esc(p.client||p.name||'—')}</td>
                   <td>${PDMS.esc(p.workstream||p.dept||'—')}</td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
                   <td><a href="project-details.html#id=${p.id}" class="btn btn-secondary btn-sm">Manage</a></td>
-                </tr>`).join('') || `<tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects yet')}</td></tr>`}
+                </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects yet')}</td></tr>`}
             </tbody>
           </table>
         </div>
@@ -252,7 +249,6 @@
             <thead>
               <tr>
                 <th>Project ID</th>
-                <th>Project Name</th>
                 <th>Client Partner</th>
                 <th>Workstream</th>
                 <th>PM</th>
@@ -263,12 +259,11 @@
               ${deliveryProjects.map(p => `
                 <tr>
                   <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
-                  <td class="font-bold">${PDMS.esc(p.name)}</td>
-                  <td>${PDMS.esc(p.client)}</td>
+                  <td class="font-bold">${PDMS.esc(p.client||p.name||'—')}</td>
                   <td>${PDMS.esc(p.workstream||p.dept||'—')}</td>
                   <td>${PDMS.esc(p.pm || 'TBD')}</td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
-                </tr>`).join('') || `<tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No projects in delivery yet')}</td></tr>`}
+                </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No projects in delivery yet')}</td></tr>`}
             </tbody>
           </table>
         </div>
@@ -279,37 +274,43 @@
 
     function newDeal() {
       const statusOptions = D.salesStatuses;
+      const clientNames = (D.clients || []).map(c => c.name).filter(Boolean);
       const modal = PDMS.modal('New Deal Intake', `
     <div class="form-grid">
-      <div class="form-row"><label>Client</label><select id="newProjClient">${D.clients.map(c => `<option>${c.name}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Project Name</label><input id="newProjName" placeholder="e.g. Falcon Migration"/></div>
+      <div class="form-row"><label>Client</label><input id="newProjClient" list="newProjClientList" placeholder="Search existing clients..." autocomplete="off"/></div>
       <div class="form-row"><label>Type</label><input id="newProjType" type="text" placeholder="e.g. Software Development"/></div>
       <div class="form-row"><label>Workstream</label><select id="newProjDept">${(D.workstreams||[]).map(w => `<option>${w}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Status</label><select id="newProjStatus">${statusOptions.map(s => `<option${s === 'Incoming' ? ' selected' : ''}>${s}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Status</label><select id="newProjStatus">${statusOptions.map((s, i) => `<option${i === 0 ? ' selected' : ''}>${s}</option>`).join('')}</select></div>
       <div class="form-row"><label>Start Date</label><input id="newProjStart" type="date"/></div>
       <div class="form-row"><label>Planned Completion</label><input id="newProjDue" type="date"/></div>
     </div>
+    <datalist id="newProjClientList">${clientNames.map(name => `<option value="${PDMS.esc(name)}"></option>`).join('')}</datalist>
     <div class="form-row"><label>Description</label><textarea id="newProjDesc" rows="3" placeholder="Scope, goals, deliverables..."></textarea></div>
   `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createProjectBtn">${I('plus')} Create Deal</button>`);
 
       modal.querySelector('#createProjectBtn').onclick = function () {
-        const name = modal.querySelector('#newProjName').value.trim();
-        const client = modal.querySelector('#newProjClient').value;
+        const clientTyped = modal.querySelector('#newProjClient').value.trim();
+        const existingClient = (D.clients || []).find(c => (c.name || '').toLowerCase() === clientTyped.toLowerCase());
         const type = modal.querySelector('#newProjType').value.trim();
         const workstream = modal.querySelector('#newProjDept').value;
         const status = modal.querySelector('#newProjStatus').value;
         const start = modal.querySelector('#newProjStart').value;
         const due = modal.querySelector('#newProjDue').value;
         const desc = modal.querySelector('#newProjDesc').value.trim();
-        if (!name || !client) {
-          PDMS.toast('Missing project info', 'Project name and client are required', 'error');
+        if (!clientTyped) {
+          PDMS.toast('Missing project info', 'Client is required', 'error');
           return;
         }
+        if (!existingClient) {
+          PDMS.toast('Invalid client', 'Select an existing client from the client table', 'error');
+          return;
+        }
+        const client = existingClient.name;
         const btn = this;
         PDMS.setButtonLoading(btn, true, 'Creating...');
         setTimeout(() => PDMS.setButtonLoading(btn, false), 10000);
         const record = {
-          name, client, type, workstream, dept: workstream, sales: 'Sales Team', pm: '', lead: '', consultants: [],
+          name: client, client, type, workstream, dept: workstream, sales: 'Sales Team', pm: '', lead: '', consultants: [],
           status, stage: 'Sales', createdByRole: 'Sales', progress: 0, start: start || '', due: due || '', completion: null,
           description: desc, files: 0, remarks: 0
         };

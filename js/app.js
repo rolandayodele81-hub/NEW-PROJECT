@@ -5,7 +5,7 @@
   const NAV = [
     {section:'Main',items:[
       {id:'dashboard',label:'Dashboard',icon:'dashboard',href:'dashboard.html',roles:'*'},
-      {id:'projects',label:'Projects',icon:'folder',href:'projects.html',roles:['COO','PM Head','Consultant']},
+      {id:'projects',label:'Projects',icon:'folder',href:'projects.html',roles:['COO','Consultant']},
       {id:'clients',label:'Clients',icon:'globe',href:'clients.html',roles:['Sales']},
       {id:'sales-pipeline',label:'Sales Pipeline',icon:'zap',href:'projects.html#view=sales',roles:['Sales','HR','HTD','COO','PM Head','Project Manager']},
       {id:'delivery-projects',label:'Projects in Delivery',icon:'folder',href:'projects.html#view=delivery',roles:['Sales','HR','HTD','COO','PM Head','PMO','Project Manager']},

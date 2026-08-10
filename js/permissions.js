@@ -61,10 +61,15 @@
   };
 
   PDMS.stageOf = function(project){
+    if(project && project.status === 'Awaiting Account Approval') return 'Delivery';
+    const salesStatuses = (window.PDMS_DATA && window.PDMS_DATA.salesStatuses) || [];
+    const deliveryStatuses = (window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || [];
+    const normalized = PDMS.normalizeStatus ? PDMS.normalizeStatus(project.status) : project.status;
+    if(deliveryStatuses.includes(normalized) || deliveryStatuses.includes(project.status)) return 'Delivery';
+    if(salesStatuses.includes(normalized)) return 'Sales';
     if(project.stage) return project.stage;
     if(project.createdByRole) return DELIVERY_ROLES.includes(project.createdByRole) ? 'Delivery' : 'Sales';
-    const salesStatuses = (window.PDMS_DATA && window.PDMS_DATA.salesStatuses) || [];
-    return salesStatuses.includes(project.status) ? 'Sales' : 'Delivery';
+    return 'Delivery';
   };
 
   PDMS.statusOptionsFor = function(user){
@@ -79,7 +84,8 @@
 
   // Shared status/bucket helpers used across all dashboard pages.
   PDMS.isSalesStatus = function(status){
-    return ((window.PDMS_DATA && window.PDMS_DATA.salesStatuses) || []).includes(status);
+    const normalized = PDMS.normalizeStatus ? PDMS.normalizeStatus(status) : status;
+    return ((window.PDMS_DATA && window.PDMS_DATA.salesStatuses) || []).includes(normalized);
   };
   PDMS.isDeliveryStatus = function(status){
     return ((window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || []).includes(status);
