@@ -36,8 +36,8 @@ function scopedProjects(){
     });
   }
   // Bucket purely by current status: sales statuses → Sales Pipeline, delivery statuses → Delivery
-  if(viewParam==='sales') return liveProjects.filter(p => PDMS.isSalesStatus(p.status));
-  if(viewParam==='delivery') return liveProjects.filter(p => (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)) || p.status==='Awaiting Account Approval');
+  if(viewParam==='sales') return liveProjects.filter(p => PDMS.isSalesStatus(p.status) || p.status==='Awaiting Account Approval');
+  if(viewParam==='delivery') return liveProjects.filter(p => D.deliveryStatuses && D.deliveryStatuses.includes(p.status));
   return liveProjects;
 }
 // Each bucket is filtered/kanban'd using its own status vocabulary.

@@ -83,8 +83,8 @@
     function render() {
       const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
       // Bucket purely by current status
-      const salesProjects = liveProjects.filter(p => PDMS.isSalesStatus(p.status));
-      const deliveryProjects = liveProjects.filter(p => (D.deliveryStatuses && D.deliveryStatuses.includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status)) || p.status==='Awaiting Account Approval');
+      const salesProjects = liveProjects.filter(p => PDMS.isSalesStatus(p.status) || p.status==='Awaiting Account Approval');
+      const deliveryProjects = liveProjects.filter(p => D.deliveryStatuses && D.deliveryStatuses.includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status));
       const totalInSales = salesProjects.length;
       const awardSla = salesProjects.filter(p => ['Award/SLA','Awaiting Account Approval'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status)).length;
       const closedCount = salesProjects.filter(p => p.status === 'Closed').length;

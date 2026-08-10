@@ -111,10 +111,10 @@
         <div class="icon-wrap">${I('folder')}</div>
       </div>
       <div class="stat i-warn">
-        <div class="label">In Progress</div>
-        <div class="value">${liveProjects.filter(p=>p.status==='In Progress').length}</div>
-        <div class="delta up">Actively executing</div>
-        <div class="icon-wrap">${I('activity')}</div>
+        <div class="label">Total in Sales</div>
+        <div class="value">${liveProjects.filter(p=>PDMS.isSalesStatus(p.status)||p.status==='Awaiting Account Approval').length}</div>
+        <div class="delta up">Active sales pipeline</div>
+        <div class="icon-wrap">${I('chart')}</div>
       </div>
       <div class="stat i-primary">
         <div class="label">Completed</div>
@@ -132,7 +132,7 @@
             <span class="pending-dot"></span>
             Projects Awaiting Approval
           </div>
-          <div class="card-sub">Review each project before it enters delivery. Approved projects move to "Not Started".</div>
+          <div class="card-sub">Click any row to view project details. Approved projects move to "Not Started".</div>
         </div>
         <span class="pending-badge"><span class="pending-dot"></span>${pending.length} pending</span>
       </div>
@@ -152,7 +152,6 @@
                 <th>Client</th>
                 <th>Type</th>
                 <th>Workstream</th>
-                <th>Priority</th>
                 <th style="text-align:right">Actions</th>
               </tr>
             </thead>
@@ -160,20 +159,18 @@
               ${pending.map(p => {
                 const clientObj = liveClients.find(c => c.name===p.client||c.email===p.client||c.id===p.client);
                 const clientName = (clientObj && clientObj.name) || p.client || '—';
-                return `<tr>
+                return `<tr style="cursor:pointer" onclick="location.href='project-details.html#id=${p.id}'">
                   <td>
-                    <div style="font-weight:700;color:var(--text)">${PDMS.esc(p.name)}</div>
+                    <div style="font-weight:700;color:var(--primary)">${PDMS.esc(p.name)}</div>
                     <div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(p.id)}</div>
                   </td>
                   <td class="font-semi">${PDMS.esc(clientName)}</td>
                   <td class="text-muted">${PDMS.esc(p.type||'—')}</td>
                   <td class="text-muted">${PDMS.esc(p.workstream||p.dept||'—')}</td>
-                  <td><span class="badge badge-${D.prioColors[p.priority]||'muted'}">${PDMS.esc(p.priority||'—')}</span></td>
                   <td>
                     <div class="action-row" style="justify-content:flex-end">
-                      <button class="btn btn-secondary btn-sm" onclick="viewProject('${p.id}')">${I('folder')} View</button>
-                      <button class="approve-btn" onclick="approveProject('${p.id}',this)">✓ Approve</button>
-                      <button class="reject-btn" onclick="rejectProject('${p.id}',this)">✕ Reject</button>
+                      <button class="approve-btn" onclick="event.stopPropagation();approveProject('${p.id}',this)">✓ Approve</button>
+                      <button class="reject-btn" onclick="event.stopPropagation();rejectProject('${p.id}',this)">✕ Reject</button>
                     </div>
                   </td>
                 </tr>`;
@@ -228,10 +225,10 @@
     const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
     const p = liveProjects.find(x => x.id === id);
     if (!p) { PDMS.toast('Error', 'Project not found', 'error'); PDMS.setButtonLoading(btn, false); return; }
-    PDMS.api.update('projects', id, { status: 'Not Started' })
+    PDMS.api.update('projects', id, { status: 'In Progress', stage: 'Delivery' })
       .then(() => {
-        p.status = 'Not Started';
-        PDMS.toast('Approved', `"${p.name}" has been approved and moved to delivery.`, 'success');
+        p.status = 'In Progress'; p.stage = 'Delivery';
+        PDMS.toast('Approved', `"${p.name}" has been approved and moved to In Progress in delivery.`, 'success');
         render();
       })
       .catch(err => {

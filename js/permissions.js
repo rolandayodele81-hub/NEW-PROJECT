@@ -61,7 +61,7 @@
   };
 
   PDMS.stageOf = function(project){
-    if(project && project.status === 'Awaiting Account Approval') return 'Delivery';
+    if(project && project.status === 'Awaiting Account Approval') return 'Sales';
     const salesStatuses = (window.PDMS_DATA && window.PDMS_DATA.salesStatuses) || [];
     const deliveryStatuses = (window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || [];
     const normalized = PDMS.normalizeStatus ? PDMS.normalizeStatus(project.status) : project.status;
@@ -91,7 +91,7 @@
     return ((window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || []).includes(status);
   };
   PDMS.projectBucket = function(project){
-    if(project.status === 'Awaiting Account Approval') return 'Delivery'; // pending but locked
+    if(project.status === 'Awaiting Account Approval') return 'Sales'; // pending but locked
     if(PDMS.isDeliveryStatus(project.status)) return 'Delivery';
     if(PDMS.isSalesStatus(project.status)) return 'Sales';
     return 'Delivery';

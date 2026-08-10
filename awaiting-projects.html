@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Awaiting Approval — PSE PDMS</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .approve-btn {
+      padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+      background:#10b981;color:#fff;border:none;transition:opacity .15s;
+    }
+    .approve-btn:hover { opacity:.85 }
+    .reject-btn {
+      padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+      background:transparent;color:var(--danger);border:1px solid var(--danger);transition:opacity .15s;
+    }
+    .reject-btn:hover { opacity:.7 }
+    .action-row { display:flex;gap:8px;align-items:center }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .pending-dot { width:8px;height:8px;border-radius:50%;background:#7c3aed;display:inline-block;animation:pulse 2s infinite }
+  </style>
+</head>
+<body>
+<script src="js/bundle.js"></script>
+<script>
+  PDMS.mountShell('awaiting-approval');
+  const D = PDMS_DATA; const I = PDMS.icon;
+
+  function render() {
+    const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+    const liveClients  = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients)  || D.clients;
+    const pending = liveProjects.filter(p => p.status === 'Awaiting Account Approval');
+
+    document.getElementById('content').innerHTML = `
+    <div class="page-head">
+      <div>
+        <div class="breadcrumbs"><span>Home</span><span>Awaiting Projects</span></div>
+        <h1 class="page-title">Projects Awaiting Approval</h1>
+        <div class="page-sub">Review and approve projects before they enter active delivery</div>
+      </div>
+      <span style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:20px;font-size:13px;font-weight:700;background:rgba(124,58,237,.1);color:#7c3aed;border:1px solid rgba(124,58,237,.25)">
+        <span class="pending-dot"></span> ${pending.length} pending
+      </span>
+    </div>
+
+    <div class="grid grid-3 mb-4">
+      <div class="stat" style="border:1.5px solid rgba(124,58,237,.25)">
+        <div class="label">Awaiting Review</div>
+        <div class="value" style="color:#7c3aed">${pending.length}</div>
+        <div class="delta">Pending approval</div>
+        <div class="icon-wrap" style="color:#7c3aed">${I('clock')}</div>
+      </div>
+      <div class="stat i-success">
+        <div class="label">Approved</div>
+        <div class="value" id="approvedCount">0</div>
+        <div class="delta up">Moved to delivery</div>
+        <div class="icon-wrap">${I('check')}</div>
+      </div>
+      <div class="stat i-danger">
+        <div class="label">Rejected</div>
+        <div class="value" id="rejectedCount">0</div>
+        <div class="delta">Returned to sales</div>
+        <div class="icon-wrap">${I('zap')}</div>
+      </div>
+    </div>
+
+    <div class="card" style="border:1.5px solid rgba(124,58,237,.25);box-shadow:0 4px 32px rgba(124,58,237,.08)">
+      <div class="card-head">
+        <div>
+          <div class="card-title" style="display:flex;align-items:center;gap:8px">
+            <span class="pending-dot"></span>
+            Pending Financial Review
+          </div>
+          <div class="card-sub">Click a row to open the project. Use Approve or Reject to action each project.</div>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0">
+        ${pending.length === 0 ? `
+          <div style="text-align:center;padding:64px 24px;color:var(--text-soft)">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 16px;display:block;opacity:.35"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <div style="font-size:16px;font-weight:700;margin-bottom:6px">All clear!</div>
+            <div style="font-size:13px">No projects are currently awaiting financial approval.</div>
+          </div>
+        ` : `
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Project</th>
+                <th>Client</th>
+                <th>Type</th>
+                <th>Workstream</th>
+                <th>Status</th>
+                <th style="text-align:right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${pending.map(p => {
+                const clientObj = liveClients.find(c => c.name===p.client||c.email===p.client||c.id===p.client);
+                const clientName = (clientObj && clientObj.name) || p.client || '—';
+                return `<tr style="cursor:pointer" onclick="location.href='project-details.html#id=${p.id}'">
+                  <td>
+                    <div style="font-weight:700;color:var(--primary)">${PDMS.esc(p.name)}</div>
+                    <div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(p.id)}</div>
+                  </td>
+                  <td class="font-semi">${PDMS.esc(clientName)}</td>
+                  <td class="text-muted">${PDMS.esc(p.type||'—')}</td>
+                  <td class="text-muted">${PDMS.esc(p.workstream||p.dept||'—')}</td>
+                  <td><span class="badge" style="background:rgba(124,58,237,.12);color:#7c3aed">Awaiting Approval</span></td>
+                  <td>
+                    <div class="action-row" style="justify-content:flex-end">
+                      <button class="approve-btn" onclick="event.stopPropagation();approveProject('${p.id}',this)">✓ Approve</button>
+                      <button class="reject-btn" onclick="event.stopPropagation();rejectProject('${p.id}',this)">✕ Reject</button>
+                    </div>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`}
+      </div>
+    </div>
+    `;
+  }
+
+  let sessionApproved = 0;
+  let sessionRejected = 0;
+
+  function updateSessionCounts() {
+    const ac = document.getElementById('approvedCount');
+    const rc = document.getElementById('rejectedCount');
+    if (ac) ac.textContent = sessionApproved;
+    if (rc) rc.textContent = sessionRejected;
+  }
+
+  function approveProject(id, btn) {
+    PDMS.setButtonLoading(btn, true, 'Approving...');
+    const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+    const p = liveProjects.find(x => x.id === id);
+    if (!p) { PDMS.toast('Error', 'Project not found', 'error'); PDMS.setButtonLoading(btn, false); return; }
+    PDMS.api.update('projects', id, { status: 'In Progress', stage: 'Delivery' })
+      .then(() => {
+        p.status = 'In Progress'; p.stage = 'Delivery';
+        sessionApproved++;
+        PDMS.toast('Approved', `"${p.name}" has been approved and moved to delivery.`, 'success');
+        render();
+        updateSessionCounts();
+      })
+      .catch(err => {
+        PDMS.setButtonLoading(btn, false);
+        PDMS.toast('Error', err.message || 'Could not approve project', 'error');
+      });
+  }
+
+  function rejectProject(id, btn) {
+    const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+    const p = liveProjects.find(x => x.id === id);
+    if (!p) return;
+
+    const modal = PDMS.modal('Reject Project', `
+      <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">You are about to reject <strong>${PDMS.esc(p.name)}</strong>. The project will be sent back to the Sales team with a note.</p>
+      <div class="form-row"><label>Reason for Rejection</label><textarea id="rejectReason" rows="3" placeholder="Provide a reason so the Sales team can address it..."></textarea></div>
+    `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmRejectBtn" style="background:var(--danger);border-color:var(--danger)">Reject &amp; Return to Sales</button>`);
+
+    modal.querySelector('#confirmRejectBtn').onclick = function() {
+      const reason = modal.querySelector('#rejectReason').value.trim();
+      if (!reason) { PDMS.toast('Required', 'Please provide a rejection reason', 'error'); return; }
+      const btn2 = this;
+      PDMS.setButtonLoading(btn2, true, 'Rejecting...');
+      PDMS.api.update('projects', id, { status: 'Award/SLA', rejectionNote: reason })
+        .then(() => {
+          p.status = 'Award/SLA';
+          modal.remove();
+          sessionRejected++;
+          PDMS.toast('Rejected', `"${p.name}" has been returned to Sales.`, 'warn');
+          render();
+          updateSessionCounts();
+        })
+        .catch(err => {
+          PDMS.setButtonLoading(btn2, false);
+          PDMS.toast('Error', err.message || 'Could not reject project', 'error');
+        });
+    };
+  }
+
+  window.approveProject = approveProject;
+  window.rejectProject = rejectProject;
+  PDMS.onRefresh(render);
+</script>
+</body>
+</html>

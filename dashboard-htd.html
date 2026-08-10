@@ -165,7 +165,7 @@
             const consultants = Array.isArray(p.consultants) ? p.consultants.map(n => n.toLowerCase()) : [];
             return (p.pm || '').toLowerCase() === myName || (p.lead || '').toLowerCase() === myName || consultants.includes(myName);
           })
-        : liveProjects.filter(p => (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)) || p.status === 'Awaiting Account Approval');
+        : liveProjects.filter(p => (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)));
       const allProjects = isPMO ? deliveryProjects : liveProjects;
       const activeProjects = deliveryProjects.length;
       const ongoingProjects = allProjects.filter(p => p.status === 'In Progress').length;
@@ -466,7 +466,7 @@
       <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
       <div class="form-row"><label>Skill Set</label><input id="newUserDept" type="text" placeholder="e.g. Cyber Security"/></div>
       <div class="form-row"><label>Phone</label><input id="newUserPhone" type="text" placeholder="+1 555 123 4567"/></div>
-      <div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="date"/></div>
+      <div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="text" placeholder="MM/DD"/></div>
       <div class="form-row"><label>Date of Entry</label><input id="newUserEntry" type="date"/></div>
     </div>
   `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">${I('check')} Onboard</button>`);

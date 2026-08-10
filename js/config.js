@@ -20,6 +20,18 @@
   }
 
   // ── 2. Background refresh ───────────────────────────────────────────────────
+  function fetchWithRetry(url, retries) {
+    retries = retries || 2;
+    return fetch(url).catch(function(err) {
+      if (retries > 0) {
+        return new Promise(function(resolve) { setTimeout(resolve, 1000); }).then(function() {
+          return fetchWithRetry(url, retries - 1);
+        });
+      }
+      throw err;
+    });
+  }
+
   global.PDMS_REFRESH = function (force) {
     if (!global.PDMS_API_URL || global.PDMS_API_URL.indexOf('REPLACE_WITH') === 0) return;
 
@@ -31,7 +43,7 @@
       } catch(_) {}
     }
 
-    fetch(global.PDMS_API_URL + '?action=bootstrap')
+    fetchWithRetry(global.PDMS_API_URL + '?action=bootstrap')
       .then(function (res) { return res.json(); })
       .then(function (json) {
         if (!json.ok) throw new Error(json.error || 'Bootstrap failed');

@@ -122,7 +122,6 @@ if(!p){
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Client</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.client||'—')}</div></div>
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Project</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.name)}</div></div>
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Type</div><div style="color:var(--text)">${PDMS.esc(p.type||'—')}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Priority</div><div><span class="badge badge-${D.prioColors[p.priority]||'muted'}">${PDMS.esc(p.priority||'—')}</span></div></div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:12px;color:#7c3aed;font-size:13px;font-weight:600;margin-bottom:24px">
@@ -180,6 +179,8 @@ if(!p){
     (['HTD','COO','PM Head'].includes(user.role) && isDeliveryStage) ||
     (isPMO && isDeliveryStage && isAssignedPMO)
   );
+  const isAccountsUser = user && user.role === 'Accounts';
+  const canApproveReject = isAccountsUser && p.status === 'Awaiting Account Approval';
 
   document.getElementById('content').innerHTML = `
 <div style="border-radius:20px;overflow:hidden;margin-bottom:24px;box-shadow:0 8px 32px rgba(29,60,136,.18)">
@@ -198,10 +199,12 @@ if(!p){
           <div style="color:rgba(255,255,255,.7);font-size:13px;margin-bottom:14px">${PDMS.esc(p.name)} &nbsp;·&nbsp; ${PDMS.esc(p.type||'—')}</div>
           <p style="color:rgba(255,255,255,.65);font-size:13px;line-height:1.6;max-width:520px;margin:0">${PDMS.esc(p.description||'No description provided.')}</p>
         </div>
-        <div style="display:flex;gap:8px;flex-shrink:0;align-self:flex-start">
+        <div style="display:flex;gap:8px;flex-shrink:0;align-self:flex-start;flex-wrap:wrap">
           ${canStartDelivery?`<button class="btn btn-primary" onclick="startDelivery()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('zap')} Start Delivery</button>`:''}
           ${canManageStatus?`<button class="btn btn-primary" onclick="changeStatus()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('refresh')} Change Status</button>`:''}
           ${canEditDetails?`<button class="btn btn-primary" onclick="editDetails()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('edit')} Edit Details</button>`:''}
+          ${canApproveReject?`<button id="approveBtn" onclick="approveProjectInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:#10b981;color:#fff;border:none">✓ Approve</button>`:''}
+          ${canApproveReject?`<button id="rejectBtn" onclick="rejectProjectInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.35)">✕ Reject</button>`:''}
         </div>
       </div>
     </div>
@@ -893,6 +896,50 @@ function startDelivery(){
   };
 }
 window.postProjectReview=postProjectReview;window.submitInlineIssue=submitInlineIssue;window.assignTeam=assignTeam;window.uploadDoc=uploadDoc;window.changeStatus=changeStatus;window.startDelivery=startDelivery;
+
+function approveProjectInline(){
+  const btn = document.getElementById('approveBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Approving…'; }
+  PDMS.api.update('projects', p.id, { status: 'In Progress', stage: 'Delivery' })
+    .then(saved => {
+      Object.assign(p, saved);
+      PDMS.toast('Approved', `"${p.name}" has been approved and moved to In Progress in delivery.`, 'success');
+      PDMS.notify('Project Approved', `Accounts approved "${p.name}" — now in delivery`, 'check', 'project-details.html#id='+p.id);
+      render();
+    })
+    .catch(err => {
+      if(btn){ btn.disabled=false; btn.textContent='✓ Approve'; }
+      PDMS.toast('Error', err.message || 'Could not approve project', 'error');
+    });
+}
+
+function rejectProjectInline(){
+  const modal = PDMS.modal('Reject Project', `
+    <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">You are about to reject <strong>${PDMS.esc(p.name)}</strong>. The project will be returned to the Sales team.</p>
+    <div class="form-row"><label>Reason for Rejection</label><textarea id="rejectReason" rows="3" placeholder="Provide a reason so the Sales team can address it..."></textarea></div>
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmRejectBtn" style="background:var(--danger);border-color:var(--danger)">Reject &amp; Return to Sales</button>`);
+
+  modal.querySelector('#confirmRejectBtn').onclick = function(){
+    const reason = modal.querySelector('#rejectReason').value.trim();
+    if(!reason){ PDMS.toast('Required','Please provide a rejection reason','error'); return; }
+    const btn2 = this;
+    PDMS.setButtonLoading(btn2, true, 'Rejecting...');
+    PDMS.api.update('projects', p.id, { status: 'Award/SLA', rejectionNote: reason })
+      .then(saved => {
+        Object.assign(p, saved);
+        modal.remove();
+        PDMS.toast('Rejected', `"${p.name}" has been returned to Sales.`, 'warn');
+        PDMS.notify('Project Rejected', `Accounts rejected "${p.name}" — returned to Sales`, 'zap', 'project-details.html#id='+p.id);
+        render();
+      })
+      .catch(err => {
+        PDMS.setButtonLoading(btn2, false);
+        PDMS.toast('Error', err.message || 'Could not reject project', 'error');
+      });
+  };
+}
+
+window.approveProjectInline=approveProjectInline;window.rejectProjectInline=rejectProjectInline;
 </script></body></html>
 
 

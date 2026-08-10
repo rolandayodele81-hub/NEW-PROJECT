@@ -20,6 +20,18 @@
   }
 
   // ── 2. Background refresh ───────────────────────────────────────────────────
+  function fetchWithRetry(url, retries) {
+    retries = retries || 2;
+    return fetch(url).catch(function(err) {
+      if (retries > 0) {
+        return new Promise(function(resolve) { setTimeout(resolve, 1000); }).then(function() {
+          return fetchWithRetry(url, retries - 1);
+        });
+      }
+      throw err;
+    });
+  }
+
   global.PDMS_REFRESH = function (force) {
     if (!global.PDMS_API_URL || global.PDMS_API_URL.indexOf('REPLACE_WITH') === 0) return;
 
@@ -31,7 +43,7 @@
       } catch(_) {}
     }
 
-    fetch(global.PDMS_API_URL + '?action=bootstrap')
+    fetchWithRetry(global.PDMS_API_URL + '?action=bootstrap')
       .then(function (res) { return res.json(); })
       .then(function (json) {
         if (!json.ok) throw new Error(json.error || 'Bootstrap failed');
@@ -709,12 +721,21 @@
     });
   }
 
+  function fetchWithRetry(url, options, retries = 2) {
+    return fetch(url, options).catch(err => {
+      if (retries > 0) {
+        return new Promise(resolve => setTimeout(resolve, 1000)).then(() => fetchWithRetry(url, options, retries - 1));
+      }
+      throw err;
+    });
+  }
+
   function post(action, payload) {
     if (!global.PDMS_API_URL || global.PDMS_API_URL.indexOf('REPLACE_WITH') === 0) {
       if (isLocalMode) return localPost(action, payload);
       return Promise.reject(new Error('Set PDMS_API_URL in js/config.js first'));
     }
-    return fetch(global.PDMS_API_URL, {
+    return fetchWithRetry(global.PDMS_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids a CORS preflight against Apps Script
       body: JSON.stringify(Object.assign({ action }, payload))
@@ -806,7 +827,7 @@
   };
 
   PDMS.stageOf = function(project){
-    if(project && project.status === 'Awaiting Account Approval') return 'Delivery';
+    if(project && project.status === 'Awaiting Account Approval') return 'Sales';
     const salesStatuses = (window.PDMS_DATA && window.PDMS_DATA.salesStatuses) || [];
     const deliveryStatuses = (window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || [];
     const normalized = PDMS.normalizeStatus ? PDMS.normalizeStatus(project.status) : project.status;
@@ -836,7 +857,7 @@
     return ((window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || []).includes(status);
   };
   PDMS.projectBucket = function(project){
-    if(project.status === 'Awaiting Account Approval') return 'Delivery'; // pending but locked
+    if(project.status === 'Awaiting Account Approval') return 'Sales'; // pending but locked
     if(PDMS.isDeliveryStatus(project.status)) return 'Delivery';
     if(PDMS.isSalesStatus(project.status)) return 'Sales';
     return 'Delivery';
@@ -873,8 +894,9 @@
       {id:'dashboard',label:'Dashboard',icon:'dashboard',href:'dashboard.html',roles:'*'},
       {id:'projects',label:'Projects',icon:'folder',href:'projects.html',roles:['COO','Consultant']},
       {id:'clients',label:'Clients',icon:'globe',href:'clients.html',roles:['Sales']},
-      {id:'sales-pipeline',label:'Sales Pipeline',icon:'zap',href:'projects.html#view=sales',roles:['Sales','HR','HTD','COO','PM Head','Project Manager']},
-      {id:'delivery-projects',label:'Projects in Delivery',icon:'folder',href:'projects.html#view=delivery',roles:['Sales','HR','HTD','COO','PM Head','PMO','Project Manager']},
+      {id:'awaiting-approval',label:'Awaiting Projects',icon:'clock',href:'awaiting-projects.html',roles:['Accounts']},
+      {id:'sales-pipeline',label:'Sales Pipeline',icon:'zap',href:'projects.html#view=sales',roles:['Sales','HR','HTD','COO','PM Head','Project Manager','Accounts']},
+      {id:'delivery-projects',label:'Projects in Delivery',icon:'folder',href:'projects.html#view=delivery',roles:['Sales','HR','HTD','COO','PM Head','PMO','Project Manager','Accounts']},
     ]},
     {section:'Management',items:[
       {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR']},

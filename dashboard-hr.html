@@ -311,7 +311,7 @@
       <div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div>
       <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
       <div class="form-row"><label>Skill Set</label><input id="newUserDept" type="text" placeholder="e.g. Design"/></div>
-      <div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="date"/></div>
+      <div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="text" placeholder="MM/DD"/></div>
     </div>
   `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">${I('check')} Onboard</button>`);
 

@@ -119,12 +119,21 @@
     });
   }
 
+  function fetchWithRetry(url, options, retries = 2) {
+    return fetch(url, options).catch(err => {
+      if (retries > 0) {
+        return new Promise(resolve => setTimeout(resolve, 1000)).then(() => fetchWithRetry(url, options, retries - 1));
+      }
+      throw err;
+    });
+  }
+
   function post(action, payload) {
     if (!global.PDMS_API_URL || global.PDMS_API_URL.indexOf('REPLACE_WITH') === 0) {
       if (isLocalMode) return localPost(action, payload);
       return Promise.reject(new Error('Set PDMS_API_URL in js/config.js first'));
     }
-    return fetch(global.PDMS_API_URL, {
+    return fetchWithRetry(global.PDMS_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids a CORS preflight against Apps Script
       body: JSON.stringify(Object.assign({ action }, payload))
