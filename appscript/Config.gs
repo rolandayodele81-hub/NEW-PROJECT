@@ -24,6 +24,17 @@ var ENTITIES = {
   issues: { sheet: 'Issues', idPrefix: 'IS', textFields: ['time'], jsonFields: [] }
 };
 
+function getDocFolderId_() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty('DOC_FOLDER_ID');
+  if (!id) {
+    var folder = DriveApp.createFolder('PSE PDMS Documents');
+    id = folder.getId();
+    props.setProperty('DOC_FOLDER_ID', id);
+  }
+  return id;
+}
+
 function entityConfig_(entityKey) {
   var cfg = ENTITIES[entityKey];
   if (!cfg) throw new Error('Unknown entity: ' + entityKey);

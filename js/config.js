@@ -1,52 +1,44 @@
-/* PDMS Config — single source of truth for the backend URL, and the
-   cache-first data bootstrap: pages render instantly from whatever's
-   cached (or the seed data in js/data.js if there's no cache yet), while
-   a background fetch refreshes the cache and notifies pages when fresh
-   data lands. No page ever blocks on the network. */
+/* PDMS Config — cache-first bootstrap.
+   Pages render instantly from localStorage cache; a background fetch
+   refreshes the cache and fires pdms:refresh when fresh data lands. */
 (function (global) {
-  const isLocalFile = location.protocol === 'file:';
-  const isLocalHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(location.hostname);
-  const isLocalMode = isLocalFile || isLocalHost;
-  const LOCAL_RESET_KEY = 'pdms-local-reset-v2';
   global.PDMS_API_URL = 'https://script.google.com/macros/s/AKfycbx63abHDM6FNFJ092t02DDkCyFrsPz6k5Pi5vuYan2pybiEnyWkmPibKX5wgfkuE5aK/exec';
 
   var CACHE_KEY = 'pdms-cache';
+  var CACHE_TS_KEY = 'pdms-cache-ts';
+  var CACHE_TTL = 30 * 1000; // refresh in background if cache is older than 30s
 
+  // ── 1. Serve cache immediately so the page renders without waiting ──────────
   try {
-    // Bypassing localStorage cache to ensure we always retrieve directly from the Google Sheet
-  } catch (e) { /* corrupt cache — fall through to seed data */ }
-
-  function resetLocalDataIfStale() {
-    if (!isLocalMode) return;
-    if (localStorage.getItem(LOCAL_RESET_KEY) === 'done') return;
-    try {
-      const raw = localStorage.getItem('pdms-local-data');
-      if (raw) {
-        localStorage.removeItem('pdms-local-data');
-        localStorage.removeItem('pdms-user');
-      } else {
-        localStorage.removeItem('pdms-user');
-      }
-    } catch (e) {
-      localStorage.removeItem('pdms-local-data');
-      localStorage.removeItem('pdms-user');
+    var cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      var data = JSON.parse(cached);
+      global.PDMS_REMOTE = data;
     }
-    localStorage.setItem(LOCAL_RESET_KEY, 'done');
+  } catch (e) {
+    try { localStorage.removeItem(CACHE_KEY); } catch(_) {}
   }
 
-  if (isLocalMode) {
-    localStorage.removeItem(CACHE_KEY);
-    resetLocalDataIfStale();
-    global.PDMS_REMOTE = null;
-  }
-
-  global.PDMS_REFRESH = function () {
+  // ── 2. Background refresh ───────────────────────────────────────────────────
+  global.PDMS_REFRESH = function (force) {
     if (!global.PDMS_API_URL || global.PDMS_API_URL.indexOf('REPLACE_WITH') === 0) return;
+
+    // Skip refresh if cache is fresh enough (unless forced)
+    if (!force) {
+      try {
+        var ts = parseInt(localStorage.getItem(CACHE_TS_KEY) || '0', 10);
+        if (Date.now() - ts < CACHE_TTL) return;
+      } catch(_) {}
+    }
+
     fetch(global.PDMS_API_URL + '?action=bootstrap')
       .then(function (res) { return res.json(); })
       .then(function (json) {
         if (!json.ok) throw new Error(json.error || 'Bootstrap failed');
-        localStorage.setItem(CACHE_KEY, JSON.stringify(json.data));
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(json.data));
+          localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+        } catch(_) {}
         global.PDMS_REMOTE = json.data;
         if (global.PDMS_DATA) {
           Object.keys(json.data).forEach(function (key) { global.PDMS_DATA[key] = json.data[key]; });
@@ -54,13 +46,12 @@
         document.dispatchEvent(new CustomEvent('pdms:refresh', { detail: json.data }));
       })
       .catch(function () {
-        /* Backend unreachable — treat local seed data as the source of truth so
-           pages render properly instead of staying in "Loading..." forever. */
-        if (global.PDMS_DATA) {
+        if (!global.PDMS_REMOTE && global.PDMS_DATA) {
           global.PDMS_REMOTE = global.PDMS_DATA;
           document.dispatchEvent(new CustomEvent('pdms:refresh', { detail: global.PDMS_DATA }));
-        } else {
-          document.dispatchEvent(new CustomEvent('pdms:loading-end'));
+        } else if (global.PDMS_REMOTE) {
+          // Already have cached data — just notify pages to render with it
+          document.dispatchEvent(new CustomEvent('pdms:refresh', { detail: global.PDMS_REMOTE }));
         }
       });
   };

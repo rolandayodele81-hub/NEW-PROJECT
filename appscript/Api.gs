@@ -37,6 +37,14 @@ function doPost(e) {
       }
       case 'register':
         return jsonOutput_({ ok: true, data: Auth.register(body.account) });
+      case 'uploaddoc': {
+        var folder = DriveApp.getFolderById(getDocFolderId_());
+        var bytes = Utilities.base64Decode(body.base64);
+        var blob = Utilities.newBlob(bytes, body.mimeType || 'application/octet-stream', body.fileName);
+        var file = folder.createFile(blob);
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        return jsonOutput_({ ok: true, data: { url: file.getUrl(), fileId: file.getId() } });
+      }
       default:
         return jsonOutput_({ ok: false, error: 'Unknown action: ' + action });
     }

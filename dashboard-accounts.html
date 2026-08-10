@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Accounts Dashboard — PSE PDMS</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .accounts-hero {
+      display: grid;
+      grid-template-columns: 1.4fr 0.6fr;
+      gap: 20px;
+      padding: 28px 30px;
+      border-radius: 28px;
+      background: linear-gradient(135deg, #0f0a1e 0%, #2d1b69 40%, #7c3aed 75%, #a855f7 100%);
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(124,58,237,.3);
+      margin-bottom: 24px;
+    }
+    .accounts-hero::before {
+      content:"";position:absolute;inset:-20% -10% auto auto;
+      width:340px;height:340px;
+      background:radial-gradient(circle,rgba(255,255,255,.18),rgba(255,255,255,0) 70%);
+      filter:blur(12px);animation:drift 9s ease-in-out infinite alternate;
+    }
+    .accounts-hero-copy { position:relative;z-index:1 }
+    .accounts-hero-stat {
+      position:relative;z-index:1;
+      display:flex;flex-direction:column;justify-content:center;gap:6px;
+      padding:20px;border-radius:20px;
+      background:rgba(255,255,255,.1);backdrop-filter:blur(12px);
+      border:1px solid rgba(255,255,255,.18);
+    }
+    @keyframes drift { from{transform:translate3d(0,0,0)} to{transform:translate3d(-18px,-10px,0)} }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .pending-badge {
+      display:inline-flex;align-items:center;gap:6px;
+      padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;
+      background:rgba(124,58,237,.12);color:#7c3aed;border:1px solid rgba(124,58,237,.25);
+    }
+    .pending-dot { width:7px;height:7px;border-radius:50%;background:#7c3aed;animation:pulse 2s infinite }
+    .action-row { display:flex;gap:8px;align-items:center }
+    .approve-btn {
+      padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+      background:#10b981;color:#fff;border:none;transition:opacity .15s;
+    }
+    .approve-btn:hover { opacity:.85 }
+    .reject-btn {
+      padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+      background:transparent;color:var(--danger);border:1px solid var(--danger);transition:opacity .15s;
+    }
+    .reject-btn:hover { opacity:.7 }
+    @media(max-width:820px){
+      .accounts-hero{grid-template-columns:1fr}
+      .accounts-hero-stat{margin-top:8px}
+    }
+  </style>
+</head>
+<body>
+<script src="js/bundle.js"></script>
+<script>
+  PDMS.mountShell('dashboard');
+  const D = PDMS_DATA; const I = PDMS.icon;
+
+  function render() {
+    const liveProjects  = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects)  || D.projects;
+    const liveClients   = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients)   || D.clients;
+
+    const pending   = liveProjects.filter(p => p.status === 'Awaiting Account Approval');
+    const approved  = liveProjects.filter(p => D.deliveryStatuses && D.deliveryStatuses.includes(p.status) && p.status !== 'Awaiting Account Approval');
+    const allDelivery = liveProjects.filter(p => PDMS.projectBucket(p) === 'Delivery');
+
+    document.getElementById('content').innerHTML = `
+    <div class="accounts-hero">
+      <div class="accounts-hero-copy">
+        <div style="font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;opacity:.7;margin-bottom:8px">Finance & Accounts</div>
+        <h1 class="page-title" style="font-size:28px;line-height:1.15;margin:0 0 8px">Project Financial Review</h1>
+        <p style="font-size:14px;color:rgba(255,255,255,.85);max-width:520px;margin:0 0 20px;line-height:1.6">
+          Review and approve projects that have reached SLA Signed status before they enter active delivery. Your approval gates the start of execution.
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <span style="display:flex;align-items:center;gap:6px;font-size:13px;background:rgba(255,255,255,.12);padding:6px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.2)">
+            <span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;animation:pulse 2s infinite"></span>
+            ${pending.length} awaiting your review
+          </span>
+          <span style="display:flex;align-items:center;gap:6px;font-size:13px;background:rgba(255,255,255,.12);padding:6px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.2)">
+            ${I('check')} ${approved.filter(p=>p.status==='In Progress'||p.status==='Completed').length} approved &amp; active
+          </span>
+        </div>
+      </div>
+      <div class="accounts-hero-stat">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;opacity:.65">Pending Review</div>
+        <div style="font-size:48px;font-weight:900;line-height:1">${pending.length}</div>
+        <div style="font-size:13px;opacity:.8">${pending.length === 1 ? 'project needs' : 'projects need'} approval</div>
+      </div>
+    </div>
+
+    <div class="grid grid-4 mb-4">
+      <div class="stat" style="border:1.5px solid rgba(124,58,237,.25)">
+        <div class="label">Pending Approval</div>
+        <div class="value" style="color:#7c3aed">${pending.length}</div>
+        <div class="delta">Awaiting review</div>
+        <div class="icon-wrap" style="color:#7c3aed">${I('clock')}</div>
+      </div>
+      <div class="stat i-success">
+        <div class="label">Total in Delivery</div>
+        <div class="value">${allDelivery.length}</div>
+        <div class="delta up">Across all delivery</div>
+        <div class="icon-wrap">${I('folder')}</div>
+      </div>
+      <div class="stat i-warn">
+        <div class="label">In Progress</div>
+        <div class="value">${liveProjects.filter(p=>p.status==='In Progress').length}</div>
+        <div class="delta up">Actively executing</div>
+        <div class="icon-wrap">${I('activity')}</div>
+      </div>
+      <div class="stat i-primary">
+        <div class="label">Completed</div>
+        <div class="value">${liveProjects.filter(p=>p.status==='Completed').length}</div>
+        <div class="delta">Delivered</div>
+        <div class="icon-wrap">${I('check')}</div>
+      </div>
+    </div>
+
+    <!-- Pending approval queue -->
+    <div class="card mb-4" style="border:1.5px solid rgba(124,58,237,.3);box-shadow:0 4px 32px rgba(124,58,237,.1)">
+      <div class="card-head">
+        <div>
+          <div class="card-title" style="display:flex;align-items:center;gap:8px">
+            <span class="pending-dot"></span>
+            Projects Awaiting Approval
+          </div>
+          <div class="card-sub">Review each project before it enters delivery. Approved projects move to "Not Started".</div>
+        </div>
+        <span class="pending-badge"><span class="pending-dot"></span>${pending.length} pending</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        ${pending.length === 0 ? `
+          <div style="text-align:center;padding:48px 24px;color:var(--text-soft)">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 12px;display:block;opacity:.4"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <div style="font-weight:600;margin-bottom:4px">All clear</div>
+            <div style="font-size:13px">No projects awaiting financial approval right now.</div>
+          </div>
+        ` : `
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Project</th>
+                <th>Client</th>
+                <th>Type</th>
+                <th>Workstream</th>
+                <th>Priority</th>
+                <th style="text-align:right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${pending.map(p => {
+                const clientObj = liveClients.find(c => c.name===p.client||c.email===p.client||c.id===p.client);
+                const clientName = (clientObj && clientObj.name) || p.client || '—';
+                return `<tr>
+                  <td>
+                    <div style="font-weight:700;color:var(--text)">${PDMS.esc(p.name)}</div>
+                    <div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(p.id)}</div>
+                  </td>
+                  <td class="font-semi">${PDMS.esc(clientName)}</td>
+                  <td class="text-muted">${PDMS.esc(p.type||'—')}</td>
+                  <td class="text-muted">${PDMS.esc(p.workstream||p.dept||'—')}</td>
+                  <td><span class="badge badge-${D.prioColors[p.priority]||'muted'}">${PDMS.esc(p.priority||'—')}</span></td>
+                  <td>
+                    <div class="action-row" style="justify-content:flex-end">
+                      <button class="btn btn-secondary btn-sm" onclick="viewProject('${p.id}')">${I('folder')} View</button>
+                      <button class="approve-btn" onclick="approveProject('${p.id}',this)">✓ Approve</button>
+                      <button class="reject-btn" onclick="rejectProject('${p.id}',this)">✕ Reject</button>
+                    </div>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`}
+      </div>
+    </div>
+
+    <!-- All delivery projects overview -->
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">All Delivery Projects</div>
+          <div class="card-sub">Full view of projects that have passed financial review and are in delivery</div>
+        </div>
+        <a class="btn btn-secondary btn-sm" href="projects.html#view=delivery">View All</a>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead>
+              <tr><th>Project</th><th>Client</th><th>PM</th><th>Workstream</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              ${approved.slice(0,10).map(p => `
+                <tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer">
+                  <td>
+                    <div class="font-semi">${PDMS.esc(p.name)}</div>
+                    <div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(p.id)}</div>
+                  </td>
+                  <td class="text-muted">${PDMS.esc(p.client||'—')}</td>
+                  <td class="text-muted">${PDMS.esc(p.pm||'TBD')}</td>
+                  <td class="text-muted">${PDMS.esc(p.workstream||p.dept||'—')}</td>
+                  <td><span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status)}</span></td>
+                </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:28px">${PDMS.emptyOrLoading('No approved delivery projects yet')}</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    `;
+  }
+
+  function viewProject(id) {
+    window.open('project-details.html#id=' + id, '_blank');
+  }
+
+  function approveProject(id, btn) {
+    PDMS.setButtonLoading(btn, true, 'Approving...');
+    const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+    const p = liveProjects.find(x => x.id === id);
+    if (!p) { PDMS.toast('Error', 'Project not found', 'error'); PDMS.setButtonLoading(btn, false); return; }
+    PDMS.api.update('projects', id, { status: 'Not Started' })
+      .then(() => {
+        p.status = 'Not Started';
+        PDMS.toast('Approved', `"${p.name}" has been approved and moved to delivery.`, 'success');
+        render();
+      })
+      .catch(err => {
+        PDMS.setButtonLoading(btn, false);
+        PDMS.toast('Error', err.message || 'Could not approve project', 'error');
+      });
+  }
+
+  function rejectProject(id, btn) {
+    const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+    const p = liveProjects.find(x => x.id === id);
+    if (!p) return;
+
+    const modal = PDMS.modal('Reject Project', `
+      <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">You are about to reject <strong>${PDMS.esc(p.name)}</strong>. The project will be sent back to the Sales team with a note.</p>
+      <div class="form-row"><label>Reason for Rejection</label><textarea id="rejectReason" rows="3" placeholder="Provide a reason so the Sales team can address it..."></textarea></div>
+    `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmRejectBtn" style="background:var(--danger);border-color:var(--danger)">Reject &amp; Return to Sales</button>`);
+
+    modal.querySelector('#confirmRejectBtn').onclick = function() {
+      const reason = modal.querySelector('#rejectReason').value.trim();
+      if (!reason) { PDMS.toast('Required', 'Please provide a rejection reason', 'error'); return; }
+      const btn2 = this;
+      PDMS.setButtonLoading(btn2, true, 'Rejecting...');
+      PDMS.api.update('projects', id, { status: 'PO / Award Granted', rejectionNote: reason })
+        .then(() => {
+          p.status = 'PO / Award Granted';
+          modal.remove();
+          PDMS.toast('Rejected', `"${p.name}" has been returned to Sales.`, 'warn');
+          render();
+        })
+        .catch(err => {
+          PDMS.setButtonLoading(btn2, false);
+          PDMS.toast('Error', err.message || 'Could not reject project', 'error');
+        });
+    };
+  }
+
+  window.viewProject = viewProject;
+  window.approveProject = approveProject;
+  window.rejectProject = rejectProject;
+
+  PDMS.onRefresh(render);
+</script>
+</body>
+</html>

@@ -5,9 +5,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Delivery Dashboard — PSE PDMS</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="preload" href="dist/style.css" as="style">
-  <link rel="stylesheet" href="dist/style.css">
+  
+  
+<link rel="stylesheet" href="css/style.css"/>
   <style>
     .htd-hero {
       display: grid;
@@ -149,7 +149,7 @@
 </head>
 
 <body>
-  <script src="dist/bundle.js"></script>
+  <script src="js/bundle.js"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -158,16 +158,6 @@
       const currentUser = PDMS.getUser();
       const isPMO = currentUser && currentUser.role === 'PMO';
       const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
-      const DELIVERY_ROLE_SET = ['HTD','COO','PM Head','Project Manager','PMO','General Admin','HR'];
-      const isSalesBorn = p => {
-        const r=(p.createdByRole||'').trim(), s=(p.stage||'').trim();
-        if(s==='Delivery'||DELIVERY_ROLE_SET.includes(r)) return false;
-        if(s==='Sales'||r==='Sales'||r==='Sales Team') return true;
-        if(!s&&!r) return (window.PDMS_DATA&&window.PDMS_DATA.salesStatuses||[]).includes(p.status);
-        return false;
-      };
-      const hasSalesStatus = p => (window.PDMS_DATA&&window.PDMS_DATA.salesStatuses||[]).includes(p.status);
-      const hasDeliveryStatus = p => (window.PDMS_DATA&&window.PDMS_DATA.deliveryStatuses||[]).includes(p.status);
       const salesProjects = liveProjects.filter(p => D.salesStatuses && D.salesStatuses.includes(p.status));
       const deliveryProjects = isPMO
         ? liveProjects.filter(p => {
@@ -175,7 +165,7 @@
             const consultants = Array.isArray(p.consultants) ? p.consultants.map(n => n.toLowerCase()) : [];
             return (p.pm || '').toLowerCase() === myName || (p.lead || '').toLowerCase() === myName || consultants.includes(myName);
           })
-        : liveProjects.filter(p => (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)) || p.status === 'SLA Signed');
+        : liveProjects.filter(p => (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)) || p.status === 'Awaiting Account Approval');
       const allProjects = isPMO ? deliveryProjects : liveProjects;
       const activeProjects = deliveryProjects.length;
       const ongoingProjects = allProjects.filter(p => p.status === 'In Progress').length;
@@ -277,6 +267,50 @@
       </div>
     </div>
   </div>
+
+  <!-- Pending Account Approval -->
+  ${(() => {
+    const pendingApproval = deliveryProjects.filter(p => p.status === 'Awaiting Account Approval');
+    if(!pendingApproval.length) return '';
+    return `<div class="card mb-4" style="border:1.5px solid rgba(124,58,237,.35);box-shadow:0 4px 24px rgba(124,58,237,.1)">
+      <div class="card-head">
+        <div>
+          <div class="card-title" style="display:flex;align-items:center;gap:8px">
+            <span style="width:10px;height:10px;border-radius:50%;background:#7c3aed;display:inline-block;animation:pulse 2s infinite"></span>
+            Pending Account Approval
+          </div>
+          <div class="card-sub">These projects are awaiting financial review by Accounts before delivery can begin</div>
+        </div>
+        <span class="badge" style="background:rgba(124,58,237,.12);color:#7c3aed;border:1px solid rgba(124,58,237,.25)">${pendingApproval.length} pending</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div style="overflow-x:auto">
+          <table class="data">
+            <thead><tr><th>Project</th><th>Client</th><th>Type</th><th>Priority</th><th>Status</th></tr></thead>
+            <tbody>
+              ${pendingApproval.map(p => `
+                <tr style="opacity:.8;cursor:default" title="Locked until Accounts approves">
+                  <td>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      <div>
+                        <div class="font-semi">${PDMS.esc(p.name)}</div>
+                        <div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(p.id)}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="text-muted">${PDMS.esc(p.client||'—')}</td>
+                  <td class="text-muted">${PDMS.esc(p.type||'—')}</td>
+                  <td><span class="badge badge-${D.prioColors[p.priority]||'muted'}">${PDMS.esc(p.priority||'—')}</span></td>
+                  <td><span class="badge" style="background:rgba(124,58,237,.12);color:#7c3aed">Awaiting Account Approval</span></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  })()}
+  <style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>
 
   <!-- Projects Due for Completion -->
   <div class="card mb-4">

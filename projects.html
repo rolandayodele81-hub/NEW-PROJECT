@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Projects — PSE PDMS</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="preload" href="dist/style.css" as="style">
-  <link rel="stylesheet" href="dist/style.css"></head><body>
-<script src="dist/bundle.js"></script>
+
+
+<link rel="stylesheet" href="css/style.css"/></head><body>
+<script src="js/bundle.js"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -37,7 +37,7 @@ function scopedProjects(){
   }
   // Bucket purely by current status: sales statuses → Sales Pipeline, delivery statuses → Delivery
   if(viewParam==='sales') return liveProjects.filter(p => D.salesStatuses && D.salesStatuses.includes(p.status));
-  if(viewParam==='delivery') return liveProjects.filter(p => (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)) || p.status==='SLA Signed');
+  if(viewParam==='delivery') return liveProjects.filter(p => (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)) || p.status==='Awaiting Account Approval');
   return liveProjects;
 }
 // Each bucket is filtered/kanban'd using its own status vocabulary.
@@ -76,8 +76,7 @@ content.innerHTML = `
 `;
 
 const columns = [
-  {key:'name',label:'Project Name',render:r=>`<div class="font-semi" style="color:var(--primary)">${PDMS.esc(r.name)}</div><div class="text-sm text-muted">${PDMS.esc(r.type)}</div>`},
-  {key:'client',label:'Client'},
+  {key:'client',label:'Client',render:r=>`<div class="font-semi" style="color:var(--primary)">${PDMS.esc(r.client||'—')}</div><div class="text-sm text-muted">${PDMS.esc(r.name)}</div>`},
   {key:'workstream',label:'Workstream',render:r=>`<span class="text-sm">${PDMS.esc(r.workstream||r.dept||'—')}</span>`},
   {key:'status',label:'Status',render:r=>`<span class="badge badge-${D.statusColors[r.status]||'muted'}">${r.status}</span>`},
   {key:'due',label:'Due'}
@@ -87,7 +86,6 @@ function renderStats(rows){
 }
 function renderProjects(){
   const liveAll = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
-  console.log('[Projects Debug] total loaded:', liveAll.length, liveAll.map(p=>({id:p.id,stage:p.stage,createdByRole:p.createdByRole,status:p.status})));
   const rows = scopedProjects();
   renderStats(rows);
   PDMS.renderTable(document.getElementById('listView'),{

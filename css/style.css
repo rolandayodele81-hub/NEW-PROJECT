@@ -29,7 +29,7 @@
   --radius-lg: 20px;
   --sidebar-w: 260px;
   --header-h: 64px;
-  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --gradient: linear-gradient(135deg, #1d3c88 0%, #8b5cf6 50%, #ec4899 100%);
   --gradient-2: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
   --gradient-3: linear-gradient(135deg, #1d3c88 0%, #8b5cf6 100%);

@@ -2,18 +2,18 @@
    PSE PDMS - Data Schema
    ============================================ */
 (function(global){
-  const roles = ['System Administrator','HR','COO','HTD','PM Head','PMO','Sales','Consultant','Project Manager','Graduate Trainee','Intern'];
+  const roles = ['System Administrator','HR','COO','HTD','PM Head','PMO','Accounts','Sales','Consultant'];
   const types = ['Infrastructure','Software Development','Consulting','Digital Transformation','Cloud Migration','ERP Implementation','Cybersecurity','Data Analytics','Mobile App','Web Platform'];
   const priorities = ['Critical','High','Medium','Low'];
   const workstreams = ['Cloud Engineering','Cybersecurity','Data Analytics','Digital Transformation','ERP Implementation','Infrastructure','Mobile Development','Software Development','Web Platform','Business Consulting','General'];
-  // Sales pipeline stages in order; Delivery uses its own vocabulary.
   const salesStatuses = ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','PO / Award Granted','SLA Signed','Closed','On Hold','Cancelled'];
   const deliveryStatuses = ['Not Started','In Progress','On Hold','Awaiting Review','Testing / Quality Assurance','Completed','Closed','Cancelled'];
-  const statuses = ['Incoming','Initial Contact','Requirement Gathering','Proposal Sent','Negotiation','Awaiting Client Approval','PO / Award Granted','SLA Signed','Closed','Cancelled','On Hold','Not Started','In Progress','Awaiting Review','Testing / Quality Assurance','Completed'];
+  const statuses = [...salesStatuses, 'Awaiting Account Approval', ...deliveryStatuses.filter(s=>!salesStatuses.includes(s))];
   const statusColors = {
     'Incoming':'info','Initial Contact':'primary','Requirement Gathering':'purple',
     'Proposal Sent':'warn','Negotiation':'warn','PO / Award Granted':'warn',
     'SLA Signed':'success','Awaiting Client Approval':'warn',
+    'Awaiting Account Approval':'purple',
     'Closed':'primary','Cancelled':'danger','On Hold':'muted',
     'Not Started':'muted','In Progress':'warn','Awaiting Review':'warn',
     'Testing / Quality Assurance':'purple','Completed':'success'
