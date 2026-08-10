@@ -277,12 +277,10 @@
       const clientNames = (D.clients || []).map(c => c.name).filter(Boolean);
       const modal = PDMS.modal('New Deal Intake', `
     <div class="form-grid">
-      <div class="form-row"><label>Client</label><input id="newProjClient" list="newProjClientList" placeholder="Search existing clients..." autocomplete="off"/></div>
+      <div class="form-row"><label>Client</label><input id="newProjClient" list="newProjClientList" placeholder="Search existing clients..." autocomplete="off"/><div id="newProjClientNotice" style="margin-top:6px;font-size:12px;color:#b91c1c;min-height:16px"></div></div>
       <div class="form-row"><label>Type</label><input id="newProjType" type="text" placeholder="e.g. Software Development"/></div>
       <div class="form-row"><label>Workstream</label><select id="newProjDept">${(D.workstreams||[]).map(w => `<option>${w}</option>`).join('')}</select></div>
       <div class="form-row"><label>Status</label><select id="newProjStatus">${statusOptions.map((s, i) => `<option${i === 0 ? ' selected' : ''}>${s}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Start Date</label><input id="newProjStart" type="date"/></div>
-      <div class="form-row"><label>Planned Completion</label><input id="newProjDue" type="date"/></div>
     </div>
     <datalist id="newProjClientList">${clientNames.map(name => `<option value="${PDMS.esc(name)}"></option>`).join('')}</datalist>
     <div class="form-row"><label>Description</label><textarea id="newProjDesc" rows="3" placeholder="Scope, goals, deliverables..."></textarea></div>
@@ -294,8 +292,6 @@
         const type = modal.querySelector('#newProjType').value.trim();
         const workstream = modal.querySelector('#newProjDept').value;
         const status = modal.querySelector('#newProjStatus').value;
-        const start = modal.querySelector('#newProjStart').value;
-        const due = modal.querySelector('#newProjDue').value;
         const desc = modal.querySelector('#newProjDesc').value.trim();
         if (!clientTyped) {
           PDMS.toast('Missing project info', 'Client is required', 'error');
@@ -311,7 +307,7 @@
         setTimeout(() => PDMS.setButtonLoading(btn, false), 10000);
         const record = {
           name: client, client, type, workstream, dept: workstream, sales: 'Sales Team', pm: '', lead: '', consultants: [],
-          status, stage: 'Sales', createdByRole: 'Sales', progress: 0, start: start || '', due: due || '', completion: null,
+          status, stage: 'Sales', createdByRole: 'Sales', progress: 0, start: '', due: '', completion: null,
           description: desc, files: 0, remarks: 0
         };
 
@@ -322,6 +318,20 @@
           render();
         }).catch(err => PDMS.toast('Error', err.message || 'Could not create project', 'error'));
       };
+
+      const clientInput = modal.querySelector('#newProjClient');
+      const clientNotice = modal.querySelector('#newProjClientNotice');
+      const updateClientNotice = () => {
+        const typed = clientInput.value.trim();
+        if (!typed) {
+          clientNotice.textContent = '';
+          return;
+        }
+        const matches = (D.clients || []).some(c => (c.name || '').toLowerCase() === typed.toLowerCase());
+        clientNotice.textContent = matches ? '' : 'That is not an existing client name.';
+      };
+      clientInput.addEventListener('input', updateClientNotice);
+      updateClientNotice();
     }
 
     window.newDeal = newDeal;

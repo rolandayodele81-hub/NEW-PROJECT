@@ -4,7 +4,7 @@
 
 
 <link rel="stylesheet" href="css/style.css"/></head><body>
-<script src="js/bundle.js"></script>
+<script src="js/bundle.js?v=2"></script>
 <script>
 // A hash survives any host's clean-URL rewriting untouched, since it's never
 // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -34,13 +34,21 @@ function healthOf(proj){
   if(proj.status==='Cancelled') return {label:'Cancelled', cls:'badge-danger'};
   if(proj.status==='Closed') return {label:'Closed', cls:'badge-primary'};
   if(proj.status==='On Hold') return {label:'On Hold', cls:'badge-muted'};
+  
+  const _D = window.PDMS_DATA || D;
+  const normalizedStatus = PDMS.normalizeStatus ? PDMS.normalizeStatus(proj.status) : proj.status;
+  const pStage = (_D && _D.deliveryStatuses && (_D.deliveryStatuses.includes(proj.status) || _D.deliveryStatuses.includes(normalizedStatus))) ? 'Delivery'
+    : (PDMS.isSalesStatus && PDMS.isSalesStatus(proj.status)) ? 'Sales'
+    : (PDMS.stageOf ? PDMS.stageOf(proj) : 'Delivery');
+  const defaultLabel = pStage === 'Sales' ? 'Incoming' : 'In Progress';
+
   const start = new Date(proj.start), due = new Date(proj.due), today = new Date();
-  if(isNaN(start)||isNaN(due)||due<=start) return {label:'On Track', cls:'badge-success'};
+  if(isNaN(start)||isNaN(due)||due<=start) return {label:defaultLabel, cls:'badge-success'};
   const expected = Math.min(100, Math.max(0, ((today-start)/(due-start))*100));
   const gap = expected - (proj.progress||0);
   if(gap > 25) return {label:'Delayed', cls:'badge-danger'};
   if(gap > 10) return {label:'At Risk', cls:'badge-warn'};
-  return {label:'On Track', cls:'badge-success'};
+  return {label:defaultLabel, cls:'badge-success'};
 }
 function milestoneStages(proj){
   // 'Approved'/'Rejected'/'On Hold' are outcomes, not sequential steps — they

@@ -176,6 +176,7 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
               <input id="newProjClient" autocomplete="off" placeholder="Search or type client name…"/>
               <div class="np-ac-drop" id="newClientDrop"></div>
             </div>
+            <div id="newProjClientNotice" style="margin-top:6px;font-size:12px;color:#b91c1c;min-height:16px"></div>
           </div>
           <div class="np-field">
             <label>Project Type</label>
@@ -188,24 +189,6 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
           <div class="np-field full">
             <label>Status</label>
             <select id="newProjStatus">${statusOptions.map(s=>`<option${s===defaultStatus?' selected':''}>${s}</option>`).join('')}</select>
-          </div>
-        </div>
-      </div>
-
-      <div class="np-section">
-        <div class="np-section-label">Timeline</div>
-        <div class="np-grid">
-          <div class="np-field">
-            <label>Start Date</label>
-            <input id="newProjStart" type="date"/>
-          </div>
-          <div class="np-field">
-            <label>Planned Completion</label>
-            <input id="newProjDue" type="date"/>
-          </div>
-          <div class="np-field full">
-            <label>Actual Completion</label>
-            <input id="newProjActual" type="date"/>
           </div>
         </div>
       </div>
@@ -223,14 +206,25 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
   makeAc(modal.querySelector('#newProjClient'), modal.querySelector('#newClientDrop'),
     ()=>D.clients.map(c=>c.name), 'np-ac-item', 'np-ac-drop');
 
+  const clientInput = modal.querySelector('#newProjClient');
+  const clientNotice = modal.querySelector('#newProjClientNotice');
+  const updateClientNotice = () => {
+    const typed = clientInput.value.trim();
+    if (!typed) {
+      clientNotice.textContent = '';
+      return;
+    }
+    const matches = (D.clients || []).some(c => (c.name || '').toLowerCase() === typed.toLowerCase());
+    clientNotice.textContent = matches ? '' : 'That is not an existing client name.';
+  };
+  clientInput.addEventListener('input', updateClientNotice);
+  updateClientNotice();
+
   modal.querySelector('#createProjectBtn').onclick = function(){
     const clientTyped = modal.querySelector('#newProjClient').value.trim();
     const type = modal.querySelector('#newProjType').value.trim();
     const workstream = modal.querySelector('#newProjWorkstream').value;
     const status = modal.querySelector('#newProjStatus').value;
-    const start = modal.querySelector('#newProjStart').value;
-    const due = modal.querySelector('#newProjDue').value;
-    const actualCompletion = modal.querySelector('#newProjActual').value;
     const desc = modal.querySelector('#newProjDesc').value.trim();
     if(!clientTyped){
       PDMS.toast('Missing project info','Client is required','error');
@@ -247,7 +241,7 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
         name: client.name, client:client.name, type, workstream, dept:workstream,
         sales:'Sales Team', pm:'', lead:'', consultants:[],
         status, stage, createdByRole, progress:0,
-        start:start||'', due:due||'', actualCompletion:actualCompletion||'', completion:null,
+        start:'', due:'', actualCompletion:'', completion:null,
         description:desc, files:0, remarks:0
       };
       return PDMS.api.create('projects',record);

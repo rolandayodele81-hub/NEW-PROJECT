@@ -841,6 +841,25 @@
     if(PDMS.isSalesStatus(project.status)) return 'Sales';
     return 'Delivery';
   };
+  
+  // Determine whether the current user may change a project's status to `newStatus`.
+  // Logic: user must have the Change Status permission, and their role should
+  // be appropriate for the target status (sales vs delivery). General Admins
+  // and roles with Change Status will default to allowed unless restricted.
+  PDMS.canChangeStatus = function(project, newStatus){
+    const user = PDMS.getUser();
+    if(!user) return false;
+    if(!PDMS.can('Change Status', user)) return false;
+    const normalized = PDMS.normalizeStatus ? PDMS.normalizeStatus(newStatus) : newStatus;
+    const targetIsSales = PDMS.isSalesStatus(normalized);
+    const targetIsDelivery = PDMS.isDeliveryStatus(normalized) || normalized === 'Awaiting Account Approval' || normalized === 'Award/SLA';
+    // Sales roles may only set sales statuses
+    if(PDMS.isSalesRole(user)) return targetIsSales;
+    // Delivery roles may only set delivery statuses
+    if(PDMS.isDeliveryRole(user)) return targetIsDelivery;
+    // Fallback allow for other permitted roles (HR, General Admin, etc.)
+    return true;
+  };
   PDMS.isPendingAccountApproval = function(project){
     return project && project.status === 'Awaiting Account Approval';
   };
