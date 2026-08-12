@@ -301,7 +301,7 @@
     back.className='modal-backdrop open';
     back.innerHTML = '<div class="modal"><div class="modal-head"><h3 class="card-title">'+title+'</h3><button class="icon-btn" data-close>'+ICONS.close+'</button></div><div class="modal-body">'+bodyHtml+'</div>'+(footHtml?'<div class="modal-foot">'+footHtml+'</div>':'')+'</div>';
     document.body.appendChild(back);
-    back.addEventListener('click',e=>{ if(e.target===back||e.target.closest('[data-close]')) back.remove(); });
+    back.addEventListener('click',e=>{ if(e.target.closest('[data-close]')) back.remove(); });
     return back;
   };
 

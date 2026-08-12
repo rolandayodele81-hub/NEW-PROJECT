@@ -2,7 +2,9 @@
    Pages render instantly from localStorage cache; a background fetch
    refreshes the cache and fires pdms:refresh when fresh data lands. */
 (function (global) {
-  global.PDMS_API_URL = 'https://script.google.com/macros/s/AKfycbx63abHDM6FNFJ092t02DDkCyFrsPz6k5Pi5vuYan2pybiEnyWkmPibKX5wgfkuE5aK/exec';
+
+  global.PDMS_API_URL = 'https://script.google.com/macros/s/AKfycbzCX2HlT7jSxaBVIo2mdXZu7mcwIUbff0EVdtjHi3jNVTQRyMRrE9ftaum1NprQS8Fp/exec';
+
 
   var CACHE_KEY = 'pdms-cache';
   var CACHE_TS_KEY = 'pdms-cache-ts';
@@ -16,15 +18,15 @@
       global.PDMS_REMOTE = data;
     }
   } catch (e) {
-    try { localStorage.removeItem(CACHE_KEY); } catch(_) {}
+    try { localStorage.removeItem(CACHE_KEY); } catch (_) { }
   }
 
   // ── 2. Background refresh ───────────────────────────────────────────────────
   function fetchWithRetry(url, retries) {
     retries = retries || 2;
-    return fetch(url).catch(function(err) {
+    return fetch(url).catch(function (err) {
       if (retries > 0) {
-        return new Promise(function(resolve) { setTimeout(resolve, 1000); }).then(function() {
+        return new Promise(function (resolve) { setTimeout(resolve, 1000); }).then(function () {
           return fetchWithRetry(url, retries - 1);
         });
       }
@@ -40,7 +42,7 @@
       try {
         var ts = parseInt(localStorage.getItem(CACHE_TS_KEY) || '0', 10);
         if (Date.now() - ts < CACHE_TTL) return;
-      } catch(_) {}
+      } catch (_) { }
     }
 
     fetchWithRetry(global.PDMS_API_URL + '?action=bootstrap')
@@ -50,7 +52,7 @@
         try {
           localStorage.setItem(CACHE_KEY, JSON.stringify(json.data));
           localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
-        } catch(_) {}
+        } catch (_) { }
         global.PDMS_REMOTE = json.data;
         if (global.PDMS_DATA) {
           Object.keys(json.data).forEach(function (key) { global.PDMS_DATA[key] = json.data[key]; });
@@ -91,6 +93,7 @@
   };
   const salesStatuses = [...salesJourney, 'Closed','On Hold','Cancelled'];
   const deliveryStatuses = ['Not Started','In Progress','On Hold','Awaiting Review','Testing / Quality Assurance','Completed','Closed','Cancelled'];
+  const inProgressSubStatuses = ['Design','Development','Testing / QA / Internal Testing','Deployment','UAT','Release'];
   const statuses = [...salesStatuses, 'Awaiting Account Approval', ...deliveryStatuses.filter(s=>!salesStatuses.includes(s))];
   const statusColors = {
     'Initial Proposal':'primary','Lead':'info','Opportunity':'purple',
@@ -462,7 +465,7 @@
     back.className='modal-backdrop open';
     back.innerHTML = '<div class="modal"><div class="modal-head"><h3 class="card-title">'+title+'</h3><button class="icon-btn" data-close>'+ICONS.close+'</button></div><div class="modal-body">'+bodyHtml+'</div>'+(footHtml?'<div class="modal-foot">'+footHtml+'</div>':'')+'</div>';
     document.body.appendChild(back);
-    back.addEventListener('click',e=>{ if(e.target===back||e.target.closest('[data-close]')) back.remove(); });
+    back.addEventListener('click',e=>{ if(e.target.closest('[data-close]')) back.remove(); });
     return back;
   };
 

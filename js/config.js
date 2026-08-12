@@ -2,7 +2,9 @@
    Pages render instantly from localStorage cache; a background fetch
    refreshes the cache and fires pdms:refresh when fresh data lands. */
 (function (global) {
-  global.PDMS_API_URL = 'https://script.google.com/macros/s/AKfycbx63abHDM6FNFJ092t02DDkCyFrsPz6k5Pi5vuYan2pybiEnyWkmPibKX5wgfkuE5aK/exec';
+
+  global.PDMS_API_URL = 'https://script.google.com/macros/s/AKfycbzCX2HlT7jSxaBVIo2mdXZu7mcwIUbff0EVdtjHi3jNVTQRyMRrE9ftaum1NprQS8Fp/exec';
+
 
   var CACHE_KEY = 'pdms-cache';
   var CACHE_TS_KEY = 'pdms-cache-ts';
@@ -16,15 +18,15 @@
       global.PDMS_REMOTE = data;
     }
   } catch (e) {
-    try { localStorage.removeItem(CACHE_KEY); } catch(_) {}
+    try { localStorage.removeItem(CACHE_KEY); } catch (_) { }
   }
 
   // ── 2. Background refresh ───────────────────────────────────────────────────
   function fetchWithRetry(url, retries) {
     retries = retries || 2;
-    return fetch(url).catch(function(err) {
+    return fetch(url).catch(function (err) {
       if (retries > 0) {
-        return new Promise(function(resolve) { setTimeout(resolve, 1000); }).then(function() {
+        return new Promise(function (resolve) { setTimeout(resolve, 1000); }).then(function () {
           return fetchWithRetry(url, retries - 1);
         });
       }
@@ -40,7 +42,7 @@
       try {
         var ts = parseInt(localStorage.getItem(CACHE_TS_KEY) || '0', 10);
         if (Date.now() - ts < CACHE_TTL) return;
-      } catch(_) {}
+      } catch (_) { }
     }
 
     fetchWithRetry(global.PDMS_API_URL + '?action=bootstrap')
@@ -50,7 +52,7 @@
         try {
           localStorage.setItem(CACHE_KEY, JSON.stringify(json.data));
           localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
-        } catch(_) {}
+        } catch (_) { }
         global.PDMS_REMOTE = json.data;
         if (global.PDMS_DATA) {
           Object.keys(json.data).forEach(function (key) { global.PDMS_DATA[key] = json.data[key]; });

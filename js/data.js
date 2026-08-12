@@ -19,6 +19,7 @@
   };
   const salesStatuses = [...salesJourney, 'Closed','On Hold','Cancelled'];
   const deliveryStatuses = ['Not Started','In Progress','On Hold','Awaiting Review','Testing / Quality Assurance','Completed','Closed','Cancelled'];
+  const inProgressSubStatuses = ['Design','Development','Testing / QA / Internal Testing','Deployment','UAT','Release'];
   const statuses = [...salesStatuses, 'Awaiting Account Approval', ...deliveryStatuses.filter(s=>!salesStatuses.includes(s))];
   const statusColors = {
     'Initial Proposal':'primary','Lead':'info','Opportunity':'purple',

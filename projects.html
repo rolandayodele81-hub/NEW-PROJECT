@@ -221,6 +221,7 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
   updateClientNotice();
 
   modal.querySelector('#createProjectBtn').onclick = function(){
+    const norm = s => (s||'').toString().trim().replace(/\s+/g,' ').toLowerCase();
     const clientTyped = modal.querySelector('#newProjClient').value.trim();
     const type = modal.querySelector('#newProjType').value.trim();
     const workstream = modal.querySelector('#newProjWorkstream').value;
@@ -233,7 +234,7 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
     const btn = this;
     PDMS.setButtonLoading(btn, true, 'Creating...');
     setTimeout(()=>PDMS.setButtonLoading(btn, false), 10000);
-    const existingClient = D.clients.find(cl=>cl.name.toLowerCase()===clientTyped.toLowerCase());
+    const existingClient = D.clients.find(cl=>norm(cl.name)===norm(clientTyped));
     const ensureClient = existingClient ? Promise.resolve(existingClient) : PDMS.api.create('clients',{name:clientTyped, industry:'', email:'', phone:'', address:'', projects:0});
     ensureClient.then(client=>{
       if(!existingClient) D.clients.unshift(client);
@@ -244,13 +245,26 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
         start:'', due:'', actualCompletion:'', completion:null,
         description:desc, files:0, remarks:0
       };
-      return PDMS.api.create('projects',record);
-    }).then(saved=>{
-      D.projects.unshift(saved);
-      modal.remove();
-      PDMS.toast('Project created','New project added to pipeline','success');
-      PDMS.notify('Project Created', `${currentUser.name} (${currentUser.role}) created "${saved.name}" for ${saved.client}`, 'folder', 'project-details.html#id='+saved.id);
+      // Optimistic UI: insert temp project immediately
+      const tmpId = 'TMP-' + Date.now();
+      const tmp = Object.assign({id: tmpId, _optimistic: true}, record);
+      D.projects.unshift(tmp);
       renderProjects();
+      return PDMS.api.create('projects', record).then(saved => {
+        // Replace temp with saved project
+        const idx = D.projects.findIndex(p => p.id === tmpId);
+        if (idx > -1) D.projects.splice(idx, 1, saved); else D.projects.unshift(saved);
+        modal.remove();
+        PDMS.toast('Project created','New project added to pipeline','success');
+        PDMS.notify('Project Created', `${currentUser.name} (${currentUser.role}) created "${saved.name}" for ${saved.client}`, 'folder', 'project-details.html#id='+saved.id);
+        renderProjects();
+      }).catch(err => {
+        // Rollback optimistic insert
+        const idx = D.projects.findIndex(p => p.id === tmpId);
+        if (idx > -1) D.projects.splice(idx,1);
+        renderProjects();
+        PDMS.toast('Error', err.message || 'Could not create project','error');
+      });
     }).catch(err=>PDMS.toast('Error',err.message||'Could not create project','error'));
   };
 };

@@ -87,7 +87,6 @@
       const deliveryProjects = liveProjects.filter(p => D.deliveryStatuses && D.deliveryStatuses.includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status));
       const totalInSales = salesProjects.length;
       const awardSla = salesProjects.filter(p => ['Award/SLA','Awaiting Account Approval'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status)).length;
-      const closedCount = salesProjects.filter(p => p.status === 'Closed').length;
 
       // Pipeline conversion funnel: how many projects are sitting at each stage right now.
       const funnelStages = ['Initial Proposal', 'Lead', 'Opportunity', 'Negotiation', 'Invoicing', 'Award/SLA'];
@@ -112,13 +111,13 @@
         <div style="width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,0.2);display:grid;place-items:center;font-size:28px;flex-shrink:0">${I('chart')}</div>
         <div>
           <div class="hero-card-title">Pipeline Overview</div>
-          <div class="hero-card-text">${salesProjects.length} deal${salesProjects.length !== 1 ? 's' : ''} in pipeline · ${closedCount} closed this cycle.</div>
+          <div class="hero-card-text">${salesProjects.length} deal${salesProjects.length !== 1 ? 's' : ''} in pipeline.</div>
           <div class="hero-card-foot">Live Tracking</div>
         </div>
       </div>
     </div>
 
-    <div class="grid grid-4 mb-4">
+    <div class="grid grid-2 mb-4">
       <div class="stat i-primary">
         <div class="label">Total in Sales</div>
         <div class="value">${totalInSales}</div>
@@ -130,18 +129,6 @@
         <div class="value">${awardSla}</div>
         <div class="delta up">Awards and SLA handoffs</div>
         <div class="icon-wrap">${I('clock')}</div>
-      </div>
-      <div class="stat i-success">
-        <div class="label">Closed</div>
-        <div class="value">${closedCount}</div>
-        <div class="delta up">Formally closed deals</div>
-        <div class="icon-wrap">${I('check')}</div>
-      </div>
-      <div class="stat i-muted">
-        <div class="label">Pipeline Stages</div>
-        <div class="value">6</div>
-        <div class="delta">Updated journey</div>
-        <div class="icon-wrap">${I('zap')}</div>
       </div>
     </div>
 
@@ -287,8 +274,9 @@
   `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createProjectBtn">${I('plus')} Create Deal</button>`);
 
       modal.querySelector('#createProjectBtn').onclick = function () {
-        const clientTyped = modal.querySelector('#newProjClient').value.trim();
-        const existingClient = (D.clients || []).find(c => (c.name || '').toLowerCase() === clientTyped.toLowerCase());
+          const clientTyped = modal.querySelector('#newProjClient').value.trim();
+          const norm = s => (s||'').toString().trim().replace(/\s+/g,' ').toLowerCase();
+          const existingClient = (D.clients || []).find(c => norm(c.name) === norm(clientTyped));
         const type = modal.querySelector('#newProjType').value.trim();
         const workstream = modal.querySelector('#newProjDept').value;
         const status = modal.querySelector('#newProjStatus').value;
@@ -311,23 +299,31 @@
           description: desc, files: 0, remarks: 0
         };
 
+        // Optimistic insert so UI shows project immediately
+        const tmpId = 'TMP-' + Date.now();
+        const tmp = Object.assign({id: tmpId, _optimistic: true}, record);
+        D.projects.unshift(tmp);
+        render();
         PDMS.api.create('projects', record).then(saved => {
-          D.projects.unshift(saved);
+          const idx = D.projects.findIndex(p => p.id === tmpId);
+          if (idx > -1) D.projects.splice(idx, 1, saved); else D.projects.unshift(saved);
           modal.remove();
           PDMS.toast('Project created', 'New deal added to intake pipeline', 'success');
           render();
-        }).catch(err => PDMS.toast('Error', err.message || 'Could not create project', 'error'));
+        }).catch(err => {
+          const idx = D.projects.findIndex(p => p.id === tmpId);
+          if (idx > -1) D.projects.splice(idx,1);
+          render();
+          PDMS.toast('Error', err.message || 'Could not create project', 'error');
+        });
       };
 
       const clientInput = modal.querySelector('#newProjClient');
       const clientNotice = modal.querySelector('#newProjClientNotice');
       const updateClientNotice = () => {
         const typed = clientInput.value.trim();
-        if (!typed) {
-          clientNotice.textContent = '';
-          return;
-        }
-        const matches = (D.clients || []).some(c => (c.name || '').toLowerCase() === typed.toLowerCase());
+        if (!typed) { clientNotice.textContent = ''; return; }
+        const matches = (D.clients || []).some(c => norm(c.name) === norm(typed));
         clientNotice.textContent = matches ? '' : 'That is not an existing client name.';
       };
       clientInput.addEventListener('input', updateClientNotice);

@@ -225,6 +225,7 @@
     const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
     const p = liveProjects.find(x => x.id === id);
     if (!p) { PDMS.toast('Error', 'Project not found', 'error'); PDMS.setButtonLoading(btn, false); return; }
+    // Approve: set to delivery 'In Progress' and ensure stage is Delivery.
     PDMS.api.update('projects', id, { status: 'In Progress', stage: 'Delivery' })
       .then(() => {
         p.status = 'In Progress'; p.stage = 'Delivery';

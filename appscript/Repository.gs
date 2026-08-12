@@ -86,6 +86,7 @@ var Repository = {
     var rowIndex = table.sheet.getLastRow() + 1;
     forceTextFormat_(table.sheet, table.headers, cfg.textFields, rowIndex);
     table.sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
+    SpreadsheetApp.flush();
     return withId;
   },
 
@@ -101,6 +102,7 @@ var Repository = {
         var rowIndex = i + 2;
         forceTextFormat_(table.sheet, table.headers, cfg.textFields, rowIndex);
         table.sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
+        SpreadsheetApp.flush();
         return merged;
       }
     }
@@ -114,6 +116,7 @@ var Repository = {
     for (var i = 0; i < table.rows.length; i++) {
       if (String(table.rows[i][idIndex]) === String(id)) {
         table.sheet.deleteRow(i + 2);
+        SpreadsheetApp.flush();
         return { id: id };
       }
     }

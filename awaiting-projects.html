@@ -44,24 +44,12 @@
       </span>
     </div>
 
-    <div class="grid grid-3 mb-4">
+    <div class="grid grid-1 mb-4">
       <div class="stat" style="border:1.5px solid rgba(124,58,237,.25)">
         <div class="label">Awaiting Review</div>
         <div class="value" style="color:#7c3aed">${pending.length}</div>
         <div class="delta">Pending approval</div>
         <div class="icon-wrap" style="color:#7c3aed">${I('clock')}</div>
-      </div>
-      <div class="stat i-success">
-        <div class="label">Approved</div>
-        <div class="value" id="approvedCount">0</div>
-        <div class="delta up">Moved to delivery</div>
-        <div class="icon-wrap">${I('check')}</div>
-      </div>
-      <div class="stat i-danger">
-        <div class="label">Rejected</div>
-        <div class="value" id="rejectedCount">0</div>
-        <div class="delta">Returned to sales</div>
-        <div class="icon-wrap">${I('zap')}</div>
       </div>
     </div>
 

@@ -128,7 +128,7 @@ if(!p){
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       Awaiting review by the Accounts team
     </div>
-    <a href="projects.html#view=delivery" class="btn btn-secondary">← Back to Projects</a>
+    
   </div>`;
 } else {
   const user = PDMS.getUser();
@@ -137,6 +137,8 @@ if(!p){
   const clientObj = liveClients.find(c => c.name === p.client || c.email === p.client || c.id === p.client);
   const clientName = (clientObj && clientObj.name) || p.client || '—';
   const health = healthOf(p);
+  const subStatuses = Array.isArray(p.subStatuses) ? p.subStatuses : (p.subStatus ? [p.subStatus] : []);
+  const currentSubStatus = subStatuses.length ? subStatuses[subStatuses.length-1] : '';
   const stages = milestoneStages(p);
   const reviews = projectIssues(p);
   const latest = reviews[0];
@@ -192,7 +194,7 @@ if(!p){
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
             <span style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;letter-spacing:.6px">${p.id}</span>
             <span style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;letter-spacing:.6px">${PDMS.stageOf(p)==='Sales'?'SALES PIPELINE':'DELIVERY'}</span>
-            <span class="badge badge-${D.statusColors[p.status]||'muted'}">${p.status}</span>
+            ${p.status==='In Progress' ? (currentSubStatus ? `<span class="badge badge-muted">${PDMS.esc(currentSubStatus)}</span>` : '') : `<span class="badge badge-${D.statusColors[p.status]||'muted'}">${p.status}</span>`}
             <span class="badge ${health.cls}">${health.label}</span>
           </div>
           <h1 style="font-size:26px;font-weight:800;color:#fff;margin:0 0 6px;line-height:1.2;text-wrap:balance">${PDMS.esc(clientName)}</h1>
@@ -217,6 +219,7 @@ if(!p){
         {label:'Start Date', value: p.start||'TBD'},
         {label:'Planned Completion', value: p.due||'TBD'},
         {label:'Actual Completion', value: p.actualCompletion||'—'},
+        ...(p.status==='In Progress' && currentSubStatus ? [{label:'Phase', value:currentSubStatus}] : []),
       ].map((f,i,arr) => `
         <div style="padding:16px 20px;${i<arr.length-1?'border-right:1px solid var(--border)':''}">
           <div style="font-size:11px;font-weight:600;letter-spacing:.6px;color:var(--text-soft);text-transform:uppercase;margin-bottom:5px">${f.label}</div>
@@ -228,10 +231,10 @@ if(!p){
   <div class="grid" style="grid-template-columns:2fr 1fr;gap:20px">
     <div class="flex flex-col gap-4">
       <div style="display:grid;grid-template-columns:${isAssignedConsultant?'1fr 1fr':'1fr'};gap:16px">
-        <div class="card"><div class="card-head"><div class="card-title">Project Timeline</div></div>
+        <div class="card"><div class="card-head"><div class="card-title">Project Timeline</div> ${p.status==='In Progress' && canManageStatus ? `<button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="editInProgressStage()">${currentSubStatus ? 'Change Stage' : 'Add Stage'}</button>` : ''}</div>
           <div class="card-body">
             <div class="timeline">
-              ${stages.map(s=>`<div class="tl-item ${s.state}"><div class="tl-title">${s.label}</div><div class="tl-meta">${s.state==='done'?'Completed':s.state==='active'?'Ongoing':'Upcoming'}</div></div>`).join('')}
+              ${stages.map(s=>`<div class="tl-item ${s.state}"><div class="tl-title">${s.label}${s.label==='In Progress' && p.status==='In Progress' && canManageStatus?` <button class="btn btn-secondary btn-xs" style="margin-left:10px;padding:4px 8px;font-size:11px" onclick="event.stopPropagation();editInProgressStage()">${currentSubStatus ? 'Change Stage' : 'Add Stage'}</button>`:''}</div><div class="tl-meta">${s.state==='done'?'Completed':s.state==='active'?'Ongoing':'Upcoming'}</div>${s.label==='In Progress' && subStatuses.length ? `<div class="tl-sub" style="margin-top:8px;margin-left:14px;padding-left:10px;border-left:2px solid var(--border);font-size:12px;color:var(--text-muted)">${subStatuses.map(ss=>`<div>${PDMS.esc(ss)}</div>`).join('')}</div>` : ''}</div>`).join('')}
             </div>
           </div>
         </div>
@@ -784,12 +787,16 @@ function editDetails(){
   const clientOpts = liveClients.map(c=>`<option value="${PDMS.esc(c.name)}" ${c.name===p.client?'selected':''}>${PDMS.esc(c.name)}</option>`).join('');
   const typeOpts = D.types.map(t=>`<option ${t===p.type?'selected':''}>${t}</option>`).join('');
   const prioOpts = D.priorities.map(pr=>`<option ${pr===p.priority?'selected':''}>${pr}</option>`).join('');
+  const showSubStatus = !isSales && p.status==='In Progress';
+  const subStatuses = Array.isArray(p.subStatuses) ? p.subStatuses : (p.subStatus ? [p.subStatus] : []);
+  const currentSubStatusLocal = subStatuses.length ? subStatuses[subStatuses.length-1] : '';
   const modal = PDMS.modal('Edit Project Details',`
     <div class="form-row"><label>Project Name</label><input id="ed-name" value="${PDMS.esc(p.name||'')}"/></div>
     <div class="form-row"><label>Client</label><select id="ed-client"><option value="">— Select —</option>${clientOpts}</select></div>
     <div class="form-row"><label>Type</label><select id="ed-type"><option value="">— Select —</option>${typeOpts}</select></div>
     <div class="form-row"><label>Workstream</label><input id="ed-workstream" value="${PDMS.esc(p.workstream||p.dept||'')}"/></div>
     <div class="form-row"><label>Priority</label><select id="ed-priority"><option value="">— Select —</option>${prioOpts}</select></div>
+    ${showSubStatus?`<div class="form-row"><label>Current In Progress Stage</label><input id="ed-substatus" type="text" value="${PDMS.esc(currentSubStatusLocal||'')}" placeholder="e.g. Internal Testing"/></div>`:''}
     <div class="form-row"><label>Start Date</label><input id="ed-start" type="date" value="${PDMS.esc(p.start||'')}"/></div>
     <div class="form-row"><label>Planned Completion</label><input id="ed-due" type="date" value="${PDMS.esc(p.due||'')}"/></div>
     ${!isSales?`<div class="form-row"><label>Actual Completion</label><input id="ed-actual" type="date" value="${PDMS.esc(p.actualCompletion||'')}"/></div>`:''}
@@ -809,6 +816,16 @@ function editDetails(){
       description: modal.querySelector('#ed-desc').value.trim(),
     };
     if(!isSales) patch.actualCompletion = modal.querySelector('#ed-actual').value;
+    if(showSubStatus){
+      const nextStage = modal.querySelector('#ed-substatus').value.trim();
+      if(nextStage){
+        patch.subStatuses = Array.isArray(p.subStatuses) ? p.subStatuses.slice() : (p.subStatus ? [p.subStatus] : []);
+        if(!patch.subStatuses.length || patch.subStatuses[patch.subStatuses.length-1] !== nextStage){
+          patch.subStatuses.push(nextStage);
+        }
+        patch.subStatus = nextStage;
+      }
+    }
     const btn = this;
     PDMS.setButtonLoading(btn, true, 'Saving...');
     PDMS.api.update('projects', p.id, patch).then(saved=>{
@@ -819,8 +836,38 @@ function editDetails(){
     }).catch(err=>{ PDMS.setButtonLoading(btn,false); PDMS.toast('Error',err.message||'Could not save','error'); });
   };
 }
+function editInProgressStage(){
+  const subStatuses = Array.isArray(p.subStatuses) ? p.subStatuses : (p.subStatus ? [p.subStatus] : []);
+  const currentSubStatusLocal = subStatuses.length ? subStatuses[subStatuses.length-1] : '';
+  const modal = PDMS.modal('In Progress Substage', `
+    <div class="form-row"><label>Stage</label><input id="subStatusSelect" type="text" value="${PDMS.esc(currentSubStatusLocal||'')}" placeholder="Enter current stage"/></div>
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveSubStatus">Save</button>`);
+  modal.querySelector('#saveSubStatus').onclick = function(){
+    const subStatus = modal.querySelector('#subStatusSelect').value.trim();
+    if(!subStatus){ PDMS.toast('Required','Please enter a stage','error'); return; }
+    const btn = this;
+    PDMS.setButtonLoading(btn, true, 'Saving...');
+    const patch = { subStatus };
+    patch.subStatuses = Array.isArray(p.subStatuses) ? p.subStatuses.slice() : (p.subStatus ? [p.subStatus] : []);
+    if(!patch.subStatuses.length || patch.subStatuses[patch.subStatuses.length-1] !== subStatus){
+      patch.subStatuses.push(subStatus);
+    }
+    PDMS.api.update('projects', p.id, patch).then(saved=>{
+      p.subStatus = saved.subStatus || subStatus;
+      p.subStatuses = saved.subStatuses || patch.subStatuses;
+      modal.remove();
+      PDMS.toast('Saved','In Progress substage updated','success');
+      render();
+    }).catch(err=>{ PDMS.setButtonLoading(btn,false); PDMS.toast('Error', err.message||'Could not save stage','error'); });
+  };
+}
+
 function changeStatus(){
-  const options = PDMS.statusOptionsFor();
+  const user = PDMS.getUser();
+  let options = PDMS.statusOptionsFor(user || undefined);
+  if(PDMS.isSalesRole(user)){
+    options = options.filter(s => s !== 'Closed');
+  }
   const modal = PDMS.modal('Change Project Status',`<div class="form-row"><label>New Status</label><select id="ns">${options.map(s=>`<option ${s===p.status?'selected':''}>${s}</option>`).join('')}</select></div>`,
     `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveStatusBtn">Update</button>`);
   modal.querySelector('#saveStatusBtn').onclick = function(){
