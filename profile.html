@@ -8,9 +8,12 @@
 <script>
 PDMS.mountShell('profile');
 const u=PDMS.getUser();const I=PDMS.icon;
-document.getElementById('content').innerHTML=`
+const D = PDMS_DATA;
+
+function render() {
+  document.getElementById('content').innerHTML=`
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Profile</span></div>
-    <h1 class="page-title">My Profile</h1><div class="page-sub">Personal information and preferences</div></div></div>
+    <h1 class="page-title">My Profile</h1><div class="page-sub">Personal information and security settings</div></div></div>
   <div class="grid" style="grid-template-columns:340px 1fr;gap:20px">
     <div class="card"><div class="card-body text-center">
       <div class="avatar avatar-lg" style="margin:8px auto 12px">${PDMS.initials(u.name)}</div>
@@ -18,22 +21,59 @@ document.getElementById('content').innerHTML=`
       <div class="text-muted mb-3">${PDMS.esc(u.email)}</div>
       <div><span class="badge badge-primary">${PDMS.esc(u.role)}</span></div>
       <div class="grid grid-2 mt-4" style="gap:12px">
-        <div><div class="font-bold">24</div><div class="text-sm text-muted">Projects</div></div>
-        <div><div class="font-bold">98%</div><div class="text-sm text-muted">On-time</div></div>
+        <div><div class="font-bold">${(D.projects||[]).filter(p=>p.pm===u.name||p.lead===u.name||(p.consultants||[]).includes(u.name)).length}</div><div class="text-sm text-muted">Projects</div></div>
+        <div><div class="font-bold">${u.status||'Active'}</div><div class="text-sm text-muted">Status</div></div>
       </div>
     </div></div>
-    <div class="card"><div class="card-head"><div class="card-title">Personal Information</div></div>
-      <div class="card-body"><div class="form-grid">
-        <div class="form-row"><label>Full Name</label><input value="${PDMS.esc(u.name)}"/></div>
-        <div class="form-row"><label>Email</label><input value="${PDMS.esc(u.email)}"/></div>
-        <div class="form-row"><label>Phone</label><input value="+234 806 5551234"/></div>
-        <div class="form-row"><label>Department</label><input value="Head of Technical Delivery"/></div>
+    <div>
+      <div class="card mb-4"><div class="card-head"><div class="card-title">Personal Information</div></div>
+        <div class="card-body"><div class="form-grid">
+          <div class="form-row"><label>Full Name</label><input value="${PDMS.esc(u.name)}" disabled/></div>
+          <div class="form-row"><label>Email</label><input value="${PDMS.esc(u.email)}" disabled/></div>
+          <div class="form-row"><label>Phone</label><input value="${PDMS.esc(u.phone || 'Not provided')}" disabled/></div>
+          <div class="form-row"><label>Department</label><input value="${PDMS.esc(u.dept || u.role)}" disabled/></div>
+          <div class="form-row"><label>Date of Birth</label><input value="${PDMS.esc(u.birthday || 'Unknown')}" disabled/></div>
+          <div class="form-row"><label>Date of Entry</label><input value="${PDMS.esc(u.dateOfEntry || u.joined || 'Unknown')}" disabled/></div>
+        </div>
+        <div class="text-sm text-muted mt-3">${I('info')} Contact your system administrator or HR to update your personal information.</div>
+        </div>
       </div>
-      <div class="form-row"><label>Bio</label><textarea rows="3">Senior enterprise leader focused on delivering complex programs at scale.</textarea></div>
-      <button class="btn btn-primary" onclick="PDMS.toast('Saved','Profile updated','success')">Save Changes</button>
+      
+      <div class="card"><div class="card-head"><div class="card-title">Security & Password</div></div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-row"><label>New Password</label><input id="newPassword" type="password" placeholder="Enter new password"/></div>
+            <div class="form-row"><label>Confirm Password</label><input id="confirmPassword" type="password" placeholder="Confirm new password"/></div>
+          </div>
+          <div style="margin-top: 16px;">
+            <button id="updatePasswordBtn" class="btn btn-primary" onclick="updatePassword()">Update Password</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>`;
+}
+
+PDMS.onRefresh(render);
+  
+window.updatePassword = function() {
+  const p1 = document.getElementById('newPassword').value;
+  const p2 = document.getElementById('confirmPassword').value;
+  if(!p1) return PDMS.toast('Error', 'Please enter a new password', 'error');
+  if(p1 !== p2) return PDMS.toast('Error', 'Passwords do not match', 'error');
+  
+  const btn = document.getElementById('updatePasswordBtn');
+  PDMS.setButtonLoading(btn, true);
+  PDMS.api.update('users', u.id, {password: p1}).then(() => {
+    PDMS.setButtonLoading(btn, false);
+    PDMS.toast('Success', 'Password updated successfully', 'success');
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmPassword').value = '';
+  }).catch(err => {
+    PDMS.setButtonLoading(btn, false);
+    PDMS.toast('Error', err.message, 'error');
+  });
+};
 </script></body></html>
 
 

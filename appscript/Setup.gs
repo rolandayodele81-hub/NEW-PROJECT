@@ -90,3 +90,39 @@ function initializeSheets() {
 
   Logger.log('Sheets initialized.');
 }
+
+/**
+ * Utility function to forcibly reset or create the default Admin and HR users
+ * with the correct password salt. Run this once from the editor if you are
+ * locked out or manually added them to the sheet without hashing.
+ */
+function resetDefaultUsers() {
+  var adminRecord = {
+    id: 'U000', name: 'System Administrator', email: 'admin@pse.com', role: 'System Administrator',
+    dept: 'Information Technology', status: 'Active', availability: 'Available', workload: 0,
+    phone: '+0000000000', joined: '2026-01-15', birthday: '', dateOfEntry: ''
+  };
+  var hrRecord = {
+    id: 'U001', name: 'HR Manager', email: 'hr@pse.com', role: 'HR',
+    dept: 'Human Resources', status: 'Active', availability: 'Available', workload: 0,
+    phone: '+0000000000', joined: '2026-01-15', birthday: '', dateOfEntry: ''
+  };
+  
+  [
+    { record: adminRecord, password: 'Admin@2026!' },
+    { record: hrRecord, password: 'HR@2026!' }
+  ].forEach(function(u) {
+    var existing = Repository.list('users').find(function(row) {
+      return String(row.email).toLowerCase() === u.record.email;
+    });
+    
+    if (existing) {
+      Repository.update('users', existing.id, { passwordHash: hashPassword_(u.password) });
+      Logger.log('Reset password for existing user: ' + u.record.email);
+    } else {
+      u.record.passwordHash = hashPassword_(u.password);
+      Repository.insert('users', u.record);
+      Logger.log('Created new user: ' + u.record.email);
+    }
+  });
+}

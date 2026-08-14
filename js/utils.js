@@ -65,19 +65,7 @@
   };
   PDMS.setUser = function(u){ localStorage.setItem('pdms-user',JSON.stringify(u)); };
   PDMS.getLocalAuthUsers = function(){
-    const base = [{
-      id: 'U001',
-      name: 'HR Manager',
-      email: 'hr@pse.com',
-      role: 'HR',
-      dept: 'Human Resources',
-      status: 'Active',
-      availability: 'Available',
-      workload: 0,
-      phone: '',
-      joined: '2026-01-15',
-      _localPassword: 'HR@2026!'
-    }];
+    const base = [];
     const persisted = (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.users)) ? window.PDMS_DATA.users.filter(u => u._localPassword).map(u => Object.assign({}, u)) : [];
     const emails = new Set(persisted.map(u => String(u.email || '').trim().toLowerCase()));
     base.forEach(u => {

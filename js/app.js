@@ -20,6 +20,7 @@
       {id:'reviews',label:'Reviews',icon:'message',href:'reviews.html',roles:'*'},
     ]},
     {section:'System',items:[
+      {id:'profile',label:'My Profile',icon:'user',href:'profile.html',roles:'*'},
       {id:'settings',label:'System Settings',icon:'settings',href:'settings.html',roles:['System Administrator']},
       {id:'activity',label:'Audit Logs',icon:'activity',href:'activity.html',roles:['System Administrator']},
     ]}
@@ -57,8 +58,8 @@
         '</div>'+
         '<nav class="nav">'+navHtml+'</nav>'+
         '<div class="sidebar-footer">'+
-          '<div class="avatar">'+PDMS.initials(user.name)+'</div>'+
-          '<div class="user-meta"><div class="name">'+PDMS.esc(user.name)+'</div><div class="role">'+PDMS.esc(user.role)+'</div></div>'+
+          '<div class="avatar" style="cursor:pointer" onclick="location.href=\'profile.html\'">'+PDMS.initials(user.name)+'</div>'+
+          '<div class="user-meta" style="cursor:pointer" onclick="location.href=\'profile.html\'"><div class="name">'+PDMS.esc(user.name)+'</div><div class="role">'+PDMS.esc(user.role)+'</div></div>'+
           '<button class="icon-btn" title="Logout" id="logoutBtn">'+I('logout')+'</button>'+
         '</div>'+
       '</aside>'+
@@ -70,7 +71,7 @@
             '<button class="icon-btn" id="themeToggle" title="Toggle theme">'+I(theme==='light'?'moon':'sun')+'</button>'+
             '<button class="icon-btn" id="notifBtn" title="Notifications">'+I('bell')+'<span class="dot"></span></button>'+
             '<button class="icon-btn" id="reviewsBtn" title="Reviews">'+I('message')+'</button>'+
-            '<div class="avatar avatar-sm" title="'+PDMS.esc(user.name)+'">'+PDMS.initials(user.name)+'</div>'+
+            '<div class="avatar avatar-sm" title="'+PDMS.esc(user.name)+'" style="cursor:pointer" onclick="location.href=\'profile.html\'">'+PDMS.initials(user.name)+'</div>'+
           '</div>'+
         '</header>'+
         '<main class="content" id="content"></main>'+

@@ -26,6 +26,10 @@ function doPost(e) {
       case 'create':
         return jsonOutput_({ ok: true, data: Repository.insert(body.resource, body.record) });
       case 'update':
+        if (body.resource === 'users' && body.patch && body.patch.password) {
+          body.patch.passwordHash = hashPassword_(body.patch.password);
+          delete body.patch.password;
+        }
         return jsonOutput_({ ok: true, data: Repository.update(body.resource, body.id, body.patch) });
       case 'remove':
         return jsonOutput_({ ok: true, data: Repository.remove(body.resource, body.id) });

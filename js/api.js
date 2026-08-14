@@ -103,7 +103,12 @@
         const collection = getLocalResource(resource);
         const item = collection.find(item => String(item.id) === String(payload.id));
         if (!item) return reject(new Error('Record not found: ' + resource + '/' + payload.id));
-        Object.assign(item, payload.patch);
+        const patch = Object.assign({}, payload.patch);
+        if (resource === 'users' && patch.password) {
+          patch._localPassword = String(patch.password);
+          delete patch.password;
+        }
+        Object.assign(item, patch);
         persistLocalData();
         return resolve(item);
       }

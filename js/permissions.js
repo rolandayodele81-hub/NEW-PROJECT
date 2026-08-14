@@ -5,6 +5,9 @@
 
   const MATRIX = {
     'Onboard User':        ['HR','HTD','COO','PM Head','General Admin'],
+    'Edit User':           ['HR','System Administrator','General Admin'],
+    'Delete User':         ['HR','System Administrator','General Admin'],
+    'Reset Password':      ['HR','System Administrator','General Admin'],
     'Create Project':      ['Sales','General Admin'],
     'Assign Project':      ['HR','HTD','COO','PM Head','PMO','General Admin'],
     'Assign PM':           ['HR','HTD','COO','PM Head','PMO','General Admin'],

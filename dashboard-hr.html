@@ -304,43 +304,42 @@
     }
 
     function newUser() {
-      const modal = PDMS.modal('Onboard New User', `
-    <div class="form-grid">
-      <div class="form-row"><label>Full Name</label><input id="newUserName" placeholder="Jane Smith"/></div>
-      <div class="form-row"><label>Email</label><input id="newUserEmail" type="email" placeholder="jane.smith@pse.com"/></div>
-      <div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div>
-      <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Skill Set</label><input id="newUserDept" type="text" placeholder="e.g. Design"/></div>
-      <div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="text" placeholder="MM/DD"/></div>
-    </div>
-  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">${I('check')} Onboard</button>`);
-
+      const modal = PDMS.modal('Onboard New User', `<div class="form-grid"><div class="form-row"><label>Full Name</label><input id="newUserName"/></div><div class="form-row"><label>Email</label><input id="newUserEmail" type="email"/></div><div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div><div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Skill Set</label><input id="newUserDept" type="text" placeholder="e.g. Cyber Security"/></div><div class="form-row"><label>Phone</label><input id="newUserPhone" type="text" placeholder="e.g. +1 555 123 4567"/></div><div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="text" placeholder="MM/DD"/></div><div class="form-row"><label>Date of Entry</label><input id="newUserEntry" type="date"/></div></div>`,
+        `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">${I('check')} Onboard</button>`);
       modal.querySelector('#createUserBtn').onclick = function () {
+        const btn = this;
         const name = modal.querySelector('#newUserName').value.trim();
         const email = modal.querySelector('#newUserEmail').value.trim().toLowerCase();
         const password = modal.querySelector('#newUserPassword').value;
         const role = modal.querySelector('#newUserRole').value;
         const dept = modal.querySelector('#newUserDept').value.trim();
+        const phone = modal.querySelector('#newUserPhone').value.trim();
         const birthday = modal.querySelector('#newUserBirthday').value;
+        const dateOfEntry = modal.querySelector('#newUserEntry').value;
         if (!name || !email || !password) {
           PDMS.toast('Missing user info', 'Name, email, and password are required', 'error');
           return;
         }
         // Duplicate email guard
-        if (D.users.some(u => u.email.toLowerCase() === email)) {
+        if (D.users.some(u => String(u.email||'').toLowerCase() === email)) {
           PDMS.toast('Email already in use', 'A user with this email already exists. Use a different address.', 'error');
           return;
         }
-        const record = { name, email, password, role, dept, birthday: birthday || '', workload: 0, phone: '', joined: new Date().toISOString().slice(0, 10), status: 'Active' };
+
+        PDMS.setButtonLoading(btn, true, 'Onboarding...');
+        const record = { name, email, password, role, dept, birthday: birthday || '', dateOfEntry: dateOfEntry || '', workload: 0, phone, joined: new Date().toISOString().slice(0, 10), status: 'Active', availability: 'Available' };
         PDMS.api.register(record).then(saved => {
           D.users.unshift(saved);
           modal.remove();
           showNewUserPasswordNote(saved, password);
           const creator = PDMS.getUser();
           PDMS.notify('User Onboarded', `${creator ? creator.name : 'HR'} onboarded ${saved.name} as ${saved.role}`, 'user-plus', 'user-details.html#id='+saved.id);
-          render();
+          render(); // immediate local re-render, including stat cards
           if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
-        }).catch(err => PDMS.toast('Error', err.message || 'Could not onboard user', 'error'));
+        }).catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not onboard user', 'error');
+        });
       };
     }
 

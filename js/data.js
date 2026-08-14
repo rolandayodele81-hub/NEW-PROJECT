@@ -53,19 +53,7 @@
   }
 
   const departments = loadCollection('departments', []);
-  const users = loadCollection('users', [{
-    id: 'U001',
-    name: 'HR Manager',
-    email: 'hr@pse.com',
-    role: 'HR',
-    dept: 'Human Resources',
-    status: 'Active',
-    availability: 'Available',
-    workload: 0,
-    phone: '',
-    joined: '2026-01-15',
-    _localPassword: 'HR@2026!'
-  }]);
+  const users = loadCollection('users', []);
   const consultants = loadCollection('consultants', []);
   const clients = loadCollection('clients', []);
   const projects = loadCollection('projects', []);

@@ -127,19 +127,7 @@
   }
 
   const departments = loadCollection('departments', []);
-  const users = loadCollection('users', [{
-    id: 'U001',
-    name: 'HR Manager',
-    email: 'hr@pse.com',
-    role: 'HR',
-    dept: 'Human Resources',
-    status: 'Active',
-    availability: 'Available',
-    workload: 0,
-    phone: '',
-    joined: '2026-01-15',
-    _localPassword: 'HR@2026!'
-  }]);
+  const users = loadCollection('users', []);
   const consultants = loadCollection('consultants', []);
   const clients = loadCollection('clients', []);
   const projects = loadCollection('projects', []);
@@ -229,19 +217,7 @@
   };
   PDMS.setUser = function(u){ localStorage.setItem('pdms-user',JSON.stringify(u)); };
   PDMS.getLocalAuthUsers = function(){
-    const base = [{
-      id: 'U001',
-      name: 'HR Manager',
-      email: 'hr@pse.com',
-      role: 'HR',
-      dept: 'Human Resources',
-      status: 'Active',
-      availability: 'Available',
-      workload: 0,
-      phone: '',
-      joined: '2026-01-15',
-      _localPassword: 'HR@2026!'
-    }];
+    const base = [];
     const persisted = (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.users)) ? window.PDMS_DATA.users.filter(u => u._localPassword).map(u => Object.assign({}, u)) : [];
     const emails = new Set(persisted.map(u => String(u.email || '').trim().toLowerCase()));
     base.forEach(u => {
@@ -708,7 +684,12 @@
         const collection = getLocalResource(resource);
         const item = collection.find(item => String(item.id) === String(payload.id));
         if (!item) return reject(new Error('Record not found: ' + resource + '/' + payload.id));
-        Object.assign(item, payload.patch);
+        const patch = Object.assign({}, payload.patch);
+        if (resource === 'users' && patch.password) {
+          patch._localPassword = String(patch.password);
+          delete patch.password;
+        }
+        Object.assign(item, patch);
         persistLocalData();
         return resolve(item);
       }
@@ -774,6 +755,9 @@
 
   const MATRIX = {
     'Onboard User':        ['HR','HTD','COO','PM Head','General Admin'],
+    'Edit User':           ['HR','System Administrator','General Admin'],
+    'Delete User':         ['HR','System Administrator','General Admin'],
+    'Reset Password':      ['HR','System Administrator','General Admin'],
     'Create Project':      ['Sales','General Admin'],
     'Assign Project':      ['HR','HTD','COO','PM Head','PMO','General Admin'],
     'Assign PM':           ['HR','HTD','COO','PM Head','PMO','General Admin'],
@@ -910,6 +894,7 @@
       {id:'reviews',label:'Reviews',icon:'message',href:'reviews.html',roles:'*'},
     ]},
     {section:'System',items:[
+      {id:'profile',label:'My Profile',icon:'user',href:'profile.html',roles:'*'},
       {id:'settings',label:'System Settings',icon:'settings',href:'settings.html',roles:['System Administrator']},
       {id:'activity',label:'Audit Logs',icon:'activity',href:'activity.html',roles:['System Administrator']},
     ]}
@@ -947,8 +932,8 @@
         '</div>'+
         '<nav class="nav">'+navHtml+'</nav>'+
         '<div class="sidebar-footer">'+
-          '<div class="avatar">'+PDMS.initials(user.name)+'</div>'+
-          '<div class="user-meta"><div class="name">'+PDMS.esc(user.name)+'</div><div class="role">'+PDMS.esc(user.role)+'</div></div>'+
+          '<div class="avatar" style="cursor:pointer" onclick="location.href=\'profile.html\'">'+PDMS.initials(user.name)+'</div>'+
+          '<div class="user-meta" style="cursor:pointer" onclick="location.href=\'profile.html\'"><div class="name">'+PDMS.esc(user.name)+'</div><div class="role">'+PDMS.esc(user.role)+'</div></div>'+
           '<button class="icon-btn" title="Logout" id="logoutBtn">'+I('logout')+'</button>'+
         '</div>'+
       '</aside>'+
@@ -960,7 +945,7 @@
             '<button class="icon-btn" id="themeToggle" title="Toggle theme">'+I(theme==='light'?'moon':'sun')+'</button>'+
             '<button class="icon-btn" id="notifBtn" title="Notifications">'+I('bell')+'<span class="dot"></span></button>'+
             '<button class="icon-btn" id="reviewsBtn" title="Reviews">'+I('message')+'</button>'+
-            '<div class="avatar avatar-sm" title="'+PDMS.esc(user.name)+'">'+PDMS.initials(user.name)+'</div>'+
+            '<div class="avatar avatar-sm" title="'+PDMS.esc(user.name)+'" style="cursor:pointer" onclick="location.href=\'profile.html\'">'+PDMS.initials(user.name)+'</div>'+
           '</div>'+
         '</header>'+
         '<main class="content" id="content"></main>'+
