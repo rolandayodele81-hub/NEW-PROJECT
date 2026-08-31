@@ -157,13 +157,8 @@
     function isDeliveryProject(p) {
       if (!p) return false;
       if (p.status === 'Awaiting Account Approval' || p.status === 'Awaiting Sales Head Approval') return false;
-      if (p.stage === 'Delivery') return true;
-      const role = String(p.createdByRole || '').toLowerCase();
-      if (['coo', 'htd', 'pm head', 'pmo', 'project manager'].includes(role)) return true;
-      const dOnlyStatuses = ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
-      if (dOnlyStatuses.includes(p.status)) return true;
-      if (p.deliveryStatus && dOnlyStatuses.includes(p.deliveryStatus)) return true;
-      return false;
+      const dList = (window.D && window.D.deliveryStatuses) || (window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || [];
+      return p.stage === 'Delivery' || dList.includes(p.status) || p.status === 'Closed';
     }
 
     function render() {
@@ -179,9 +174,10 @@
         })
         : allDelivery;
 
-      const getDeliveryStatus = p => p.deliveryStatus || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) ? p.status : 'Not Started');
+      const getDeliveryStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) ? p.status : 'Not Started'));
 
       const activeProjects = deliveryProjects.length;
+      const notStartedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Not Started').length;
       const ongoingProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'In Progress').length;
       const completedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Completed').length;
       const closedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Closed').length;
@@ -218,12 +214,18 @@
     </div>
   </div>
 
-  <div class="grid mb-4" style="grid-template-columns:repeat(5,1fr);gap:16px">
+  <div class="grid mb-4" style="grid-template-columns:repeat(6,1fr);gap:16px">
     <div class="stat i-primary">
       <div class="label">Total In Delivery</div>
       <div class="value">${activeProjects}</div>
       <div class="delta up">All delivery projects</div>
       <div class="icon-wrap">${I('folder')}</div>
+    </div>
+    <div class="stat i-muted">
+      <div class="label">Not Started</div>
+      <div class="value">${notStartedProjects}</div>
+      <div class="delta">Pending kick-off</div>
+      <div class="icon-wrap">${I('clock')}</div>
     </div>
     <div class="stat i-warn">
       <div class="label">Ongoing</div>
@@ -696,7 +698,7 @@
       if (!canvas || !legend) return;
       const lp = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
       const dp = lp.filter(isDeliveryProject);
-      const getDeliveryStatus = p => p.deliveryStatus || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) ? p.status : 'Not Started');
+      const getDeliveryStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || 'Not Started');
       const ongoing = dp.filter(p => getDeliveryStatus(p) === 'In Progress').length;
       const completed = dp.filter(p => getDeliveryStatus(p) === 'Completed').length;
       const notStarted = dp.filter(p => getDeliveryStatus(p) === 'Not Started').length;

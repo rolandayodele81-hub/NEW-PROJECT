@@ -1361,12 +1361,18 @@
   };
   PDMS.deliveryStatusOf = function (project) {
     if (!project) return 'Not Started';
-    if (project.deliveryStatus) return project.deliveryStatus;
-    const st = project.status;
-    const dList = (window.D && window.D.deliveryStatuses) || (window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || [];
-    if (st && st !== 'Closed' && dList.includes(st) && st !== 'Awaiting Account Approval' && st !== 'Awaiting Sales Head Approval') {
-      return st;
+    if (project.deliveryStatus) {
+      const dList = (window.D && window.D.deliveryStatuses) || (window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || [];
+      const match = dList.find(s => s.toLowerCase() === String(project.deliveryStatus).trim().toLowerCase());
+      if (match && match !== 'Awaiting Account Approval' && match !== 'Awaiting Sales Head Approval') {
+        return match;
+      }
     }
+    const st = String(project.status || '').trim();
+    const dExecutionStatuses = ['In Progress', 'On Hold', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
+    const execMatch = dExecutionStatuses.find(s => s.toLowerCase() === st.toLowerCase());
+    if (execMatch) return execMatch;
+
     return 'Not Started';
   };
   PDMS.projectBucket = function (project) {
@@ -1420,9 +1426,9 @@
       {id:'dashboard',label:'Dashboard',icon:'dashboard',href:'dashboard.html',roles:'*'},
       {id:'projects',label:'Projects',icon:'folder',href:'projects.html',roles:['COO','Consultant']},
       {id:'clients',label:'Clients',icon:'globe',href:'clients.html',roles:['Sales','Sales Head']},
+      {id:'sales-pipeline',label:'Sales Pipeline',icon:'zap',href:'projects.html#view=sales',roles:['Sales','Sales Head','HR','HTD','COO','PM Head','Project Manager','Accounts']},
       {id:'awaiting-approval',label:'Awaiting Projects',icon:'clock',href:'awaiting-projects.html',roles:['Accounts','PM Head','COO','HTD']},
       {id:'awaiting-sales-approval',label:'Awaiting Approval',icon:'clock',href:'awaiting-projects.html',roles:['Sales Head']},
-      {id:'sales-pipeline',label:'Sales Pipeline',icon:'zap',href:'projects.html#view=sales',roles:['Sales','Sales Head','HR','HTD','COO','PM Head','Project Manager','Accounts']},
       {id:'delivery-projects',label:'Projects in Delivery',icon:'folder',href:'projects.html#view=delivery',roles:['Sales','Sales Head','HR','HTD','COO','PM Head','PMO','Project Manager','Accounts']},
     ]},
     {section:'Management',items:[

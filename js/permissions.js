@@ -119,12 +119,18 @@
   };
   PDMS.deliveryStatusOf = function (project) {
     if (!project) return 'Not Started';
-    if (project.deliveryStatus) return project.deliveryStatus;
-    const st = project.status;
-    const dList = (window.D && window.D.deliveryStatuses) || (window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || [];
-    if (st && st !== 'Closed' && dList.includes(st) && st !== 'Awaiting Account Approval' && st !== 'Awaiting Sales Head Approval') {
-      return st;
+    if (project.deliveryStatus) {
+      const dList = (window.D && window.D.deliveryStatuses) || (window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || [];
+      const match = dList.find(s => s.toLowerCase() === String(project.deliveryStatus).trim().toLowerCase());
+      if (match && match !== 'Awaiting Account Approval' && match !== 'Awaiting Sales Head Approval') {
+        return match;
+      }
     }
+    const st = String(project.status || '').trim();
+    const dExecutionStatuses = ['In Progress', 'On Hold', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
+    const execMatch = dExecutionStatuses.find(s => s.toLowerCase() === st.toLowerCase());
+    if (execMatch) return execMatch;
+
     return 'Not Started';
   };
   PDMS.projectBucket = function (project) {
