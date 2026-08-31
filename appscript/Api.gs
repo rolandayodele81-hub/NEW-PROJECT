@@ -40,7 +40,7 @@ function doPost(e) {
           : jsonOutput_({ ok: false, error: 'Invalid login credentials' });
       }
       case 'register':
-        return jsonOutput_({ ok: true, data: Auth.register(body.account) });
+        return jsonOutput_({ ok: true, data: Auth.register(body.account, body.appUrl) });
       case 'uploaddoc': {
         var folder = DriveApp.getFolderById(getDocFolderId_());
         var bytes = Utilities.base64Decode(body.base64);

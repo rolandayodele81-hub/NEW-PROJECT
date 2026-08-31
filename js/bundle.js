@@ -736,7 +736,7 @@
     update: (resource, id, patch) => post('update', { resource, id, patch }),
     remove: (resource, id) => post('remove', { resource, id }),
     login: (email, password) => post('login', { email, password }),
-    register: (account) => post('register', { resource: 'users', account })
+    register: (account) => post('register', { resource: 'users', account, appUrl: location.href.replace(/\/[^\/]*$/, '/') })
   };
 
   if (hasRemoteBackend) {

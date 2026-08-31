@@ -39,18 +39,37 @@ var Auth = {
     return stripExcluded_(user, ['passwordHash']);
   },
 
-  register: function (account) {
+  register: function (account, appUrl) {
     if (findUserByEmail_(account.email)) {
       throw new Error('An account with that email already exists');
     }
     var record = Object.assign({}, account);
-    record.passwordHash = hashPassword_(record.password);
+    var plainPassword = record.password;
+    record.passwordHash = hashPassword_(plainPassword);
     delete record.password;
     record.status = record.status || 'Active';
     record.availability = record.availability || 'Available';
     record.workload = record.workload || 0;
     record.joined = record.joined || new Date().toISOString().slice(0, 10);
     var saved = Repository.insert('users', record);
+    
+    try {
+      var subject = "Welcome to PSE PDMS - Your Account Details";
+      var body = "Hello " + saved.name + ",\n\n" +
+                 "Your account has been successfully created on the PSE PDMS portal as a " + saved.role + ".\n\n" +
+                 "Here are your login credentials:\n" +
+                 "Email: " + saved.email + "\n" +
+                 "Password: " + plainPassword + "\n\n" +
+                 "You can log in to the portal here:\n" + 
+                 (appUrl || "Your organization's PDMS portal URL") + "\n\n" +
+                 "Please log in and update your password from your profile page as soon as possible.\n\n" +
+                 "Best regards,\n" +
+                 "PSE HR Team";
+      MailApp.sendEmail(saved.email, subject, body);
+    } catch(e) {
+      Logger.log("Failed to send welcome email to " + saved.email + ": " + e.toString());
+    }
+    
     return stripExcluded_(saved, ['passwordHash']);
   }
 };
