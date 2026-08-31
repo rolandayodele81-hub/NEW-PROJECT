@@ -1332,6 +1332,24 @@
     return [...new Set([...(D.salesStatuses||[]), ...(D.deliveryStatuses||[])])].filter(s => !exclude.includes(s));
   };
 
+  PDMS.projectOwnedByUser = function(project, user){
+    if(!project || !user) return false;
+    const userId = String(user.id || '').trim().toLowerCase();
+    const userName = String(user.name || '').trim().toLowerCase();
+    const ownerValues = [
+      String(project.projectOwnerId || '').trim().toLowerCase(),
+      String(project.projectOwnerName || '').trim().toLowerCase(),
+      String(project.onboardedById || '').trim().toLowerCase(),
+      String(project.onboardedByName || '').trim().toLowerCase(),
+      String(project.salesOwnerId || '').trim().toLowerCase(),
+      String(project.salesOwnerName || '').trim().toLowerCase(),
+      String(project.createdByUserId || '').trim().toLowerCase(),
+      String(project.createdByUserName || '').trim().toLowerCase(),
+      String(project.sales || '').trim().toLowerCase()
+    ].filter(Boolean);
+    return (userId && ownerValues.includes(userId)) || (userName && ownerValues.includes(userName));
+  };
+
   // Shared status/bucket helpers used across all dashboard pages.
   PDMS.isSalesStatus = function(status){
     if(status === 'Awaiting Sales Head Approval' || status === 'Awaiting Account Approval') return true;

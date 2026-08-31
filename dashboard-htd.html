@@ -7,7 +7,7 @@
   <title>Delivery Dashboard — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788176492" />
+  <link rel="stylesheet" href="css/style.css?v=1788180977" />
   <style>
     .htd-hero {
       display: grid;
@@ -149,7 +149,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788176492"></script>
+  <script src="js/bundle.js?v=1788180977"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -464,7 +464,7 @@
       <div class="form-row"><label>Email</label><input id="newUserEmail" type="email" placeholder="jane.smith@pse.com"/></div>
       <div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div>
       <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Skill Set</label><input id="newUserDept" type="text" placeholder="e.g. Cyber Security"/></div>
+      <div class="form-row"><label>Designation</label><input id="newUserDept" type="text" placeholder="e.g. Senior Security Analyst, Solutions Architect..."/></div>
       <div class="form-row"><label>Phone</label><input id="newUserPhone" type="text" placeholder="+1 555 123 4567"/></div>
       <div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="text" placeholder="MM/DD"/></div>
       <div class="form-row"><label>Date of Entry</label><input id="newUserEntry" type="date"/></div>

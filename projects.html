@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788176492"/>
+<link rel="stylesheet" href="css/style.css?v=1788180977"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788176492"></script>
+<script src="js/bundle.js?v=1788180977"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -31,9 +31,10 @@ const pageInfo = viewParam==='sales' ? {title:'Sales Pipeline', sub:'Projects cr
 // by a delivery role stays in Projects in Delivery for its whole life.
 function scopedProjects(){
   const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
-  if(currentUser && (currentUser.role === 'Consultant' || currentUser.role === 'PMO')){
-    const myName = (currentUser.name||'').toLowerCase();
-    const myId = (currentUser.id||'').toLowerCase();
+  const user = PDMS.getUser() || currentUser;
+  if(user && (user.role === 'Consultant' || user.role === 'PMO')){
+    const myName = (user.name||'').toLowerCase();
+    const myId = (user.id||'').toLowerCase();
     return liveProjects.filter(p=>{
       const consultants = Array.isArray(p.consultants) ? p.consultants.map(String).map(n=>n.toLowerCase()) : [];
       return consultants.includes(myName) || consultants.includes(myId)
@@ -42,7 +43,14 @@ function scopedProjects(){
     });
   }
   // Bucket purely by current status: sales statuses → Sales Pipeline, delivery statuses → Delivery
-  if(viewParam==='sales') return liveProjects.filter(p => PDMS.isSalesStatus(p.status) || p.status==='Awaiting Account Approval' || p.status==='Awaiting Sales Head Approval' || p.stage==='Delivery' || p.status==='Closed' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)));
+  if(viewParam==='sales' || (!viewParam && user && String(user.role).trim().toLowerCase() === 'sales')) {
+    const allSales = liveProjects.filter(p => PDMS.isSalesStatus(p.status) || p.status==='Awaiting Account Approval' || p.status==='Awaiting Sales Head Approval' || p.stage==='Delivery' || p.status==='Closed' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)));
+    const isSalesOnly = user && String(user.role).trim().toLowerCase() === 'sales';
+    if(isSalesOnly) {
+      return allSales.filter(p => PDMS.projectOwnedByUser(p, user));
+    }
+    return allSales;
+  }
   if(viewParam==='delivery') return liveProjects.filter(p => (p.stage==='Delivery' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)) || p.status==='Closed') && p.status !== 'Awaiting Account Approval' && p.status !== 'Awaiting Sales Head Approval');
   return liveProjects;
 }

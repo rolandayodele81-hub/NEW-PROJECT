@@ -3,8 +3,8 @@
 <title>User Details — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788176492"/></head><body>
-<script src="js/bundle.js?v=1788176492"></script>
+<link rel="stylesheet" href="css/style.css?v=1788180977"/></head><body>
+<script src="js/bundle.js?v=1788180977"></script>
 <script>
 // A hash survives any host's clean-URL rewriting untouched, since it's never
 // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -219,7 +219,7 @@ window.editUser = function() {
       <div class="form-row"><label>Full Name</label><input id="editUserName" value="${PDMS.esc(u.name)}"/></div>
       <div class="form-row"><label>Email</label><input id="editUserEmail" type="email" value="${PDMS.esc(u.email)}"/></div>
       <div class="form-row"><label>Role</label><select id="editUserRole">${D.roles.map(r => `<option ${r===u.role?'selected':''}>${r}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Skill Set / Dept</label><input id="editUserDept" value="${PDMS.esc(u.dept||'')}"/></div>
+      <div class="form-row"><label>Designation</label><input id="editUserDept" value="${PDMS.esc(u.dept||'')}"/></div>
       <div class="form-row"><label>Phone</label><input id="editUserPhone" value="${PDMS.esc(u.phone||'')}"/></div>
       <div class="form-row"><label>Date of Birth</label><input id="editUserBirthday" value="${PDMS.esc(u.birthday||'')}"/></div>
       <div class="form-row"><label>Date of Entry</label><input id="editUserEntry" type="date" value="${PDMS.esc(u.dateOfEntry||u.joined||'')}"/></div>

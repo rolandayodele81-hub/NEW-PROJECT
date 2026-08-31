@@ -7,11 +7,11 @@
   <title>Users — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788176492"/>
+<link rel="stylesheet" href="css/style.css?v=1788180977"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788176492"></script>
+  <script src="js/bundle.js?v=1788180977"></script>
   <script>
     PDMS.mountShell('users');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -35,7 +35,7 @@
         columns: [
           { key: 'name', label: 'User', render: r => `<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.name)}</div><div><div class="font-semi">${PDMS.esc(r.name)}</div><div class="text-sm text-muted">${PDMS.esc(r.email)}</div></div></div>` },
           { key: 'role', label: 'Role', render: r => `<span class="badge badge-primary">${r.role}</span>` },
-          { key: 'dept', label: 'Skill Set' }
+          { key: 'dept', label: 'Designation' }
         ],
         rows: D.users, pageSize: 10, searchKeys: ['name', 'email', 'role', 'dept'],
         rowHref: r => 'user-details.html#id=' + r.id,
@@ -44,7 +44,7 @@
     }
 
     function newUser() {
-      const modal = PDMS.modal('Create User', `<div class="form-grid"><div class="form-row"><label>Full Name</label><input id="newUserName"/></div><div class="form-row"><label>Email</label><input id="newUserEmail" type="email"/></div><div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div><div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Skill Set</label><input id="newUserDept" type="text" placeholder="e.g. Cyber Security"/></div><div class="form-row"><label>Phone</label><input id="newUserPhone" type="text" placeholder="e.g. +1 555 123 4567"/></div><div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="text" placeholder="MM/DD"/></div><div class="form-row"><label>Date of Entry</label><input id="newUserEntry" type="date"/></div></div>`,
+      const modal = PDMS.modal('Create User', `<div class="form-grid"><div class="form-row"><label>Full Name</label><input id="newUserName"/></div><div class="form-row"><label>Email</label><input id="newUserEmail" type="email"/></div><div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div><div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Designation</label><input id="newUserDept" type="text" placeholder="e.g. Senior Security Analyst, Solutions Architect..."/></div><div class="form-row"><label>Phone</label><input id="newUserPhone" type="text" placeholder="e.g. +1 555 123 4567"/></div><div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="text" placeholder="MM/DD"/></div><div class="form-row"><label>Date of Entry</label><input id="newUserEntry" type="date"/></div></div>`,
         `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">Create</button>`);
       modal.querySelector('#createUserBtn').onclick = function () {
         const btn = this;

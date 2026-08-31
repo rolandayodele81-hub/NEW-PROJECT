@@ -7,7 +7,7 @@
   <title>Sales Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788176492"/>
+<link rel="stylesheet" href="css/style.css?v=1788180977"/>
   <style>
     .sales-hero {
       display: grid;
@@ -94,7 +94,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788176492"></script>
+  <script src="js/bundle.js?v=1788180977"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -105,9 +105,21 @@
       const userName = String(user.name || '').trim().toLowerCase();
       const ownerValues = [
         String(project.projectOwnerId || project.onboardedById || project.salesOwnerId || project.createdByUserId || '').trim().toLowerCase(),
-        String(project.projectOwnerName || project.onboardedByName || project.salesOwnerName || project.createdByUserName || '').trim().toLowerCase()
+        String(project.projectOwnerName || project.onboardedByName || project.salesOwnerName || project.createdByUserName || '').trim().toLowerCase(),
+        String(project.sales || '').trim().toLowerCase()
       ];
       return ownerValues.includes(userId) || ownerValues.includes(userName);
+    }
+
+    function isSalesProject(p) {
+      if (!p) return false;
+      if (p.stage === 'Sales') return true;
+      const role = String(p.createdByRole || '').toLowerCase();
+      if (role === 'sales' || role === 'sales head') return true;
+      if (p.status === 'Awaiting Sales Head Approval' || p.status === 'Awaiting Account Approval') return true;
+      if (PDMS.isSalesStatus && PDMS.isSalesStatus(p.status)) return true;
+      if (p.sales && p.sales !== 'TBD' && p.sales !== 'PM Team' && p.sales !== 'None') return true;
+      return false;
     }
 
     function render() {
@@ -115,7 +127,7 @@
       const currentUser = PDMS.getUser();
       const isSalesHead = currentUser && currentUser.role === 'Sales Head';
       const isSalesUser = currentUser && currentUser.role === 'Sales';
-      const salesProjectSet = liveProjects.filter(p => ['sales','sales head'].includes(String(p.createdByRole||'').toLowerCase()));
+      const salesProjectSet = liveProjects.filter(isSalesProject);
       // Sales Head: pending approval queue (only projects created by Sales users, not Sales Head's own)
       const pendingSalesHeadApproval = isSalesHead
         ? liveProjects.filter(p => p.status === 'Awaiting Sales Head Approval')
@@ -126,18 +138,24 @@
       // Delivery table should show deals that Sales created which have moved to Delivery
       const deliveryProjects = salesProjectSet.filter(p => (PDMS.stageOf ? PDMS.stageOf(p) === 'Delivery' : (D.deliveryStatuses && D.deliveryStatuses.includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status))));
       const totalInSales = salesProjects.length;
-      const awardSla = salesProjects.filter(p => ['Award/SLA','Awaiting Account Approval'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status)).length;
+      const inPipeline = salesProjects.filter(p => !['Award/SLA', 'Awaiting Account Approval', 'Closed'].includes(p.status) && p.stage !== 'Delivery' && !(D.deliveryStatuses && D.deliveryStatuses.includes(p.status))).length;
+      const awardSla = salesProjects.filter(p => ['Award/SLA', 'Awaiting Account Approval'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status) && p.stage !== 'Delivery' && !(D.deliveryStatuses && D.deliveryStatuses.includes(p.status))).length;
+      const closedDeals = salesProjects.filter(p => p.status === 'Closed' || p.stage === 'Delivery' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) && p.status !== 'Awaiting Account Approval' && p.status !== 'Awaiting Sales Head Approval')).length;
 
       // Pipeline conversion funnel: how many projects are sitting at each stage right now.
       const funnelStages = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'];
       const funnelCounts = funnelStages.map(s => {
         if (s === 'Closed') {
-          return salesProjects.filter(p => p.status === 'Closed' || p.stage === 'Delivery' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) && p.status !== 'Awaiting Account Approval')).length;
+          return salesProjects.filter(p => p.status === 'Closed' || p.stage === 'Delivery' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) && p.status !== 'Awaiting Account Approval' && p.status !== 'Awaiting Sales Head Approval')).length;
         }
         if (s === 'Award/SLA') {
           return salesProjects.filter(p => (p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') && p.stage !== 'Delivery' && !(D.deliveryStatuses && D.deliveryStatuses.includes(p.status))).length;
         }
-        return salesProjects.filter(p => (PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status) === s && p.stage !== 'Delivery' && !(D.deliveryStatuses && D.deliveryStatuses.includes(p.status))).length;
+        return salesProjects.filter(p => {
+          const st = (p.status === 'Awaiting Sales Head Approval') ? (p.requestedStatus || 'Lead') : p.status;
+          const norm = PDMS.normalizeStatus ? PDMS.normalizeStatus(st) : st;
+          return norm === s && p.stage !== 'Delivery' && p.status !== 'Closed' && !(D.deliveryStatuses && D.deliveryStatuses.includes(p.status));
+        }).length;
       });
       const funnelMax = Math.max(salesProjects.length, 1);
       const offRampCounts = {
@@ -166,18 +184,30 @@
       </div>
     </div>
 
-    <div class="grid grid-2 mb-4">
+    <div class="grid grid-4 mb-4">
       <div class="stat i-primary">
         <div class="label">Total in Sales</div>
         <div class="value">${totalInSales}</div>
         <div class="delta up">All pipeline deals</div>
         <div class="icon-wrap">${I('folder')}</div>
       </div>
+      <div class="stat i-info">
+        <div class="label">In Pipeline</div>
+        <div class="value">${inPipeline}</div>
+        <div class="delta up">Active prospecting</div>
+        <div class="icon-wrap">${I('activity')}</div>
+      </div>
       <div class="stat i-warn">
         <div class="label">Award/SLA</div>
         <div class="value">${awardSla}</div>
-        <div class="delta up">Awards and SLA handoffs</div>
+        <div class="delta up">Awards & SLA handoffs</div>
         <div class="icon-wrap">${I('clock')}</div>
+      </div>
+      <div class="stat i-success">
+        <div class="label">Closed / Won</div>
+        <div class="value">${closedDeals}</div>
+        <div class="delta up">Handed to delivery</div>
+        <div class="icon-wrap">${I('check')}</div>
       </div>
     </div>
 
