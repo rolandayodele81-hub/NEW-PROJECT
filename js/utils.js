@@ -190,7 +190,14 @@
 
   // Money & date fmt
   PDMS.money = n => '$'+Number(n).toLocaleString();
-  PDMS.initials = name => name.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
+  PDMS.currency = function(val, symbol = '₦'){
+    if (val === null || val === undefined || val === '') return '—';
+    const n = Number(val);
+    if (!Number.isFinite(n)) return String(val);
+    return symbol + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+  PDMS.formatCurrency = PDMS.currency;
+  PDMS.initials = name => (name||'').split(' ').filter(Boolean).map(p=>p[0]).slice(0,2).join('').toUpperCase();
 
   // Escape HTML
   PDMS.esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -208,7 +215,18 @@
         arr = arr.filter(r=>(opts.searchKeys||Object.keys(r)).some(k=>String(r[k]||'').toLowerCase().includes(q)));
       }
       Object.keys(state.filters).forEach(k=>{
-        if(state.filters[k]) arr = arr.filter(r=>String(r[k])===state.filters[k]);
+        if(state.filters[k]) {
+          arr = arr.filter(r => {
+            const v = String(r[k] || '');
+            if (k === 'status' && state.filters[k] === 'Award/SLA') {
+              return v === 'Award/SLA' || v === 'Awaiting Account Approval';
+            }
+            if (k === 'status' && state.filters[k] === 'Closed') {
+              return v === 'Closed' || r.stage === 'Delivery' || (window.D && window.D.deliveryStatuses && window.D.deliveryStatuses.includes(v) && v !== 'Awaiting Account Approval');
+            }
+            return v === state.filters[k];
+          });
+        }
       });
       if(state.sortKey){
         arr.sort((a,b)=>{
@@ -284,14 +302,475 @@
   };
 
   // Modal
-  PDMS.modal = function(title, bodyHtml, footHtml){
+  PDMS.modal = function(title, bodyHtml, footHtml, opts = {}){
     const back=document.createElement('div');
     back.className='modal-backdrop open';
-    back.innerHTML = '<div class="modal"><div class="modal-head"><h3 class="card-title">'+title+'</h3><button class="icon-btn" data-close>'+ICONS.close+'</button></div><div class="modal-body">'+bodyHtml+'</div>'+(footHtml?'<div class="modal-foot">'+footHtml+'</div>':'')+'</div>';
+    back.innerHTML = '<div class="modal"><div class="modal-head"><h3 class="card-title">'+title+'</h3></div><div class="modal-body">'+bodyHtml+'</div>'+(footHtml?'<div class="modal-foot">'+footHtml+'</div>':'')+'</div>';
     document.body.appendChild(back);
     back.addEventListener('click',e=>{ if(e.target.closest('[data-close]')) back.remove(); });
     return back;
   };
+
+  // Multi-step Sales Project Onboarding Wizard
+  // Multi-step Sales Project Onboarding Wizard
+  PDMS.openSalesProjectWizard = function(opts = {}){
+    const currentUser = PDMS.getUser();
+    if (!currentUser || !currentUser.id) {
+      PDMS.toast('Session expired', 'Please sign in again before creating a project.', 'error');
+      return;
+    }
+    const D = window.PDMS_DATA || {};
+    const I = PDMS.icon;
+    let modalRef = null;
+
+    let wizardState = {
+      step: 1, // 1: choose client type, 2: client form (new/existing), 3: project form
+      clientMode: null, // 'new' or 'existing'
+      selectedClient: null, // { name, industry, email, phone, address, workedBefore }
+      newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
+      projForm: { type: (D.types && D.types[0]) || 'ERP', workstream: '', status: (D.salesStatuses && D.salesStatuses[0]) || 'Lead', price: '', desc: '' }
+    };
+
+    function renderModal() {
+      if (modalRef) modalRef.remove();
+
+      let title = 'Create New Lead';
+      let bodyHtml = '';
+      let footHtml = '';
+
+      if (wizardState.step === 1) {
+        title = 'Create New Lead';
+        bodyHtml = `
+          <div style="background:linear-gradient(135deg,#090d16 0%,#1d3c88 45%,#8b5cf6 85%,#ec4899 100%);border-radius:14px;padding:20px 22px;color:#fff;margin-bottom:20px;position:relative;overflow:hidden">
+            <div style="font-size:17px;font-weight:800;line-height:1.2;margin-bottom:4px">Create New Lead</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.8)">Step 1 of 2 · Select whether this lead is for a new or existing client</div>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">Is this lead for a new or existing client?</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px">
+            <div id="swChoiceExisting" class="sw-choice-card" style="border:2px solid ${wizardState.clientMode === 'existing' ? 'var(--primary)' : 'var(--border)'};border-radius:14px;padding:20px 16px;cursor:pointer;background:${wizardState.clientMode === 'existing' ? 'rgba(99,102,241,.08)' : 'var(--surface-2)'};text-align:center;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:8px">
+              <div style="width:48px;height:48px;border-radius:12px;background:rgba(99,102,241,.12);color:var(--primary);display:grid;place-items:center;font-size:22px">${I('briefcase')}</div>
+              <div style="font-weight:700;font-size:15px;color:var(--text)">Existing Client</div>
+              <div style="font-size:12px;color:var(--text-soft);line-height:1.4">Select an enterprise partner already in your system</div>
+            </div>
+            <div id="swChoiceNew" class="sw-choice-card" style="border:2px solid ${wizardState.clientMode === 'new' ? '#10b981' : 'var(--border)'};border-radius:14px;padding:20px 16px;cursor:pointer;background:${wizardState.clientMode === 'new' ? 'rgba(16,185,129,.08)' : 'var(--surface-2)'};text-align:center;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:8px">
+              <div style="width:48px;height:48px;border-radius:12px;background:rgba(16,185,129,.12);color:#10b981;display:grid;place-items:center;font-size:22px">${I('plus')}</div>
+              <div style="font-weight:700;font-size:15px;color:var(--text)">New Client</div>
+              <div style="font-size:12px;color:var(--text-soft);line-height:1.4">Register a new client company before creating the lead</div>
+            </div>
+          </div>
+        `;
+        footHtml = `
+          <button class="btn btn-ghost" data-close style="margin-right:auto">Cancel</button>
+          <button class="btn btn-primary" id="swStep1NextBtn" ${!wizardState.clientMode ? 'disabled' : ''}>Next →</button>
+        `;
+      } else if (wizardState.step === 2 && wizardState.clientMode === 'new') {
+        title = 'Register New Client';
+        bodyHtml = `
+          <div style="background:linear-gradient(135deg,#090d16 0%,#065f46 50%,#10b981 100%);border-radius:14px;padding:18px 22px;color:#fff;margin-bottom:20px">
+            <div style="font-size:17px;font-weight:800;line-height:1.2;margin-bottom:4px">Step 1 of 2: Create Client</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.8)">Enter organization profile details for the new client</div>
+          </div>
+          <div class="form-grid">
+            <div class="form-row" style="grid-column:1/-1">
+              <label>Client Name <span style="color:var(--danger)">*</span></label>
+              <input id="swNewName" value="${PDMS.esc(wizardState.newClientForm.name || '')}" placeholder="e.g. Apex Global Bank" autocomplete="off"/>
+            </div>
+            <div class="form-row">
+              <label>Industry <span style="color:var(--danger)">*</span></label>
+              <input id="swNewIndustry" value="${PDMS.esc(wizardState.newClientForm.industry || '')}" placeholder="e.g. Financial Services"/>
+            </div>
+            <div class="form-row">
+              <label>Email Address</label>
+              <input id="swNewEmail" type="email" value="${PDMS.esc(wizardState.newClientForm.email || '')}" placeholder="contact@company.com"/>
+            </div>
+            <div class="form-row">
+              <label>Phone Number</label>
+              <input id="swNewPhone" type="tel" value="${PDMS.esc(wizardState.newClientForm.phone || '')}" placeholder="+234 ..."/>
+            </div>
+            <div class="form-row">
+              <label>Office Address</label>
+              <input id="swNewAddress" value="${PDMS.esc(wizardState.newClientForm.address || '')}" placeholder="City, Country"/>
+            </div>
+            <div class="form-row" style="grid-column:1/-1;margin-top:6px;padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px">
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;user-select:none">
+                <input type="checkbox" id="swNewWorkedBefore" ${wizardState.newClientForm.workedBefore ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer"/>
+                <span style="font-weight:600;color:var(--text);font-size:13px">We have worked with this client before</span>
+              </label>
+              <div style="font-size:11px;color:var(--text-soft);margin-left:28px;margin-top:2px">
+                Check this if PSE previously delivered projects or services for this client prior to entering them into this new system.
+              </div>
+            </div>
+          </div>
+        `;
+        footHtml = `
+          <button class="btn btn-ghost" data-close style="margin-right:auto">Cancel</button>
+          <button class="btn btn-secondary" id="swBackBtn">← Back</button>
+          <button class="btn btn-primary" id="swCreateClientNextBtn">Next: Lead Details →</button>
+        `;
+      } else if (wizardState.step === 2 && wizardState.clientMode === 'existing') {
+        title = 'Select Existing Client';
+        const clients = (D.clients || []);
+        bodyHtml = `
+          <div style="background:linear-gradient(135deg,#090d16 0%,#1d3c88 45%,#8b5cf6 100%);border-radius:14px;padding:18px 22px;color:#fff;margin-bottom:20px">
+            <div style="font-size:17px;font-weight:800;line-height:1.2;margin-bottom:4px">Step 1 of 2: Choose Existing Client</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.8)">Pick a client from your registered enterprise partners</div>
+          </div>
+          <div class="form-row" style="margin-bottom:14px">
+            <label>Search Client</label>
+            <input id="swSearchExisting" placeholder="Type client name or industry to filter..." autocomplete="off"/>
+          </div>
+          <div id="swExistingList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;gap:4px;padding:6px;background:var(--surface-2)">
+            ${clients.map(c => `
+              <div class="sw-client-item ${wizardState.selectedClient && wizardState.selectedClient.name === c.name ? 'active' : ''}" data-name="${PDMS.esc(c.name)}" style="padding:10px 14px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;background:${wizardState.selectedClient && wizardState.selectedClient.name === c.name ? 'var(--surface)' : 'transparent'};border:1px solid ${wizardState.selectedClient && wizardState.selectedClient.name === c.name ? 'var(--primary)' : 'transparent'};transition:all .15s">
+                <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                  <div style="width:32px;height:32px;border-radius:8px;background:var(--gradient);color:#fff;display:grid;place-items:center;font-weight:700;font-size:11px;flex-shrink:0">${PDMS.initials(c.name)}</div>
+                  <div style="min-width:0">
+                    <div style="font-weight:700;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(c.name)}${c.workedBefore ? ' <span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(99,102,241,.12);color:var(--primary)">Prior Client</span>' : ''}</div>
+                    <div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(c.industry || 'Client')}</div>
+                  </div>
+                </div>
+                ${wizardState.selectedClient && wizardState.selectedClient.name === c.name ? `<span style="color:var(--primary);font-size:16px;font-weight:800">✓</span>` : ''}
+              </div>
+            `).join('') || `<div style="padding:20px;text-align:center;color:var(--text-soft);font-size:13px">No registered clients found. Please go back and create a new client.</div>`}
+          </div>
+          ${wizardState.selectedClient ? `
+            <div style="margin-top:12px;padding:10px 14px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:10px;display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:12px;font-weight:600;color:var(--primary)">Selected: <strong>${PDMS.esc(wizardState.selectedClient.name)}</strong> (${PDMS.esc(wizardState.selectedClient.industry || '—')})${wizardState.selectedClient.workedBefore ? ' · Prior Client' : ''}</span>
+            </div>
+          ` : ''}
+        `;
+        footHtml = `
+          <button class="btn btn-ghost" data-close style="margin-right:auto">Cancel</button>
+          <button class="btn btn-secondary" id="swBackBtn">← Back</button>
+          <button class="btn btn-primary" id="swSelectClientNextBtn" ${!wizardState.selectedClient ? 'disabled' : ''}>Next: Lead Details →</button>
+        `;
+      } else if (wizardState.step === 3) {
+        title = 'Step 2 of 2: Lead Details';
+        const clientName = (wizardState.selectedClient && wizardState.selectedClient.name) || '';
+        const clientIndustry = (wizardState.selectedClient && wizardState.selectedClient.industry) || '';
+        const isPrior = !!(wizardState.selectedClient && wizardState.selectedClient.workedBefore);
+        const statusOptions = (D.salesStatuses || []);
+        bodyHtml = `
+          <div style="background:linear-gradient(135deg,#090d16 0%,#1d3c88 45%,#8b5cf6 85%,#ec4899 100%);border-radius:14px;padding:18px 22px;color:#fff;margin-bottom:16px">
+            <div style="font-size:17px;font-weight:800;line-height:1.2;margin-bottom:4px">Lead Scope &amp; Details</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.8)">Step 2 of 2 · Complete information to create this lead</div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--surface-2);border:1.5px solid var(--border);border-radius:12px;margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:38px;height:38px;border-radius:10px;background:var(--gradient);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px;flex-shrink:0">${PDMS.initials(clientName)}</div>
+              <div>
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-soft);letter-spacing:.5px;display:flex;align-items:center;gap:8px">
+                  <span>Client Partner</span>
+                  <span class="badge ${wizardState.clientMode === 'new' ? 'badge-success' : 'badge-primary'}" style="font-size:10px;padding:2px 7px">${wizardState.clientMode === 'new' ? 'New Client' : 'Existing Client'}</span>
+                  ${isPrior ? `<span class="badge badge-info" style="font-size:10px;padding:2px 7px">Worked Before</span>` : ''}
+                </div>
+                <div style="font-weight:700;font-size:15px;color:var(--text);margin-top:2px">
+                  ${PDMS.esc(clientName)} <span style="font-size:12px;font-weight:500;color:var(--text-soft)">(${PDMS.esc(clientIndustry)})</span>
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="swChangeClientBtn" style="font-size:11px;padding:4px 10px">Change</button>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Client Status</label>
+              <div style="padding:9px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px">
+                <span style="width:8px;height:8px;border-radius:50%;background:${wizardState.clientMode === 'new' ? '#10b981' : 'var(--primary)'};flex-shrink:0"></span>
+                <span>${wizardState.clientMode === 'new' ? (isPrior ? 'New Client (Worked with before)' : 'New Client') : 'Existing Client'}</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>Project Type</label>
+              <select id="swProjType">
+                ${(D.types || []).map(t => `<option${t === wizardState.projForm.type ? ' selected' : ''}>${t}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Workstream</label>
+              <input id="swProjDept" type="text" value="${PDMS.esc(wizardState.projForm.workstream || '')}" placeholder="e.g. QMS, FSMS, ISO..." />
+            </div>
+            <div class="form-row">
+              <label>Initial Stage / Status</label>
+              <select id="swProjStatus">${statusOptions.map(s => `<option${s === wizardState.projForm.status ? ' selected' : ''}>${s}</option>`).join('')}</select>
+            </div>
+            <div class="form-row" style="grid-column:1/-1">
+              <label id="swPriceLabel">${(wizardState.projForm.status === 'Award/SLA' || wizardState.projForm.status === 'SLA Signed') ? 'Award Value (₦) <span style="font-size:12px;color:var(--primary);font-weight:600">(Exclusive of VAT)</span>' : 'Opportunity Value (₦)'}</label>
+              <input id="swProjPrice" type="number" min="0" step="0.01" value="${PDMS.esc(wizardState.projForm.price || '')}" placeholder="0.00" />
+            </div>
+          </div>
+          <div class="form-row" style="margin-top:12px">
+            <label>Description</label>
+            <textarea id="swProjDesc" rows="3" placeholder="Scope, deliverables, timeline goals...">${PDMS.esc(wizardState.projForm.desc || '')}</textarea>
+          </div>
+        `;
+        footHtml = `
+          <button class="btn btn-ghost" data-close style="margin-right:auto">Cancel</button>
+          <button class="btn btn-secondary" id="swBackBtn">← Back</button>
+          <button class="btn btn-primary" id="swFinalSubmitBtn">${I('plus')} Create Lead</button>
+        `;
+      }
+
+      modalRef = PDMS.modal(title, bodyHtml, footHtml);
+
+      // Attach event handlers based on step
+      if (wizardState.step === 1) {
+        const choiceEx = modalRef.querySelector('#swChoiceExisting');
+        const choiceNew = modalRef.querySelector('#swChoiceNew');
+        const nextBtn = modalRef.querySelector('#swStep1NextBtn');
+
+        if (choiceEx) choiceEx.onclick = () => {
+          wizardState.clientMode = 'existing';
+          wizardState.step = 2;
+          renderModal();
+        };
+        if (choiceNew) choiceNew.onclick = () => {
+          wizardState.clientMode = 'new';
+          wizardState.step = 2;
+          renderModal();
+        };
+        if (nextBtn) nextBtn.onclick = () => {
+          if (!wizardState.clientMode) return;
+          wizardState.step = 2;
+          renderModal();
+        };
+      } else if (wizardState.step === 2 && wizardState.clientMode === 'new') {
+        const backBtn = modalRef.querySelector('#swBackBtn');
+        const nextBtn = modalRef.querySelector('#swCreateClientNextBtn');
+
+        if (backBtn) backBtn.onclick = () => {
+          const nameInput = modalRef.querySelector('#swNewName');
+          const indInput = modalRef.querySelector('#swNewIndustry');
+          const emailInput = modalRef.querySelector('#swNewEmail');
+          const phoneInput = modalRef.querySelector('#swNewPhone');
+          const addrInput = modalRef.querySelector('#swNewAddress');
+          const workedInput = modalRef.querySelector('#swNewWorkedBefore');
+          if (nameInput) wizardState.newClientForm.name = nameInput.value;
+          if (indInput) wizardState.newClientForm.industry = indInput.value;
+          if (emailInput) wizardState.newClientForm.email = emailInput.value;
+          if (phoneInput) wizardState.newClientForm.phone = phoneInput.value;
+          if (addrInput) wizardState.newClientForm.address = addrInput.value;
+          if (workedInput) wizardState.newClientForm.workedBefore = workedInput.checked;
+
+          wizardState.step = 1;
+          wizardState.clientMode = null;
+          renderModal();
+        };
+
+        if (nextBtn) nextBtn.onclick = function() {
+          const name = modalRef.querySelector('#swNewName').value.trim();
+          const industry = modalRef.querySelector('#swNewIndustry').value.trim();
+          const email = modalRef.querySelector('#swNewEmail').value.trim().toLowerCase();
+          const phone = modalRef.querySelector('#swNewPhone').value.trim();
+          const address = modalRef.querySelector('#swNewAddress').value.trim();
+          const workedBefore = !!(modalRef.querySelector('#swNewWorkedBefore') && modalRef.querySelector('#swNewWorkedBefore').checked);
+
+          wizardState.newClientForm = { name, industry, email, phone, address, workedBefore };
+
+          if (!name || !industry) {
+            PDMS.toast('Missing Info', 'Client Name and Industry are required', 'error');
+            return;
+          }
+
+          const btn = this;
+          PDMS.setButtonLoading(btn, true, 'Creating Client...');
+
+          const clientPayload = { name, industry, email, phone, address, workedBefore, projects: 0 };
+          PDMS.api.create('clients', clientPayload).then(createdClient => {
+            const clientObj = Object.assign({}, clientPayload, createdClient || {});
+            const existingIdx = (D.clients || []).findIndex(c => (c.name || '').toLowerCase() === name.toLowerCase());
+            if (existingIdx > -1) D.clients[existingIdx] = clientObj;
+            else (D.clients = D.clients || []).unshift(clientObj);
+
+            wizardState.selectedClient = clientObj;
+            wizardState.step = 3;
+            renderModal();
+            PDMS.toast('Client Created', `"${name}" added successfully. Continue entering lead details.`, 'success');
+          }).catch(err => {
+            PDMS.setButtonLoading(btn, false);
+            PDMS.toast('Error', err.message || 'Could not create client', 'error');
+          });
+        };
+      } else if (wizardState.step === 2 && wizardState.clientMode === 'existing') {
+        const backBtn = modalRef.querySelector('#swBackBtn');
+        const nextBtn = modalRef.querySelector('#swSelectClientNextBtn');
+        const searchInput = modalRef.querySelector('#swSearchExisting');
+        const listContainer = modalRef.querySelector('#swExistingList');
+
+        if (backBtn) backBtn.onclick = () => {
+          wizardState.step = 1;
+          wizardState.clientMode = null;
+          renderModal();
+        };
+
+        const attachItemClicks = () => {
+          modalRef.querySelectorAll('.sw-client-item').forEach(item => {
+            item.onclick = () => {
+              const cName = item.getAttribute('data-name');
+              const found = (D.clients || []).find(c => c.name === cName);
+              if (found) {
+                wizardState.selectedClient = found;
+                wizardState.step = 3;
+                renderModal();
+              }
+            };
+          });
+        };
+        attachItemClicks();
+
+        if (searchInput) {
+          searchInput.oninput = (e) => {
+            const q = e.target.value.trim().toLowerCase();
+            const filtered = (D.clients || []).filter(c => (c.name || '').toLowerCase().includes(q) || (c.industry || '').toLowerCase().includes(q));
+            listContainer.innerHTML = filtered.map(c => `
+              <div class="sw-client-item ${wizardState.selectedClient && wizardState.selectedClient.name === c.name ? 'active' : ''}" data-name="${PDMS.esc(c.name)}" style="padding:10px 14px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;background:${wizardState.selectedClient && wizardState.selectedClient.name === c.name ? 'var(--surface)' : 'transparent'};border:1px solid ${wizardState.selectedClient && wizardState.selectedClient.name === c.name ? 'var(--primary)' : 'transparent'};transition:all .15s">
+                <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                  <div style="width:32px;height:32px;border-radius:8px;background:var(--gradient);color:#fff;display:grid;place-items:center;font-weight:700;font-size:11px;flex-shrink:0">${PDMS.initials(c.name)}</div>
+                  <div style="min-width:0">
+                    <div style="font-weight:700;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(c.name)}${c.workedBefore ? ' <span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(99,102,241,.12);color:var(--primary)">Prior Client</span>' : ''}</div>
+                    <div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(c.industry || 'Client')}</div>
+                  </div>
+                </div>
+                ${wizardState.selectedClient && wizardState.selectedClient.name === c.name ? `<span style="color:var(--primary);font-size:16px;font-weight:800">✓</span>` : ''}
+              </div>
+            `).join('') || `<div style="padding:20px;text-align:center;color:var(--text-soft);font-size:13px">No matching clients found</div>`;
+            attachItemClicks();
+          };
+        }
+
+        if (nextBtn) nextBtn.onclick = () => {
+          if (!wizardState.selectedClient) return;
+          wizardState.step = 3;
+          renderModal();
+        };
+      } else if (wizardState.step === 3) {
+        const backBtn = modalRef.querySelector('#swBackBtn');
+        const changeClientBtn = modalRef.querySelector('#swChangeClientBtn');
+        const submitBtn = modalRef.querySelector('#swFinalSubmitBtn');
+
+        const goBackToStep2 = () => {
+          const typeInput = modalRef.querySelector('#swProjType');
+          const deptInput = modalRef.querySelector('#swProjDept');
+          const statusInput = modalRef.querySelector('#swProjStatus');
+          const priceInput = modalRef.querySelector('#swProjPrice');
+          const descInput = modalRef.querySelector('#swProjDesc');
+          if (typeInput) wizardState.projForm.type = typeInput.value.trim();
+          if (deptInput) wizardState.projForm.workstream = deptInput.value.trim();
+          if (statusInput) wizardState.projForm.status = statusInput.value;
+          if (priceInput) wizardState.projForm.price = priceInput.value.trim();
+          if (descInput) wizardState.projForm.desc = descInput.value.trim();
+
+          wizardState.step = 2;
+          renderModal();
+        };
+
+        const statusSelect = modalRef.querySelector('#swProjStatus');
+        if (statusSelect) {
+          statusSelect.onchange = () => {
+            const val = statusSelect.value;
+            wizardState.projForm.status = val;
+            const priceLabel = modalRef.querySelector('#swPriceLabel');
+            if (priceLabel) {
+              priceLabel.innerHTML = (val === 'Award/SLA' || val === 'SLA Signed')
+                ? 'Award Value (₦) <span style="font-size:12px;color:var(--primary);font-weight:600">(Exclusive of VAT)</span>'
+                : 'Opportunity Value (₦)';
+            }
+          };
+        }
+
+        if (backBtn) backBtn.onclick = goBackToStep2;
+        if (changeClientBtn) changeClientBtn.onclick = () => {
+          wizardState.step = 1;
+          wizardState.clientMode = null;
+          wizardState.selectedClient = null;
+          renderModal();
+        };
+
+        if (submitBtn) submitBtn.onclick = function() {
+          const client = wizardState.selectedClient && wizardState.selectedClient.name;
+          if (!client) {
+            PDMS.toast('Error', 'Client selection missing', 'error');
+            wizardState.step = 1;
+            renderModal();
+            return;
+          }
+          const type = modalRef.querySelector('#swProjType').value.trim();
+          const workstream = modalRef.querySelector('#swProjDept').value.trim();
+          const status = modalRef.querySelector('#swProjStatus').value;
+          const negotiatedPriceRaw = modalRef.querySelector('#swProjPrice').value.trim();
+          const negotiatedPrice = negotiatedPriceRaw === '' ? '' : Number(negotiatedPriceRaw);
+          const desc = modalRef.querySelector('#swProjDesc').value.trim();
+
+          const btn = this;
+          PDMS.setButtonLoading(btn, true, 'Creating Lead...');
+
+          let initialStatus = status;
+          let initialStage = 'Sales';
+          const isSalesHeadCreator = currentUser && currentUser.role === 'Sales Head';
+          const isAwardInitial = (initialStatus === 'SLA Signed' || initialStatus === 'Award/SLA');
+          if (isAwardInitial) {
+            initialStatus = 'Awaiting Account Approval';
+            initialStage = 'Delivery';
+          } else if (!isSalesHeadCreator) {
+            initialStatus = 'Awaiting Sales Head Approval';
+            initialStage = 'Sales';
+          }
+
+          const isPrior = !!(wizardState.selectedClient && wizardState.selectedClient.workedBefore);
+          const clientStatus = wizardState.clientMode === 'new' ? (isPrior ? 'New Client (Worked with before)' : 'New Client') : 'Existing Client';
+
+          const record = {
+            name: client, client, type, workstream, dept: workstream, sales: (currentUser && currentUser.name) || 'Sales Team', pm: '', lead: '', consultants: [],
+            status: initialStatus, stage: initialStage, requestedStatus: status, createdByRole: currentUser.role, projectOwnerId: '', projectOwnerName: '', progress: 0, start: '', due: '', completion: null,
+            negotiatedPrice: Number.isFinite(negotiatedPrice) ? negotiatedPrice : '',
+            awardValue: isAwardInitial && Number.isFinite(negotiatedPrice) ? negotiatedPrice : '',
+            description: desc, files: 0, remarks: 0,
+            clientStatus, clientType: wizardState.clientMode || 'existing',
+            workedBefore: isPrior
+          };
+          const finalRecord = Object.assign({}, record, {
+            projectOwnerId: String((currentUser && currentUser.id) || ''),
+            projectOwnerName: String((currentUser && currentUser.name) || '')
+          });
+
+          const tmpId = 'TMP-' + Date.now();
+          const tmp = Object.assign({ id: tmpId, _optimistic: true }, finalRecord);
+          (D.projects = D.projects || []).unshift(tmp);
+
+          if (typeof opts.onSuccess === 'function') opts.onSuccess(tmp);
+
+          PDMS.api.create('projects', finalRecord).then(saved => {
+            const savedRecord = Object.assign({}, saved, {
+              projectOwnerId: String((saved && saved.projectOwnerId) || (currentUser && currentUser.id) || ''),
+              projectOwnerName: String((saved && saved.projectOwnerName) || (currentUser && currentUser.name) || '')
+            });
+            const idx = D.projects.findIndex(p => p.id === tmpId);
+            if (idx > -1) D.projects.splice(idx, 1, savedRecord); else D.projects.unshift(savedRecord);
+            modalRef.remove();
+            const toastMsg = isSalesHeadCreator ? 'Lead onboarded to sales pipeline' : 'Lead submitted for Sales Head approval';
+            PDMS.toast('Lead created', toastMsg, 'success');
+            if (opts.redirectUrl !== false) {
+              if (location.pathname.endsWith('projects.html')) {
+                if (typeof renderProjects === 'function') renderProjects();
+              } else {
+                location.href = 'projects.html#view=sales';
+              }
+            }
+          }).catch(err => {
+            const idx = D.projects.findIndex(p => p.id === tmpId);
+            if (idx > -1) D.projects.splice(idx, 1);
+            if (typeof opts.onSuccess === 'function') opts.onSuccess();
+            PDMS.setButtonLoading(btn, false);
+            PDMS.toast('Error', err.message || 'Could not create lead', 'error');
+          });
+        };
+      }
+    }
+
+    renderModal();
+  };
+
 
   // ===== Chart primitives (canvas) =====
   PDMS.charts = {

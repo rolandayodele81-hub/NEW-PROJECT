@@ -1,17 +1,24 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Profile — PSE PDMS</title>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Profile — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css"/></head><body>
-<script src="js/bundle.js?v=1786691654"></script>
-<script>
-PDMS.mountShell('profile');
-const u=PDMS.getUser();const I=PDMS.icon;
-const D = PDMS_DATA;
+  <link rel="stylesheet" href="css/style.css?v=1788176492" />
+</head>
 
-function render() {
-  document.getElementById('content').innerHTML=`
+<body>
+  <script src="js/bundle.js?v=1788176492"></script>
+  <script>
+    PDMS.mountShell('profile');
+    const u = PDMS.getUser(); const I = PDMS.icon;
+    const D = PDMS_DATA;
+
+    function render() {
+      document.getElementById('content').innerHTML = `
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Profile</span></div>
     <h1 class="page-title">My Profile</h1><div class="page-sub">Personal information and security settings</div></div></div>
   <div class="grid" style="grid-template-columns:340px 1fr;gap:20px">
@@ -21,8 +28,8 @@ function render() {
       <div class="text-muted mb-3">${PDMS.esc(u.email)}</div>
       <div><span class="badge badge-primary">${PDMS.esc(u.role)}</span></div>
       <div class="grid grid-2 mt-4" style="gap:12px">
-        <div><div class="font-bold">${(D.projects||[]).filter(p=>p.pm===u.name||p.lead===u.name||(p.consultants||[]).includes(u.name)).length}</div><div class="text-sm text-muted">Projects</div></div>
-        <div><div class="font-bold">${u.status||'Active'}</div><div class="text-sm text-muted">Status</div></div>
+        <div><div class="font-bold">${(D.projects || []).filter(p => (p.pm === u.name || p.lead === u.name || (p.consultants || []).includes(u.name)) && !['Closed', 'Completed'].includes(p.status)).length}</div><div class="text-sm text-muted">Current Project</div></div>
+        <div><div class="font-bold">${(D.projects || []).filter(p => p.pm === u.name || p.lead === u.name || (p.consultants || []).includes(u.name)).length}</div><div class="text-sm text-muted">Total Projects</div></div>
       </div>
     </div></div>
     <div>
@@ -52,28 +59,29 @@ function render() {
       </div>
     </div>
   </div>`;
-}
+    }
 
-PDMS.onRefresh(render);
-  
-window.updatePassword = function() {
-  const p1 = document.getElementById('newPassword').value;
-  const p2 = document.getElementById('confirmPassword').value;
-  if(!p1) return PDMS.toast('Error', 'Please enter a new password', 'error');
-  if(p1 !== p2) return PDMS.toast('Error', 'Passwords do not match', 'error');
-  
-  const btn = document.getElementById('updatePasswordBtn');
-  PDMS.setButtonLoading(btn, true);
-  PDMS.api.update('users', u.id, {password: p1}).then(() => {
-    PDMS.setButtonLoading(btn, false);
-    PDMS.toast('Success', 'Password updated successfully', 'success');
-    document.getElementById('newPassword').value = '';
-    document.getElementById('confirmPassword').value = '';
-  }).catch(err => {
-    PDMS.setButtonLoading(btn, false);
-    PDMS.toast('Error', err.message, 'error');
-  });
-};
-</script></body></html>
+    PDMS.onRefresh(render);
 
+    window.updatePassword = function () {
+      const p1 = document.getElementById('newPassword').value;
+      const p2 = document.getElementById('confirmPassword').value;
+      if (!p1) return PDMS.toast('Error', 'Please enter a new password', 'error');
+      if (p1 !== p2) return PDMS.toast('Error', 'Passwords do not match', 'error');
 
+      const btn = document.getElementById('updatePasswordBtn');
+      PDMS.setButtonLoading(btn, true);
+      PDMS.api.update('users', u.id, { password: p1 }).then(() => {
+        PDMS.setButtonLoading(btn, false);
+        PDMS.toast('Success', 'Password updated successfully', 'success');
+        document.getElementById('newPassword').value = '';
+        document.getElementById('confirmPassword').value = '';
+      }).catch(err => {
+        PDMS.setButtonLoading(btn, false);
+        PDMS.toast('Error', err.message, 'error');
+      });
+    };
+  </script>
+</body>
+
+</html>

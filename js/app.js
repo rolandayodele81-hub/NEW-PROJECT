@@ -6,10 +6,11 @@
     {section:'Main',items:[
       {id:'dashboard',label:'Dashboard',icon:'dashboard',href:'dashboard.html',roles:'*'},
       {id:'projects',label:'Projects',icon:'folder',href:'projects.html',roles:['COO','Consultant']},
-      {id:'clients',label:'Clients',icon:'globe',href:'clients.html',roles:['Sales']},
-      {id:'awaiting-approval',label:'Awaiting Projects',icon:'clock',href:'awaiting-projects.html',roles:['Accounts']},
-      {id:'sales-pipeline',label:'Sales Pipeline',icon:'zap',href:'projects.html#view=sales',roles:['Sales','HR','HTD','COO','PM Head','Project Manager','Accounts']},
-      {id:'delivery-projects',label:'Projects in Delivery',icon:'folder',href:'projects.html#view=delivery',roles:['Sales','HR','HTD','COO','PM Head','PMO','Project Manager','Accounts']},
+      {id:'clients',label:'Clients',icon:'globe',href:'clients.html',roles:['Sales','Sales Head']},
+      {id:'awaiting-approval',label:'Awaiting Projects',icon:'clock',href:'awaiting-projects.html',roles:['Accounts','PM Head','COO','HTD']},
+      {id:'awaiting-sales-approval',label:'Awaiting Approval',icon:'clock',href:'awaiting-projects.html',roles:['Sales Head']},
+      {id:'sales-pipeline',label:'Sales Pipeline',icon:'zap',href:'projects.html#view=sales',roles:['Sales','Sales Head','HR','HTD','COO','PM Head','Project Manager','Accounts']},
+      {id:'delivery-projects',label:'Projects in Delivery',icon:'folder',href:'projects.html#view=delivery',roles:['Sales','Sales Head','HR','HTD','COO','PM Head','PMO','Project Manager','Accounts']},
     ]},
     {section:'Management',items:[
       {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR']},

@@ -5,9 +5,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Delivery Dashboard — PSE PDMS</title>
-  
-  
-<link rel="stylesheet" href="css/style.css"/>
+
+
+  <link rel="stylesheet" href="css/style.css?v=1788176492" />
   <style>
     .htd-hero {
       display: grid;
@@ -149,7 +149,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1786691654"></script>
+  <script src="js/bundle.js?v=1788176492"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -161,19 +161,19 @@
       const salesProjects = liveProjects.filter(p => PDMS.isSalesStatus(p.status));
       const deliveryProjects = isPMO
         ? liveProjects.filter(p => {
-            const myName = (currentUser.name || '').toLowerCase();
-            const consultants = Array.isArray(p.consultants) ? p.consultants.map(n => n.toLowerCase()) : [];
-            return (p.pm || '').toLowerCase() === myName || (p.lead || '').toLowerCase() === myName || consultants.includes(myName);
-          })
-        : liveProjects.filter(p => (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)));
+          const myName = (currentUser.name || '').toLowerCase();
+          const consultants = Array.isArray(p.consultants) ? p.consultants.map(n => n.toLowerCase()) : [];
+          return (p.pm || '').toLowerCase() === myName || (p.lead || '').toLowerCase() === myName || consultants.includes(myName);
+        })
+        : liveProjects.filter(p => D.deliveryStatuses && D.deliveryStatuses.includes(p.status) && p.status !== 'Awaiting Account Approval' && p.status !== 'Awaiting Sales Head Approval');
       const allProjects = isPMO ? deliveryProjects : liveProjects;
       const activeProjects = deliveryProjects.length;
       const ongoingProjects = allProjects.filter(p => p.status === 'In Progress').length;
       const completedProjects = allProjects.filter(p => p.status === 'Completed').length;
       const closedProjects = allProjects.filter(p => p.status === 'Closed').length;
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const in14 = new Date(today); in14.setDate(in14.getDate() + 14);
-      const dueForCompletion = allProjects.filter(p => { if (!p.due || p.status === 'Completed' || p.status === 'Closed') return false; const d = new Date(p.due); return d >= today && d <= in14; }).length;
+      const in28 = new Date(today); in28.setDate(in28.getDate() + 28);
+      const dueForCompletion = allProjects.filter(p => { if (!p.due || p.status === 'Completed' || p.status === 'Closed') return false; const d = new Date(p.due); return d >= today && d <= in28; }).length;
       const consultants = (window.PDMS_REMOTE && window.PDMS_REMOTE.users || D.users).filter(u => u.role === 'Consultant');
       const allocated = consultants.filter(c => { const assigned = allProjects.filter(p => p.pm === c.name || p.lead === c.name || (p.consultants || []).includes(c.name)); return assigned.length > 0; }).length;
 
@@ -224,7 +224,7 @@
     <div class="stat i-danger">
       <div class="label">Due for Completion</div>
       <div class="value">${dueForCompletion}</div>
-      <div class="delta down">Due within 14 days</div>
+      <div class="delta down">Due within 4 weeks</div>
       <div class="icon-wrap">${I('calendar')}</div>
     </div>
   </div>
@@ -238,7 +238,7 @@
       <div class="card-body" style="padding:12px 20px">
         ${(() => {
           const max = Math.max(...D.deliveryStatuses.map(s => deliveryProjects.filter(p => p.status === s).length), 1);
-          const sc = { 'Not Started': '#94a3b8', 'In Progress': '#f59e0b', 'On Hold': '#64748b', 'Awaiting Review': '#eab308', 'Testing / Quality Assurance': '#8b5cf6', 'Completed': '#10b981', 'Approved': '#4f46e5', 'Rejected': '#ef4444' };
+          const sc = { 'Not Started': '#94a3b8', 'In Progress': '#f59e0b', 'On Hold': '#64748b', 'Awaiting Review': '#eab308', 'Internal Audit': '#06b6d4', 'External Audit': '#f59e0b', 'Testing / Quality Assurance': '#8b5cf6', 'Completed': '#10b981', 'Approved': '#4f46e5', 'Rejected': '#ef4444' };
           return D.deliveryStatuses.map(s => {
             const count = deliveryProjects.filter(p => p.status === s).length;
             const pct = Math.round((count / max) * 100);
@@ -270,9 +270,9 @@
 
   <!-- Pending Account Approval -->
   ${(() => {
-    const pendingApproval = deliveryProjects.filter(p => p.status === 'Awaiting Account Approval');
-    if(!pendingApproval.length) return '';
-    return `<div class="card mb-4" style="border:1.5px solid rgba(124,58,237,.35);box-shadow:0 4px 24px rgba(124,58,237,.1)">
+          const pendingApproval = liveProjects.filter(p => p.status === 'Awaiting Account Approval');
+          if (!pendingApproval.length) return '';
+          return `<div class="card mb-4" style="border:1.5px solid rgba(124,58,237,.35);box-shadow:0 4px 24px rgba(124,58,237,.1)">
       <div class="card-head">
         <div>
           <div class="card-title" style="display:flex;align-items:center;gap:8px">
@@ -289,7 +289,7 @@
             <thead><tr><th>Project</th><th>Client</th><th>Type</th><th>Priority</th><th>Status</th></tr></thead>
             <tbody>
               ${pendingApproval.map(p => `
-                <tr style="opacity:.8;cursor:default" title="Locked until Accounts approves">
+                <tr style="opacity:.8;cursor:pointer" title="Locked until Accounts approves" onclick="location.href='project-details.html#id=${p.id}'">
                   <td>
                     <div style="display:flex;align-items:center;gap:8px">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -299,9 +299,9 @@
                       </div>
                     </div>
                   </td>
-                  <td class="text-muted">${PDMS.esc(p.client||'—')}</td>
-                  <td class="text-muted">${PDMS.esc(p.type||'—')}</td>
-                  <td><span class="badge badge-${D.prioColors[p.priority]||'muted'}">${PDMS.esc(p.priority||'—')}</span></td>
+                  <td class="text-muted">${PDMS.esc(p.client || '—')}</td>
+                  <td class="text-muted">${PDMS.esc(p.type || '—')}</td>
+                  <td><span class="badge badge-${D.prioColors[p.priority] || 'muted'}">${PDMS.esc(p.priority || '—')}</span></td>
                   <td><span class="badge" style="background:rgba(124,58,237,.12);color:#7c3aed">Awaiting Account Approval</span></td>
                 </tr>`).join('')}
             </tbody>
@@ -309,7 +309,7 @@
         </div>
       </div>
     </div>`;
-  })()}
+        })()}
   <style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>
 
   <!-- Projects Due for Completion -->
@@ -317,31 +317,31 @@
     <div class="card-head">
       <div>
         <div class="card-title">Projects Due for Completion</div>
-        <div class="card-sub">Delivery projects due within the next 14 days</div>
+        <div class="card-sub">Delivery projects due within the next 4 weeks (28 days)</div>
       </div>
       <span class="badge badge-danger">${dueForCompletion} due soon</span>
     </div>
     <div class="card-body" style="padding:0">
       <div style="overflow-x:auto">
         <table class="data">
-          <thead><tr><th>Project</th><th>Client</th><th>Workstream</th><th>Due Date</th><th>Status</th></tr></thead>
+          <thead><tr><th>Project</th><th>Client</th><th>Project Type</th><th>Due Date</th><th>Status</th></tr></thead>
           <tbody>
             ${(() => {
           const lp = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
           const t = new Date(); t.setHours(0, 0, 0, 0);
-          const i14 = new Date(t); i14.setDate(i14.getDate() + 14);
-          const due = lp.filter(p => { if (!p.due || p.status === 'Completed' || p.status === 'Closed') return false; const d = new Date(p.due); return d >= t && d <= i14; }).sort((a, b) => new Date(a.due) - new Date(b.due));
+          const i28 = new Date(t); i28.setDate(i28.getDate() + 28);
+          const due = lp.filter(p => { if (!p.due || p.status === 'Completed' || p.status === 'Closed') return false; const d = new Date(p.due); return d >= t && d <= i28; }).sort((a, b) => new Date(a.due) - new Date(b.due));
           return due.length ? due.map(p => {
             const daysLeft = Math.ceil((new Date(p.due) - t) / 86400000);
             const urgency = daysLeft <= 3 ? 'badge-danger' : daysLeft <= 7 ? 'badge-warn' : 'badge-muted';
             return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer">
                   <td><div style="font-weight:600;color:var(--primary)">${PDMS.esc(p.name)}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(p.id)}</div></td>
                   <td class="text-muted">${PDMS.esc(p.client || '—')}</td>
-                  <td class="text-muted">${PDMS.esc(p.workstream || p.dept || '—')}</td>
+                  <td class="text-muted">${PDMS.esc(p.type || '—')}</td>
                   <td><span class="badge ${urgency}">${PDMS.esc(p.due)} · ${daysLeft}d left</span></td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
                 </tr>`;
-          }).join('') : `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:32px">${PDMS.emptyOrLoading('No projects due in the next 14 days')}</td></tr>`;
+          }).join('') : `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:32px">${PDMS.emptyOrLoading('No projects due in the next 4 weeks (28 days)')}</td></tr>`;
         })()}
           </tbody>
         </table>
@@ -565,13 +565,13 @@
               </div>
               <div class="np-field">
                 <label>Project Type</label>
-                <input id="npType" type="text" placeholder="e.g. Software Development"/>
+                <select id="npType">${(D.types || []).map(t => `<option>${t}</option>`).join('')}</select>
               </div>
               <div class="np-field">
                 <label>Workstream</label>
                 <input id="npWorkstream" type="text" placeholder="e.g. QMS, FSMS…"/>
               </div>
-              <div class="np-field full">
+              <div class="np-field">
                 <label>Status</label>
                 <select id="npStatus">${statusOptions.map(s => `<option${s === defaultStatus ? ' selected' : ''}>${s}</option>`).join('')}</select>
               </div>
@@ -601,11 +601,11 @@
             </div>
           </div>
         </div>
-      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="npCreateBtn">${I('plus')} Create Project</button>`);
+      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="npCreateBtn">${I('plus')} Create Project</button>`, { hideCloseButton: true });
 
       npMakeAc(modal.querySelector('#npClient'), modal.querySelector('#npClientDrop'), () => D.clients.map(c => c.name));
 
-      const norm = s => (s||'').toString().trim().replace(/\s+/g,' ').toLowerCase();
+      const norm = s => (s || '').toString().trim().replace(/\s+/g, ' ').toLowerCase();
       const clientInput = modal.querySelector('#npClient');
       const clientNotice = modal.querySelector('#npClientNotice');
       const updateClientNotice = () => {
@@ -643,7 +643,7 @@
             description: desc, files: 0, remarks: 0
           };
           const tmpId = 'TMP-' + Date.now();
-          const tmp = Object.assign({id: tmpId, _optimistic: true}, record);
+          const tmp = Object.assign({ id: tmpId, _optimistic: true }, record);
           D.projects.unshift(tmp);
           renderAll();
           return PDMS.api.create('projects', record).then(saved => {
@@ -655,11 +655,11 @@
             renderAll();
           }).catch(err => {
             const idx = D.projects.findIndex(p => p.id === tmpId);
-            if (idx > -1) D.projects.splice(idx,1);
+            if (idx > -1) D.projects.splice(idx, 1);
             renderAll();
             PDMS.toast('Error', err.message || 'Could not create project', 'error');
           });
-          }).catch(err => PDMS.toast('Error', err.message || 'Could not create project', 'error'));
+        }).catch(err => PDMS.toast('Error', err.message || 'Could not create project', 'error'));
       };
     }
     window.newProject = newProject;
@@ -693,4 +693,3 @@
 </body>
 
 </html>
-

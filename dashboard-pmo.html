@@ -7,7 +7,7 @@
   <title>PMO Dashboard — PSE PDMS</title>
   
   
-  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="stylesheet" href="css/style.css?v=1788176492"/>
   <style>
     .pmo-hero {
       display: grid;
@@ -62,7 +62,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1786691654"></script>
+  <script src="js/bundle.js?v=1788176492"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -153,7 +153,7 @@
       </div>
       <div class="card-body" style="padding:12px 20px">
         ${(() => {
-          const sc = { 'Not Started':'#94a3b8','In Progress':'#f59e0b','On Hold':'#64748b','Awaiting Review':'#eab308','Testing / Quality Assurance':'#8b5cf6','Completed':'#10b981','Approved':'#4f46e5','Rejected':'#ef4444' };
+          const sc = { 'Not Started':'#94a3b8','In Progress':'#f59e0b','On Hold':'#64748b','Awaiting Review':'#eab308','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Testing / Quality Assurance':'#8b5cf6','Completed':'#10b981','Approved':'#4f46e5','Rejected':'#ef4444' };
           const statuses = D.deliveryStatuses;
           const max = Math.max(...statuses.map(s => projects.filter(p => p.status === s).length), 1);
           return statuses.map(s => {
@@ -196,7 +196,7 @@
     <div class="card-body" style="padding:0">
       <div style="overflow-x:auto">
         <table class="data">
-          <thead><tr><th>Project</th><th>Client</th><th>Workstream</th><th>Due Date</th><th>Status</th></tr></thead>
+          <thead><tr><th>Project</th><th>Client</th><th>Project Type</th><th>Due Date</th><th>Status</th></tr></thead>
           <tbody>
             ${(() => {
               const due = projects.filter(p => {
@@ -209,7 +209,7 @@
                 return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer">
                   <td><div style="font-weight:600;color:var(--primary)">${PDMS.esc(p.name)}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(p.id)}</div></td>
                   <td class="text-muted">${PDMS.esc(p.client || '—')}</td>
-                  <td class="text-muted">${PDMS.esc(p.workstream || p.dept || '—')}</td>
+                  <td class="text-muted">${PDMS.esc(p.type || '—')}</td>
                   <td><span class="badge ${urgency}">${PDMS.esc(p.due)} · ${daysLeft}d left</span></td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
                 </tr>`;

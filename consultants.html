@@ -7,11 +7,11 @@
   <title>Consultants — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css"/>
+<link rel="stylesheet" href="css/style.css?v=1788176492"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1786691654"></script>
+  <script src="js/bundle.js?v=1788176492"></script>
   <script>
     PDMS.mountShell('consultants');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -225,17 +225,19 @@
       const user = getUser();
       const project = (D.projects || []).find(item => String(item.id) === String(projectId));
       if (!project) return;
-      const modal = PDMS.modal('Upload Delivery Plan', `<div class="form-row"><label>File</label><input id="planFile" type="file" /></div><div class="form-row"><label>Description</label><input id="planDescription" placeholder="e.g. Delivery plan v1" /></div>`, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="savePlanBtn">Upload</button>`);
+      const modal = PDMS.modal('Upload Document', `<div class="form-row"><label>Link / URL <span style="color:var(--danger)">*</span></label><input id="planUrl" type="url" placeholder="https://..." autocomplete="off"/></div><div class="form-row"><label>Description <span style="color:var(--text-soft);font-weight:400">(optional)</span></label><input id="planDescription" placeholder="e.g. Delivery plan v1" /></div>`, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="savePlanBtn">${I('upload')} Upload</button>`);
       modal.querySelector('#savePlanBtn').onclick = function () {
-        const fileInput = modal.querySelector('#planFile');
+        let url = modal.querySelector('#planUrl').value.trim();
+        if (!url) { PDMS.toast('Required', 'Please enter a link / URL', 'error'); return; }
+        if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
         const description = modal.querySelector('#planDescription').value.trim();
-        const fileName = fileInput.files && fileInput.files[0] ? fileInput.files[0].name : 'delivery-plan.pdf';
-        const doc = { id: 'DOC-' + Math.floor(1000 + Math.random() * 9000), name: fileName, description, uploadedAt: new Date().toISOString(), uploadedBy: user?.name || 'Consultant' };
+        let name = description || 'Document';
+        const doc = { id: 'DOC-' + Math.floor(1000 + Math.random() * 9000), name, url, description, uploadedAt: new Date().toISOString(), uploadedBy: user?.name || 'Consultant' };
         const documents = projectDocs(project);
         documents.unshift(doc);
         saveProject(project, { documents }).then(() => {
           modal.remove();
-          PDMS.toast('Uploaded', 'Delivery plan saved for this project', 'success');
+          PDMS.toast('Uploaded', 'Document saved for this project', 'success');
           render();
         }).catch(err => PDMS.toast('Error', err.message || 'Could not upload document', 'error'));
       };

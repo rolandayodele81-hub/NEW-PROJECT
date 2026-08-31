@@ -41,6 +41,16 @@ function objectToRow_(headers, obj, jsonFields) {
   });
 }
 
+function ensureColumns_(sheet, headers, record) {
+  var missing = Object.keys(record || {}).filter(function (key) {
+    return headers.indexOf(key) === -1;
+  });
+  if (!missing.length) return headers;
+  var startCol = headers.length + 1;
+  sheet.getRange(1, startCol, 1, missing.length).setValues([missing]);
+  return headers.concat(missing);
+}
+
 function stripExcluded_(obj, excludeFields) {
   if (!excludeFields || !excludeFields.length) return obj;
   var copy = Object.assign({}, obj);
@@ -82,9 +92,10 @@ var Repository = {
     var table = readTable_(cfg.sheet);
     var withId = Object.assign({}, record);
     if (!withId.id) withId.id = generateId_(cfg.idPrefix);
-    var row = objectToRow_(table.headers, withId, cfg.jsonFields);
+    var headers = ensureColumns_(table.sheet, table.headers.slice(), withId);
+    var row = objectToRow_(headers, withId, cfg.jsonFields);
     var rowIndex = table.sheet.getLastRow() + 1;
-    forceTextFormat_(table.sheet, table.headers, cfg.textFields, rowIndex);
+    forceTextFormat_(table.sheet, headers, cfg.textFields, rowIndex);
     table.sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
     SpreadsheetApp.flush();
     return withId;
@@ -98,9 +109,10 @@ var Repository = {
       if (String(table.rows[i][idIndex]) === String(id)) {
         var current = rowToObject_(table.headers, table.rows[i], cfg.jsonFields);
         var merged = Object.assign({}, current, patch, { id: current.id });
-        var row = objectToRow_(table.headers, merged, cfg.jsonFields);
+        var headers = ensureColumns_(table.sheet, table.headers.slice(), merged);
+        var row = objectToRow_(headers, merged, cfg.jsonFields);
         var rowIndex = i + 2;
-        forceTextFormat_(table.sheet, table.headers, cfg.textFields, rowIndex);
+        forceTextFormat_(table.sheet, headers, cfg.textFields, rowIndex);
         table.sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
         SpreadsheetApp.flush();
         return merged;

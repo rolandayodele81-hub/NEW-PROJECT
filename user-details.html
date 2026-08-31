@@ -3,8 +3,8 @@
 <title>User Details — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css"/></head><body>
-<script src="js/bundle.js?v=1786691654"></script>
+<link rel="stylesheet" href="css/style.css?v=1788176492"/></head><body>
+<script src="js/bundle.js?v=1788176492"></script>
 <script>
 // A hash survives any host's clean-URL rewriting untouched, since it's never
 // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -13,8 +13,27 @@ PDMS.mountShell('users');
 const D = PDMS_DATA; const I = PDMS.icon;
 let u;
 
+function projectOwnedByUser(project, user){
+  if(!project || !user) return false;
+  const userId = String(user.id || '').trim().toLowerCase();
+  const userName = String(user.name || '').trim().toLowerCase();
+  const ownerIds = [
+    String(project.projectOwnerId || project.onboardedById || project.salesOwnerId || project.createdByUserId || '').trim().toLowerCase(),
+    String(project.projectOwnerName || project.onboardedByName || project.salesOwnerName || project.createdByUserName || '').trim().toLowerCase()
+  ];
+  return ownerIds.includes(userId) || ownerIds.includes(userName);
+}
+
+function isSalesCurrentProject(project){
+  const status = String(project && project.status || '').trim();
+  return status !== 'Completed' && status !== 'Closed' && status !== 'Rejected';
+}
+
 function projectsFor(user){
-  return D.projects.filter(p => p.pm===user.name || p.lead===user.name || (p.consultants||[]).includes(user.name));
+  if(user && user.role === 'Sales') {
+    return D.projects.filter(p => projectOwnedByUser(p, user));
+  }
+  return D.projects.filter(p => p.pm===user.name || p.lead===user.name || (p.consultants||[]).includes(user.name) || projectOwnedByUser(p, user));
 }
 
 function render(){
@@ -36,8 +55,12 @@ function render(){
   }
 
   const userProjects = projectsFor(u);
-  const currentProjects = userProjects.filter(p => p.status !== 'Completed' && p.status !== 'Rejected');
-  const previousProjects = userProjects.filter(p => p.status === 'Completed' || p.status === 'Rejected');
+  const currentProjects = u && u.role === 'Sales'
+    ? userProjects.filter(isSalesCurrentProject)
+    : userProjects.filter(p => p.status !== 'Completed' && p.status !== 'Rejected');
+  const previousProjects = u && u.role === 'Sales'
+    ? userProjects.filter(p => !isSalesCurrentProject(p))
+    : userProjects.filter(p => p.status === 'Completed' || p.status === 'Rejected');
 
   const statusColor = u.status==='Active'?'#22c55e':u.status==='On Leave'?'#f59e0b':'#ef4444';
 
@@ -112,7 +135,7 @@ function render(){
             <tr style="background:var(--surface-2)">
               <th style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Project</th>
               <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Client</th>
-              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Workstream</th>
+              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Project Type</th>
               <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Role</th>
               <th style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Status</th>
             </tr>
@@ -133,7 +156,7 @@ function render(){
                   </div>
                 </td>
                 <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.client||'—')}</td>
-                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.workstream||p.dept||'—')}</td>
+                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.type||'—')}</td>
                 <td style="padding:14px 16px"><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${role}</span></td>
                 <td style="padding:14px 20px"><span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status)}</span></td>
               </tr>`;
@@ -155,7 +178,7 @@ function render(){
             <tr style="background:var(--surface-2)">
               <th style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Project</th>
               <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Client</th>
-              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Workstream</th>
+              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Project Type</th>
               <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Role</th>
               <th style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Status</th>
             </tr>
@@ -176,7 +199,7 @@ function render(){
                   </div>
                 </td>
                 <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.client||'—')}</td>
-                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.workstream||p.dept||'—')}</td>
+                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.type||'—')}</td>
                 <td style="padding:14px 16px"><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${role}</span></td>
                 <td style="padding:14px 20px"><span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status)}</span></td>
               </tr>`;

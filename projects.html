@@ -3,8 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css"/></head><body>
-<script src="js/bundle.js?v=1786691654"></script>
+<link rel="stylesheet" href="css/style.css?v=1788176492"/>
+<style>
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+.sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
+.locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
+</style>
+</head><body>
+<script src="js/bundle.js?v=1788176492"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -36,17 +42,27 @@ function scopedProjects(){
     });
   }
   // Bucket purely by current status: sales statuses → Sales Pipeline, delivery statuses → Delivery
-  if(viewParam==='sales') return liveProjects.filter(p => PDMS.isSalesStatus(p.status) || p.status==='Awaiting Account Approval');
-  if(viewParam==='delivery') return liveProjects.filter(p => D.deliveryStatuses && D.deliveryStatuses.includes(p.status));
+  if(viewParam==='sales') return liveProjects.filter(p => PDMS.isSalesStatus(p.status) || p.status==='Awaiting Account Approval' || p.status==='Awaiting Sales Head Approval' || p.stage==='Delivery' || p.status==='Closed' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)));
+  if(viewParam==='delivery') return liveProjects.filter(p => (p.stage==='Delivery' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)) || p.status==='Closed') && p.status !== 'Awaiting Account Approval' && p.status !== 'Awaiting Sales Head Approval');
   return liveProjects;
 }
 // Each bucket is filtered/kanban'd using its own status vocabulary.
-const bucketStatuses = viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : D.statuses;
-const kanbanStatuses = viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : ['Incoming','In Progress','Awaiting Review','Completed'];
+const bucketStatuses = (viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : D.statuses).filter(s => s !== 'Awaiting Sales Head Approval' && s !== 'Awaiting Account Approval');
+const kanbanStatuses = (viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : ['Incoming','In Progress','Awaiting Review','Completed']).filter(s => s !== 'Awaiting Sales Head Approval' && s !== 'Awaiting Account Approval');
 const statTiles = viewParam==='sales'
-  ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'Award/SLA', match:p=>['Award/SLA','Awaiting Account Approval'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status), color:'warn', icon:'clock'}, {label:'Closed', match:p=>p.status==='Closed', color:'success', icon:'check'}]
+  ? [
+      {label:'Total Deals', match:()=>true, color:'primary', icon:'folder'},
+      {label:'In Pipeline', match:p=>!['Award/SLA','Awaiting Account Approval','Closed'].includes(p.status) && p.stage !== 'Delivery' && !(D.deliveryStatuses && D.deliveryStatuses.includes(p.status)), color:'info', icon:'activity'},
+      {label:'Award/SLA', match:p=>['Award/SLA','Awaiting Account Approval'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status) && p.stage !== 'Delivery' && !(D.deliveryStatuses && D.deliveryStatuses.includes(p.status)), color:'warn', icon:'clock'},
+      {label:'Closed Deals', match:p=>p.status==='Closed'||p.stage==='Delivery'||(D.deliveryStatuses&&D.deliveryStatuses.includes(p.status)&&p.status!=='Awaiting Account Approval'), color:'success', icon:'check'}
+    ]
   : viewParam==='delivery'
-  ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'In Progress', match:p=>p.status==='In Progress', color:'warn', icon:'activity'}, {label:'Completed', match:p=>p.status==='Completed', color:'success', icon:'check'}, {label:'Closed', match:p=>p.status==='Closed', color:'info', icon:'zap'}]
+  ? [
+      {label:'Total', match:()=>true, color:'primary', icon:'folder'},
+      {label:'Not Started', match:p=>PDMS.deliveryStatusOf(p)==='Not Started', color:'muted', icon:'clock'},
+      {label:'In Progress', match:p=>PDMS.deliveryStatusOf(p)==='In Progress', color:'warn', icon:'activity'},
+      {label:'Completed', match:p=>PDMS.deliveryStatusOf(p)==='Completed', color:'success', icon:'check'}
+    ]
   : (currentUser && currentUser.role==='Consultant')
   ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'With Active Tasks', match:p=>(p.privateTasks||[]).some(t=>!t.done), color:'warn', icon:'activity', sub:'projects'}, {label:'Tasks Completed', match:p=>(p.privateTasks||[]).length>0&&(p.privateTasks||[]).every(t=>t.done), color:'success', icon:'check', sub:'projects'}]
   : [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'In Progress', match:p=>p.status==='In Progress', color:'warn', icon:'activity'}, {label:'Completed', match:p=>p.status==='Completed', color:'success', icon:'check'}];
@@ -66,7 +82,7 @@ content.innerHTML = `
   <div class="page-head">
     <div><div class="breadcrumbs"><span>Home</span><span>Projects</span></div>
       <h1 class="page-title">${pageInfo.title}</h1><div class="page-sub">${pageInfo.sub}</div></div>
-    <div class="flex gap-2"><button class="btn btn-secondary" id="viewToggle">${defaultToTable ? I('folder')+' Kanban View' : I('folder')+' Table View'}</button>${canCreateHere?`<button class="btn btn-primary" id="newProj">${I('plus')} New Project</button>`:''}</div>
+    <div class="flex gap-2"><button class="btn btn-secondary" id="viewToggle">${defaultToTable ? I('folder')+' Kanban View' : I('folder')+' Table View'}</button>${canCreateHere?`<button class="btn btn-primary" id="newProj">${I('plus')} ${viewParam==='sales'||(PDMS.isSalesRole&&PDMS.isSalesRole(currentUser))?'Create New Leads':'New Project'}</button>`:''}</div>
   </div>
   <div class="grid ${(viewParam==='sales'||viewParam==='delivery')?'grid-4':'grid-3'} mb-4">
     ${statTiles.map((t,i)=>`<div class="stat i-${t.color}"><div class="label">${t.label}</div><div class="value" id="stat-${i}">0</div>${t.sub?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${t.sub}</div>`:''}<div class="icon-wrap">${I(t.icon)}</div></div>`).join('')}
@@ -75,10 +91,37 @@ content.innerHTML = `
   <div id="kanbanView" class="${defaultToTable ? 'hidden' : ''}"></div>
 `;
 
-const columns = [
-  {key:'client',label:'Client',render:r=>`<div class="font-semi" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'—')}</div>`},
-  {key:'workstream',label:'Workstream',render:r=>`<span class="text-sm">${PDMS.esc(r.workstream||r.dept||'—')}</span>`},
-  {key:'status',label:'Status',render:r=>`<span class="badge badge-${D.statusColors[r.status]||'muted'}">${r.status}</span>`},
+const canSee = PDMS.canSeePrice && PDMS.canSeePrice(currentUser);
+const columns = viewParam === 'sales' ? [
+  {key:'client',label:'Client',render:r=>`<div class="font-semi" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(r.id)}</div>`},
+  ...(canSee ? [
+    {key:'opportunityValue',label:'Opportunity Value',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.opportunityValue || r.negotiatedPrice)) && Number(r.opportunityValue || r.negotiatedPrice) > 0 ? PDMS.currency(r.opportunityValue || r.negotiatedPrice) : '\u2014'}</span>`},
+    {key:'awardValue',label:'Award Value (excl. VAT)',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : ''))) && Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : '')) > 0 ? PDMS.currency(r.awardValue || r.negotiatedPrice) : '\u2014'}</span>`}
+  ] : []),
+  {key:'type',label:'Project Type',render:r=>`<span class="text-sm">${PDMS.esc(r.type||'\u2014')}</span>`},
+  {key:'sales',label:'Deal Owner',render:r=>`<span class="text-sm text-muted font-semi">${PDMS.esc(r.projectOwnerName||(r.sales&&r.sales!=='Sales Team'?r.sales:'')||r.sales||'\u2014')}</span>`},
+  {key:'status',label:'Status',render:r=> {
+    const isPendingSH = r.status === 'Awaiting Sales Head Approval';
+    const isSalesUser = currentUser && currentUser.role === 'Sales';
+    if (isPendingSH && isSalesUser) {
+      return '<span class="locked-badge"><span class="sh-pending-dot"></span>Pending Approval</span>';
+    }
+    const isDelivery = r.stage === 'Delivery' || (D.deliveryStatuses && D.deliveryStatuses.includes(r.status) && r.status !== 'Awaiting Account Approval');
+    const displayStatus = isDelivery ? 'Closed' : (r.status === 'Awaiting Account Approval' ? 'Award/SLA' : r.status);
+    return `<span class="badge badge-${D.statusColors[displayStatus]||D.statusColors[r.status]||'muted'}">${displayStatus}</span>`;
+  }}
+] : [
+  {key:'client',label:'Client',render:r=>`<div class="font-semi" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div>`},
+  {key:'type',label:'Project Type',render:r=>`<span class="text-sm">${PDMS.esc(r.type||'\u2014')}</span>`},
+  {key:'status',label:'Status',render:r=> {
+    const isPendingSH = r.status === 'Awaiting Sales Head Approval';
+    const isSalesUser = currentUser && currentUser.role === 'Sales';
+    if (isPendingSH && isSalesUser) {
+      return '<span class="locked-badge"><span class="sh-pending-dot"></span>Pending Approval</span>';
+    }
+    const dStatus = viewParam === 'delivery' ? PDMS.deliveryStatusOf(r) : r.status;
+    return `<span class="badge badge-${D.statusColors[dStatus]||'muted'}">${dStatus}</span>`;
+  }},
   {key:'due',label:'Due'}
 ];
 function renderStats(rows){
@@ -91,19 +134,38 @@ function renderProjects(){
   PDMS.renderTable(document.getElementById('listView'),{
     columns, rows, pageSize:12,
     searchKeys:['id','client','pm','status','type'],
-    rowHref:r=>'project-details.html#id='+r.id,
+    rowHref:r=>'project-details.html#id='+r.id+(viewParam==='sales'?'&from=sales':viewParam==='delivery'?'&from=delivery':''),
     filterOptions:[
       {key:'status',label:'Status',options:bucketStatuses},
-      {key:'workstream',label:'Workstream',options:D.workstreams||[]}
+      {key:'type',label:'Project Type',options:D.types||[]}
     ]
   });
-  document.getElementById('kanbanView').innerHTML = `<div class="kanban">${kanbanStatuses.map(s=>`
-    <div class="kb-col"><div class="kb-head"><span class="kb-title">${s}</span><span class="badge badge-muted">${rows.filter(p=>p.status===s).length}</span></div>
-      ${rows.filter(p=>p.status===s).slice(0,8).map(p=>`<div class="kb-card" onclick="location.href='project-details.html#id=${p.id}'">
+  document.getElementById('kanbanView').innerHTML = `<div class="kanban">${kanbanStatuses.map(s=>{
+    const matchCol = p => {
+      if (viewParam === 'sales') {
+        const isDelivery = p.stage === 'Delivery' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) && p.status !== 'Awaiting Account Approval');
+        if (s === 'Closed') return p.status === 'Closed' || isDelivery;
+        if (s === 'Award/SLA') return (p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') && !isDelivery;
+        return p.status === s && !isDelivery;
+      }
+      if (viewParam === 'delivery') {
+        return PDMS.deliveryStatusOf(p) === s;
+      }
+      return p.status === s;
+    };
+    const colRows = rows.filter(matchCol);
+    return `
+    <div class="kb-col"><div class="kb-head"><span class="kb-title">${s}</span><span class="badge badge-muted">${colRows.length}</span></div>
+      ${colRows.slice(0,8).map(p=>{
+        const displayStatus = (viewParam === 'delivery') ? PDMS.deliveryStatusOf(p) : ((viewParam === 'sales' && (p.stage === 'Delivery' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) && p.status !== 'Awaiting Account Approval'))) ? 'Closed' : (viewParam === 'sales' && p.status === 'Awaiting Account Approval') ? 'Award/SLA' : p.status);
+        return `<div class="kb-card" onclick="location.href='project-details.html#id=${p.id}${viewParam==='sales'?'&from=sales':viewParam==='delivery'?'&from=delivery':''}'">
         <div class="t">${PDMS.esc(p.client||p.name||'—')}</div>
-        <div class="m"><span class="text-muted" style="font-size:11px">${PDMS.esc(p.workstream||p.dept||'—')}</span><span>${p.due||'—'}</span></div>
-      </div>`).join('')}
-    </div>`).join('')}</div>`;
+        <div class="m"><span class="text-muted" style="font-size:11px">${PDMS.esc(p.type||'—')}</span><span>${p.due||'—'}</span></div>
+        <div class="mt-2"><span class="badge badge-${D.statusColors[displayStatus]||D.statusColors[p.status]||'muted'}">${displayStatus}</span></div>
+      </div>`;
+      }).join('')}
+    </div>`;
+  }).join('')}</div>`;
 }
 PDMS.onRefresh(renderProjects);
 document.getElementById('viewToggle').onclick = ()=>{
@@ -129,6 +191,14 @@ function makeAc(inputEl, dropEl, getItems, itemClass, dropClass){
 }
 
 if(document.getElementById('newProj')) document.getElementById('newProj').onclick = ()=>{
+  const isSales = viewParam==='sales' || (PDMS.isSalesRole && PDMS.isSalesRole(currentUser));
+  if (isSales) {
+    PDMS.openSalesProjectWizard({
+      onSuccess: () => renderProjects(),
+      redirectUrl: false
+    });
+    return;
+  }
   const createdByRole = viewParam==='sales' ? 'Sales' : currentUser.role;
   const stage = viewParam==='sales' ? 'Sales' : viewParam==='delivery' ? 'Delivery' : (PDMS.isSalesRole(currentUser) ? 'Sales' : 'Delivery');
   const statusOptions = viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : PDMS.statusOptionsFor(currentUser);
@@ -180,13 +250,13 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
           </div>
           <div class="np-field">
             <label>Project Type</label>
-            <input id="newProjType" type="text" placeholder="e.g. Software Development"/>
+            <select id="newProjType">${(D.types||[]).map(t=>`<option>${t}</option>`).join('')}</select>
           </div>
           <div class="np-field">
             <label>Workstream</label>
             <input id="newProjWorkstream" type="text" placeholder="e.g. QMS, FSMS…"/>
           </div>
-          <div class="np-field full">
+          <div class="np-field">
             <label>Status</label>
             <select id="newProjStatus">${statusOptions.map(s=>`<option${s===defaultStatus?' selected':''}>${s}</option>`).join('')}</select>
           </div>
@@ -200,7 +270,7 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
         </div>
       </div>
     </div>
-  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createProjectBtn">${I('plus')} Create Project</button>`);
+  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createProjectBtn">${I('plus')} Create Project</button>`, { hideCloseButton: true });
 
   // Wire typeaheads
   makeAc(modal.querySelector('#newProjClient'), modal.querySelector('#newClientDrop'),
@@ -238,10 +308,21 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
     const ensureClient = existingClient ? Promise.resolve(existingClient) : PDMS.api.create('clients',{name:clientTyped, industry:'', email:'', phone:'', address:'', projects:0});
     ensureClient.then(client=>{
       if(!existingClient) D.clients.unshift(client);
+      let finalStatus = status;
+      let finalStage = stage;
+      const isSalesHeadCreator = currentUser && currentUser.role === 'Sales Head';
+      if (finalStatus === 'SLA Signed' || finalStatus === 'Award/SLA') {
+        finalStatus = 'Awaiting Account Approval';
+        finalStage = 'Delivery';
+      } else if (!isSalesHeadCreator && currentUser.role === 'Sales') {
+        finalStatus = 'Awaiting Sales Head Approval';
+        finalStage = 'Sales';
+      }
+      
       const record = {
         name: client.name, client:client.name, type, workstream, dept:workstream,
         sales:'Sales Team', pm:'', lead:'', consultants:[],
-        status, stage, createdByRole, progress:0,
+        status: finalStatus, stage: finalStage, requestedStatus: status, createdByRole: currentUser.role, progress:0,
         start:'', due:'', actualCompletion:'', completion:null,
         description:desc, files:0, remarks:0
       };
@@ -285,8 +366,8 @@ function editProject(id){
           <div class="proj-ac-drop" id="editClientDrop"></div>
         </div>
       </div>
-      <div class="form-row"><label>Type</label><input id="editProjType" type="text" value="${PDMS.esc(project.type||'')}"/></div>
-      <div class="form-row"><label>Workstream</label><select id="editProjWorkstream">${(D.workstreams||[]).map(w=>`<option${(project.workstream||project.dept)===w?' selected':''}>${w}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Type</label><select id="editProjType">${(D.types||[]).map(t=>`<option${project.type===t?' selected':''}>${t}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Workstream</label><input id="editProjWorkstream" type="text" value="${PDMS.esc(project.workstream||project.dept||'')}"/></div>
       <div class="form-row"><label>Start Date</label><input id="editProjStart" type="date" value="${PDMS.esc(project.start||'')}"/></div>
       <div class="form-row"><label>Planned Completion</label><input id="editProjDue" type="date" value="${PDMS.esc(project.due||'')}"/></div>
       <div class="form-row"><label>Actual Completion</label><input id="editProjActual" type="date" value="${PDMS.esc(project.actualCompletion||'')}"/></div>
@@ -303,11 +384,11 @@ function editProject(id){
     const ensureClient = existingClient ? Promise.resolve(existingClient) : PDMS.api.create('clients',{name:clientTyped, industry:'', email:'', phone:'', address:'', projects:0});
     ensureClient.then(client=>{
       if(!existingClient) D.clients.unshift(client);
-      const ws = modal.querySelector('#editProjWorkstream').value;
+      const ws = modal.querySelector('#editProjWorkstream').value.trim();
       const patch = {
         name:client.name,
         client:client.name,
-        type:modal.querySelector('#editProjType').value.trim(),
+        type:modal.querySelector('#editProjType').value,
         workstream:ws, dept:ws,
         start:modal.querySelector('#editProjStart').value,
         due:modal.querySelector('#editProjDue').value,

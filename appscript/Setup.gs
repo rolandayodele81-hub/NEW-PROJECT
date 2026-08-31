@@ -29,8 +29,8 @@ function initializeSheets() {
       rows: []
     },
     Projects: {
-      headers: ['id', 'name', 'client', 'type', 'dept', 'workstream', 'sales', 'pm', 'lead', 'consultants', 'priority', 'status', 'stage', 'createdByRole', 'progress', 'start', 'due', 'actualCompletion', 'completion', 'description', 'files', 'remarks', 'privateTasks', 'documents', 'milestones'],
-      textColumns: ['start', 'due', 'actualCompletion', 'completion'],
+      headers: ['id', 'name', 'client', 'type', 'dept', 'workstream', 'sales', 'pm', 'lead', 'consultants', 'priority', 'status', 'stage', 'createdByRole', 'projectOwnerId', 'projectOwnerName', 'progress', 'start', 'due', 'actualCompletion', 'completion', 'negotiatedPrice', 'description', 'files', 'remarks', 'privateTasks', 'documents', 'milestones', 'subStatus', 'subStatuses'],
+      textColumns: ['start', 'due', 'actualCompletion', 'completion', 'negotiatedPrice'],
       rows: []
     },
     Notifications: {

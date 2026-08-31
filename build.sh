@@ -11,7 +11,8 @@ const fs = require('fs');
 const files = fs.readdirSync('.').filter(f => f.endsWith('.html'));
 for (const file of files) {
   let content = fs.readFileSync(file, 'utf8');
-  content = content.replace(/js\\/bundle\\.js(\\?v=[0-9]+)?/g, 'js/bundle.js?v=$V');
+  content = content.replace(/js\/bundle\.js(\?v=[0-9]+)?/g, 'js/bundle.js?v=$V');
+  content = content.replace(/css\/style\.css(\?v=[0-9]+)?/g, 'css/style.css?v=$V');
   fs.writeFileSync(file, content);
 }
 "

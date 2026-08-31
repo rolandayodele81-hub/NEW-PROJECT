@@ -1,102 +1,139 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Project Details — PSE PDMS</title>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Project Details — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css"/></head><body>
-<script src="js/bundle.js?v=1786691654"></script>
-<script>
-// A hash survives any host's clean-URL rewriting untouched, since it's never
-// sent to the server — unlike ?id=, which some static hosts strip on redirect.
-window.addEventListener('hashchange', ()=>location.reload());
-PDMS.mountShell('projects');
-const D = PDMS_DATA; const I = PDMS.icon;
-let p;
+  <link rel="stylesheet" href="css/style.css?v=1788176492" />
+</head>
 
-// Project issues are stored in D.issues — separate from D.reviews (the general
-// community reviews page) so they never appear there.
-function projectIssues(proj){
-  const liveIssues = (window.PDMS_REMOTE && window.PDMS_REMOTE.issues) || D.issues || [];
-  return liveIssues.filter(r=>String(r.projectId)===String(proj.id)).slice().sort((a,b)=>new Date(b.time)-new Date(a.time));
-}
-function timeAgo(iso){
-  if(!iso) return '';
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const mins = Math.round(diffMs/60000);
-  if(mins < 1) return 'just now';
-  if(mins < 60) return mins+'m ago';
-  const hrs = Math.round(mins/60);
-  if(hrs < 24) return hrs+'h ago';
-  return Math.round(hrs/24)+'d ago';
-}
-function healthOf(proj){
-  if(proj.status==='Completed') return {label:'Completed', cls:'badge-success'};
-  if(proj.status==='Cancelled') return {label:'Cancelled', cls:'badge-danger'};
-  if(proj.status==='Closed') return {label:'Closed', cls:'badge-primary'};
-  if(proj.status==='On Hold') return {label:'On Hold', cls:'badge-muted'};
-  
-  const _D = window.PDMS_DATA || D;
-  const normalizedStatus = PDMS.normalizeStatus ? PDMS.normalizeStatus(proj.status) : proj.status;
-  const pStage = (_D && _D.deliveryStatuses && (_D.deliveryStatuses.includes(proj.status) || _D.deliveryStatuses.includes(normalizedStatus))) ? 'Delivery'
-    : (PDMS.isSalesStatus && PDMS.isSalesStatus(proj.status)) ? 'Sales'
-    : (PDMS.stageOf ? PDMS.stageOf(proj) : 'Delivery');
-  const defaultLabel = pStage === 'Sales' ? 'Incoming' : 'In Progress';
+<body>
+  <script src="js/bundle.js?v=1788176492"></script>
+  <script>
+    // A hash survives any host's clean-URL rewriting untouched, since it's never
+    // sent to the server — unlike ?id=, which some static hosts strip on redirect.
+    window.addEventListener('hashchange', () => location.reload());
+    PDMS.mountShell('projects');
+    const D = PDMS_DATA; const I = PDMS.icon;
+    let p;
 
-  const start = new Date(proj.start), due = new Date(proj.due), today = new Date();
-  if(isNaN(start)||isNaN(due)||due<=start) return {label:defaultLabel, cls:'badge-success'};
-  const expected = Math.min(100, Math.max(0, ((today-start)/(due-start))*100));
-  const gap = expected - (proj.progress||0);
-  if(gap > 25) return {label:'Delayed', cls:'badge-danger'};
-  if(gap > 10) return {label:'At Risk', cls:'badge-warn'};
-  return {label:defaultLabel, cls:'badge-success'};
-}
-function milestoneStages(proj){
-  // 'Approved'/'Rejected'/'On Hold' are outcomes, not sequential steps — they
-  // can't all sit in the same line at once. The timeline only ever walks the
-  // main sequence, which normally ends at Approved (Sales) / Completed (Delivery).
-  const viewer = PDMS.getUser();
-  const isConsultantView = viewer && (viewer.role === 'Consultant' || viewer.role === 'PMO');
-  const D = window.PDMS_DATA;
-  const hasDeliveryStatus = D && D.deliveryStatuses && D.deliveryStatuses.includes(proj.status);
-  const hasSalesStatus = PDMS.isSalesStatus(proj.status);
-  // Use delivery timeline if the project is currently on a delivery status,
-  // or if viewer is a Consultant/PMO (always delivery context).
-  const isSales = !isConsultantView && !hasDeliveryStatus && hasSalesStatus;
-  const mainSequence = isSales
-    ? ['Initial Proposal','Lead','Opportunity','Negotiation','Invoicing','Award/SLA','Closed']
-    : ['Not Started','In Progress','Awaiting Review','Testing / Quality Assurance','Completed'];
-  const status = PDMS.normalizeStatus ? PDMS.normalizeStatus(proj.status) : proj.status;
+    // Project issues are stored in D.issues — separate from D.reviews (the general
+    // community reviews page) so they never appear there.
+    function projectIssues(proj) {
+      const liveIssues = (window.PDMS_REMOTE && window.PDMS_REMOTE.issues) || D.issues || [];
+      return liveIssues.filter(r => String(r.projectId) === String(proj.id)).slice().sort((a, b) => new Date(b.time) - new Date(a.time));
+    }
+    function timeAgo(iso) {
+      if (!iso) return '';
+      const diffMs = Date.now() - new Date(iso).getTime();
+      const mins = Math.round(diffMs / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return mins + 'm ago';
+      const hrs = Math.round(mins / 60);
+      if (hrs < 24) return hrs + 'h ago';
+      return Math.round(hrs / 24) + 'd ago';
+    }
+    function healthOf(proj) {
+      if (proj.status === 'Completed') return { label: 'Completed', cls: 'badge-success' };
+      if (proj.status === 'Cancelled') return { label: 'Cancelled', cls: 'badge-danger' };
+      if (proj.status === 'Closed') return { label: 'Closed', cls: 'badge-primary' };
+      if (proj.status === 'On Hold') return { label: 'On Hold', cls: 'badge-muted' };
 
-  if(status==='Cancelled'){
-    return mainSequence.map((label,i)=> i===mainSequence.length-1 ? {label:'Cancelled', state:'active'} : {label, state:'done'});
-  }
+      const _D = window.PDMS_DATA || D;
+      const normalizedStatus = PDMS.normalizeStatus ? PDMS.normalizeStatus(proj.status) : proj.status;
+      const isPendingSalesHead = proj.status === 'Awaiting Sales Head Approval';
+      const pStage = isPendingSalesHead ? 'Sales'
+        : (_D && _D.deliveryStatuses && (_D.deliveryStatuses.includes(proj.status) || _D.deliveryStatuses.includes(normalizedStatus))) ? 'Delivery'
+        : (PDMS.isSalesStatus && PDMS.isSalesStatus(proj.status)) ? 'Sales'
+          : (PDMS.stageOf ? PDMS.stageOf(proj) : 'Delivery');
+      const defaultLabel = pStage === 'Sales' ? 'Incoming' : 'In Progress';
 
-  if(status==='On Hold'){
-    // On Hold isn't a fixed slot — it can happen at any point, so position it
-    // right after however far progress actually got, not at a fixed spot in the list.
-    const stepsBeforeFinal = mainSequence.length-1;
-    const doneCount = Math.min(stepsBeforeFinal, Math.floor(((proj.progress||0)/100)*stepsBeforeFinal));
-    const result = mainSequence.slice(0,doneCount).map(label=>({label, state:'done'}));
-    result.push({label:'On Hold', state:'active'});
-    mainSequence.slice(doneCount).forEach(label=>result.push({label, state:''}));
-    return result;
-  }
+      const start = new Date(proj.start), due = new Date(proj.due), today = new Date();
+      if (isNaN(start) || isNaN(due) || due <= start) return { label: defaultLabel, cls: 'badge-success' };
+      const expected = Math.min(100, Math.max(0, ((today - start) / (due - start)) * 100));
+      const gap = expected - (proj.progress || 0);
+      if (gap > 25) return { label: 'Delayed', cls: 'badge-danger' };
+      if (gap > 10) return { label: 'At Risk', cls: 'badge-warn' };
+      return { label: defaultLabel, cls: 'badge-success' };
+    }
+    function milestoneStages(proj) {
+      // 'Approved'/'Rejected'/'On Hold' are outcomes, not sequential steps — they
+      // can't all sit in the same line at once. The timeline only ever walks the
+      // main sequence, which normally ends at Approved (Sales) / Completed (Delivery).
+      const viewer = PDMS.getUser();
+      const isConsultantView = viewer && (viewer.role === 'Consultant' || viewer.role === 'PMO');
+      const D = window.PDMS_DATA;
+      const isPendingSalesHead = proj.status === 'Awaiting Sales Head Approval';
+      const hasDeliveryStatus = !isPendingSalesHead && D && D.deliveryStatuses && D.deliveryStatuses.includes(proj.status);
+      const hasSalesStatus = isPendingSalesHead || (PDMS.isSalesStatus && PDMS.isSalesStatus(proj.status));
+      const isSalesStage = (PDMS.stageOf ? PDMS.stageOf(proj) === 'Sales' : proj.stage === 'Sales') || isPendingSalesHead;
+      // Use delivery timeline if the project is currently on a delivery status,
+      // or if viewer is a Consultant/PMO (always delivery context).
+      const isSales = !isConsultantView && (isPendingSalesHead || isSalesStage || (!hasDeliveryStatus && hasSalesStatus));
+      const mainSequence = isSales
+        ? ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed']
+        : ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
 
-  const currentIndex = mainSequence.indexOf(status);
-  return mainSequence.map((label,i)=>{
-    const state = currentIndex===-1 ? '' : i<currentIndex ? 'done' : i===currentIndex ? 'active' : '';
-    return {label, state};
-  });
-}
+      let statusToMatch = proj.status;
+      if (isPendingSalesHead) {
+        statusToMatch = proj.requestedStatus || proj.targetStatus || 'Lead';
+      }
+      const status = PDMS.normalizeStatus ? PDMS.normalizeStatus(statusToMatch) : statusToMatch;
 
-function render(){
-const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
-const hasProjects = Array.isArray(liveProjects) && liveProjects.length > 0;
-const id = hasProjects ? new URLSearchParams(location.hash.replace(/^#/,'')).get('id') || liveProjects[0].id : null;
-p = hasProjects ? liveProjects.find(x=>x.id===id) || liveProjects[0] : null;
+      if (status === 'Cancelled') {
+        return mainSequence.map((label, i) => i === mainSequence.length - 1 ? { label: 'Cancelled', state: 'active' } : { label, state: 'done' });
+      }
 
-if(!p){
-  document.getElementById('content').innerHTML = window.PDMS_REMOTE ? `
+      if (status === 'On Hold') {
+        // On Hold isn't a fixed slot — it can happen at any point, so position it
+        // right after however far progress actually got, not at a fixed spot in the list.
+        const stepsBeforeFinal = mainSequence.length - 1;
+        const doneCount = Math.min(stepsBeforeFinal, Math.floor(((proj.progress || 0) / 100) * stepsBeforeFinal));
+        const result = mainSequence.slice(0, doneCount).map(label => ({ label, state: 'done' }));
+        result.push({ label: 'On Hold', state: 'active' });
+        mainSequence.slice(doneCount).forEach(label => result.push({ label, state: '' }));
+        return result;
+      }
+
+      const currentIndex = mainSequence.indexOf(status);
+      const effectiveIndex = currentIndex === -1 ? 0 : currentIndex;
+      return mainSequence.map((label, i) => {
+        const isCurrent = i === effectiveIndex;
+        const isDone = i < effectiveIndex;
+        const state = isDone ? 'done' : isCurrent ? 'active' : '';
+        const isPendingApproval = isPendingSalesHead && isCurrent;
+        return {
+          label,
+          state,
+          isPendingApproval,
+          meta: state === 'done' ? 'Completed' : state === 'active' ? 'Ongoing' : 'Upcoming'
+        };
+      });
+    }
+
+    function getSubStatuses(project) {
+      if (!project) return [];
+      if (Array.isArray(project.subStatuses)) return project.subStatuses;
+      if (typeof project.subStatuses === 'string' && project.subStatuses.trim()) {
+        try {
+          const parsed = JSON.parse(project.subStatuses);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (e) { }
+      }
+      return project.subStatus ? [project.subStatus] : [];
+    }
+
+    function render() {
+      const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+      const hasProjects = Array.isArray(liveProjects) && liveProjects.length > 0;
+      const id = hasProjects ? new URLSearchParams(location.hash.replace(/^#/, '')).get('id') || liveProjects[0].id : null;
+      p = hasProjects ? liveProjects.find(x => x.id === id) || liveProjects[0] : null;
+
+      if (!p) {
+        document.getElementById('content').innerHTML = window.PDMS_REMOTE ? `
     <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Projects</span></div>
       <h1 class="page-title">No Project Data</h1><div class="page-sub">You currently do not have any project records.</div></div>
       <div class="flex gap-2"><a class="btn btn-primary" href="projects.html">Open Projects</a></div></div>
@@ -106,12 +143,306 @@ if(!p){
       <h1 class="page-title">Loading Project...</h1><div class="page-sub">Fetching your project data</div></div></div>
     <div class="card"><div class="card-body pdms-loading-inline"><span class="pdms-spinner"></span>Loading...</div></div>
   `;
-} else if(PDMS.isPendingAccountApproval(p) && !(PDMS.getUser() && ['Accounts','General Admin'].includes(PDMS.getUser().role))) {
-  // Locked state — non-Accounts users see a professional pending screen
-  const u = PDMS.getUser();
-  document.getElementById('content').innerHTML = `
-  <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>Projects</span><span>${PDMS.esc(p.client||p.name)}</span></div>
-  <div style="max-width:580px;margin:60px auto;text-align:center">
+      } else if (p.status === 'Award/SLA' && p.rejectionNote && (['sales', 'accounts'].includes(new URLSearchParams(location.hash.replace(/^#/, '')).get('from')))) {
+        // Anyone opened this from Sales Pipeline or Awaiting Projects (Accounts) and it's rejected — show read-only locked view
+        const fromVal = new URLSearchParams(location.hash.replace(/^#/, '')).get('from');
+        const breadcrumbText = fromVal === 'accounts' ? 'Awaiting Projects' : 'Sales Pipeline';
+        const reviews = projectIssues(p);
+        const canUpdate = PDMS.can('Add Remarks');
+        const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
+        document.getElementById('content').innerHTML = `
+  <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>${breadcrumbText}</span><span>${PDMS.esc(p.client || p.name)}</span></div>
+  <div style="max-width:580px;margin:60px auto 40px;text-align:center">
+    <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,#ef4444,#b91c1c);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 12px 32px rgba(239,68,68,.35)">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </div>
+    <h2 style="font-size:22px;font-weight:800;margin:0 0 10px;color:var(--text)">Returned — Rejected</h2>
+    <p style="color:var(--text-soft);font-size:14px;line-height:1.7;margin:0 0 28px">This project was rejected during financial review and has been returned to the Sales team for review and adjustments.</p>
+    
+    <div style="background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.25);border-radius:16px;padding:20px;text-align:left;margin-bottom:28px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#ef4444;margin-bottom:6px">Reason for Rejection</div>
+      <div style="font-size:14px;line-height:1.6;color:var(--text);font-weight:500">${PDMS.esc(p.rejectionNote)}</div>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:left;margin-bottom:28px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Client</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.client || '—')}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Deal Owner</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(dealOwner)}</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:800px;margin:0 auto">
+    <div class="card" style="display:flex;flex-direction:column">
+      <div class="card-head">
+        <div><div class="card-title">Issues &amp; Remarks</div><div class="card-sub">Visible only on this project</div></div>
+      </div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:20px">
+        ${canUpdate ? `
+        <div style="border:1px solid var(--border);border-radius:16px;background:var(--surface-2);display:flex;flex-direction:column;min-height:120px">
+          <div style="flex:1"></div>
+          <div style="display:flex;gap:10px;align-items:center;padding:10px 14px">
+            <div class="avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0">${PDMS.initials((PDMS.getUser() || {}).name || '?')}</div>
+            <textarea id="inlineIssue" rows="2" placeholder="Type an issue or remark…" style="flex:1;border:none;background:transparent;color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:none;line-height:1.5;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitInlineIssue();}"></textarea>
+            <button onclick="submitInlineIssue()" title="Send" style="background:var(--primary);color:#fff;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>` : ''}
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">${reviews.length} comment${reviews.length !== 1 ? 's' : ''}</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            ${reviews.length ? reviews.map(r => {
+          const isLate = r.type === 'late-delivery' || r.tag === 'Late Delivery' || /^\[Late Delivery\]/.test(r.message || '');
+          const reasonMatch = (r.message || '').match(/Reason:\s*(.+)$/s);
+          const displayMsg = isLate && reasonMatch ? reasonMatch[1].trim() : (r.message || '');
+          return `
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div class="avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0">${PDMS.initials(r.author || '?')}</div>
+                <div style="flex:1;background:var(--surface-2);border-radius:10px;padding:12px 16px">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+                    <span style="font-size:13px;font-weight:700;color:var(--primary)">${PDMS.esc(r.author || 'Unknown')}</span>
+                    ${isLate ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:6px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">Late Delivery</span>` : ''}
+                    <span style="font-size:11px;color:var(--text-soft)">${timeAgo(r.time)}</span>
+                  </div>
+                  <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(displayMsg)}</div>
+                </div>
+              </div>`;
+        }).join('') : `<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No comments yet — be the first to post.')}</div>`}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+      } else if (PDMS.isPendingSalesHeadApproval(p) && !(PDMS.getUser() && ['Sales Head', 'COO', 'General Admin', 'System Administrator'].includes(PDMS.getUser().role))) {
+        // Locked state — non-approvers see pending screen when project is awaiting sales head approval
+        const fromVal = new URLSearchParams(location.hash.replace(/^#/, '')).get('from');
+        const breadcrumbText = fromVal === 'sales' ? 'Sales Pipeline' : 'Projects';
+        const reviews = projectIssues(p);
+        const canUpdate = PDMS.can('Add Remarks');
+        const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
+        const targetStage = p.requestedStatus || p.targetStatus || 'Lead';
+        document.getElementById('content').innerHTML = `
+  <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>${breadcrumbText}</span><span>${PDMS.esc(p.client || p.name)}</span></div>
+  <div style="max-width:580px;margin:60px auto 40px;text-align:center">
+    <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 12px 32px rgba(245,158,11,.35)">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </div>
+    <h2 style="font-size:22px;font-weight:800;margin:0 0 10px;color:var(--text)">Pending Sales Head Approval</h2>
+    <p style="color:var(--text-soft);font-size:14px;line-height:1.7;margin:0 0 28px">This project was submitted by the sales personnel and is currently under review by the Sales Head before entering the active pipeline.</p>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:left;margin-bottom:24px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Client</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.client || '—')}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Deal Owner</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(dealOwner)}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Requested Stage</div><div style="font-weight:700;color:var(--text)"><span class="badge badge-${D.statusColors[targetStage]||'info'}">${PDMS.esc(targetStage)}</span></div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Type</div><div style="color:var(--text)">${PDMS.esc(p.type || '—')}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Opportunity Value</div><div style="font-weight:700;color:var(--text)">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—'}</div></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:12px;color:#d97706;font-size:13px;font-weight:600;margin-bottom:24px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Awaiting review &amp; approval by the Sales Head
+    </div>
+  </div>
+  
+  <div style="max-width:800px;margin:0 auto">
+    <div class="card" style="display:flex;flex-direction:column">
+      <div class="card-head">
+        <div><div class="card-title">Issues &amp; Remarks</div><div class="card-sub">Visible only on this project</div></div>
+      </div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:20px">
+        ${canUpdate ? `
+        <div style="border:1px solid var(--border);border-radius:16px;background:var(--surface-2);display:flex;flex-direction:column;min-height:120px">
+          <div style="flex:1"></div>
+          <div style="display:flex;gap:10px;align-items:center;padding:10px 14px">
+            <div class="avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0">${PDMS.initials((PDMS.getUser() || {}).name || '?')}</div>
+            <textarea id="inlineIssue" rows="2" placeholder="Type an issue or remark…" style="flex:1;border:none;background:transparent;color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:none;line-height:1.5;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitInlineIssue();}"></textarea>
+            <button onclick="submitInlineIssue()" title="Send" style="background:var(--primary);color:#fff;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>` : ''}
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">${reviews.length} comment${reviews.length !== 1 ? 's' : ''}</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            ${reviews.length ? reviews.map(r => {
+          const isLate = r.type === 'late-delivery' || r.tag === 'Late Delivery' || /^\[Late Delivery\]/.test(r.message || '');
+          const reasonMatch = (r.message || '').match(/Reason:\s*(.+)$/s);
+          const displayMsg = isLate && reasonMatch ? reasonMatch[1].trim() : (r.message || '');
+          return `
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div class="avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0">${PDMS.initials(r.author || '?')}</div>
+                <div style="flex:1;background:var(--surface-2);border-radius:10px;padding:12px 16px">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+                    <span style="font-size:13px;font-weight:700;color:var(--primary)">${PDMS.esc(r.author || 'Unknown')}</span>
+                    ${isLate ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:6px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">Late Delivery</span>` : ''}
+                    <span style="font-size:11px;color:var(--text-soft)">${timeAgo(r.time)}</span>
+                  </div>
+                  <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(displayMsg)}</div>
+                </div>
+              </div>`;
+        }).join('') : `<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No comments yet — be the first to post.')}</div>`}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+      } else if (PDMS.isPendingAccountApproval(p) && (new URLSearchParams(location.hash.replace(/^#/, '')).get('from') === 'sales' || !(PDMS.getUser() && ['Accounts', 'General Admin'].includes(PDMS.getUser().role)))) {
+        // Locked state — all users see pending screen when coming from Sales Pipeline; non-Accounts see it everywhere
+        const fromVal = new URLSearchParams(location.hash.replace(/^#/, '')).get('from');
+        const breadcrumbText = fromVal === 'sales' ? 'Sales Pipeline' : 'Projects';
+        const reviews = projectIssues(p);
+        const canUpdate = PDMS.can('Add Remarks');
+        const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
+        document.getElementById('content').innerHTML = `
+  <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>${breadcrumbText}</span><span>${PDMS.esc(p.client || p.name)}</span></div>
+  <div style="max-width:580px;margin:60px auto 40px;text-align:center">
+    <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 12px 32px rgba(124,58,237,.35)">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </div>
+    <h2 style="font-size:22px;font-weight:800;margin:0 0 10px;color:var(--text)">Pending Account Approval</h2>
+    <p style="color:var(--text-soft);font-size:14px;line-height:1.7;margin:0 0 28px">This project has reached Award/SLA and is currently awaiting approval from the Accounts team before delivery operations begin.</p>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:left;margin-bottom:24px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Client</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.client || '—')}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Deal Owner</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(dealOwner)}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Type</div><div style="color:var(--text)">${PDMS.esc(p.type || '—')}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Opportunity Value</div><div style="font-weight:700;color:var(--text)">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—'}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Award Value (excl. VAT)</div><div style="font-weight:700;color:var(--text)">${Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice) : '—'}</div></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:12px;color:#7c3aed;font-size:13px;font-weight:600;margin-bottom:24px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Awaiting review &amp; approval by the Accounts team
+    </div>
+  </div>
+  
+  <div style="max-width:800px;margin:0 auto">
+    <div class="card" style="display:flex;flex-direction:column">
+      <div class="card-head">
+        <div><div class="card-title">Issues &amp; Remarks</div><div class="card-sub">Visible only on this project</div></div>
+      </div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:20px">
+        ${canUpdate ? `
+        <div style="border:1px solid var(--border);border-radius:16px;background:var(--surface-2);display:flex;flex-direction:column;min-height:120px">
+          <div style="flex:1"></div>
+          <div style="display:flex;gap:10px;align-items:center;padding:10px 14px">
+            <div class="avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0">${PDMS.initials((PDMS.getUser() || {}).name || '?')}</div>
+            <textarea id="inlineIssue" rows="2" placeholder="Type an issue or remark…" style="flex:1;border:none;background:transparent;color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:none;line-height:1.5;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitInlineIssue();}"></textarea>
+            <button onclick="submitInlineIssue()" title="Send" style="background:var(--primary);color:#fff;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>` : ''}
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">${reviews.length} comment${reviews.length !== 1 ? 's' : ''}</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            ${reviews.length ? reviews.map(r => {
+          const isLate = r.type === 'late-delivery' || r.tag === 'Late Delivery' || /^\[Late Delivery\]/.test(r.message || '');
+          const reasonMatch = (r.message || '').match(/Reason:\s*(.+)$/s);
+          const displayMsg = isLate && reasonMatch ? reasonMatch[1].trim() : (r.message || '');
+          return `
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div class="avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0">${PDMS.initials(r.author || '?')}</div>
+                <div style="flex:1;background:var(--surface-2);border-radius:10px;padding:12px 16px">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+                    <span style="font-size:13px;font-weight:700;color:var(--primary)">${PDMS.esc(r.author || 'Unknown')}</span>
+                    ${isLate ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:6px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">Late Delivery</span>` : ''}
+                    <span style="font-size:11px;color:var(--text-soft)">${timeAgo(r.time)}</span>
+                  </div>
+                  <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(displayMsg)}</div>
+                </div>
+              </div>`;
+        }).join('') : `<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No comments yet — be the first to post.')}</div>`}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+      } else if ((PDMS.isDeliveryStatus(p.status) || p.status === 'Closed' || p.stage === 'Delivery') && (['sales', 'accounts'].includes(new URLSearchParams(location.hash.replace(/^#/, '')).get('from')))) {
+        // Anyone opened this from Sales Pipeline or Awaiting Projects (Accounts) — show read-only locked view (can still chat and click to view from delivery)
+        const fromVal = new URLSearchParams(location.hash.replace(/^#/, '')).get('from');
+        const breadcrumbText = fromVal === 'accounts' ? 'Awaiting Projects' : 'Sales Pipeline';
+        const reviews = projectIssues(p);
+        const canUpdate = PDMS.can('Add Remarks');
+        const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
+        document.getElementById('content').innerHTML = `
+  <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>${breadcrumbText}</span><span>${PDMS.esc(p.client || p.name)}</span></div>
+  <div style="max-width:580px;margin:60px auto 40px;text-align:center">
+    <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,#059669,#10b981);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 12px 32px rgba(5,150,105,.35)">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h2 style="font-size:22px;font-weight:800;margin:0 0 10px;color:var(--text)">Closed in Sales — Moved to Delivery Team</h2>
+    <p style="color:var(--text-soft);font-size:14px;line-height:1.7;margin:0 0 24px">This project is closed in the Sales pipeline and has been handed over to the Delivery team. Click below to view the project from Delivery.</p>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:left;margin-bottom:24px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Client</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.client || '—')}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Deal Owner</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(dealOwner)}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Type</div><div style="color:var(--text)">${PDMS.esc(p.type || '—')}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Delivery Status</div><div style="color:var(--text)"><span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status || '—')}</span></div></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+      <a href="project-details.html#id=${p.id}&from=delivery" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;text-decoration:none;box-shadow:0 4px 16px rgba(16,185,129,0.3);background:#10b981;border:none;color:#fff">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Click to View from Delivery
+      </a>
+      <a href="projects.html#view=sales" class="btn btn-secondary" style="display:inline-flex;align-items:center;gap:6px;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;text-decoration:none">
+        ← Back to Sales
+      </a>
+    </div>
+  </div>
+
+  <div style="max-width:800px;margin:0 auto">
+    <div class="card" style="display:flex;flex-direction:column">
+      <div class="card-head">
+        <div><div class="card-title">Issues &amp; Remarks</div><div class="card-sub">Visible only on this project</div></div>
+      </div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:20px">
+        ${canUpdate ? `
+        <div style="border:1px solid var(--border);border-radius:16px;background:var(--surface-2);display:flex;flex-direction:column;min-height:120px">
+          <div style="flex:1"></div>
+          <div style="display:flex;gap:10px;align-items:center;padding:10px 14px">
+            <div class="avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0">${PDMS.initials((PDMS.getUser() || {}).name || '?')}</div>
+            <textarea id="inlineIssue" rows="2" placeholder="Type an issue or remark…" style="flex:1;border:none;background:transparent;color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:none;line-height:1.5;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitInlineIssue();}"></textarea>
+            <button onclick="submitInlineIssue()" title="Send" style="background:var(--primary);color:#fff;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>` : ''}
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">${reviews.length} comment${reviews.length !== 1 ? 's' : ''}</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            ${reviews.length ? reviews.map(r => {
+          const isLate = r.type === 'late-delivery' || r.tag === 'Late Delivery' || /^\[Late Delivery\]/.test(r.message || '');
+          const reasonMatch = (r.message || '').match(/Reason:\s*(.+)$/s);
+          const displayMsg = isLate && reasonMatch ? reasonMatch[1].trim() : (r.message || '');
+          return `
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div class="avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0">${PDMS.initials(r.author || '?')}</div>
+                <div style="flex:1;background:var(--surface-2);border-radius:10px;padding:12px 16px">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+                    <span style="font-size:13px;font-weight:700;color:var(--primary)">${PDMS.esc(r.author || 'Unknown')}</span>
+                    ${isLate ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:6px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">Late Delivery</span>` : ''}
+                    <span style="font-size:11px;color:var(--text-soft)">${timeAgo(r.time)}</span>
+                  </div>
+                  <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(displayMsg)}</div>
+                </div>
+              </div>`;
+        }).join('') : `<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No comments yet — be the first to post.')}</div>`}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+      } else if (PDMS.isPendingAccountApproval(p) && (new URLSearchParams(location.hash.replace(/^#/, '')).get('from') === 'sales' || !(PDMS.getUser() && ['Accounts', 'General Admin'].includes(PDMS.getUser().role)))) {
+        // Locked state — all users see pending screen when coming from Sales Pipeline; non-Accounts see it everywhere
+        const u = PDMS.getUser();
+        const reviews = projectIssues(p);
+        const canUpdate = PDMS.can('Add Remarks');
+        document.getElementById('content').innerHTML = `
+  <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>Projects</span><span>${PDMS.esc(p.client || p.name)}</span></div>
+  <div style="max-width:580px;margin:60px auto 40px;text-align:center">
     <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 12px 32px rgba(124,58,237,.35)">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     </div>
@@ -119,72 +450,121 @@ if(!p){
     <p style="color:var(--text-soft);font-size:14px;line-height:1.7;margin:0 0 28px">This project has been signed and is currently under financial review by the Accounts team. It will be available for delivery operations once approved.</p>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:left;margin-bottom:28px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Client</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.client||'—')}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Client</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.client || '—')}</div></div>
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Project</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.name)}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Type</div><div style="color:var(--text)">${PDMS.esc(p.type||'—')}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Type</div><div style="color:var(--text)">${PDMS.esc(p.type || '—')}</div></div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:12px;color:#7c3aed;font-size:13px;font-weight:600;margin-bottom:24px">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       Awaiting review by the Accounts team
     </div>
-    
-  </div>`;
-} else {
-  const user = PDMS.getUser();
-  const liveUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users;
-  const liveClients = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients) || D.clients;
-  const clientObj = liveClients.find(c => c.name === p.client || c.email === p.client || c.id === p.client);
-  const clientName = (clientObj && clientObj.name) || p.client || '—';
-  const health = healthOf(p);
-  const subStatuses = Array.isArray(p.subStatuses) ? p.subStatuses : (p.subStatus ? [p.subStatus] : []);
-  const currentSubStatus = subStatuses.length ? subStatuses[subStatuses.length-1] : '';
-  const stages = milestoneStages(p);
-  const reviews = projectIssues(p);
-  const latest = reviews[0];
-  const canUpdate = PDMS.can('Add Remarks');
-  const canUploadDoc = canUpdate && !(user && user.role==='HR');
-  const isConsultant = user && user.role === 'Consultant';
-  const myTasks = isConsultant ? (p.privateTasks||[]).filter(t =>
-    (t.ownerName||'').toLowerCase() === (user.name||'').toLowerCase() ||
-    (t.ownerId||'') === (user.id||'')
-  ) : [];
-  const isAssignedConsultant = isConsultant && (
-    myTasks.length > 0 ||
-    (Array.isArray(p.consultants) && p.consultants.map(n=>String(n).toLowerCase()).includes((user.name||'').toLowerCase()))
-  );
-  const isPMO = user && user.role==='PMO';
-  const myName = (user&&user.name||'').toLowerCase();
-  const isAssignedPMO = isPMO && (
-    (p.pm||'').toLowerCase()===myName ||
-    (p.lead||'').toLowerCase()===myName ||
-    (Array.isArray(p.consultants) && p.consultants.map(n=>n.toLowerCase()).includes(myName))
-  );
-  // Determine effective stage from current status (more reliable than stored stage field,
-  // since projects moved from sales still carry stage='Sales' in the sheet).
-  const _D = window.PDMS_DATA;
-  const normalizedStatus = PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status;
-  const pStage = (_D && _D.deliveryStatuses && (_D.deliveryStatuses.includes(p.status) || _D.deliveryStatuses.includes(normalizedStatus))) ? 'Delivery'
-    : PDMS.isSalesStatus(p.status) ? 'Sales'
-    : PDMS.stageOf(p);
-  const isDeliveryStage = pStage === 'Delivery';
-  const isSalesStage = pStage === 'Sales';
-  const canAssign = PDMS.can('Assign Consultant') && isDeliveryStage && (!isPMO || isAssignedPMO);
-  const canManageStatus = user && (
-    (PDMS.isSalesRole(user) && isSalesStage) ||
-    (['HTD','COO','PM Head'].includes(user.role) && isDeliveryStage) ||
-    (isPMO && isDeliveryStage && isAssignedPMO)
-  );
-  const canStartDelivery = PDMS.can('Start Delivery') && isSalesStage && p.status==='Approved';
-  const canEditDetails = user && (
-    (PDMS.isSalesRole(user) && isSalesStage) ||
-    (['HTD','COO','PM Head'].includes(user.role) && isDeliveryStage) ||
-    (isPMO && isDeliveryStage && isAssignedPMO)
-  );
-  const isAccountsUser = user && user.role === 'Accounts';
-  const canApproveReject = isAccountsUser && p.status === 'Awaiting Account Approval';
+  </div>
+  
+  <div style="max-width:800px;margin:0 auto">
+    <div class="card" style="display:flex;flex-direction:column">
+      <div class="card-head">
+        <div><div class="card-title">Issues & Remarks</div><div class="card-sub">Visible only on this project</div></div>
+      </div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:20px">
+        ${canUpdate ? `
+        <div style="border:1px solid var(--border);border-radius:16px;background:var(--surface-2);display:flex;flex-direction:column;min-height:120px">
+          <div style="flex:1"></div>
+          <div style="display:flex;gap:10px;align-items:center;padding:10px 14px">
+            <div class="avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0">${PDMS.initials((PDMS.getUser() || {}).name || '?')}</div>
+            <textarea id="inlineIssue" rows="2" placeholder="Type an issue or remark…" style="flex:1;border:none;background:transparent;color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:none;line-height:1.5;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitInlineIssue();}"></textarea>
+            <button onclick="submitInlineIssue()" title="Send" style="background:var(--primary);color:#fff;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>` : ''}
 
-  document.getElementById('content').innerHTML = `
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">${reviews.length} comment${reviews.length !== 1 ? 's' : ''}</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            ${reviews.length ? reviews.map(r => {
+          const isLate = r.type === 'late-delivery' || r.tag === 'Late Delivery' || /^\[Late Delivery\]/.test(r.message || '');
+          const reasonMatch = (r.message || '').match(/Reason:\s*(.+)$/s);
+          const displayMsg = isLate && reasonMatch ? reasonMatch[1].trim() : (r.message || '');
+          return `
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div class="avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0">${PDMS.initials(r.author || '?')}</div>
+                <div style="flex:1;background:var(--surface-2);border-radius:10px;padding:12px 16px">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+                    <span style="font-size:13px;font-weight:700;color:var(--primary)">${PDMS.esc(r.author || 'Unknown')}</span>
+                    ${isLate ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:6px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">Late Delivery</span>` : ''}
+                    <span style="font-size:11px;color:var(--text-soft)">${timeAgo(r.time)}</span>
+                  </div>
+                  <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(displayMsg)}</div>
+                </div>
+              </div>`;
+        }).join('') : `<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No comments yet — be the first to post.')}</div>`}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+      } else {
+        const user = PDMS.getUser();
+        const liveUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users;
+        const liveClients = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients) || D.clients;
+        const clientObj = liveClients.find(c => c.name === p.client || c.email === p.client || c.id === p.client);
+        const clientName = (clientObj && clientObj.name) || p.client || '—';
+        const health = healthOf(p);
+        const subStatuses = getSubStatuses(p);
+        const currentSubStatus = subStatuses.length ? subStatuses[subStatuses.length - 1] : '';
+        const stages = milestoneStages(p);
+        const reviews = projectIssues(p);
+        const latest = reviews[0];
+        const canUpdate = PDMS.can('Add Remarks');
+        const canUploadDoc = canUpdate && !(user && user.role === 'HR');
+        const isConsultant = user && user.role === 'Consultant';
+        const myTasks = isConsultant ? (p.privateTasks || []).filter(t =>
+          (t.ownerName || '').toLowerCase() === (user.name || '').toLowerCase() ||
+          (t.ownerId || '') === (user.id || '')
+        ) : [];
+        const isAssignedConsultant = isConsultant && (
+          myTasks.length > 0 ||
+          (Array.isArray(p.consultants) && p.consultants.map(n => String(n).toLowerCase()).includes((user.name || '').toLowerCase()))
+        );
+        const isPMO = user && user.role === 'PMO';
+        const myName = (user && user.name || '').toLowerCase();
+        const isAssignedPMO = isPMO && (
+          (p.pm || '').toLowerCase() === myName ||
+          (p.lead || '').toLowerCase() === myName ||
+          (Array.isArray(p.consultants) && p.consultants.map(n => n.toLowerCase()).includes(myName))
+        );
+        // Determine effective stage from current status (more reliable than stored stage field,
+        // since projects moved from sales still carry stage='Sales' in the sheet).
+        const _D = window.PDMS_DATA;
+        const normalizedStatus = PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status;
+        const isPendingSalesHead = p.status === 'Awaiting Sales Head Approval';
+        const pStage = isPendingSalesHead ? 'Sales'
+          : (_D && _D.deliveryStatuses && (_D.deliveryStatuses.includes(p.status) || _D.deliveryStatuses.includes(normalizedStatus))) ? 'Delivery'
+          : PDMS.isSalesStatus(p.status) ? 'Sales'
+            : PDMS.stageOf(p);
+        const isDeliveryStage = pStage === 'Delivery';
+        const isSalesStage = pStage === 'Sales';
+        const canAssign = PDMS.can('Assign Consultant') && isDeliveryStage && (!isPMO || isAssignedPMO);
+        const canManageStatus = user && (
+          (PDMS.isSalesRole(user) && isSalesStage && p.status !== 'Awaiting Sales Head Approval') ||
+          (['HTD', 'COO', 'PM Head'].includes(user.role) && isDeliveryStage) ||
+          (isPMO && isDeliveryStage && isAssignedPMO)
+        );
+        const canStartDelivery = PDMS.can('Start Delivery') && isSalesStage && p.status === 'Approved';
+        const canEditDetails = user && (
+          (PDMS.isSalesRole(user) && isSalesStage && p.status !== 'Awaiting Sales Head Approval') ||
+          (['HTD', 'COO', 'PM Head'].includes(user.role) && isDeliveryStage) ||
+          (isPMO && isDeliveryStage && isAssignedPMO)
+        );
+        const canSeePrice = PDMS.canSeePrice(user);
+        const canEditPrice = PDMS.canEditPrice(user);
+        const isAccountsUser = user && user.role === 'Accounts';
+        const canApproveReject = isAccountsUser && p.status === 'Awaiting Account Approval';
+        const isSalesHeadUser = user && user.role === 'Sales Head';
+        const canSalesHeadApproveReject = isSalesHeadUser && p.status === 'Awaiting Sales Head Approval';
+
+        document.getElementById('content').innerHTML = `
 <div style="border-radius:20px;overflow:hidden;margin-bottom:24px;box-shadow:0 8px 32px rgba(29,60,136,.18)">
     <!-- Hero banner -->
     <div style="background:linear-gradient(135deg,#090d16 0%,#1d3c88 45%,#8b5cf6 80%,#ec4899 100%);padding:28px 28px 24px;position:relative;overflow:hidden">
@@ -193,20 +573,22 @@ if(!p){
         <div style="flex:1;min-width:240px">
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
             <span style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;letter-spacing:.6px">${p.id}</span>
-            <span style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;letter-spacing:.6px">${PDMS.stageOf(p)==='Sales'?'SALES PIPELINE':'DELIVERY'}</span>
-            ${p.status==='In Progress' ? (currentSubStatus ? `<span class="badge badge-muted">${PDMS.esc(currentSubStatus)}</span>` : '') : `<span class="badge badge-${D.statusColors[p.status]||'muted'}">${p.status}</span>`}
+            <span style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;letter-spacing:.6px">${PDMS.stageOf(p) === 'Sales' ? 'SALES PIPELINE' : 'DELIVERY'}</span>
+            ${p.status === 'In Progress' ? (currentSubStatus ? `<span class="badge badge-muted">${PDMS.esc(currentSubStatus)}</span>` : '') : `<span class="badge badge-${D.statusColors[p.status === 'Awaiting Account Approval' ? 'Award/SLA' : p.status] || 'muted'}">${p.status === 'Awaiting Account Approval' ? 'Award/SLA' : p.status}</span>`}
             <span class="badge ${health.cls}">${health.label}</span>
           </div>
           <h1 style="font-size:26px;font-weight:800;color:#fff;margin:0 0 6px;line-height:1.2;text-wrap:balance">${PDMS.esc(clientName)}</h1>
-          <div style="color:rgba(255,255,255,.7);font-size:13px;margin-bottom:14px">${PDMS.esc(p.name)} &nbsp;·&nbsp; ${PDMS.esc(p.type||'—')}</div>
-          <p style="color:rgba(255,255,255,.65);font-size:13px;line-height:1.6;max-width:520px;margin:0">${PDMS.esc(p.description||'No description provided.')}</p>
+          <div style="color:rgba(255,255,255,.7);font-size:13px;margin-bottom:14px">${PDMS.esc(p.name)} &nbsp;·&nbsp; ${PDMS.esc(p.type || '—')}</div>
+          <p style="color:rgba(255,255,255,.65);font-size:13px;line-height:1.6;max-width:520px;margin:0">${PDMS.esc(p.description || 'No description provided.')}</p>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;align-self:flex-start;flex-wrap:wrap">
-          ${canStartDelivery?`<button class="btn btn-primary" onclick="startDelivery()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('zap')} Start Delivery</button>`:''}
-          ${canManageStatus?`<button class="btn btn-primary" onclick="changeStatus()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('refresh')} Change Status</button>`:''}
-          ${canEditDetails?`<button class="btn btn-primary" onclick="editDetails()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('edit')} Edit Details</button>`:''}
-          ${canApproveReject?`<button id="approveBtn" onclick="approveProjectInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:#10b981;color:#fff;border:none">✓ Approve</button>`:''}
-          ${canApproveReject?`<button id="rejectBtn" onclick="rejectProjectInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.35)">✕ Reject</button>`:''}
+          ${canStartDelivery ? `<button class="btn btn-primary" onclick="startDelivery()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('zap')} Start Delivery</button>` : ''}
+          ${canManageStatus ? `<button class="btn btn-primary" onclick="changeStatus()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('refresh')} Change Status</button>` : ''}
+          ${canEditDetails ? `<button class="btn btn-primary" onclick="editDetails()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('edit')} Edit Details</button>` : ''}
+          ${canApproveReject ? `<button id="approveBtn" onclick="approveProjectInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:#10b981;color:#fff;border:none">✓ Approve</button>` : ''}
+          ${canApproveReject ? `<button id="rejectBtn" onclick="rejectProjectInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.35)">✕ Reject</button>` : ''}
+          ${canSalesHeadApproveReject ? `<button id="shApproveBtn" onclick="approveSalesHeadInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:#10b981;color:#fff;border:none">✓ Approve</button>` : ''}
+          ${canSalesHeadApproveReject ? `<button id="shRejectBtn" onclick="rejectSalesHeadInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.35)">✕ Reject</button>` : ''}
         </div>
       </div>
     </div>
@@ -214,14 +596,20 @@ if(!p){
     <!-- Metadata strip -->
     <div style="background:var(--surface);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
       ${[
-        {label:'Client', value: p.client||'—'},
-        {label:'Workstream', value: p.workstream||p.dept||'—'},
-        {label:'Start Date', value: p.start||'TBD'},
-        {label:'Planned Completion', value: p.due||'TBD'},
-        {label:'Actual Completion', value: p.actualCompletion||'—'},
-        ...(p.status==='In Progress' && currentSubStatus ? [{label:'Phase', value:currentSubStatus}] : []),
-      ].map((f,i,arr) => `
-        <div style="padding:16px 20px;${i<arr.length-1?'border-right:1px solid var(--border)':''}">
+            { label: 'Project Type', value: p.type || '—' },
+            { label: 'Workstream', value: p.workstream || p.dept || '—' },
+            ...(canSeePrice ? [
+              { label: 'Opportunity Value', value: Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—' },
+              ...((p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval' || p.status === 'Closed') ? [
+                { label: 'Award Value (excl. VAT)', value: Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice) : '—' }
+              ] : [])
+            ] : []),
+            { label: 'Start Date', value: p.start || 'TBD' },
+            { label: 'Planned Completion', value: p.due || 'TBD' },
+            { label: 'Actual Completion', value: p.actualCompletion || '—' },
+            ...(p.status === 'In Progress' && currentSubStatus ? [{ label: 'Phase', value: currentSubStatus }] : []),
+          ].map((f, i, arr) => `
+        <div style="padding:16px 20px;${i < arr.length - 1 ? 'border-right:1px solid var(--border)' : ''}">
           <div style="font-size:11px;font-weight:600;letter-spacing:.6px;color:var(--text-soft);text-transform:uppercase;margin-bottom:5px">${f.label}</div>
           <div style="font-size:14px;font-weight:600;color:var(--text)">${PDMS.esc(f.value)}</div>
         </div>`).join('')}
@@ -230,11 +618,20 @@ if(!p){
 
   <div class="grid" style="grid-template-columns:2fr 1fr;gap:20px">
     <div class="flex flex-col gap-4">
-      <div style="display:grid;grid-template-columns:${isAssignedConsultant?'1fr 1fr':'1fr'};gap:16px">
-        <div class="card"><div class="card-head"><div class="card-title">Project Timeline</div> ${p.status==='In Progress' && canManageStatus ? `<button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="editInProgressStage()">${currentSubStatus ? 'Change Stage' : 'Add Stage'}</button>` : ''}</div>
+      <div style="display:grid;grid-template-columns:${isAssignedConsultant ? '1fr 1fr' : '1fr'};gap:16px">
+        <div class="card"><div class="card-head"><div class="card-title">Project Timeline</div> ${p.status === 'In Progress' && canManageStatus ? `<button class="btn btn-primary btn-sm" style="margin-left:auto;background:var(--primary);color:#fff;border:none" onclick="editInProgressStage()">Add Stage</button>` : ''}</div>
           <div class="card-body">
             <div class="timeline">
-              ${stages.map(s=>`<div class="tl-item ${s.state}"><div class="tl-title">${s.label}${s.label==='In Progress' && p.status==='In Progress' && canManageStatus?` <button class="btn btn-secondary btn-xs" style="margin-left:10px;padding:4px 8px;font-size:11px" onclick="event.stopPropagation();editInProgressStage()">${currentSubStatus ? 'Change Stage' : 'Add Stage'}</button>`:''}</div><div class="tl-meta">${s.state==='done'?'Completed':s.state==='active'?'Ongoing':'Upcoming'}</div>${s.label==='In Progress' && subStatuses.length ? `<div class="tl-sub" style="margin-top:8px;margin-left:14px;padding-left:10px;border-left:2px solid var(--border);font-size:12px;color:var(--text-muted)">${subStatuses.map(ss=>`<div>${PDMS.esc(ss)}</div>`).join('')}</div>` : ''}</div>`).join('')}
+              ${stages.map(s => `<div class="tl-item ${s.state}"><div class="tl-title">${s.label}${s.isPendingApproval ? ` <span class="badge" style="font-size:10px;padding:2px 8px;vertical-align:middle;margin-left:6px;background:rgba(245,158,11,.15);color:#d97706;border:1px solid rgba(245,158,11,.35);font-weight:600"><span class="sh-pending-dot" style="width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block;margin-right:4px"></span>Awaiting Sales Head Approval</span>` : ''}${s.label === 'In Progress' && p.status === 'In Progress' && canManageStatus ? ` <button class="btn btn-primary btn-xs" style="margin-left:10px;padding:4px 8px;font-size:11px;background:var(--primary);color:#fff;border:none" onclick="event.stopPropagation();editInProgressStage()">Add Stage</button>` : ''}</div><div class="tl-meta">${s.meta || (s.state === 'done' ? 'Completed' : s.state === 'active' ? 'Ongoing' : 'Upcoming')}</div>${s.label === 'In Progress' && subStatuses.length ? `<div class="tl-sub" style="margin-top:8px;margin-left:14px;padding-left:12px;border-left:2px solid var(--border);display:flex;flex-direction:column;gap:6px">${subStatuses.map((ss, idx) => {
+            const isLast = idx === subStatuses.length - 1;
+            return `
+                  <div style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:2px">
+                    <span style="color:${isLast ? '#f59e0b' : '#10b981'};font-size:14px;font-weight:bold">${isLast ? '●' : '✓'}</span>
+                    <span style="color:var(--text);font-weight:600">${PDMS.esc(ss)}</span>
+                    <span style="font-size:11px;color:var(--text-muted);font-weight:500;margin-left:6px">(${isLast ? 'Ongoing' : 'Completed'})</span>
+                  </div>
+                `;
+          }).join('')}</div>` : ''}</div>`).join('')}
             </div>
           </div>
         </div>
@@ -242,14 +639,14 @@ if(!p){
         <div class="card"><div class="card-head"><div class="card-title">Task Timeline</div><div class="card-sub">Your scheduled activities</div></div>
           <div class="card-body">
             <div class="timeline">
-              ${myTasks.length ? myTasks.map(t=>{
-                const done = t.done===true;
-                const today = new Date(); today.setHours(0,0,0,0);
-                const td = t.date ? new Date(t.date) : null;
-                if(td) td.setHours(0,0,0,0);
-                const state = done ? 'done' : !td ? '' : td<today ? 'done' : td.getTime()===today.getTime() ? 'active' : '';
-                return `<div class="tl-item ${state}"><div class="tl-title">${PDMS.esc(t.activity||'Task')}</div><div class="tl-meta">${PDMS.esc(t.deliverable||'—')} · ${PDMS.esc(t.date||'No date')}</div></div>`;
-              }).join('') : '<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">No tasks yet</div>'}
+              ${myTasks.length ? myTasks.map(t => {
+            const done = t.done === true;
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const td = t.date ? new Date(t.date) : null;
+            if (td) td.setHours(0, 0, 0, 0);
+            const state = done ? 'done' : !td ? '' : td < today ? 'done' : td.getTime() === today.getTime() ? 'active' : '';
+            return `<div class="tl-item ${state}"><div class="tl-title">${PDMS.esc(t.activity || 'Task')}</div><div class="tl-meta">${PDMS.esc(t.deliverable || '—')} · ${PDMS.esc(t.date || 'No date')}</div></div>`;
+          }).join('') : '<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">No tasks yet</div>'}
             </div>
           </div>
         </div>` : ''}
@@ -266,22 +663,22 @@ if(!p){
           <table class="data">
             <thead><tr><th>Activity</th><th>Deliverable</th><th>Due Date</th><th>Completion Date</th><th>Status</th></tr></thead>
             <tbody>
-              ${myTasks.length ? myTasks.map(t=>{
-                const done = t.done === true;
-                const today = new Date(); today.setHours(0,0,0,0);
-                const td = t.dueDate ? new Date(t.dueDate) : null;
-                if(td) td.setHours(0,0,0,0);
-                const isOverdue = !done && td && td < today;
-                const statusLabel = done ? 'Done' : isOverdue ? 'Due' : 'Pending';
-                const statusClass = done ? 'badge-success' : isOverdue ? 'badge-danger' : 'badge-muted';
-                return `<tr style="cursor:pointer;${done?'opacity:.65':''}" onclick="viewConsultantTask('${t.id}')">
-                  <td style="font-weight:600;${done?'text-decoration:line-through;color:var(--text-muted)':''}">${PDMS.esc(t.activity||'—')}</td>
-                  <td>${PDMS.esc(t.deliverable||'—')}</td>
-                  <td style="${isOverdue?'color:var(--danger);font-weight:600':''}"><span>${PDMS.esc(t.dueDate||'—')}</span></td>
+              ${myTasks.length ? myTasks.map(t => {
+            const done = t.done === true;
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const td = t.dueDate ? new Date(t.dueDate) : null;
+            if (td) td.setHours(0, 0, 0, 0);
+            const isOverdue = !done && td && td < today;
+            const statusLabel = done ? 'Done' : isOverdue ? 'Due' : 'Pending';
+            const statusClass = done ? 'badge-success' : isOverdue ? 'badge-danger' : 'badge-muted';
+            return `<tr style="cursor:pointer;${done ? 'opacity:.65' : ''}" onclick="viewConsultantTask('${t.id}')">
+                  <td style="font-weight:600;${done ? 'text-decoration:line-through;color:var(--text-muted)' : ''}">${PDMS.esc(t.activity || '—')}</td>
+                  <td>${PDMS.esc(t.deliverable || '—')}</td>
+                  <td style="${isOverdue ? 'color:var(--danger);font-weight:600' : ''}"><span>${PDMS.esc(t.dueDate || '—')}</span></td>
                   <td>${done && t.completedAt ? `<span style="color:var(--success);font-size:12px">${PDMS.esc(t.completedAt)}</span>` : '<span style="color:var(--text-soft);font-size:12px">—</span>'}</td>
                   <td><span class="badge ${statusClass}">${statusLabel}</span></td>
                 </tr>`;
-              }).join('') : `<tr><td colspan="5" style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px">No tasks yet — click Add Task to get started</td></tr>`}
+          }).join('') : `<tr><td colspan="5" style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px">No tasks yet — click Add Task to get started</td></tr>`}
             </tbody>
           </table>
         </div>
@@ -294,41 +691,41 @@ if(!p){
         </div>
         <div style="padding:16px 20px;display:flex;flex-direction:column;gap:20px">
 
-          ${canUpdate?`
+          ${canUpdate ? `
           <!-- Chat input -->
           <div style="border:1px solid var(--border);border-radius:16px;background:var(--surface-2);display:flex;flex-direction:column;min-height:120px">
             <div style="flex:1"></div>
             <div style="display:flex;gap:10px;align-items:center;padding:10px 14px">
-              <div class="avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0">${PDMS.initials((PDMS.getUser()||{}).name||'?')}</div>
+              <div class="avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0">${PDMS.initials((PDMS.getUser() || {}).name || '?')}</div>
               <textarea id="inlineIssue" rows="2" placeholder="Type an issue or remark…" style="flex:1;border:none;background:transparent;color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:none;line-height:1.5;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitInlineIssue();}"></textarea>
               <button onclick="submitInlineIssue()" title="Send" style="background:var(--primary);color:#fff;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </button>
             </div>
-          </div>`:''}
+          </div>`: ''}
 
           <!-- Comments list -->
           <div>
-            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">${reviews.length} comment${reviews.length!==1?'s':''}</div>
+            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">${reviews.length} comment${reviews.length !== 1 ? 's' : ''}</div>
             <div style="display:flex;flex-direction:column;gap:12px">
-              ${reviews.length ? reviews.map(r=>{
-                // Strip legacy "[Late Delivery] Task ... Reason: " prefix if present
-                const isLate = r.type==='late-delivery' || r.tag==='Late Delivery' || /^\[Late Delivery\]/.test(r.message||'');
-                const reasonMatch = (r.message||'').match(/Reason:\s*(.+)$/s);
-                const displayMsg = isLate && reasonMatch ? reasonMatch[1].trim() : (r.message||'');
-                return `
+              ${reviews.length ? reviews.map(r => {
+            // Strip legacy "[Late Delivery] Task ... Reason: " prefix if present
+            const isLate = r.type === 'late-delivery' || r.tag === 'Late Delivery' || /^\[Late Delivery\]/.test(r.message || '');
+            const reasonMatch = (r.message || '').match(/Reason:\s*(.+)$/s);
+            const displayMsg = isLate && reasonMatch ? reasonMatch[1].trim() : (r.message || '');
+            return `
                 <div style="display:flex;gap:12px;align-items:flex-start">
-                  <div class="avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0">${PDMS.initials(r.author||'?')}</div>
+                  <div class="avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0">${PDMS.initials(r.author || '?')}</div>
                   <div style="flex:1;background:var(--surface-2);border-radius:10px;padding:12px 16px">
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
-                      <span style="font-size:13px;font-weight:700;color:var(--primary)">${PDMS.esc(r.author||'Unknown')}</span>
+                      <span style="font-size:13px;font-weight:700;color:var(--primary)">${PDMS.esc(r.author || 'Unknown')}</span>
                       ${isLate ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:6px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">Late Delivery</span>` : ''}
                       <span style="font-size:11px;color:var(--text-soft)">${timeAgo(r.time)}</span>
                     </div>
                     <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(displayMsg)}</div>
                   </div>
                 </div>`;
-              }).join('') : `<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No comments yet — be the first to post.')}</div>`}
+          }).join('') : `<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No comments yet — be the first to post.')}</div>`}
             </div>
           </div>
 
@@ -339,33 +736,35 @@ if(!p){
     <div class="flex flex-col gap-4">
       <div class="card"><div class="card-head"><div class="card-title">Project Team</div></div>
         <div class="card-body">
-          ${(()=>{
-            function safeArr(v){if(Array.isArray(v))return v;if(typeof v==='string'&&v.trim().startsWith('[')){try{const r=JSON.parse(v);return Array.isArray(r)?r:[];}catch(e){}}return[];}
-            function safeStr(v){if(!v)return '';if(typeof v==='string'&&v.trim().startsWith('[')){try{const r=JSON.parse(v);return Array.isArray(r)?r[0]||'':'';}catch(e){return '';}}return v;}
-            const pm=safeStr(p.pm); const lead=safeStr(p.lead); const cons=safeArr(p.consultants);
+          ${(() => {
+            function safeArr(v) { if (Array.isArray(v)) return v; if (typeof v === 'string' && v.trim().startsWith('[')) { try { const r = JSON.parse(v); return Array.isArray(r) ? r : []; } catch (e) { } } return []; }
+            function safeStr(v) { if (!v) return ''; if (typeof v === 'string' && v.trim().startsWith('[')) { try { const r = JSON.parse(v); return Array.isArray(r) ? r[0] || '' : ''; } catch (e) { return ''; } } return v; }
+            const pm = safeStr(p.pm); const lead = safeStr(p.lead); const cons = safeArr(p.consultants);
+            const salesOwner = p.projectOwnerName || p.sales || '';
             return `
-          <div class="mb-3"><div class="text-sm text-muted">Project Manager</div><div class="flex items-center gap-2 mt-2">${pm?`<div class="avatar avatar-sm">${PDMS.initials(pm)}</div><div class="font-semi">${PDMS.esc(pm)}</div>`:`<div class="text-muted text-sm">Unassigned</div>`}</div></div>
-          <div class="mb-3"><div class="text-sm text-muted">Project Lead</div><div class="flex items-center gap-2 mt-2">${lead?`<div class="avatar avatar-sm">${PDMS.initials(lead)}</div><div class="font-semi">${PDMS.esc(lead)}</div>`:`<div class="text-muted text-sm">Unassigned</div>`}</div></div>
-          <div><div class="text-sm text-muted mb-2">Assigned Consultants (${cons.length})</div>${cons.map(c=>{const skill=(p.consultantRoles||{})[c]||'';return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div class="avatar avatar-sm">${PDMS.initials(c)}</div><div style="min-width:0"><div class="text-sm font-semi">${PDMS.esc(c)}</div>${skill?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${PDMS.esc(skill)}</div>`:''}</div></div>`;}).join('')||'<div class="text-muted text-sm">None assigned</div>'}</div>`;
+          <div class="mb-3"><div class="text-sm text-muted">Sales Lead / Deal Owner</div><div class="flex items-center gap-2 mt-2">${salesOwner ? `<div class="avatar avatar-sm">${PDMS.initials(salesOwner)}</div><div class="font-semi">${PDMS.esc(salesOwner)}</div>` : `<div class="text-muted text-sm">Sales Team</div>`}</div></div>
+          <div class="mb-3"><div class="text-sm text-muted">Project Manager</div><div class="flex items-center gap-2 mt-2">${pm ? `<div class="avatar avatar-sm">${PDMS.initials(pm)}</div><div class="font-semi">${PDMS.esc(pm)}</div>` : `<div class="text-muted text-sm">Unassigned</div>`}</div></div>
+          <div class="mb-3"><div class="text-sm text-muted">Project Lead</div><div class="flex items-center gap-2 mt-2">${lead ? `<div class="avatar avatar-sm">${PDMS.initials(lead)}</div><div class="font-semi">${PDMS.esc(lead)}</div>` : `<div class="text-muted text-sm">Unassigned</div>`}</div></div>
+          <div><div class="text-sm text-muted mb-2">Assigned Consultants (${cons.length})</div>${cons.map(c => { const skill = (p.consultantRoles || {})[c] || ''; return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div class="avatar avatar-sm">${PDMS.initials(c)}</div><div style="min-width:0"><div class="text-sm font-semi">${PDMS.esc(c)}</div>${skill ? `<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${PDMS.esc(skill)}</div>` : ''}</div></div>`; }).join('') || '<div class="text-muted text-sm">None assigned</div>'}</div>`;
           })()}
-          ${canAssign?`<button class="btn btn-secondary w-full mt-2" style="justify-content:center" onclick="assignTeam()">${I('user-plus')} Assign Team</button>`:''}
+          ${canAssign ? `<button class="btn btn-secondary w-full mt-2" style="justify-content:center" onclick="assignTeam()">${I('user-plus')} Assign Team</button>` : ''}
         </div>
       </div>
-      <div class="card"><div class="card-head"><div class="card-title">Documents</div><div class="card-sub">Delivery Plan</div>${canUploadDoc?`<button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button>`:''}</div>
+      <div class="card"><div class="card-head"><div class="card-title">Documents</div>${canUploadDoc ? `<button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button>` : ''}</div>
         <div class="card-body" style="padding:8px 20px">
-          ${(()=>{
+          ${(() => {
             const docs = Array.isArray(p.documents) ? p.documents : [];
-            if(!docs.length) return `<div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>`;
-            return docs.map(d=>`
+            if (!docs.length) return `<div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>`;
+            return docs.map(d => `
               <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
                 <div style="width:36px;height:36px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">
-                  ${/\.(pdf)$/i.test(d.name||'') ? '📄' : /\.(xls|xlsx|csv)$/i.test(d.name||'') ? '📊' : /\.(doc|docx)$/i.test(d.name||'') ? '📝' : /\.(png|jpg|jpeg|gif|svg)$/i.test(d.name||'') ? '🖼️' : '📎'}
+                  ${/\.(pdf)$/i.test(d.url || d.name || '') ? '📄' : /\.(xls|xlsx|csv)$/i.test(d.url || d.name || '') ? '📊' : /\.(doc|docx)$/i.test(d.url || d.name || '') ? '📝' : /\.(png|jpg|jpeg|gif|svg)$/i.test(d.url || d.name || '') ? '🖼️' : '📎'}
                 </div>
                 <div style="flex:1;min-width:0">
-                  <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name||'Untitled')}</div>
-                  <div class="text-sm text-muted">${PDMS.esc(d.description||'')}${d.uploadedBy ? ' · '+PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · '+PDMS.esc(d.uploadedAt) : ''}</div>
+                  <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
+                  <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}</div>
                 </div>
-                ${d.url ? `<a href="${PDMS.esc(d.url)}" download class="btn btn-secondary btn-sm" style="flex-shrink:0">${I('download')||'↓'} Download</a>` : ''}
+                ${d.url ? `<a href="${PDMS.esc(d.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex-shrink:0">${I('external-link') || '↗'} Open</a>` : ''}
               </div>`).join('');
           })()}
         </div>
@@ -373,256 +772,256 @@ if(!p){
     </div>
   </div>
 `;
-}
-}
-PDMS.onRefresh(render);
+      }
+    }
+    PDMS.onRefresh(render);
 
-function addConsultantTask(){
-  const user = PDMS.getUser();
-  const modal = PDMS.modal('Add Task',`
+    function addConsultantTask() {
+      const user = PDMS.getUser();
+      const modal = PDMS.modal('Add Task', `
     <div class="form-row"><label>Activity</label><input id="ctActivity" placeholder="e.g. Requirements analysis"/></div>
     <div class="form-row"><label>Deliverable</label><input id="ctDeliverable" placeholder="e.g. Analysis report"/></div>
     <div class="form-row"><label>Due Date</label><input id="ctDueDate" type="date"/></div>
-  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ctSaveBtn">Save Task</button>`);
-  modal.querySelector('#ctSaveBtn').onclick = function(){
-    const btn = this;
-    const activity = modal.querySelector('#ctActivity').value.trim();
-    const deliverable = modal.querySelector('#ctDeliverable').value.trim();
-    const dueDate = modal.querySelector('#ctDueDate').value;
-    if(!activity||!deliverable||!dueDate){ PDMS.toast('Missing fields','Please fill in all fields','error'); return; }
-    const task = { id:'T-'+Math.floor(1000+Math.random()*9000), activity, deliverable, dueDate, done:false, completedAt:null, ownerId:user?.id||'', ownerName:user?.name||'' };
-    if(!p.privateTasks) p.privateTasks = [];
-    p.privateTasks.unshift(task);
-    modal.remove();
-    render();
-    PDMS.api.update('projects', p.id, { privateTasks: p.privateTasks })
-      .then(saved=>{ if(saved && saved.privateTasks) p.privateTasks = saved.privateTasks; })
-      .catch(err=>PDMS.toast('Sync error', err.message||'Task may not have saved','error'));
-  };
-}
-window.addConsultantTask = addConsultantTask;
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ctSaveBtn">Save Task</button>`);
+      modal.querySelector('#ctSaveBtn').onclick = function () {
+        const btn = this;
+        const activity = modal.querySelector('#ctActivity').value.trim();
+        const deliverable = modal.querySelector('#ctDeliverable').value.trim();
+        const dueDate = modal.querySelector('#ctDueDate').value;
+        if (!activity || !deliverable || !dueDate) { PDMS.toast('Missing fields', 'Please fill in all fields', 'error'); return; }
+        const task = { id: 'T-' + Math.floor(1000 + Math.random() * 9000), activity, deliverable, dueDate, done: false, completedAt: null, ownerId: user?.id || '', ownerName: user?.name || '' };
+        if (!p.privateTasks) p.privateTasks = [];
+        p.privateTasks.unshift(task);
+        modal.remove();
+        render();
+        PDMS.api.update('projects', p.id, { privateTasks: p.privateTasks })
+          .then(saved => { if (saved && saved.privateTasks) p.privateTasks = saved.privateTasks; })
+          .catch(err => PDMS.toast('Sync error', err.message || 'Task may not have saved', 'error'));
+      };
+    }
+    window.addConsultantTask = addConsultantTask;
 
-function editConsultantTask(taskId){
-  const task = (p.privateTasks||[]).find(t=>t.id===taskId);
-  if(!task) return;
-  const modal = PDMS.modal('Edit Task',`
-    <div class="form-row"><label>Activity</label><input id="etActivity" value="${PDMS.esc(task.activity||'')}"/></div>
-    <div class="form-row"><label>Deliverable</label><input id="etDeliverable" value="${PDMS.esc(task.deliverable||'')}"/></div>
-    <div class="form-row"><label>Due Date</label><input id="etDueDate" type="date" value="${PDMS.esc(task.dueDate||'')}"/></div>
-  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="etSaveBtn">Save Changes</button>`);
-  modal.querySelector('#etSaveBtn').onclick = function(){
-    const btn = this;
-    const activity = modal.querySelector('#etActivity').value.trim();
-    const deliverable = modal.querySelector('#etDeliverable').value.trim();
-    const dueDate = modal.querySelector('#etDueDate').value;
-    if(!activity||!deliverable||!dueDate){ PDMS.toast('Missing fields','Please fill in all fields','error'); return; }
-    if(!p.privateTasks) p.privateTasks = [];
-    const idx = p.privateTasks.findIndex(t=>t.id===taskId);
-    if(idx!==-1) Object.assign(p.privateTasks[idx], {activity, deliverable, dueDate});
-    modal.remove();
-    render();
-    PDMS.api.update('projects', p.id, { privateTasks: p.privateTasks })
-      .then(saved=>{ if(saved && saved.privateTasks) p.privateTasks = saved.privateTasks; })
-      .catch(err=>PDMS.toast('Sync error', err.message||'Changes may not have saved','error'));
-  };
-}
-window.editConsultantTask = editConsultantTask;
+    function editConsultantTask(taskId) {
+      const task = (p.privateTasks || []).find(t => t.id === taskId);
+      if (!task) return;
+      const modal = PDMS.modal('Edit Task', `
+    <div class="form-row"><label>Activity</label><input id="etActivity" value="${PDMS.esc(task.activity || '')}"/></div>
+    <div class="form-row"><label>Deliverable</label><input id="etDeliverable" value="${PDMS.esc(task.deliverable || '')}"/></div>
+    <div class="form-row"><label>Due Date</label><input id="etDueDate" type="date" value="${PDMS.esc(task.dueDate || '')}"/></div>
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="etSaveBtn">Save Changes</button>`);
+      modal.querySelector('#etSaveBtn').onclick = function () {
+        const btn = this;
+        const activity = modal.querySelector('#etActivity').value.trim();
+        const deliverable = modal.querySelector('#etDeliverable').value.trim();
+        const dueDate = modal.querySelector('#etDueDate').value;
+        if (!activity || !deliverable || !dueDate) { PDMS.toast('Missing fields', 'Please fill in all fields', 'error'); return; }
+        if (!p.privateTasks) p.privateTasks = [];
+        const idx = p.privateTasks.findIndex(t => t.id === taskId);
+        if (idx !== -1) Object.assign(p.privateTasks[idx], { activity, deliverable, dueDate });
+        modal.remove();
+        render();
+        PDMS.api.update('projects', p.id, { privateTasks: p.privateTasks })
+          .then(saved => { if (saved && saved.privateTasks) p.privateTasks = saved.privateTasks; })
+          .catch(err => PDMS.toast('Sync error', err.message || 'Changes may not have saved', 'error'));
+      };
+    }
+    window.editConsultantTask = editConsultantTask;
 
-function viewConsultantTask(taskId){
-  const task = (p.privateTasks||[]).find(t=>t.id===taskId);
-  if(!task) return;
-  const done = task.done === true;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const td = task.dueDate ? new Date(task.dueDate) : null;
-  if(td) td.setHours(0,0,0,0);
-  const isOverdue = !done && td && td < today;
-  const daysLate = isOverdue ? Math.ceil((today - td) / 86400000) : 0;
-  const statusLabel = done ? 'Done' : isOverdue ? 'Due' : 'Pending';
-  const statusClass = done ? 'badge-success' : isOverdue ? 'badge-danger' : 'badge-muted';
+    function viewConsultantTask(taskId) {
+      const task = (p.privateTasks || []).find(t => t.id === taskId);
+      if (!task) return;
+      const done = task.done === true;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const td = task.dueDate ? new Date(task.dueDate) : null;
+      if (td) td.setHours(0, 0, 0, 0);
+      const isOverdue = !done && td && td < today;
+      const daysLate = isOverdue ? Math.ceil((today - td) / 86400000) : 0;
+      const statusLabel = done ? 'Done' : isOverdue ? 'Due' : 'Pending';
+      const statusClass = done ? 'badge-success' : isOverdue ? 'badge-danger' : 'badge-muted';
 
-  const accentColor = done ? '#10b981' : isOverdue ? '#ef4444' : '#6366f1';
-  const modal = PDMS.modal(``, `
+      const accentColor = done ? '#10b981' : isOverdue ? '#ef4444' : '#6366f1';
+      const modal = PDMS.modal(``, `
     <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:20px">
-      <div style="width:44px;height:44px;border-radius:12px;background:${done?'rgba(16,185,129,.12)':isOverdue?'rgba(239,68,68,.1)':'rgba(99,102,241,.1)'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <div style="width:44px;height:44px;border-radius:12px;background:${done ? 'rgba(16,185,129,.12)' : isOverdue ? 'rgba(239,68,68,.1)' : 'rgba(99,102,241,.1)'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
         ${done
           ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${accentColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
           : isOverdue
-          ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${accentColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
-          : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${accentColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`}
+            ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${accentColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
+            : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${accentColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`}
       </div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
           <span class="badge ${statusClass}" style="font-size:11px">${statusLabel}</span>
-          ${isOverdue ? `<span style="font-size:12px;color:var(--danger);font-weight:600">${daysLate} day${daysLate!==1?'s':''} overdue</span>` : ''}
+          ${isOverdue ? `<span style="font-size:12px;color:var(--danger);font-weight:600">${daysLate} day${daysLate !== 1 ? 's' : ''} overdue</span>` : ''}
         </div>
-        <div style="font-size:18px;font-weight:800;color:var(--text);line-height:1.3">${PDMS.esc(task.activity||'—')}</div>
+        <div style="font-size:18px;font-weight:800;color:var(--text);line-height:1.3">${PDMS.esc(task.activity || '—')}</div>
       </div>
     </div>
 
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px">
       <div style="padding:14px 18px;border-bottom:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-soft);margin-bottom:5px">Deliverable</div>
-        <div style="font-size:14px;color:var(--text);line-height:1.5">${PDMS.esc(task.deliverable||'—')}</div>
+        <div style="font-size:14px;color:var(--text);line-height:1.5">${PDMS.esc(task.deliverable || '—')}</div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)">
         <div style="padding:14px 18px;border-right:1px solid var(--border)">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-soft);margin-bottom:5px">Due Date</div>
-          <div style="font-size:14px;font-weight:600;${isOverdue?'color:var(--danger)':'color:var(--text)'}">${PDMS.esc(task.dueDate||'—')}</div>
+          <div style="font-size:14px;font-weight:600;${isOverdue ? 'color:var(--danger)' : 'color:var(--text)'}">${PDMS.esc(task.dueDate || '—')}</div>
         </div>
         <div style="padding:14px 18px">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-soft);margin-bottom:5px">Completion Date</div>
-          <div style="font-size:14px;font-weight:600;${done?'color:var(--success)':'color:var(--text-soft)'}">${done && task.completedAt ? PDMS.esc(task.completedAt) : '—'}</div>
+          <div style="font-size:14px;font-weight:600;${done ? 'color:var(--success)' : 'color:var(--text-soft)'}">${done && task.completedAt ? PDMS.esc(task.completedAt) : '—'}</div>
         </div>
       </div>
     </div>
   `, done
-    ? `<button class="btn btn-ghost" data-close>Close</button>`
-    : `<button class="btn btn-ghost" data-close>Close</button>
+        ? `<button class="btn btn-ghost" data-close>Close</button>`
+        : `<button class="btn btn-ghost" data-close>Close</button>
        <button class="btn btn-secondary" id="vtEditBtn">${I('edit')} Edit Task</button>
        <button class="btn btn-primary" id="vtDoneBtn" style="background:${accentColor};border-color:${accentColor}">${I('check')} Mark as Complete</button>`
-  );
+      );
 
-  if(!done){
-    modal.querySelector('#vtEditBtn').onclick = function(){
-      modal.remove();
-      editConsultantTask(taskId);
-    };
-    modal.querySelector('#vtDoneBtn').onclick = function(){
-      modal.remove();
-      toggleConsultantTask(taskId, true);
-    };
-  }
-}
-window.viewConsultantTask = viewConsultantTask;
+      if (!done) {
+        modal.querySelector('#vtEditBtn').onclick = function () {
+          modal.remove();
+          editConsultantTask(taskId);
+        };
+        modal.querySelector('#vtDoneBtn').onclick = function () {
+          modal.remove();
+          toggleConsultantTask(taskId, true);
+        };
+      }
+    }
+    window.viewConsultantTask = viewConsultantTask;
 
-function applyTaskPatch(taskId, patch){
-  if(!p.privateTasks) p.privateTasks = [];
-  const idx = p.privateTasks.findIndex(t=>t.id===taskId);
-  if(idx!==-1) Object.assign(p.privateTasks[idx], patch);
-  // Deep-copy the array NOW before render() can touch it
-  const snapshot = JSON.parse(JSON.stringify(p.privateTasks));
-  const projectId = p.id;
-  render();
-  PDMS.api.update('projects', projectId, { privateTasks: snapshot })
-    .then(saved=>{ if(saved && Array.isArray(saved.privateTasks)) p.privateTasks = saved.privateTasks; })
-    .catch(err=>PDMS.toast('Sync error', err.message||'Changes may not have saved','error'));
-}
+    function applyTaskPatch(taskId, patch) {
+      if (!p.privateTasks) p.privateTasks = [];
+      const idx = p.privateTasks.findIndex(t => t.id === taskId);
+      if (idx !== -1) Object.assign(p.privateTasks[idx], patch);
+      // Deep-copy the array NOW before render() can touch it
+      const snapshot = JSON.parse(JSON.stringify(p.privateTasks));
+      const projectId = p.id;
+      render();
+      PDMS.api.update('projects', projectId, { privateTasks: snapshot })
+        .then(saved => { if (saved && Array.isArray(saved.privateTasks)) p.privateTasks = saved.privateTasks; })
+        .catch(err => PDMS.toast('Sync error', err.message || 'Changes may not have saved', 'error'));
+    }
 
-function markTaskDone(taskId, lateReason){
-  const today = new Date().toISOString().slice(0,10);
-  const task = (p.privateTasks||[]).find(t=>t.id===taskId);
-  const user = PDMS.getUser();
+    function markTaskDone(taskId, lateReason) {
+      const today = new Date().toISOString().slice(0, 10);
+      const task = (p.privateTasks || []).find(t => t.id === taskId);
+      const user = PDMS.getUser();
 
-  // Optimistically mark done right away
-  applyTaskPatch(taskId, {done:true, completedAt:today});
+      // Optimistically mark done right away
+      applyTaskPatch(taskId, { done: true, completedAt: today });
 
-  if(lateReason && task){
-    const record = {
-      author: user?user.name:'Unknown', authorRole: user?user.role:'Consultant',
-      projectId: p.id, projectName: p.name,
-      message: lateReason,
-      tag: 'Late Delivery',
-      time: new Date().toISOString(), type: 'late-delivery'
-    };
-    if(!D.issues) D.issues = [];
-    // Optimistically add to local issues so it appears immediately in the remarks section
-    const tempRecord = Object.assign({ id: 'tmp-'+Date.now() }, record);
-    D.issues.unshift(tempRecord);
-    if(window.PDMS_REMOTE){ if(!PDMS_REMOTE.issues) PDMS_REMOTE.issues=[]; PDMS_REMOTE.issues.unshift(tempRecord); }
-    render();
-    PDMS.api.create('issues', record).then(saved=>{
-      // Replace temp record with saved one
-      const replaceIn = arr => { const i=arr.findIndex(x=>x.id===tempRecord.id); if(i!==-1) arr[i]=saved; };
-      replaceIn(D.issues);
-      if(window.PDMS_REMOTE && PDMS_REMOTE.issues) replaceIn(PDMS_REMOTE.issues);
-    }).catch(()=>{});
-  }
-}
+      if (lateReason && task) {
+        const record = {
+          author: user ? user.name : 'Unknown', authorRole: user ? user.role : 'Consultant',
+          projectId: p.id, projectName: p.name,
+          message: lateReason,
+          tag: 'Late Delivery',
+          time: new Date().toISOString(), type: 'late-delivery'
+        };
+        if (!D.issues) D.issues = [];
+        // Optimistically add to local issues so it appears immediately in the remarks section
+        const tempRecord = Object.assign({ id: 'tmp-' + Date.now() }, record);
+        D.issues.unshift(tempRecord);
+        if (window.PDMS_REMOTE) { if (!PDMS_REMOTE.issues) PDMS_REMOTE.issues = []; PDMS_REMOTE.issues.unshift(tempRecord); }
+        render();
+        PDMS.api.create('issues', record).then(saved => {
+          // Replace temp record with saved one
+          const replaceIn = arr => { const i = arr.findIndex(x => x.id === tempRecord.id); if (i !== -1) arr[i] = saved; };
+          replaceIn(D.issues);
+          if (window.PDMS_REMOTE && PDMS_REMOTE.issues) replaceIn(PDMS_REMOTE.issues);
+        }).catch(() => { });
+      }
+    }
 
-function toggleConsultantTask(taskId, checked){
-  if(!checked){
-    applyTaskPatch(taskId, {done:false, completedAt:null});
-    return;
-  }
+    function toggleConsultantTask(taskId, checked) {
+      if (!checked) {
+        applyTaskPatch(taskId, { done: false, completedAt: null });
+        return;
+      }
 
-  const task = (p.privateTasks||[]).find(t=>t.id===taskId);
-  const today = new Date(); today.setHours(0,0,0,0);
-  const due = task && task.dueDate ? new Date(task.dueDate) : null;
-  if(due) due.setHours(0,0,0,0);
+      const task = (p.privateTasks || []).find(t => t.id === taskId);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const due = task && task.dueDate ? new Date(task.dueDate) : null;
+      if (due) due.setHours(0, 0, 0, 0);
 
-  if(due && today > due){
-    const daysLate = Math.ceil((today - due) / 86400000);
-    const modal = PDMS.modal('Task Delivered Late',`
+      if (due && today > due) {
+        const daysLate = Math.ceil((today - due) / 86400000);
+        const modal = PDMS.modal('Task Delivered Late', `
       <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.25);border-radius:10px;margin-bottom:16px">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span style="font-size:13px;color:var(--danger)">This task was due on <strong>${PDMS.esc(task.dueDate)}</strong> — <strong>${daysLate} day${daysLate!==1?'s':''} late</strong>.</span>
+        <span style="font-size:13px;color:var(--danger)">This task was due on <strong>${PDMS.esc(task.dueDate)}</strong> — <strong>${daysLate} day${daysLate !== 1 ? 's' : ''} late</strong>.</span>
       </div>
       <p style="font-size:13px;color:var(--text-soft);margin:0 0 14px">Please explain why the task was delivered after its due date. This note will be logged under the project's Issues &amp; Remarks.</p>
       <div class="form-row"><label>Reason for Late Delivery</label><textarea id="lateReason" rows="3" placeholder="e.g. Client feedback required additional revision cycles..."></textarea></div>
-    `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="lateConfirmBtn" style="background:var(--danger);border-color:var(--danger)">Submit &amp; Mark Done</button>`);
+    `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="lateConfirmBtn" style="background:var(--danger);border-color:var(--danger)">Submit &amp; Mark Done</button>`);
 
-    modal.querySelector('#lateConfirmBtn').onclick = function(){
-      const reason = modal.querySelector('#lateReason').value.trim();
-      if(!reason){ PDMS.toast('Required','Please provide a reason for the late delivery','error'); return; }
-      modal.remove();
-      markTaskDone(taskId, reason);
-    };
-  } else {
-    markTaskDone(taskId, null);
-  }
-}
-window.toggleConsultantTask = toggleConsultantTask;
+        modal.querySelector('#lateConfirmBtn').onclick = function () {
+          const reason = modal.querySelector('#lateReason').value.trim();
+          if (!reason) { PDMS.toast('Required', 'Please provide a reason for the late delivery', 'error'); return; }
+          modal.remove();
+          markTaskDone(taskId, reason);
+        };
+      } else {
+        markTaskDone(taskId, null);
+      }
+    }
+    window.toggleConsultantTask = toggleConsultantTask;
 
-function pushIssueOptimistic(record){
-  if(!D.issues) D.issues = [];
-  // PDMS_REMOTE.issues and D.issues may share the same array reference after bootstrap.
-  // Push only once: prefer PDMS_REMOTE if it exists, otherwise D.issues.
-  const issueArr = (window.PDMS_REMOTE && PDMS_REMOTE.issues) ? PDMS_REMOTE.issues : D.issues;
-  if(window.PDMS_REMOTE && !PDMS_REMOTE.issues) PDMS_REMOTE.issues = issueArr;
-  if(D.issues !== issueArr) D.issues = issueArr;
-  issueArr.unshift(record);
-  render();
-  PDMS.api.create('issues', record).then(saved=>{
-    const i = issueArr.findIndex(x=>x===record);
-    if(i!==-1) issueArr[i] = saved;
-  }).catch(()=>PDMS.toast('Sync error','Remark may not have saved to the server','error'));
-}
+    function pushIssueOptimistic(record) {
+      if (!D.issues) D.issues = [];
+      // PDMS_REMOTE.issues and D.issues may share the same array reference after bootstrap.
+      // Push only once: prefer PDMS_REMOTE if it exists, otherwise D.issues.
+      const issueArr = (window.PDMS_REMOTE && PDMS_REMOTE.issues) ? PDMS_REMOTE.issues : D.issues;
+      if (window.PDMS_REMOTE && !PDMS_REMOTE.issues) PDMS_REMOTE.issues = issueArr;
+      if (D.issues !== issueArr) D.issues = issueArr;
+      issueArr.unshift(record);
+      render();
+      PDMS.api.create('issues', record).then(saved => {
+        const i = issueArr.findIndex(x => x === record);
+        if (i !== -1) issueArr[i] = saved;
+      }).catch(() => PDMS.toast('Sync error', 'Remark may not have saved to the server', 'error'));
+    }
 
-function postProjectReview(){
-  const modal = PDMS.modal('Post Issue / Remark',`
+    function postProjectReview() {
+      const modal = PDMS.modal('Post Issue / Remark', `
     <div class="form-row"><label>Issue or Concern</label><textarea id="prMessage" rows="4" placeholder="Describe the issue, concern or remark for this project..."></textarea></div>`,
-    `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="prSaveBtn">Post</button>`);
-  modal.querySelector('#prSaveBtn').onclick = function(){
-    const message = modal.querySelector('#prMessage').value.trim();
-    if(!message){ PDMS.toast('Empty remark','Please write something first','error'); return; }
-    const user = PDMS.getUser();
-    const record = { id:'tmp-'+Date.now(), author:user?user.name:'Unknown', authorRole:user?user.role:'', projectId:p.id, projectName:p.name, message, time:new Date().toISOString() };
-    modal.remove();
-    pushIssueOptimistic(record);
-    PDMS.notify('Project Issue', `${record.author} raised an issue on "${p.name}"`, 'message', 'project-details.html#id='+p.id);
-  };
-}
-function submitInlineIssue(){
-  const ta = document.getElementById('inlineIssue');
-  if(!ta) return;
-  const message = ta.value.trim();
-  if(!message){ PDMS.toast('Empty remark','Please write something first','error'); return; }
-  const user = PDMS.getUser();
-  const record = { id:'tmp-'+Date.now(), author:user?user.name:'Unknown', authorRole:user?user.role:'', projectId:p.id, projectName:p.name, message, time:new Date().toISOString() };
-  ta.value = '';
-  pushIssueOptimistic(record);
-  PDMS.notify('Project Issue', `${record.author} raised an issue on "${p.name}"`, 'message', 'project-details.html#id='+p.id);
-}
-function assignTeam(){
-  const state = {
-    pm: p.pm||'',
-    lead: p.lead||'',
-    consultantMap: (p.consultants||[]).map(name=>({ name, role: (p.consultantRoles||{})[name]||'' }))
-  };
-  const allUsers = D.users;
+        `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="prSaveBtn">Post</button>`);
+      modal.querySelector('#prSaveBtn').onclick = function () {
+        const message = modal.querySelector('#prMessage').value.trim();
+        if (!message) { PDMS.toast('Empty remark', 'Please write something first', 'error'); return; }
+        const user = PDMS.getUser();
+        const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Unknown', authorRole: user ? user.role : '', projectId: p.id, projectName: p.name, message, time: new Date().toISOString() };
+        modal.remove();
+        pushIssueOptimistic(record);
+        PDMS.notify('Project Issue', `${record.author} raised an issue on "${p.name}"`, 'message', 'project-details.html#id=' + p.id);
+      };
+    }
+    function submitInlineIssue() {
+      const ta = document.getElementById('inlineIssue');
+      if (!ta) return;
+      const message = ta.value.trim();
+      if (!message) { PDMS.toast('Empty remark', 'Please write something first', 'error'); return; }
+      const user = PDMS.getUser();
+      const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Unknown', authorRole: user ? user.role : '', projectId: p.id, projectName: p.name, message, time: new Date().toISOString() };
+      ta.value = '';
+      pushIssueOptimistic(record);
+      PDMS.notify('Project Issue', `${record.author} raised an issue on "${p.name}"`, 'message', 'project-details.html#id=' + p.id);
+    }
+    function assignTeam() {
+      const state = {
+        pm: p.pm || '',
+        lead: p.lead || '',
+        consultantMap: (p.consultants || []).map(name => ({ name, role: (p.consultantRoles || {})[name] || '' }))
+      };
+      const allUsers = D.users;
 
-  function buildModal(){
-    const chips = state.consultantMap.map(({name,role})=>`
+      function buildModal() {
+        const chips = state.consultantMap.map(({ name, role }) => `
       <div class="assign-chip" style="flex-direction:column;align-items:flex-start;padding:6px 10px;border-radius:10px;gap:2px">
         <div style="display:flex;align-items:center;gap:6px;width:100%">
           <div class="assign-ac-avatar" style="width:22px;height:22px;font-size:10px">${PDMS.initials(name)}</div>
@@ -631,7 +1030,7 @@ function assignTeam(){
         </div>
         <input type="text" class="chip-role-input" data-name="${PDMS.esc(name)}" value="${PDMS.esc(role)}" placeholder="Role / skill in this project…" style="width:100%;border:none;border-top:1px solid rgba(99,102,241,.2);background:transparent;color:var(--text);font-size:13px;padding:6px 0 2px;outline:none;font-family:inherit"/>
       </div>`).join('');
-    return `
+        return `
       <style>
         .assign-ac-wrap{position:relative}.assign-ac-wrap input{width:100%;box-sizing:border-box}
         .assign-ac-drop{position:absolute;top:100%;left:0;right:0;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:180px;overflow-y:auto;display:none}
@@ -659,29 +1058,29 @@ function assignTeam(){
           <div class="assign-ac-drop" id="consultDrop"></div>
         </div>
       </div>`;
-  }
+      }
 
-  const modal = PDMS.modal('Assign Team', buildModal(),
-    `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveAssignBtn">Save Assignment</button>`);
+      const modal = PDMS.modal('Assign Team', buildModal(),
+        `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveAssignBtn">Save Assignment</button>`);
 
-  function acItem(name, role){ return `<div class="assign-ac-item" data-name="${PDMS.esc(name)}"><div class="assign-ac-avatar">${PDMS.initials(name)}</div><div><div style="font-weight:600">${PDMS.esc(name)}</div><div style="font-size:12px;color:var(--text-muted)">${PDMS.esc(role||'')}</div></div></div>`; }
-  function showDrop(drop, items, onPick){
-    drop.innerHTML = items.map(u=>acItem(u.name, u.role)).join('') || '<div class="assign-ac-item" style="color:var(--text-muted)">No matches</div>';
-    drop.classList.add('open');
-    drop.querySelectorAll('.assign-ac-item[data-name]').forEach(el=>{ el.onmousedown = e=>{ e.preventDefault(); onPick(el.dataset.name); }; });
-  }
-  function hideDrop(drop){ drop.classList.remove('open'); }
+      function acItem(name, role) { return `<div class="assign-ac-item" data-name="${PDMS.esc(name)}"><div class="assign-ac-avatar">${PDMS.initials(name)}</div><div><div style="font-weight:600">${PDMS.esc(name)}</div><div style="font-size:12px;color:var(--text-muted)">${PDMS.esc(role || '')}</div></div></div>`; }
+      function showDrop(drop, items, onPick) {
+        drop.innerHTML = items.map(u => acItem(u.name, u.role)).join('') || '<div class="assign-ac-item" style="color:var(--text-muted)">No matches</div>';
+        drop.classList.add('open');
+        drop.querySelectorAll('.assign-ac-item[data-name]').forEach(el => { el.onmousedown = e => { e.preventDefault(); onPick(el.dataset.name); }; });
+      }
+      function hideDrop(drop) { drop.classList.remove('open'); }
 
-  function syncRolesFromDOM(){
-    modal.querySelectorAll('.chip-role-input').forEach(inp=>{
-      const entry = state.consultantMap.find(e=>e.name===inp.dataset.name);
-      if(entry) entry.role = inp.value.trim();
-    });
-  }
+      function syncRolesFromDOM() {
+        modal.querySelectorAll('.chip-role-input').forEach(inp => {
+          const entry = state.consultantMap.find(e => e.name === inp.dataset.name);
+          if (entry) entry.role = inp.value.trim();
+        });
+      }
 
-  function refreshChips(){
-    syncRolesFromDOM();
-    modal.querySelector('#consultChips').innerHTML = state.consultantMap.map(({name,role})=>`
+      function refreshChips() {
+        syncRolesFromDOM();
+        modal.querySelector('#consultChips').innerHTML = state.consultantMap.map(({ name, role }) => `
       <div class="assign-chip" style="flex-direction:column;align-items:flex-start;padding:6px 10px;border-radius:10px;gap:2px">
         <div style="display:flex;align-items:center;gap:6px;width:100%">
           <div class="assign-ac-avatar" style="width:22px;height:22px;font-size:10px">${PDMS.initials(name)}</div>
@@ -690,210 +1089,316 @@ function assignTeam(){
         </div>
         <input type="text" class="chip-role-input" data-name="${PDMS.esc(name)}" value="${PDMS.esc(role)}" placeholder="Role / skill in this project…" style="width:100%;border:none;border-top:1px solid rgba(99,102,241,.2);background:transparent;color:var(--text);font-size:13px;padding:6px 0 2px;outline:none;font-family:inherit"/>
       </div>`).join('');
-    modal.querySelectorAll('.assign-chip-x').forEach(btn=>{
-      btn.onclick = ()=>{ syncRolesFromDOM(); state.consultantMap = state.consultantMap.filter(e=>e.name!==btn.dataset.name); refreshChips(); };
-    });
-  }
-  refreshChips();
+        modal.querySelectorAll('.assign-chip-x').forEach(btn => {
+          btn.onclick = () => { syncRolesFromDOM(); state.consultantMap = state.consultantMap.filter(e => e.name !== btn.dataset.name); refreshChips(); };
+        });
+      }
+      refreshChips();
 
-  const pmInput = modal.querySelector('#assignPm'), pmDrop = modal.querySelector('#pmDrop');
-  pmInput.oninput = ()=>{ const q=pmInput.value.trim().toLowerCase(); const m=allUsers.filter(u=>u.name.toLowerCase().includes(q)).slice(0,8); if(q&&m.length) showDrop(pmDrop,m,name=>{pmInput.value=name;state.pm=name;hideDrop(pmDrop);}); else hideDrop(pmDrop); };
-  pmInput.onblur = ()=>setTimeout(()=>hideDrop(pmDrop),150);
-  pmInput.onchange = ()=>{ state.pm=pmInput.value.trim(); };
+      const pmInput = modal.querySelector('#assignPm'), pmDrop = modal.querySelector('#pmDrop');
+      pmInput.oninput = () => { const q = pmInput.value.trim().toLowerCase(); const m = allUsers.filter(u => u.name.toLowerCase().includes(q)).slice(0, 8); if (q && m.length) showDrop(pmDrop, m, name => { pmInput.value = name; state.pm = name; hideDrop(pmDrop); }); else hideDrop(pmDrop); };
+      pmInput.onblur = () => setTimeout(() => hideDrop(pmDrop), 150);
+      pmInput.onchange = () => { state.pm = pmInput.value.trim(); };
 
-  const leadInput = modal.querySelector('#assignLead'), leadDrop = modal.querySelector('#leadDrop');
-  leadInput.oninput = ()=>{ const q=leadInput.value.trim().toLowerCase(); const m=allUsers.filter(u=>u.name.toLowerCase().includes(q)).slice(0,8); if(q&&m.length) showDrop(leadDrop,m,name=>{leadInput.value=name;state.lead=name;hideDrop(leadDrop);}); else hideDrop(leadDrop); };
-  leadInput.onblur = ()=>setTimeout(()=>hideDrop(leadDrop),150);
-  leadInput.onchange = ()=>{ state.lead=leadInput.value.trim(); };
+      const leadInput = modal.querySelector('#assignLead'), leadDrop = modal.querySelector('#leadDrop');
+      leadInput.oninput = () => { const q = leadInput.value.trim().toLowerCase(); const m = allUsers.filter(u => u.name.toLowerCase().includes(q)).slice(0, 8); if (q && m.length) showDrop(leadDrop, m, name => { leadInput.value = name; state.lead = name; hideDrop(leadDrop); }); else hideDrop(leadDrop); };
+      leadInput.onblur = () => setTimeout(() => hideDrop(leadDrop), 150);
+      leadInput.onchange = () => { state.lead = leadInput.value.trim(); };
 
-  const consultInput = modal.querySelector('#assignConsult'), consultDrop = modal.querySelector('#consultDrop');
-  consultInput.oninput = ()=>{
-    const q = consultInput.value.trim().toLowerCase();
-    if(!q){ hideDrop(consultDrop); return; }
-    const taken = state.consultantMap.map(e=>e.name);
-    const matches = allUsers.filter(u=>u.name.toLowerCase().includes(q) && !taken.includes(u.name)).slice(0,8);
-    showDrop(consultDrop, matches, name=>{ state.consultantMap.push({name, role:''}); consultInput.value=''; hideDrop(consultDrop); refreshChips(); });
-  };
-  consultInput.onblur = ()=>setTimeout(()=>hideDrop(consultDrop),150);
+      const consultInput = modal.querySelector('#assignConsult'), consultDrop = modal.querySelector('#consultDrop');
+      consultInput.oninput = () => {
+        const q = consultInput.value.trim().toLowerCase();
+        if (!q) { hideDrop(consultDrop); return; }
+        const taken = state.consultantMap.map(e => e.name);
+        const matches = allUsers.filter(u => u.name.toLowerCase().includes(q) && !taken.includes(u.name)).slice(0, 8);
+        showDrop(consultDrop, matches, name => { state.consultantMap.push({ name, role: '' }); consultInput.value = ''; hideDrop(consultDrop); refreshChips(); });
+      };
+      consultInput.onblur = () => setTimeout(() => hideDrop(consultDrop), 150);
 
-  modal.querySelector('#saveAssignBtn').onclick = function(){
-    syncRolesFromDOM();
-    state.pm = pmInput.value.trim() || state.pm;
-    state.lead = leadInput.value.trim() || state.lead;
-    const consultants = state.consultantMap.map(e=>e.name);
-    const consultantRoles = {};
-    state.consultantMap.forEach(e=>{ if(e.role) consultantRoles[e.name]=e.role; });
-    const btn = this;
-    PDMS.setButtonLoading(btn, true, 'Saving…');
-    PDMS.api.update('projects',p.id,{pm:state.pm, lead:state.lead, consultants, consultantRoles}).then(saved=>{
-      Object.assign(p,saved);
-      modal.remove();
-      PDMS.toast('Team updated','Assignment saved','success');
-      const assignUser = PDMS.getUser();
-      const parts = [];
-      if(state.pm) parts.push('PM: '+state.pm);
-      if(state.lead) parts.push('Lead: '+state.lead);
-      if(consultants.length) parts.push(consultants.length+' consultant(s)');
-      PDMS.notify('Team Assigned', `${assignUser.name} (${assignUser.role}) assigned team on "${p.name}" — ${parts.join(', ')}`, 'users', 'project-details.html#id='+p.id);
-      render();
-    }).catch(err=>{ PDMS.setButtonLoading(btn,false); PDMS.toast('Error',err.message||'Could not update assignment','error'); });
-  };
-}
-function uploadDoc(){
-  const user = PDMS.getUser();
-  const modal = PDMS.modal('Upload Document',`
-    <div class="form-row"><label>File</label><input id="docFile" type="file" accept="*/*"/></div>
+      modal.querySelector('#saveAssignBtn').onclick = function () {
+        syncRolesFromDOM();
+        state.pm = pmInput.value.trim() || state.pm;
+        state.lead = leadInput.value.trim() || state.lead;
+        const consultants = state.consultantMap.map(e => e.name);
+        const consultantRoles = {};
+        state.consultantMap.forEach(e => { if (e.role) consultantRoles[e.name] = e.role; });
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Saving…');
+        PDMS.api.update('projects', p.id, { pm: state.pm, lead: state.lead, consultants, consultantRoles }).then(saved => {
+          Object.assign(p, saved);
+          modal.remove();
+          PDMS.toast('Team updated', 'Assignment saved', 'success');
+          const assignUser = PDMS.getUser();
+          const parts = [];
+          if (state.pm) parts.push('PM: ' + state.pm);
+          if (state.lead) parts.push('Lead: ' + state.lead);
+          if (consultants.length) parts.push(consultants.length + ' consultant(s)');
+          PDMS.notify('Team Assigned', `${assignUser.name} (${assignUser.role}) assigned team on "${p.name}" — ${parts.join(', ')}`, 'users', 'project-details.html#id=' + p.id);
+          render();
+        }).catch(err => { PDMS.setButtonLoading(btn, false); PDMS.toast('Error', err.message || 'Could not update assignment', 'error'); });
+      };
+    }
+    function uploadDoc() {
+      const user = PDMS.getUser();
+      const modal = PDMS.modal('Upload Document', `
+    <div class="form-row"><label>Link / URL <span style="color:var(--danger)">*</span></label><input id="docUrl" type="url" placeholder="https://..." autocomplete="off"/></div>
     <div class="form-row"><label>Description <span style="color:var(--text-soft);font-weight:400">(optional)</span></label><input id="docDesc" placeholder="e.g. Q3 Delivery Plan"/></div>
-  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="docSaveBtn">${I('upload')} Upload</button>`);
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="docSaveBtn">${I('upload')} Upload</button>`);
 
-  modal.querySelector('#docSaveBtn').onclick = function(){
-    const fileInput = modal.querySelector('#docFile');
-    const file = fileInput.files[0];
-    if(!file){ PDMS.toast('Required','Please select a file','error'); return; }
-    const description = modal.querySelector('#docDesc').value.trim();
-    const btn = this;
-    PDMS.setButtonLoading(btn, true, 'Uploading…');
+      modal.querySelector('#docSaveBtn').onclick = function () {
+        let url = modal.querySelector('#docUrl').value.trim();
+        if (!url) { PDMS.toast('Required', 'Please enter a link / URL', 'error'); return; }
+        if (!/^https?:\/\//i.test(url)) {
+          url = 'https://' + url;
+        }
+        const description = modal.querySelector('#docDesc').value.trim();
+        let name = description;
+        if (!name) {
+          try {
+            const parsed = new URL(url);
+            const pathParts = parsed.pathname.split('/').filter(Boolean);
+            name = pathParts.length ? decodeURIComponent(pathParts[pathParts.length - 1]) : parsed.hostname;
+          } catch (e) {
+            name = 'Document';
+          }
+        }
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Uploading…');
 
-    const reader = new FileReader();
-    reader.onload = function(e){
-      const base64 = e.target.result.split(',')[1];
-      fetch(PDMS_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'uploaddoc', fileName: file.name, mimeType: file.type || 'application/octet-stream', base64 })
-      })
-      .then(r => r.json())
-      .then(json => {
-        if(!json.ok) throw new Error(json.error || 'Upload failed');
-        const downloadUrl = `https://drive.google.com/uc?export=download&id=${json.data.fileId}`;
-        const doc = { name: file.name, url: downloadUrl, fileId: json.data.fileId, description, uploadedBy: user?user.name:'', uploadedAt: new Date().toISOString().slice(0,10) };
-        if(!p.documents) p.documents = [];
+        const doc = {
+          name: name || 'Document',
+          url,
+          description: description || '',
+          uploadedBy: user ? user.name : '',
+          uploadedAt: new Date().toISOString().slice(0, 10)
+        };
+
+        if (!p.documents) p.documents = [];
         p.documents.unshift(doc);
         modal.remove();
         render();
+
         PDMS.api.update('projects', p.id, { documents: JSON.parse(JSON.stringify(p.documents)) })
-          .then(saved=>{ if(saved && Array.isArray(saved.documents)) p.documents = saved.documents; })
-          .catch(()=>{});
-        PDMS.toast('Uploaded', `"${file.name}" uploaded successfully`, 'success');
-      })
-      .catch(err=>{ PDMS.setButtonLoading(btn, false); PDMS.toast('Upload failed', err.message||'Could not upload file','error'); });
-    };
-    reader.readAsDataURL(file);
-  };
-}
-function editDetails(){
-  const isSales = PDMS.stageOf(p) === 'Sales';
-  const liveClients = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients) || D.clients;
-  const clientOpts = liveClients.map(c=>`<option value="${PDMS.esc(c.name)}" ${c.name===p.client?'selected':''}>${PDMS.esc(c.name)}</option>`).join('');
-  const typeOpts = D.types.map(t=>`<option ${t===p.type?'selected':''}>${t}</option>`).join('');
-  const prioOpts = D.priorities.map(pr=>`<option ${pr===p.priority?'selected':''}>${pr}</option>`).join('');
-  const showSubStatus = !isSales && p.status==='In Progress';
-  const subStatuses = Array.isArray(p.subStatuses) ? p.subStatuses : (p.subStatus ? [p.subStatus] : []);
-  const currentSubStatusLocal = subStatuses.length ? subStatuses[subStatuses.length-1] : '';
-  const modal = PDMS.modal('Edit Project Details',`
-    <div class="form-row"><label>Project Name</label><input id="ed-name" value="${PDMS.esc(p.name||'')}"/></div>
+          .then(saved => {
+            if (saved && Array.isArray(saved.documents)) p.documents = saved.documents;
+            PDMS.toast('Uploaded', `"${doc.name}" uploaded successfully`, 'success');
+          })
+          .catch(err => {
+            PDMS.toast('Error', err.message || 'Could not save document', 'error');
+          });
+      };
+    }
+    function editDetails() {
+      const isSales = PDMS.stageOf(p) === 'Sales';
+      const liveClients = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients) || D.clients;
+      const clientOpts = liveClients.map(c => `<option value="${PDMS.esc(c.name)}" ${c.name === p.client ? 'selected' : ''}>${PDMS.esc(c.name)}</option>`).join('');
+      const typeOpts = D.types.map(t => `<option ${t === p.type ? 'selected' : ''}>${t}</option>`).join('');
+      const prioOpts = D.priorities.map(pr => `<option ${pr === p.priority ? 'selected' : ''}>${pr}</option>`).join('');
+      const showSubStatus = !isSales && p.status === 'In Progress';
+      const subStatuses = getSubStatuses(p);
+      const currentSubStatusLocal = subStatuses.length ? subStatuses[subStatuses.length - 1] : '';
+      const modal = PDMS.modal('Edit Project Details', `
+    <div class="form-row"><label>Project Name</label><input id="ed-name" value="${PDMS.esc(p.name || '')}"/></div>
     <div class="form-row"><label>Client</label><select id="ed-client"><option value="">— Select —</option>${clientOpts}</select></div>
     <div class="form-row"><label>Type</label><select id="ed-type"><option value="">— Select —</option>${typeOpts}</select></div>
-    <div class="form-row"><label>Workstream</label><input id="ed-workstream" value="${PDMS.esc(p.workstream||p.dept||'')}"/></div>
+    <div class="form-row"><label>Workstream</label><input id="ed-workstream" value="${PDMS.esc(p.workstream || p.dept || '')}"/></div>
     <div class="form-row"><label>Priority</label><select id="ed-priority"><option value="">— Select —</option>${prioOpts}</select></div>
-    ${showSubStatus?`<div class="form-row"><label>Current In Progress Stage</label><input id="ed-substatus" type="text" value="${PDMS.esc(currentSubStatusLocal||'')}" placeholder="e.g. Internal Testing"/></div>`:''}
-    <div class="form-row"><label>Start Date</label><input id="ed-start" type="date" value="${PDMS.esc(p.start||'')}"/></div>
-    <div class="form-row"><label>Planned Completion</label><input id="ed-due" type="date" value="${PDMS.esc(p.due||'')}"/></div>
-    ${!isSales?`<div class="form-row"><label>Actual Completion</label><input id="ed-actual" type="date" value="${PDMS.esc(p.actualCompletion||'')}"/></div>`:''}
-    <div class="form-row"><label>Description</label><textarea id="ed-desc" rows="3" style="resize:vertical">${PDMS.esc(p.description||'')}</textarea></div>
-  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ed-save">Save Changes</button>`);
-  modal.querySelector('#ed-save').onclick = function(){
-    const name = modal.querySelector('#ed-name').value.trim();
-    if(!name){ PDMS.toast('Required','Project name is required','error'); return; }
-    const patch = {
-      name,
-      client: modal.querySelector('#ed-client').value,
-      type: modal.querySelector('#ed-type').value,
-      workstream: modal.querySelector('#ed-workstream').value.trim(),
-      priority: modal.querySelector('#ed-priority').value,
-      start: modal.querySelector('#ed-start').value,
-      due: modal.querySelector('#ed-due').value,
-      description: modal.querySelector('#ed-desc').value.trim(),
-    };
-    if(!isSales) patch.actualCompletion = modal.querySelector('#ed-actual').value;
-    if(showSubStatus){
-      const nextStage = modal.querySelector('#ed-substatus').value.trim();
-      if(nextStage){
-        patch.subStatuses = Array.isArray(p.subStatuses) ? p.subStatuses.slice() : (p.subStatus ? [p.subStatus] : []);
-        if(!patch.subStatuses.length || patch.subStatuses[patch.subStatuses.length-1] !== nextStage){
-          patch.subStatuses.push(nextStage);
+    ${showSubStatus ? `<div class="form-row"><label>Current In Progress Stage</label><input id="ed-substatus" type="text" value="${PDMS.esc(currentSubStatusLocal || '')}" placeholder="e.g. Internal Testing"/></div>` : ''}
+    <div class="form-row"><label>Start Date</label><input id="ed-start" type="date" value="${PDMS.esc(p.start || '')}"/></div>
+    <div class="form-row"><label>Planned Completion</label><input id="ed-due" type="date" value="${PDMS.esc(p.due || '')}"/></div>
+    ${PDMS.canEditPrice() ? `<div class="form-row"><label>${(p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') ? 'Award Value (Exclusive of VAT)' : 'Opportunity Value'}</label><input id="ed-price" type="number" min="0" step="0.01" value="${PDMS.esc((p.awardValue !== undefined && p.awardValue !== null && p.awardValue !== '') ? String(p.awardValue) : ((p.negotiatedPrice === '' || p.negotiatedPrice === null || p.negotiatedPrice === undefined) ? '' : String(p.negotiatedPrice)))}" placeholder="0.00"/></div>` : ''}
+    ${!isSales ? `<div class="form-row"><label>Actual Completion</label><input id="ed-actual" type="date" value="${PDMS.esc(p.actualCompletion || '')}"/></div>` : ''}
+    <div class="form-row"><label>Description</label><textarea id="ed-desc" rows="3" style="resize:vertical">${PDMS.esc(p.description || '')}</textarea></div>
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ed-save">Save Changes</button>`);
+      modal.querySelector('#ed-save').onclick = function () {
+        const name = modal.querySelector('#ed-name').value.trim();
+        if (!name) { PDMS.toast('Required', 'Project name is required', 'error'); return; }
+        const priceField = modal.querySelector('#ed-price');
+        const negotiatedPrice = priceField ? (priceField.value.trim() === '' ? '' : Number(priceField.value)) : undefined;
+        const patch = {
+          name,
+          client: modal.querySelector('#ed-client').value,
+          type: modal.querySelector('#ed-type').value,
+          workstream: modal.querySelector('#ed-workstream').value.trim(),
+          priority: modal.querySelector('#ed-priority').value,
+          start: modal.querySelector('#ed-start').value,
+          due: modal.querySelector('#ed-due').value,
+          description: modal.querySelector('#ed-desc').value.trim(),
+        };
+        if (priceField && PDMS.canEditPrice()) {
+          const numPrice = Number.isFinite(negotiatedPrice) ? negotiatedPrice : '';
+          patch.negotiatedPrice = numPrice;
+          if (p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') {
+            patch.awardValue = numPrice;
+          }
         }
-        patch.subStatus = nextStage;
-      }
+        if (!isSales) patch.actualCompletion = modal.querySelector('#ed-actual').value;
+        if (showSubStatus) {
+          const nextStage = modal.querySelector('#ed-substatus').value.trim();
+          if (nextStage) {
+            patch.subStatuses = getSubStatuses(p).slice();
+            if (!patch.subStatuses.length || patch.subStatuses[patch.subStatuses.length - 1] !== nextStage) {
+              patch.subStatuses.push(nextStage);
+            }
+            patch.subStatus = nextStage;
+          }
+        }
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Saving...');
+        PDMS.api.update('projects', p.id, patch).then(saved => {
+          Object.assign(p, patch, saved);
+          p.subStatuses = saved.subStatuses || patch.subStatuses;
+          modal.remove();
+          PDMS.toast('Saved', 'Project details updated', 'success');
+          render();
+        }).catch(err => { PDMS.setButtonLoading(btn, false); PDMS.toast('Error', err.message || 'Could not save', 'error'); });
+      };
     }
-    const btn = this;
-    PDMS.setButtonLoading(btn, true, 'Saving...');
-    PDMS.api.update('projects', p.id, patch).then(saved=>{
-      Object.assign(p, patch);
-      modal.remove();
-      PDMS.toast('Saved','Project details updated','success');
-      renderProject();
-    }).catch(err=>{ PDMS.setButtonLoading(btn,false); PDMS.toast('Error',err.message||'Could not save','error'); });
-  };
-}
-function editInProgressStage(){
-  const subStatuses = Array.isArray(p.subStatuses) ? p.subStatuses : (p.subStatus ? [p.subStatus] : []);
-  const currentSubStatusLocal = subStatuses.length ? subStatuses[subStatuses.length-1] : '';
-  const modal = PDMS.modal('In Progress Substage', `
-    <div class="form-row"><label>Stage</label><input id="subStatusSelect" type="text" value="${PDMS.esc(currentSubStatusLocal||'')}" placeholder="Enter current stage"/></div>
-  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveSubStatus">Save</button>`);
-  modal.querySelector('#saveSubStatus').onclick = function(){
-    const subStatus = modal.querySelector('#subStatusSelect').value.trim();
-    if(!subStatus){ PDMS.toast('Required','Please enter a stage','error'); return; }
-    const btn = this;
-    PDMS.setButtonLoading(btn, true, 'Saving...');
-    const patch = { subStatus };
-    patch.subStatuses = Array.isArray(p.subStatuses) ? p.subStatuses.slice() : (p.subStatus ? [p.subStatus] : []);
-    if(!patch.subStatuses.length || patch.subStatuses[patch.subStatuses.length-1] !== subStatus){
-      patch.subStatuses.push(subStatus);
-    }
-    PDMS.api.update('projects', p.id, patch).then(saved=>{
-      p.subStatus = saved.subStatus || subStatus;
-      p.subStatuses = saved.subStatuses || patch.subStatuses;
-      modal.remove();
-      PDMS.toast('Saved','In Progress substage updated','success');
-      render();
-    }).catch(err=>{ PDMS.setButtonLoading(btn,false); PDMS.toast('Error', err.message||'Could not save stage','error'); });
-  };
-}
+    function editInProgressStage() {
+      const subStatuses = getSubStatuses(p).slice();
+      const modal = PDMS.modal('Manage In Progress Stages', `
+    <div style="font-size:13px;color:var(--text-soft);margin-bottom:16px">
+      Manage the sub-stages for the In Progress phase. Add new stages or edit existing ones. Older stages will remain displayed in order.
+    </div>
+    <div id="stagesList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+      <!-- Dynamic list of stages -->
+    </div>
+    <button class="btn btn-secondary btn-sm" id="addNewStageBtn" type="button" style="display:inline-flex;align-items:center;gap:6px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Stage
+    </button>
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveSubStatuses">Save Stages</button>`);
 
-function changeStatus(){
-  const user = PDMS.getUser();
-  let options = PDMS.statusOptionsFor(user || undefined);
-  if(PDMS.isSalesRole(user)){
-    options = options.filter(s => s !== 'Closed');
-  }
-  const modal = PDMS.modal('Change Project Status',`<div class="form-row"><label>New Status</label><select id="ns">${options.map(s=>`<option ${s===p.status?'selected':''}>${s}</option>`).join('')}</select></div>`,
-    `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveStatusBtn">Update</button>`);
-  modal.querySelector('#saveStatusBtn').onclick = function(){
-    const newStatus = modal.querySelector('#ns').value;
-    if(!PDMS.canChangeStatus(p,newStatus)){
-      PDMS.toast('Not allowed',"You don't have permission to set this status",'error');
-      return;
+      const stagesList = modal.querySelector('#stagesList');
+      const addNewStageBtn = modal.querySelector('#addNewStageBtn');
+
+      function createStageRow(value = '') {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.gap = '8px';
+        row.style.alignItems = 'center';
+        row.innerHTML = `
+      <input type="text" class="stage-input" value="${PDMS.esc(value)}" placeholder="Enter stage name (e.g. Design, UAT)" style="flex:1"/>
+      <button class="btn btn-ghost remove-stage-btn" type="button" style="color:var(--danger);padding:8px 12px" title="Delete Stage">✕</button>
+    `;
+        row.querySelector('.remove-stage-btn').onclick = () => row.remove();
+        stagesList.appendChild(row);
+      }
+
+      // Populate initial rows
+      if (subStatuses.length === 0) {
+        createStageRow();
+      } else {
+        subStatuses.forEach(s => createStageRow(s));
+      }
+
+      addNewStageBtn.onclick = () => createStageRow();
+
+      modal.querySelector('#saveSubStatuses').onclick = function () {
+        const inputs = Array.from(stagesList.querySelectorAll('.stage-input'));
+        const list = inputs.map(inp => inp.value.trim()).filter(Boolean);
+        if (list.length === 0) { PDMS.toast('Required', 'Please add at least one stage', 'error'); return; }
+
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Saving...');
+        const patch = {
+          subStatuses: list,
+          subStatus: list[list.length - 1]
+        };
+        PDMS.api.update('projects', p.id, patch).then(saved => {
+          p.subStatus = saved.subStatus || patch.subStatus;
+          p.subStatuses = saved.subStatuses || patch.subStatuses;
+          modal.remove();
+          PDMS.toast('Saved', 'Project stages updated', 'success');
+          render();
+        }).catch(err => { PDMS.setButtonLoading(btn, false); PDMS.toast('Error', err.message || 'Could not save stages', 'error'); });
+      };
     }
-    // Award/SLA → sent to Accounts for approval before delivery begins.
-    const savedStatus = newStatus === 'Award/SLA' ? 'Awaiting Account Approval' : newStatus;
-    const savedStage  = newStatus === 'Award/SLA' ? 'Delivery' : undefined;
-    const patch = savedStage ? {status:savedStatus, stage:savedStage} : {status:savedStatus};
-    PDMS.api.update('projects',p.id,patch).then(saved=>{
-      Object.assign(p,saved);
-      modal.remove();
-      const label = newStatus === 'Award/SLA' ? 'Sent for Account Approval' : 'Status updated';
-      const detail = newStatus === 'Award/SLA' ? `"${p.name}" is awaiting financial approval before delivery begins` : 'Project status has been updated';
-      PDMS.toast(label, detail,'success');
-      const statusUser = PDMS.getUser();
-      PDMS.notify('Status Changed', `${statusUser.name} (${statusUser.role}) changed "${p.name}" status to "${savedStatus}"`, 'refresh', 'project-details.html#id='+p.id);
-      render();
-    }).catch(err=>PDMS.toast('Error',err.message||'Could not update status','error'));
-  };
-}
-function startDelivery(){
-  const modal = PDMS.modal('Start Delivery',`
+
+    function changeStatus() {
+      const user = PDMS.getUser();
+      let options = PDMS.statusOptionsFor(user || undefined);
+      if (PDMS.isSalesRole(user)) {
+        options = options.filter(s => s !== 'Closed');
+      }
+      const modal = PDMS.modal('Change Project Status', `<div class="form-row"><label>New Status</label><select id="ns">${options.map(s => `<option ${s === p.status ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`,
+        `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveStatusBtn">Update</button>`);
+      modal.querySelector('#saveStatusBtn').onclick = function () {
+        const newStatus = modal.querySelector('#ns').value;
+        if (!PDMS.canChangeStatus(p, newStatus)) {
+          PDMS.toast('Not allowed', "You don't have permission to set this status", 'error');
+          return;
+        }
+
+        // When updating to Award/SLA, open dedicated modal for Award Value (Exclusive of VAT)
+        if (newStatus === 'Award/SLA') {
+          modal.remove();
+          const currentVal = (p.awardValue !== undefined && p.awardValue !== null && p.awardValue !== '') ? p.awardValue : (p.negotiatedPrice || '');
+          const awardModal = PDMS.modal('Award / SLA — Enter Award Value', `
+            <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">
+              Updating <strong>${PDMS.esc(p.name)}</strong> to <strong>Award/SLA</strong> will submit it to Accounts for review &amp; approval. Please enter the contracted <strong>Award Value (exclusive of VAT)</strong>.
+            </p>
+            <div class="form-row">
+              <label>Award Value (₦) <span style="font-size:12px;color:var(--primary);font-weight:600">(Exclusive of VAT)</span> <span style="color:var(--danger)">*</span></label>
+              <input id="awardValInput" type="number" min="0" step="0.01" value="${PDMS.esc(currentVal + '')}" placeholder="0.00" autocomplete="off" />
+            </div>
+            <div class="form-row">
+              <label>Remarks / Notes (Optional)</label>
+              <textarea id="awardNotes" rows="2" placeholder="e.g. Terms agreed, SLA signed..."></textarea>
+            </div>
+          `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmAwardValBtn">Submit for Account Approval →</button>`);
+
+          awardModal.querySelector('#confirmAwardValBtn').onclick = function () {
+            const valRaw = awardModal.querySelector('#awardValInput').value.trim();
+            const awardVal = valRaw === '' ? 0 : Number(valRaw);
+            if (!Number.isFinite(awardVal) || awardVal <= 0) {
+              PDMS.toast('Award Value Required', 'Please enter a valid Award Value (exclusive of VAT).', 'error');
+              return;
+            }
+            const notes = awardModal.querySelector('#awardNotes').value.trim();
+            const btn = this;
+            PDMS.setButtonLoading(btn, true, 'Submitting...');
+
+            const patch = {
+              status: 'Awaiting Account Approval',
+              stage: 'Delivery',
+              requestedStatus: 'Award/SLA',
+              awardValue: awardVal,
+              negotiatedPrice: awardVal
+            };
+
+            PDMS.api.update('projects', p.id, patch).then(saved => {
+              Object.assign(p, patch, saved);
+              if (notes) {
+                const u = PDMS.getUser();
+                const record = { id: 'tmp-' + Date.now(), author: u ? u.name : 'Sales', authorRole: u ? u.role : 'Sales', projectId: p.id, projectName: p.name, message: `[Award/SLA - Award Value (excl. VAT): ₦${awardVal.toLocaleString()}] ${notes}`, time: new Date().toISOString() };
+                pushIssueOptimistic(record);
+              }
+              awardModal.remove();
+              PDMS.toast('Sent for Account Approval', `"${p.name}" updated with Award Value ₦${awardVal.toLocaleString()} (excl. VAT) and sent to Accounts.`, 'success');
+              const statusUser = PDMS.getUser();
+              PDMS.notify('Status Changed', `${statusUser.name} (${statusUser.role}) submitted "${p.name}" for Account Approval with Award Value ₦${awardVal.toLocaleString()} (excl. VAT)`, 'refresh', 'project-details.html#id=' + p.id);
+              render();
+            }).catch(err => {
+              PDMS.setButtonLoading(btn, false);
+              PDMS.toast('Error', err.message || 'Could not update status', 'error');
+            });
+          };
+          return;
+        }
+
+        const patch = { status: newStatus };
+        PDMS.api.update('projects', p.id, patch).then(saved => {
+          Object.assign(p, saved);
+          modal.remove();
+          PDMS.toast('Status updated', 'Project status has been updated', 'success');
+          const statusUser = PDMS.getUser();
+          PDMS.notify('Status Changed', `${statusUser.name} (${statusUser.role}) changed "${p.name}" status to "${newStatus}"`, 'refresh', 'project-details.html#id=' + p.id);
+          render();
+        }).catch(err => PDMS.toast('Error', err.message || 'Could not update status', 'error'));
+      };
+    }
+    function startDelivery() {
+      const modal = PDMS.modal('Start Delivery', `
     <p class="text-sm text-muted" style="margin-bottom:16px">This moves ${PDMS.esc(p.name)} from the Sales pipeline into delivery, starting at "Not Started". You can assign a Project Manager and Lead now or later.</p>
     <style>
       .assign-ac-wrap{position:relative}.assign-ac-wrap input{width:100%;box-sizing:border-box}
@@ -911,82 +1416,169 @@ function startDelivery(){
         <div class="assign-ac-wrap"><input id="startDelLead" autocomplete="off" placeholder="Search by name…"/><div class="assign-ac-drop" id="startLeadDrop"></div></div>
       </div>
     </div>
-  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="startDelBtn">Start Delivery</button>`);
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="startDelBtn">Start Delivery</button>`);
 
-  function acItem(u){ return `<div class="assign-ac-item" data-name="${PDMS.esc(u.name)}"><div class="assign-ac-avatar">${PDMS.initials(u.name)}</div><div><div style="font-weight:600">${PDMS.esc(u.name)}</div><div style="font-size:12px;color:var(--text-muted)">${PDMS.esc(u.role||'')}</div></div></div>`; }
-  function wireAc(input, drop){
-    input.oninput = ()=>{
-      const q = input.value.trim().toLowerCase();
-      const hits = D.users.filter(u=>u.name.toLowerCase().includes(q)).slice(0,8);
-      if(q && hits.length){ drop.innerHTML = hits.map(acItem).join(''); drop.classList.add('open'); drop.querySelectorAll('.assign-ac-item[data-name]').forEach(el=>{ el.onmousedown=e=>{e.preventDefault();input.value=el.dataset.name;drop.classList.remove('open');}; }); }
-      else drop.classList.remove('open');
-    };
-    input.onblur = ()=>setTimeout(()=>drop.classList.remove('open'),150);
-  }
-  wireAc(modal.querySelector('#startDelPm'), modal.querySelector('#startPmDrop'));
-  wireAc(modal.querySelector('#startDelLead'), modal.querySelector('#startLeadDrop'));
+      function acItem(u) { return `<div class="assign-ac-item" data-name="${PDMS.esc(u.name)}"><div class="assign-ac-avatar">${PDMS.initials(u.name)}</div><div><div style="font-weight:600">${PDMS.esc(u.name)}</div><div style="font-size:12px;color:var(--text-muted)">${PDMS.esc(u.role || '')}</div></div></div>`; }
+      function wireAc(input, drop) {
+        input.oninput = () => {
+          const q = input.value.trim().toLowerCase();
+          const hits = D.users.filter(u => u.name.toLowerCase().includes(q)).slice(0, 8);
+          if (q && hits.length) { drop.innerHTML = hits.map(acItem).join(''); drop.classList.add('open'); drop.querySelectorAll('.assign-ac-item[data-name]').forEach(el => { el.onmousedown = e => { e.preventDefault(); input.value = el.dataset.name; drop.classList.remove('open'); }; }); }
+          else drop.classList.remove('open');
+        };
+        input.onblur = () => setTimeout(() => drop.classList.remove('open'), 150);
+      }
+      wireAc(modal.querySelector('#startDelPm'), modal.querySelector('#startPmDrop'));
+      wireAc(modal.querySelector('#startDelLead'), modal.querySelector('#startLeadDrop'));
 
-  modal.querySelector('#startDelBtn').onclick = function(){
-    const pm = modal.querySelector('#startDelPm').value.trim();
-    const lead = modal.querySelector('#startDelLead').value.trim();
-    const patch = { stage:'Delivery', status:'Not Started' };
-    if(pm) patch.pm = pm;
-    if(lead) patch.lead = lead;
-    PDMS.api.update('projects',p.id,patch).then(saved=>{
-      Object.assign(p,saved);
-      modal.remove();
-      PDMS.toast('Delivery started', `${p.name} is now being managed by delivery`,'success');
-      const delUser = PDMS.getUser();
-      PDMS.notify('Delivery Started', `${delUser.name} (${delUser.role}) moved "${p.name}" into delivery`, 'zap', 'project-details.html#id='+p.id);
-      render();
-    }).catch(err=>PDMS.toast('Error',err.message||'Could not start delivery','error'));
-  };
-}
-window.postProjectReview=postProjectReview;window.submitInlineIssue=submitInlineIssue;window.assignTeam=assignTeam;window.uploadDoc=uploadDoc;window.changeStatus=changeStatus;window.startDelivery=startDelivery;
+      modal.querySelector('#startDelBtn').onclick = function () {
+        const pm = modal.querySelector('#startDelPm').value.trim();
+        const lead = modal.querySelector('#startDelLead').value.trim();
+        const patch = { stage: 'Delivery', status: 'Not Started' };
+        if (pm) patch.pm = pm;
+        if (lead) patch.lead = lead;
+        PDMS.api.update('projects', p.id, patch).then(saved => {
+          Object.assign(p, saved);
+          modal.remove();
+          PDMS.toast('Delivery started', `${p.name} is now being managed by delivery`, 'success');
+          const delUser = PDMS.getUser();
+          PDMS.notify('Delivery Started', `${delUser.name} (${delUser.role}) moved "${p.name}" into delivery`, 'zap', 'project-details.html#id=' + p.id);
+          render();
+        }).catch(err => PDMS.toast('Error', err.message || 'Could not start delivery', 'error'));
+      };
+    }
+    window.postProjectReview = postProjectReview; window.submitInlineIssue = submitInlineIssue; window.assignTeam = assignTeam; window.uploadDoc = uploadDoc; window.changeStatus = changeStatus; window.startDelivery = startDelivery;
 
-function approveProjectInline(){
-  const btn = document.getElementById('approveBtn');
-  if(btn){ btn.disabled=true; btn.textContent='Approving…'; }
-  PDMS.api.update('projects', p.id, { status: 'In Progress', stage: 'Delivery' })
-    .then(saved => {
-      Object.assign(p, saved);
-      PDMS.toast('Approved', `"${p.name}" has been approved and moved to In Progress in delivery.`, 'success');
-      PDMS.notify('Project Approved', `Accounts approved "${p.name}" — now in delivery`, 'check', 'project-details.html#id='+p.id);
-      render();
-    })
-    .catch(err => {
-      if(btn){ btn.disabled=false; btn.textContent='✓ Approve'; }
-      PDMS.toast('Error', err.message || 'Could not approve project', 'error');
-    });
-}
+    function approveProjectInline() {
+      const modal = PDMS.modal('Approve Project (Accounts)', `
+        <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">You are about to approve <strong>${PDMS.esc(p.name)}</strong>. The project will be moved to Delivery (Not Started).</p>
+        <div class="form-row">
+          <label>Approval Comment / Remarks</label>
+          <textarea id="accApproveComment" rows="3" placeholder="Enter approval comment or remarks (e.g. Terms and financials verified)..."></textarea>
+        </div>
+      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmAccApproveBtn" style="background:#10b981;border-color:#10b981">✓ Confirm Approval</button>`);
 
-function rejectProjectInline(){
-  const modal = PDMS.modal('Reject Project', `
+      modal.querySelector('#confirmAccApproveBtn').onclick = function () {
+        const comment = modal.querySelector('#accApproveComment').value.trim();
+        const btn2 = this;
+        PDMS.setButtonLoading(btn2, true, 'Approving...');
+        PDMS.api.update('projects', p.id, { status: 'Not Started', stage: 'Delivery' })
+          .then(saved => {
+            Object.assign(p, saved);
+            if (comment) {
+              const user = PDMS.getUser();
+              const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Accounts', authorRole: user ? user.role : 'Accounts', projectId: p.id, projectName: p.name, message: `[Approval Remarks] ${comment}`, time: new Date().toISOString() };
+              pushIssueOptimistic(record);
+            }
+            modal.remove();
+            PDMS.toast('Approved', `"${p.name}" has been approved and moved to Not Started in delivery.`, 'success');
+            PDMS.notify('Project Approved', `Accounts approved "${p.name}" — now in delivery`, 'check', 'project-details.html#id=' + p.id);
+            render();
+          })
+          .catch(err => {
+            PDMS.setButtonLoading(btn2, false);
+            PDMS.toast('Error', err.message || 'Could not approve project', 'error');
+          });
+      };
+    }
+
+    function rejectProjectInline() {
+      const modal = PDMS.modal('Reject Project', `
     <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">You are about to reject <strong>${PDMS.esc(p.name)}</strong>. The project will be returned to the Sales team.</p>
-    <div class="form-row"><label>Reason for Rejection</label><textarea id="rejectReason" rows="3" placeholder="Provide a reason so the Sales team can address it..."></textarea></div>
+    <div class="form-row"><label>Reason for Rejection / Remarks</label><textarea id="rejectReason" rows="3" placeholder="Provide a reason so the Sales team can address it..."></textarea></div>
   `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmRejectBtn" style="background:var(--danger);border-color:var(--danger)">Reject &amp; Return to Sales</button>`);
 
-  modal.querySelector('#confirmRejectBtn').onclick = function(){
-    const reason = modal.querySelector('#rejectReason').value.trim();
-    if(!reason){ PDMS.toast('Required','Please provide a rejection reason','error'); return; }
-    const btn2 = this;
-    PDMS.setButtonLoading(btn2, true, 'Rejecting...');
-    PDMS.api.update('projects', p.id, { status: 'Award/SLA', rejectionNote: reason })
-      .then(saved => {
-        Object.assign(p, saved);
-        modal.remove();
-        PDMS.toast('Rejected', `"${p.name}" has been returned to Sales.`, 'warn');
-        PDMS.notify('Project Rejected', `Accounts rejected "${p.name}" — returned to Sales`, 'zap', 'project-details.html#id='+p.id);
-        render();
-      })
-      .catch(err => {
-        PDMS.setButtonLoading(btn2, false);
-        PDMS.toast('Error', err.message || 'Could not reject project', 'error');
-      });
-  };
-}
+      modal.querySelector('#confirmRejectBtn').onclick = function () {
+        const reason = modal.querySelector('#rejectReason').value.trim();
+        if (!reason) { PDMS.toast('Required', 'Please provide a rejection reason', 'error'); return; }
+        const btn2 = this;
+        PDMS.setButtonLoading(btn2, true, 'Rejecting...');
+        PDMS.api.update('projects', p.id, { status: 'Award/SLA', rejectionNote: reason })
+          .then(saved => {
+            Object.assign(p, saved);
+            const user = PDMS.getUser();
+            const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Accounts', authorRole: user ? user.role : 'Accounts', projectId: p.id, projectName: p.name, message: `[Rejection Reason] ${reason}`, time: new Date().toISOString() };
+            pushIssueOptimistic(record);
+            modal.remove();
+            PDMS.toast('Rejected', `"${p.name}" has been returned to Sales.`, 'warn');
+            PDMS.notify('Project Rejected', `Accounts rejected "${p.name}" — returned to Sales`, 'zap', 'project-details.html#id=' + p.id);
+            render();
+          })
+          .catch(err => {
+            PDMS.setButtonLoading(btn2, false);
+            PDMS.toast('Error', err.message || 'Could not reject project', 'error');
+          });
+      };
+    }
 
-window.approveProjectInline=approveProjectInline;window.rejectProjectInline=rejectProjectInline;
-</script></body></html>
+    function approveSalesHeadInline() {
+      const targetStatus = p.requestedStatus || p.targetStatus || 'Lead';
+      const modal = PDMS.modal('Approve Project (Sales Head)', `
+        <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">You are approving <strong>${PDMS.esc(p.name)}</strong> to enter the sales pipeline at stage <strong>${PDMS.esc(targetStatus)}</strong>.</p>
+        <div class="form-row">
+          <label>Approval Comment / Remarks</label>
+          <textarea id="shApproveComment" rows="3" placeholder="Enter approval comment or remarks..."></textarea>
+        </div>
+      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmSHApproveBtn" style="background:#10b981;border-color:#10b981">✓ Confirm Approval</button>`);
 
+      modal.querySelector('#confirmSHApproveBtn').onclick = function () {
+        const comment = modal.querySelector('#shApproveComment').value.trim();
+        const btn2 = this;
+        PDMS.setButtonLoading(btn2, true, 'Approving...');
+        PDMS.api.update('projects', p.id, { status: targetStatus, stage: 'Sales' })
+          .then(saved => {
+            Object.assign(p, saved);
+            p.status = targetStatus;
+            p.stage = 'Sales';
+            if (comment) {
+              const user = PDMS.getUser();
+              const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Sales Head', authorRole: user ? user.role : 'Sales Head', projectId: p.id, projectName: p.name, message: `[Approval Remarks] ${comment}`, time: new Date().toISOString() };
+              pushIssueOptimistic(record);
+            }
+            modal.remove();
+            PDMS.toast('Approved', `"${p.name}" has been approved and is now active at stage "${targetStatus}".`, 'success');
+            PDMS.notify('Sales Head Approved', `Sales Head approved "${p.name}" \u2014 now active at "${targetStatus}" in pipeline`, 'check', 'project-details.html#id=' + p.id);
+            render();
+          })
+          .catch(err => {
+            PDMS.setButtonLoading(btn2, false);
+            PDMS.toast('Error', err.message || 'Could not approve project', 'error');
+          });
+      };
+    }
 
+    function rejectSalesHeadInline() {
+      const modal = PDMS.modal('Reject Project', `
+    <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">You are about to reject <strong>${PDMS.esc(p.name)}</strong>. The project will be cancelled and the Sales user will see your rejection note.</p>
+    <div class="form-row"><label>Reason for Rejection / Remarks</label><textarea id="shRejectReason" rows="3" placeholder="Explain why this project was rejected..."></textarea></div>
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmSHRejectBtn" style="background:var(--danger);border-color:var(--danger)">Reject Project</button>`);
+
+      modal.querySelector('#confirmSHRejectBtn').onclick = function () {
+        const reason = modal.querySelector('#shRejectReason').value.trim();
+        if (!reason) { PDMS.toast('Required', 'Please provide a rejection reason', 'error'); return; }
+        const btn2 = this;
+        PDMS.setButtonLoading(btn2, true, 'Rejecting...');
+        PDMS.api.update('projects', p.id, { status: 'Cancelled', salesHeadRejectionNote: reason })
+          .then(saved => {
+            Object.assign(p, saved);
+            const user = PDMS.getUser();
+            const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Sales Head', authorRole: user ? user.role : 'Sales Head', projectId: p.id, projectName: p.name, message: `[Rejection Reason] ${reason}`, time: new Date().toISOString() };
+            pushIssueOptimistic(record);
+            modal.remove();
+            PDMS.toast('Rejected', `"${p.name}" has been rejected by Sales Head.`, 'warn');
+            PDMS.notify('Sales Head Rejected', `Sales Head rejected "${p.name}"`, 'zap', 'project-details.html#id=' + p.id);
+            render();
+          })
+          .catch(err => {
+            PDMS.setButtonLoading(btn2, false);
+            PDMS.toast('Error', err.message || 'Could not reject project', 'error');
+          });
+      };
+    }
+
+    window.approveProjectInline = approveProjectInline; window.rejectProjectInline = rejectProjectInline;
+    window.approveSalesHeadInline = approveSalesHeadInline; window.rejectSalesHeadInline = rejectSalesHeadInline;
+  </script>
+</body>
+
+</html>

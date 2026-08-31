@@ -7,7 +7,7 @@
   <title>Sales Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css"/>
+<link rel="stylesheet" href="css/style.css?v=1788176492"/>
   <style>
     .sales-hero {
       display: grid;
@@ -62,6 +62,25 @@
       }
     }
 
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
+    .sh-approve-btn {
+      padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+      background:#10b981;color:#fff;border:none;transition:opacity .15s;
+    }
+    .sh-approve-btn:hover { opacity:.85 }
+    .sh-reject-btn {
+      padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+      background:transparent;color:var(--danger);border:1px solid var(--danger);transition:opacity .15s;
+    }
+    .sh-reject-btn:hover { opacity:.7 }
+    .sh-action-row { display:flex;gap:8px;align-items:center }
+    .locked-badge {
+      display:inline-flex;align-items:center;gap:5px;
+      padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
+      background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25);
+    }
+
     @media(max-width:900px) {
       .sales-hero {
         grid-template-columns: 1fr;
@@ -75,23 +94,52 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1786691654"></script>
+  <script src="js/bundle.js?v=1788176492"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
 
+    function projectOwnedByUser(project, user){
+      if(!project || !user) return false;
+      const userId = String(user.id || '').trim().toLowerCase();
+      const userName = String(user.name || '').trim().toLowerCase();
+      const ownerValues = [
+        String(project.projectOwnerId || project.onboardedById || project.salesOwnerId || project.createdByUserId || '').trim().toLowerCase(),
+        String(project.projectOwnerName || project.onboardedByName || project.salesOwnerName || project.createdByUserName || '').trim().toLowerCase()
+      ];
+      return ownerValues.includes(userId) || ownerValues.includes(userName);
+    }
+
     function render() {
       const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
-      // Bucket purely by current status
-      const salesProjects = liveProjects.filter(p => PDMS.isSalesStatus(p.status) || p.status==='Awaiting Account Approval');
-      const deliveryProjects = liveProjects.filter(p => D.deliveryStatuses && D.deliveryStatuses.includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status));
+      const currentUser = PDMS.getUser();
+      const isSalesHead = currentUser && currentUser.role === 'Sales Head';
+      const isSalesUser = currentUser && currentUser.role === 'Sales';
+      const salesProjectSet = liveProjects.filter(p => ['sales','sales head'].includes(String(p.createdByRole||'').toLowerCase()));
+      // Sales Head: pending approval queue (only projects created by Sales users, not Sales Head's own)
+      const pendingSalesHeadApproval = isSalesHead
+        ? liveProjects.filter(p => p.status === 'Awaiting Sales Head Approval')
+        : [];
+      const salesProjects = isSalesUser
+        ? salesProjectSet.filter(p => projectOwnedByUser(p, currentUser))
+        : salesProjectSet;
+      // Delivery table should show deals that Sales created which have moved to Delivery
+      const deliveryProjects = salesProjectSet.filter(p => (PDMS.stageOf ? PDMS.stageOf(p) === 'Delivery' : (D.deliveryStatuses && D.deliveryStatuses.includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status))));
       const totalInSales = salesProjects.length;
       const awardSla = salesProjects.filter(p => ['Award/SLA','Awaiting Account Approval'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status)).length;
 
       // Pipeline conversion funnel: how many projects are sitting at each stage right now.
-      const funnelStages = ['Initial Proposal', 'Lead', 'Opportunity', 'Negotiation', 'Invoicing', 'Award/SLA'];
-      const funnelCounts = funnelStages.map(s => salesProjects.filter(p => (PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status) === s).length);
-      const funnelMax = Math.max(...funnelCounts, 1);
+      const funnelStages = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'];
+      const funnelCounts = funnelStages.map(s => {
+        if (s === 'Closed') {
+          return salesProjects.filter(p => p.status === 'Closed' || p.stage === 'Delivery' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) && p.status !== 'Awaiting Account Approval')).length;
+        }
+        if (s === 'Award/SLA') {
+          return salesProjects.filter(p => (p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') && p.stage !== 'Delivery' && !(D.deliveryStatuses && D.deliveryStatuses.includes(p.status))).length;
+        }
+        return salesProjects.filter(p => (PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status) === s && p.stage !== 'Delivery' && !(D.deliveryStatuses && D.deliveryStatuses.includes(p.status))).length;
+      });
+      const funnelMax = Math.max(salesProjects.length, 1);
       const offRampCounts = {
         Cancelled: salesProjects.filter(p => p.status === 'Cancelled').length,
         'On Hold': salesProjects.filter(p => p.status === 'On Hold').length
@@ -100,11 +148,12 @@
       document.getElementById('content').innerHTML = `
     <div class="sales-hero">
       <div class="sales-hero-copy">
-        <h1 class="page-title" style="font-size:30px;line-height:1.1;margin-top:10px">Business Development Dashboard</h1>
-        <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9);margin-top:8px">A centralized view of business development activities, project opportunities, and consultant capacity.</p>
+        <h1 class="page-title" style="font-size:30px;line-height:1.1;margin-top:10px">${isSalesHead ? 'Sales Head Dashboard' : 'Business Development Dashboard'}</h1>
+        <p class="page-sub" style="font-size:14px;max-width:640px; color:rgba(255,255,255,.9);margin-top:8px">${isSalesHead ? 'Review and approve new projects from the sales team, and monitor pipeline progress.' : 'A centralized view of business development activities, project opportunities, and consultant capacity.'}</p>
         <div class="hero-actions">
-          <button class="btn btn-primary" onclick=" newDeal()">${I('plus')} Intake New Deal</button>
-          <a class="btn btn-secondary" href="consultants.html" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18)">${I('users')} Verify Resources</a>
+          <a class="btn btn-primary" href="projects.html#view=sales">${I('plus')} Create New Leads</a>
+          <a class="btn btn-secondary" href="clients.html" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18)">${I('users')} Clients</a>
+          ${isSalesHead ? `<a class="btn btn-secondary" href="awaiting-projects.html" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18)">${I('clock')} Awaiting Approval</a>` : ''}
         </div>
       </div>
       <div class="sales-hero-card">
@@ -153,6 +202,7 @@
           <div class="flex gap-4 mt-3 pt-3" style="border-top:1px solid var(--border)">
             <div class="text-sm text-muted">Cancelled: <span class="font-semi" style="color:var(--danger)">${offRampCounts.Cancelled}</span></div>
             <div class="text-sm text-muted">On Hold: <span class="font-semi">${offRampCounts['On Hold']}</span></div>
+            
           </div>
         </div>
       </div>
@@ -199,20 +249,35 @@
               <tr>
                 <th>Project ID</th>
                 <th>Client Partner</th>
-                <th>Workstream</th>
+                <th>Opportunity Value</th>
+                <th>Award Value (excl. VAT)</th>
+                <th>Project Type</th>
                 <th>Stage</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              ${salesProjects.map(p => `
+              ${salesProjects.map(p => {
+                const isPendingSH = p.status === 'Awaiting Sales Head Approval';
+                const isDelivery = p.stage === 'Delivery' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) && p.status !== 'Awaiting Account Approval');
+                const displayStatus = isDelivery ? 'Closed' : (p.status === 'Awaiting Account Approval' ? 'Award/SLA' : p.status);
+                const statusDisplay = isPendingSH && isSalesUser
+                  ? '<span class="locked-badge"><span class="sh-pending-dot"></span>Pending Approval</span>'
+                  : `<span class="badge badge-${D.statusColors[displayStatus] || D.statusColors[p.status] || 'muted'}">${PDMS.esc(displayStatus)}</span>`;
+                const actionBtn = isPendingSH && isSalesUser
+                  ? '<span class="text-muted text-sm">Awaiting Sales Head</span>'
+                  : `<a href="project-details.html#id=${p.id}&from=sales" class="btn btn-secondary btn-sm">Manage</a>`;
+                return `
                 <tr>
-                  <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
-                  <td class="font-bold">${PDMS.esc(p.client||p.name||'—')}</td>
-                  <td>${PDMS.esc(p.workstream||p.dept||'—')}</td>
-                  <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
-                  <td><a href="project-details.html#id=${p.id}" class="btn btn-secondary btn-sm">Manage</a></td>
-                </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects yet')}</td></tr>`}
+                  <td><a href="project-details.html#id=${p.id}&from=sales" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
+                  <td class="font-bold">${PDMS.esc(p.client||p.name||'\u2014')}</td>
+                  <td class="font-semi">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '\u2014'}</td>
+                  <td class="font-semi">${Number.isFinite(Number(p.awardValue || (isDelivery ? p.negotiatedPrice : ''))) && Number(p.awardValue || (isDelivery ? p.negotiatedPrice : '')) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice) : '\u2014'}</td>
+                  <td>${PDMS.esc(p.type||'\u2014')}</td>
+                  <td>${statusDisplay}</td>
+                  <td>${actionBtn}</td>
+                </tr>`;
+              }).join('') || `<tr><td colspan="7" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects yet')}</td></tr>`}
             </tbody>
           </table>
         </div>
@@ -237,7 +302,7 @@
               <tr>
                 <th>Project ID</th>
                 <th>Client Partner</th>
-                <th>Workstream</th>
+                <th>Project Type</th>
                 <th>PM</th>
                 <th>Status</th>
               </tr>
@@ -247,7 +312,7 @@
                 <tr>
                   <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
                   <td class="font-bold">${PDMS.esc(p.client||p.name||'—')}</td>
-                  <td>${PDMS.esc(p.workstream||p.dept||'—')}</td>
+                  <td>${PDMS.esc(p.type||'—')}</td>
                   <td>${PDMS.esc(p.pm || 'TBD')}</td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
                 </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No projects in delivery yet')}</td></tr>`}
@@ -260,77 +325,64 @@
     }
 
     function newDeal() {
-      const statusOptions = D.salesStatuses;
-      const clientNames = (D.clients || []).map(c => c.name).filter(Boolean);
-      const modal = PDMS.modal('New Deal Intake', `
-    <div class="form-grid">
-      <div class="form-row"><label>Client</label><input id="newProjClient" list="newProjClientList" placeholder="Search existing clients..." autocomplete="off"/><div id="newProjClientNotice" style="margin-top:6px;font-size:12px;color:#b91c1c;min-height:16px"></div></div>
-      <div class="form-row"><label>Type</label><input id="newProjType" type="text" placeholder="e.g. Software Development"/></div>
-      <div class="form-row"><label>Workstream</label><select id="newProjDept">${(D.workstreams||[]).map(w => `<option>${w}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Status</label><select id="newProjStatus">${statusOptions.map((s, i) => `<option${i === 0 ? ' selected' : ''}>${s}</option>`).join('')}</select></div>
-    </div>
-    <datalist id="newProjClientList">${clientNames.map(name => `<option value="${PDMS.esc(name)}"></option>`).join('')}</datalist>
-    <div class="form-row"><label>Description</label><textarea id="newProjDesc" rows="3" placeholder="Scope, goals, deliverables..."></textarea></div>
-  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createProjectBtn">${I('plus')} Create Deal</button>`);
+      PDMS.openSalesProjectWizard({
+        onSuccess: () => render(),
+        redirectUrl: 'projects.html#view=sales'
+      });
+    }
 
-      modal.querySelector('#createProjectBtn').onclick = function () {
-          const clientTyped = modal.querySelector('#newProjClient').value.trim();
-          const norm = s => (s||'').toString().trim().replace(/\s+/g,' ').toLowerCase();
-          const existingClient = (D.clients || []).find(c => norm(c.name) === norm(clientTyped));
-        const type = modal.querySelector('#newProjType').value.trim();
-        const workstream = modal.querySelector('#newProjDept').value;
-        const status = modal.querySelector('#newProjStatus').value;
-        const desc = modal.querySelector('#newProjDesc').value.trim();
-        if (!clientTyped) {
-          PDMS.toast('Missing project info', 'Client is required', 'error');
-          return;
-        }
-        if (!existingClient) {
-          PDMS.toast('Invalid client', 'Select an existing client from the client table', 'error');
-          return;
-        }
-        const client = existingClient.name;
-        const btn = this;
-        PDMS.setButtonLoading(btn, true, 'Creating...');
-        setTimeout(() => PDMS.setButtonLoading(btn, false), 10000);
-        const record = {
-          name: client, client, type, workstream, dept: workstream, sales: 'Sales Team', pm: '', lead: '', consultants: [],
-          status, stage: 'Sales', createdByRole: 'Sales', progress: 0, start: '', due: '', completion: null,
-          description: desc, files: 0, remarks: 0
-        };
-
-        // Optimistic insert so UI shows project immediately
-        const tmpId = 'TMP-' + Date.now();
-        const tmp = Object.assign({id: tmpId, _optimistic: true}, record);
-        D.projects.unshift(tmp);
-        render();
-        PDMS.api.create('projects', record).then(saved => {
-          const idx = D.projects.findIndex(p => p.id === tmpId);
-          if (idx > -1) D.projects.splice(idx, 1, saved); else D.projects.unshift(saved);
-          modal.remove();
-          PDMS.toast('Project created', 'New deal added to intake pipeline', 'success');
+    // ---- Sales Head approve / reject actions ----
+    function approveSalesProject(id, btn) {
+      PDMS.setButtonLoading(btn, true, 'Approving...');
+      const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+      const p = liveProjects.find(x => x.id === id);
+      if (!p) { PDMS.toast('Error', 'Project not found', 'error'); PDMS.setButtonLoading(btn, false); return; }
+      const targetStatus = p.requestedStatus || p.targetStatus || 'Lead';
+      PDMS.api.update('projects', id, { status: targetStatus, stage: 'Sales' })
+        .then(() => {
+          p.status = targetStatus; p.stage = 'Sales';
+          PDMS.toast('Approved', `"${p.name || p.client}" has been approved and is now active at stage "${targetStatus}".`, 'success');
           render();
-        }).catch(err => {
-          const idx = D.projects.findIndex(p => p.id === tmpId);
-          if (idx > -1) D.projects.splice(idx,1);
-          render();
-          PDMS.toast('Error', err.message || 'Could not create project', 'error');
+        })
+        .catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not approve project', 'error');
         });
-      };
+    }
 
-      const clientInput = modal.querySelector('#newProjClient');
-      const clientNotice = modal.querySelector('#newProjClientNotice');
-      const updateClientNotice = () => {
-        const typed = clientInput.value.trim();
-        if (!typed) { clientNotice.textContent = ''; return; }
-        const matches = (D.clients || []).some(c => norm(c.name) === norm(typed));
-        clientNotice.textContent = matches ? '' : 'That is not an existing client name.';
+    function rejectSalesProject(id, btn) {
+      const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+      const p = liveProjects.find(x => x.id === id);
+      if (!p) return;
+
+      const modal = PDMS.modal('Reject Project', `
+        <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">You are about to reject <strong>${PDMS.esc(p.name || p.client)}</strong>. The project will be marked as Cancelled and the Sales user will see your rejection note.</p>
+        <div class="form-row"><label>Reason for Rejection</label><textarea id="shRejectReason" rows="3" placeholder="Explain why this project was rejected..."></textarea></div>
+      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmSHRejectBtn" style="background:var(--danger);border-color:var(--danger)">Reject Project</button>`);
+
+      modal.querySelector('#confirmSHRejectBtn').onclick = function() {
+        const reason = modal.querySelector('#shRejectReason').value.trim();
+        if (!reason) { PDMS.toast('Required', 'Please provide a rejection reason', 'error'); return; }
+        const btn2 = this;
+        PDMS.setButtonLoading(btn2, true, 'Rejecting...');
+        PDMS.api.update('projects', id, { status: 'Cancelled', salesHeadRejectionNote: reason })
+          .then(() => {
+            p.status = 'Cancelled';
+            p.salesHeadRejectionNote = reason;
+            modal.remove();
+            PDMS.toast('Rejected', `"${p.name || p.client}" has been rejected.`, 'warn');
+            render();
+          })
+          .catch(err => {
+            PDMS.setButtonLoading(btn2, false);
+            PDMS.toast('Error', err.message || 'Could not reject project', 'error');
+          });
       };
-      clientInput.addEventListener('input', updateClientNotice);
-      updateClientNotice();
     }
 
     window.newDeal = newDeal;
+    window.approveSalesProject = approveSalesProject;
+    window.rejectSalesProject = rejectSalesProject;
 
     PDMS.onRefresh(render);
   </script>
