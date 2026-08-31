@@ -7,7 +7,7 @@
   <title>Delivery Dashboard — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788180977" />
+  <link rel="stylesheet" href="css/style.css?v=1788183270" />
   <style>
     .htd-hero {
       display: grid;
@@ -149,33 +149,55 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788180977"></script>
+  <script src="js/bundle.js?v=1788183270"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
+
+    function isDeliveryProject(p) {
+      if (!p) return false;
+      if (p.status === 'Awaiting Account Approval' || p.status === 'Awaiting Sales Head Approval') return false;
+      if (p.stage === 'Delivery') return true;
+      const role = String(p.createdByRole || '').toLowerCase();
+      if (['coo', 'htd', 'pm head', 'pmo', 'project manager'].includes(role)) return true;
+      const dOnlyStatuses = ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
+      if (dOnlyStatuses.includes(p.status)) return true;
+      if (p.deliveryStatus && dOnlyStatuses.includes(p.deliveryStatus)) return true;
+      return false;
+    }
 
     function render() {
       const currentUser = PDMS.getUser();
       const isPMO = currentUser && currentUser.role === 'PMO';
       const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
-      const salesProjects = liveProjects.filter(p => PDMS.isSalesStatus(p.status));
+      const allDelivery = liveProjects.filter(isDeliveryProject);
       const deliveryProjects = isPMO
-        ? liveProjects.filter(p => {
+        ? allDelivery.filter(p => {
           const myName = (currentUser.name || '').toLowerCase();
           const consultants = Array.isArray(p.consultants) ? p.consultants.map(n => n.toLowerCase()) : [];
           return (p.pm || '').toLowerCase() === myName || (p.lead || '').toLowerCase() === myName || consultants.includes(myName);
         })
-        : liveProjects.filter(p => D.deliveryStatuses && D.deliveryStatuses.includes(p.status) && p.status !== 'Awaiting Account Approval' && p.status !== 'Awaiting Sales Head Approval');
-      const allProjects = isPMO ? deliveryProjects : liveProjects;
+        : allDelivery;
+
+      const getDeliveryStatus = p => p.deliveryStatus || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) ? p.status : 'Not Started');
+
       const activeProjects = deliveryProjects.length;
-      const ongoingProjects = allProjects.filter(p => p.status === 'In Progress').length;
-      const completedProjects = allProjects.filter(p => p.status === 'Completed').length;
-      const closedProjects = allProjects.filter(p => p.status === 'Closed').length;
+      const ongoingProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'In Progress').length;
+      const completedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Completed').length;
+      const closedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Closed').length;
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const in28 = new Date(today); in28.setDate(in28.getDate() + 28);
-      const dueForCompletion = allProjects.filter(p => { if (!p.due || p.status === 'Completed' || p.status === 'Closed') return false; const d = new Date(p.due); return d >= today && d <= in28; }).length;
+      const dueForCompletion = deliveryProjects.filter(p => {
+        const st = getDeliveryStatus(p);
+        if (!p.due || st === 'Completed' || st === 'Closed') return false;
+        const d = new Date(p.due);
+        return d >= today && d <= in28;
+      }).length;
       const consultants = (window.PDMS_REMOTE && window.PDMS_REMOTE.users || D.users).filter(u => u.role === 'Consultant');
-      const allocated = consultants.filter(c => { const assigned = allProjects.filter(p => p.pm === c.name || p.lead === c.name || (p.consultants || []).includes(c.name)); return assigned.length > 0; }).length;
+      const allocated = consultants.filter(c => {
+        const assigned = deliveryProjects.filter(p => p.pm === c.name || p.lead === c.name || (p.consultants || []).includes(c.name));
+        return assigned.length > 0;
+      }).length;
 
       document.getElementById('content').innerHTML = `
   <div class="htd-hero">
@@ -237,10 +259,10 @@
       </div>
       <div class="card-body" style="padding:12px 20px">
         ${(() => {
-          const max = Math.max(...D.deliveryStatuses.map(s => deliveryProjects.filter(p => p.status === s).length), 1);
-          const sc = { 'Not Started': '#94a3b8', 'In Progress': '#f59e0b', 'On Hold': '#64748b', 'Awaiting Review': '#eab308', 'Internal Audit': '#06b6d4', 'External Audit': '#f59e0b', 'Testing / Quality Assurance': '#8b5cf6', 'Completed': '#10b981', 'Approved': '#4f46e5', 'Rejected': '#ef4444' };
+          const sc = { 'Not Started': '#94a3b8', 'In Progress': '#f59e0b', 'On Hold': '#64748b', 'Awaiting Review': '#eab308', 'Internal Audit': '#06b6d4', 'External Audit': '#f59e0b', 'Testing / Quality Assurance': '#8b5cf6', 'Completed': '#10b981', 'Closed': '#64748b', 'Cancelled': '#ef4444' };
+          const max = Math.max(...D.deliveryStatuses.map(s => deliveryProjects.filter(p => getDeliveryStatus(p) === s).length), 1);
           return D.deliveryStatuses.map(s => {
-            const count = deliveryProjects.filter(p => p.status === s).length;
+            const count = deliveryProjects.filter(p => getDeliveryStatus(p) === s).length;
             const pct = Math.round((count / max) * 100);
             const color = sc[s] || '#94a3b8';
             return `
@@ -673,14 +695,18 @@
       const legend = document.getElementById('htdDonutLegend');
       if (!canvas || !legend) return;
       const lp = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
-      const dp = lp.filter(p => PDMS.stageOf(p) === 'Delivery');
-      const ongoing = dp.filter(p => p.status === 'In Progress').length;
-      const completed = dp.filter(p => p.status === 'Completed').length;
-      const rest = dp.length - ongoing - completed;
-      PDMS.charts.donut(canvas, [ongoing, completed], ['#f59e0b', '#10b981']);
+      const dp = lp.filter(isDeliveryProject);
+      const getDeliveryStatus = p => p.deliveryStatus || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) ? p.status : 'Not Started');
+      const ongoing = dp.filter(p => getDeliveryStatus(p) === 'In Progress').length;
+      const completed = dp.filter(p => getDeliveryStatus(p) === 'Completed').length;
+      const notStarted = dp.filter(p => getDeliveryStatus(p) === 'Not Started').length;
+      const other = Math.max(dp.length - ongoing - completed - notStarted, 0);
+      PDMS.charts.donut(canvas, [ongoing, completed, notStarted, other], ['#f59e0b', '#10b981', '#94a3b8', '#8b5cf6']);
       legend.innerHTML = [
         ['#f59e0b', 'Ongoing', ongoing],
-        ['#10b981', 'Completed', completed]
+        ['#10b981', 'Completed', completed],
+        ['#94a3b8', 'Not Started', notStarted],
+        ...(other > 0 ? [['#8b5cf6', 'Other', other]] : [])
       ].map(([c, l, v]) => `<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px">
         <div style="display:flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:${c};flex-shrink:0"></span><span style="color:var(--text-muted)">${l}</span></div>
         <span style="font-weight:700;color:var(--text)">${v}</span>
