@@ -23,7 +23,7 @@
   const statuses = [...salesStatuses, ...deliveryStatuses.filter(s=>!salesStatuses.includes(s))];
   const statusColors = {
     'Initial Proposal':'primary','Lead':'info','Opportunity':'purple',
-    'Negotiation':'warn','Invoicing':'warn','Award/SLA':'success',
+    'Negotiation':'warn','Invoicing':'warn','Award/SLA':'success','Award/SLA Signed':'warn',
     'Awaiting Sales Head Approval':'warn','Awaiting Account Approval':'purple',
     'Closed':'primary','Cancelled':'danger','On Hold':'muted',
     'Not Started':'muted','In Progress':'warn','Awaiting Review':'warn',

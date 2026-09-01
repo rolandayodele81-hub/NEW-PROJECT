@@ -206,12 +206,13 @@
               return due.length ? due.map(p => {
                 const daysLeft = Math.ceil((new Date(p.due) - today) / 86400000);
                 const urgency = daysLeft <= 3 ? 'badge-danger' : daysLeft <= 7 ? 'badge-warn' : 'badge-muted';
+                const dStat = PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Not Started') : (p.deliveryStatus || p.status);
                 return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer">
                   <td><div style="font-weight:600;color:var(--primary)">${PDMS.esc(p.name)}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(p.id)}</div></td>
                   <td class="text-muted">${PDMS.esc(p.client || '—')}</td>
                   <td class="text-muted">${PDMS.esc(p.type || '—')}</td>
                   <td><span class="badge ${urgency}">${PDMS.esc(p.due)} · ${daysLeft}d left</span></td>
-                  <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
+                  <td><span class="badge badge-${D.statusColors[dStat] || 'muted'}">${PDMS.esc(dStat)}</span></td>
                 </tr>`;
               }).join('') : `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:32px">${PDMS.emptyOrLoading('No projects due in the next 14 days')}</td></tr>`;
             })()}

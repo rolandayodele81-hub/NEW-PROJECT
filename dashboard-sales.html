@@ -132,35 +132,39 @@
       const pendingSalesHeadApproval = isSalesHead
         ? liveProjects.filter(p => p.status === 'Awaiting Sales Head Approval')
         : [];
-      const salesProjects = isSalesUser
+      const userSalesSet = isSalesUser
         ? salesProjectSet.filter(p => projectOwnedByUser(p, currentUser))
         : salesProjectSet;
+      // Sales user sees their own projects; general/Sales Head see active approved pipeline
+      const salesProjects = isSalesUser
+        ? userSalesSet
+        : salesProjectSet.filter(p => p.status !== 'Awaiting Sales Head Approval' && p.status !== 'Cancelled');
       // Delivery table should show deals that Sales created which have moved to Delivery
-      const deliveryProjects = salesProjectSet.filter(p => (PDMS.stageOf ? PDMS.stageOf(p) === 'Delivery' : (D.deliveryStatuses && D.deliveryStatuses.includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status))));
+      const deliveryProjects = salesProjectSet.filter(p => (p.status === 'Closed' || p.stage === 'Delivery' || (PDMS.stageOf && PDMS.stageOf(p) === 'Delivery')) && p.status !== 'Cancelled' && p.status !== 'On Hold');
       const totalInSales = salesProjects.length;
-      const inPipeline = salesProjects.filter(p => !['Award/SLA', 'Awaiting Account Approval', 'Closed'].includes(p.status) && p.stage !== 'Delivery' && !(D.deliveryStatuses && D.deliveryStatuses.includes(p.status))).length;
-      const awardSla = salesProjects.filter(p => ['Award/SLA', 'Awaiting Account Approval'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status) && p.stage !== 'Delivery' && !(D.deliveryStatuses && D.deliveryStatuses.includes(p.status))).length;
-      const closedDeals = salesProjects.filter(p => p.status === 'Closed' || p.stage === 'Delivery' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) && p.status !== 'Awaiting Account Approval' && p.status !== 'Awaiting Sales Head Approval')).length;
+      const inPipeline = salesProjects.filter(p => ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status) && p.status !== 'Awaiting Sales Head Approval' && p.status !== 'Awaiting Account Approval' && p.status !== 'Cancelled' && p.status !== 'On Hold' && p.status !== 'Closed' && p.stage !== 'Delivery').length;
+      const pendingApprovalCount = salesProjects.filter(p => p.status === 'Awaiting Sales Head Approval').length;
+      const awardSla = salesProjects.filter(p => p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval').length;
+      const closedDeals = salesProjects.filter(p => (p.status === 'Closed' || ((p.stage === 'Delivery' || (PDMS.stageOf && PDMS.stageOf(p) === 'Delivery')) && p.status !== 'Cancelled' && p.status !== 'On Hold' && p.status !== 'Awaiting Account Approval' && p.status !== 'Awaiting Sales Head Approval'))).length;
 
       // Pipeline conversion funnel: how many projects are sitting at each stage right now.
       const funnelStages = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'];
       const funnelCounts = funnelStages.map(s => {
         if (s === 'Closed') {
-          return salesProjects.filter(p => p.status === 'Closed' || p.stage === 'Delivery' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) && p.status !== 'Awaiting Account Approval' && p.status !== 'Awaiting Sales Head Approval')).length;
+          return closedDeals;
         }
         if (s === 'Award/SLA') {
-          return salesProjects.filter(p => (p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') && p.stage !== 'Delivery' && !(D.deliveryStatuses && D.deliveryStatuses.includes(p.status))).length;
+          return awardSla;
         }
         return salesProjects.filter(p => {
-          const st = (p.status === 'Awaiting Sales Head Approval') ? (p.requestedStatus || 'Lead') : p.status;
-          const norm = PDMS.normalizeStatus ? PDMS.normalizeStatus(st) : st;
-          return norm === s && p.stage !== 'Delivery' && p.status !== 'Closed' && !(D.deliveryStatuses && D.deliveryStatuses.includes(p.status));
+          const norm = PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status;
+          return norm === s && p.stage !== 'Delivery' && p.status !== 'Closed' && p.status !== 'Cancelled' && p.status !== 'On Hold';
         }).length;
       });
       const funnelMax = Math.max(salesProjects.length, 1);
       const offRampCounts = {
-        Cancelled: salesProjects.filter(p => p.status === 'Cancelled').length,
-        'On Hold': salesProjects.filter(p => p.status === 'On Hold').length
+        Cancelled: userSalesSet.filter(p => p.status === 'Cancelled').length,
+        'On Hold': userSalesSet.filter(p => p.status === 'On Hold').length
       };
 
       document.getElementById('content').innerHTML = `
@@ -184,7 +188,7 @@
       </div>
     </div>
 
-    <div class="grid grid-4 mb-4">
+    <div class="grid ${isSalesUser ? 'grid-5' : 'grid-4'} mb-4">
       <div class="stat i-primary">
         <div class="label">Total in Sales</div>
         <div class="value">${totalInSales}</div>
@@ -197,17 +201,24 @@
         <div class="delta up">Active prospecting</div>
         <div class="icon-wrap">${I('activity')}</div>
       </div>
+      ${isSalesUser ? `
       <div class="stat i-warn">
+        <div class="label">Pending Approval</div>
+        <div class="value">${pendingApprovalCount}</div>
+        <div class="delta up">Sales Head review</div>
+        <div class="icon-wrap">${I('clock')}</div>
+      </div>` : ''}
+      <div class="stat i-${isSalesUser ? 'purple' : 'warn'}">
         <div class="label">Award/SLA</div>
         <div class="value">${awardSla}</div>
-        <div class="delta up">Awards & SLA handoffs</div>
-        <div class="icon-wrap">${I('clock')}</div>
+        <div class="delta up">Awards &amp; SLA handoffs</div>
+        <div class="icon-wrap">${I('check')}</div>
       </div>
       <div class="stat i-success">
         <div class="label">Closed / Won</div>
         <div class="value">${closedDeals}</div>
         <div class="delta up">Handed to delivery</div>
-        <div class="icon-wrap">${I('check')}</div>
+        <div class="icon-wrap">${I('briefcase')}</div>
       </div>
     </div>
 
@@ -289,11 +300,25 @@
             <tbody>
               ${salesProjects.map(p => {
                 const isPendingSH = p.status === 'Awaiting Sales Head Approval';
-                const isDelivery = p.stage === 'Delivery' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) && p.status !== 'Awaiting Account Approval');
-                const displayStatus = isDelivery ? 'Closed' : (p.status === 'Awaiting Account Approval' ? 'Award/SLA' : p.status);
-                const statusDisplay = isPendingSH && isSalesUser
-                  ? '<span class="locked-badge"><span class="sh-pending-dot"></span>Pending Approval</span>'
-                  : `<span class="badge badge-${D.statusColors[displayStatus] || D.statusColors[p.status] || 'muted'}">${PDMS.esc(displayStatus)}</span>`;
+                const isPendingAcct = p.status === 'Awaiting Account Approval';
+                const isAccountsRejected = (p.accountsRejectionNote || p.rejectionNote) && p.status !== 'Cancelled' && !p.salesHeadRejectionNote;
+                const isClosedWon = !isPendingAcct && !isAccountsRejected && (p.status === 'Closed' || (p.stage === 'Delivery' && p.status !== 'Cancelled' && p.status !== 'On Hold') || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)));
+                const displayStatus = isClosedWon ? 'Closed' : p.status;
+                let statusDisplay = '';
+                if (isPendingSH) {
+                  const stageName = p.requestedStatus || p.targetStatus || 'Lead';
+                  statusDisplay = `<span class="badge" style="background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25);font-weight:600">${PDMS.esc(stageName)} (Pending Approval)</span>`;
+                } else if (p.status === 'Cancelled' && p.salesHeadRejectionNote) {
+                  const stageName = p.requestedStatus || p.targetStatus || 'Lead';
+                  statusDisplay = `<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">${PDMS.esc(stageName)} (Rejected)</span>`;
+                } else if (isPendingAcct) {
+                  statusDisplay = `<span class="badge" style="background:rgba(124,58,237,.12);color:#7c3aed;border:1px solid rgba(124,58,237,.25);font-weight:600">Award/SLA (Pending Accounts)</span>`;
+                } else if (isAccountsRejected) {
+                  statusDisplay = `<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">Award/SLA (Returned)</span>`;
+                } else {
+                  statusDisplay = `<span class="badge badge-${D.statusColors[displayStatus] || D.statusColors[p.status] || 'muted'}">${PDMS.esc(displayStatus)}</span>`;
+                }
+                const isDelivery = isClosedWon;
                 const actionBtn = isPendingSH && isSalesUser
                   ? '<span class="text-muted text-sm">Awaiting Sales Head</span>'
                   : `<a href="project-details.html#id=${p.id}&from=sales" class="btn btn-secondary btn-sm">Manage</a>`;
@@ -337,15 +362,17 @@
                 <th>Status</th>
               </tr>
             </thead>
-            <tbody>
-              ${deliveryProjects.map(p => `
+              ${deliveryProjects.map(p => {
+                const delivStatus = PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Not Started') : (p.deliveryStatus || 'Not Started');
+                return `
                 <tr>
                   <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
                   <td class="font-bold">${PDMS.esc(p.client||p.name||'—')}</td>
                   <td>${PDMS.esc(p.type||'—')}</td>
                   <td>${PDMS.esc(p.pm || 'TBD')}</td>
-                  <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
-                </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No projects in delivery yet')}</td></tr>`}
+                  <td><span class="badge badge-${D.statusColors[delivStatus] || 'muted'}">${PDMS.esc(delivStatus)}</span></td>
+                </tr>`;
+              }).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No projects in delivery yet')}</td></tr>`}
             </tbody>
           </table>
         </div>

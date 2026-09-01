@@ -146,6 +146,30 @@
       .then(res => res.json())
       .then(json => {
         if (!json.ok) throw new Error(json.error || 'Request failed');
+        try {
+          const resKey = payload.resource;
+          if (resKey) {
+            const syncList = (list) => {
+              if (!Array.isArray(list)) return;
+              if (action === 'update') {
+                const target = list.find(item => String(item.id) === String(payload.id));
+                if (target) Object.assign(target, payload.patch, json.data);
+              } else if (action === 'create' && json.data) {
+                const exists = list.find(item => String(item.id) === String(json.data.id));
+                if (!exists) list.unshift(json.data);
+              } else if (action === 'remove') {
+                const idx = list.findIndex(item => String(item.id) === String(payload.id));
+                if (idx !== -1) list.splice(idx, 1);
+              }
+            };
+            if (global.PDMS_REMOTE) syncList(global.PDMS_REMOTE[resKey]);
+            if (global.PDMS_DATA) syncList(global.PDMS_DATA[resKey]);
+            if (global.PDMS_REMOTE) {
+              localStorage.setItem(CACHE_KEY, JSON.stringify(global.PDMS_REMOTE));
+              localStorage.setItem('pdms-cache-ts', String(Date.now()));
+            }
+          }
+        } catch (_) {}
         return json.data;
       });
   }

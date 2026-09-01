@@ -36,6 +36,7 @@
       if (hrs < 24) return hrs + 'h ago';
       return Math.round(hrs / 24) + 'd ago';
     }
+    PDMS.timeAgo = PDMS.relativeTime = timeAgo;
     function healthOf(proj) {
       if (proj.status === 'Completed') return { label: 'Completed', cls: 'badge-success' };
       if (proj.status === 'Cancelled') return { label: 'Cancelled', cls: 'badge-danger' };
@@ -47,8 +48,8 @@
       const isPendingSalesHead = proj.status === 'Awaiting Sales Head Approval';
       const pStage = isPendingSalesHead ? 'Sales'
         : (_D && _D.deliveryStatuses && (_D.deliveryStatuses.includes(proj.status) || _D.deliveryStatuses.includes(normalizedStatus))) ? 'Delivery'
-        : (PDMS.isSalesStatus && PDMS.isSalesStatus(proj.status)) ? 'Sales'
-          : (PDMS.stageOf ? PDMS.stageOf(proj) : 'Delivery');
+          : (PDMS.isSalesStatus && PDMS.isSalesStatus(proj.status)) ? 'Sales'
+            : (PDMS.stageOf ? PDMS.stageOf(proj) : 'Delivery');
       const defaultLabel = pStage === 'Sales' ? 'Incoming' : 'In Progress';
 
       const start = new Date(proj.start), due = new Date(proj.due), today = new Date();
@@ -84,7 +85,21 @@
       const status = PDMS.normalizeStatus ? PDMS.normalizeStatus(statusToMatch) : statusToMatch;
 
       if (status === 'Cancelled') {
-        return mainSequence.map((label, i) => i === mainSequence.length - 1 ? { label: 'Cancelled', state: 'active' } : { label, state: 'done' });
+        const lastKnown = proj.previousStatus || proj.requestedStatus || proj.targetStatus || 'Lead';
+        const normLast = PDMS.normalizeStatus ? PDMS.normalizeStatus(lastKnown) : lastKnown;
+        const targetIndex = mainSequence.indexOf(normLast);
+        const effectiveIndex = targetIndex === -1 ? 0 : targetIndex;
+        return mainSequence.map((label, i) => {
+          const isTarget = i === effectiveIndex;
+          const isDone = i < effectiveIndex;
+          const state = isDone ? 'done' : isTarget ? 'cancelled' : '';
+          return {
+            label,
+            state,
+            isCancelled: isTarget,
+            meta: isDone ? 'Completed' : isTarget ? 'Cancelled' : 'Upcoming'
+          };
+        });
       }
 
       if (status === 'On Hold') {
@@ -143,40 +158,76 @@
       <h1 class="page-title">Loading Project...</h1><div class="page-sub">Fetching your project data</div></div></div>
     <div class="card"><div class="card-body pdms-loading-inline"><span class="pdms-spinner"></span>Loading...</div></div>
   `;
-      } else if (p.status === 'Award/SLA' && p.rejectionNote && (['sales', 'accounts'].includes(new URLSearchParams(location.hash.replace(/^#/, '')).get('from')))) {
-        // Anyone opened this from Sales Pipeline or Awaiting Projects (Accounts) and it's rejected — show read-only locked view
+      } else if ((p.accountsRejectionNote || p.rejectionNote) && p.status !== 'Cancelled' && !p.salesHeadRejectionNote) {
+        // Accounts rejected this — show locked rejection page for EVERYONE including lead owner
+        // Lead owner gets inline Update Details & Resend to Accounts + Documents
         const fromVal = new URLSearchParams(location.hash.replace(/^#/, '')).get('from');
-        const breadcrumbText = fromVal === 'accounts' ? 'Awaiting Projects' : 'Sales Pipeline';
+        const breadcrumbText = fromVal === 'accounts' ? 'Awaiting Projects' : fromVal === 'sales' ? 'Sales Pipeline' : 'Projects';
         const reviews = projectIssues(p);
         const canUpdate = PDMS.can('Add Remarks');
+        const user = PDMS.getUser();
+        const isLeadOwner = user && PDMS.isSalesRole(user) && PDMS.projectOwnedByUser(p, user);
         const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
+        const rejNote = p.accountsRejectionNote || p.rejectionNote;
+        const docs = Array.isArray(p.documents) ? p.documents : [];
         document.getElementById('content').innerHTML = `
   <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>${breadcrumbText}</span><span>${PDMS.esc(p.client || p.name)}</span></div>
-  <div style="max-width:580px;margin:60px auto 40px;text-align:center">
-    <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,#ef4444,#b91c1c);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 12px 32px rgba(239,68,68,.35)">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </div>
-    <h2 style="font-size:22px;font-weight:800;margin:0 0 10px;color:var(--text)">Returned — Rejected</h2>
-    <p style="color:var(--text-soft);font-size:14px;line-height:1.7;margin:0 0 28px">This project was rejected during financial review and has been returned to the Sales team for review and adjustments.</p>
-    
-    <div style="background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.25);border-radius:16px;padding:20px;text-align:left;margin-bottom:28px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#ef4444;margin-bottom:6px">Reason for Rejection</div>
-      <div style="font-size:14px;line-height:1.6;color:var(--text);font-weight:500">${PDMS.esc(p.rejectionNote)}</div>
+  <div style="max-width:960px;margin:30px auto 40px">
+    <div style="background:rgba(239,68,68,0.07);border:1.5px solid rgba(239,68,68,0.25);border-radius:20px;padding:24px 28px;margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+        <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#ef4444,#b91c1c);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 8px 24px rgba(239,68,68,.3)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:2px">Returned by Accounts</div>
+          <div style="font-size:13px;color:var(--text-soft)">This Award/SLA was reviewed and returned for revision</div>
+        </div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:16px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#ef4444;margin-bottom:5px">Accounts Feedback / Reason</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--text);font-weight:500">${PDMS.esc(rejNote)}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px">
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Client</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(p.client || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Deal Owner</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(dealOwner)}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Status / Stage</div><div><span class="badge badge-danger">Returned / Rejected</span></div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.type || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Workstream / Dept</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.workstream || p.dept || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—'}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Award Value (excl. VAT)</div><div style="font-weight:800;color:var(--primary);font-size:15px">${Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice) : '—'}</div></div>
+        <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px;margin-top:2px">
+          <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Project Description</div>
+          <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(p.description || 'No description provided.')}</div>
+        </div>
+      </div>
+      ${isLeadOwner ? `
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap">
+        <button onclick="resendToAccountsInline()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(99,102,241,.25)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          Update Details &amp; Resend to Accounts
+        </button>
+        <a href="projects.html#view=sales" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none">← Back to Pipeline</a>
+      </div>` : ''}
     </div>
 
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:left;margin-bottom:28px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Client</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.client || '—')}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Deal Owner</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(dealOwner)}</div></div>
+    ${isLeadOwner ? `
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-head"><div><div class="card-title">Documents</div><div class="card-sub">${docs.length} file${docs.length !== 1 ? 's' : ''} attached</div></div><button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button></div>
+      <div style="padding:16px 20px">
+        ${docs.length ? docs.map(d => `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${I('file')}</div>
+          <div style="flex:1;min-width:0">
+            <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
+            <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}</div>
+          </div>
+          ${d.url ? `<a href="${PDMS.esc(d.url)}" target="_blank" style="font-size:12px;font-weight:600;color:var(--primary);text-decoration:none">View</a>` : ''}
+        </div>`).join('') : `<div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>`}
       </div>
-    </div>
-  </div>
+    </div>` : ''}
 
-  <div style="max-width:800px;margin:0 auto">
-    <div class="card" style="display:flex;flex-direction:column">
-      <div class="card-head">
-        <div><div class="card-title">Issues &amp; Remarks</div><div class="card-sub">Visible only on this project</div></div>
-      </div>
+    <div class="card">
+      <div class="card-head"><div><div class="card-title">Issues &amp; Remarks</div><div class="card-sub">Visible only on this project</div></div></div>
       <div style="padding:16px 20px;display:flex;flex-direction:column;gap:20px">
         ${canUpdate ? `
         <div style="border:1px solid var(--border);border-radius:16px;background:var(--surface-2);display:flex;flex-direction:column;min-height:120px">
@@ -193,63 +244,203 @@
           <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">${reviews.length} comment${reviews.length !== 1 ? 's' : ''}</div>
           <div style="display:flex;flex-direction:column;gap:12px">
             ${reviews.length ? reviews.map(r => {
-          const isLate = r.type === 'late-delivery' || r.tag === 'Late Delivery' || /^\[Late Delivery\]/.test(r.message || '');
-          const reasonMatch = (r.message || '').match(/Reason:\s*(.+)$/s);
-          const displayMsg = isLate && reasonMatch ? reasonMatch[1].trim() : (r.message || '');
-          return `
-              <div style="display:flex;gap:12px;align-items:flex-start">
-                <div class="avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0">${PDMS.initials(r.author || '?')}</div>
-                <div style="flex:1;background:var(--surface-2);border-radius:10px;padding:12px 16px">
-                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
-                    <span style="font-size:13px;font-weight:700;color:var(--primary)">${PDMS.esc(r.author || 'Unknown')}</span>
-                    ${isLate ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:6px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">Late Delivery</span>` : ''}
-                    <span style="font-size:11px;color:var(--text-soft)">${timeAgo(r.time)}</span>
+          const isRejection = /^\[Rejection Reason\]/.test(r.message || '');
+          const displayMsg = (r.message || '').replace(/^\[(Rejection Reason|Resubmission Note)\]\s*/, '');
+          return `<div class="activity" style="${isRejection ? 'border-left:3px solid var(--danger);background:rgba(239,68,68,.04);padding:10px 14px;border-radius:0 10px 10px 0' : ''}">
+                <div class="avatar" style="width:32px;height:32px;font-size:12px;${isRejection ? 'background:var(--danger)' : ''}">${PDMS.initials(r.author || '?')}</div>
+                <div style="flex:1">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+                    <span class="font-semi" style="font-size:13px">${PDMS.esc(r.author || 'User')}</span>
+                    ${r.authorRole ? `<span class="badge badge-muted" style="font-size:10px">${PDMS.esc(r.authorRole)}</span>` : ''}
+                    ${isRejection ? `<span class="badge badge-danger" style="font-size:10px">Accounts Feedback</span>` : ''}
+                    <span class="text-muted" style="font-size:11px;margin-left:auto">${r.time ? timeAgo(r.time) : ''}</span>
                   </div>
-                  <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(displayMsg)}</div>
+                  <div class="text-sm" style="color:var(--text);line-height:1.5">${PDMS.esc(displayMsg)}</div>
                 </div>
               </div>`;
-        }).join('') : `<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No comments yet — be the first to post.')}</div>`}
+        }).join('') : '<div style="color:var(--text-soft);font-size:13px;text-align:center;padding:24px 0">No remarks yet.</div>'}
           </div>
         </div>
       </div>
     </div>
   </div>`;
+
+      } else if ((p.status === 'Cancelled' || p.salesHeadRejectionNote) && !p.accountsRejectionNote) {
+        // Sales Head rejected this — show locked rejection page for EVERYONE including lead owner
+        // Lead owner gets inline Edit & Resend Request + Documents
+        const fromVal = new URLSearchParams(location.hash.replace(/^#/, '')).get('from');
+        const breadcrumbText = fromVal === 'sales' ? 'Sales Pipeline' : 'Projects';
+        const reviews = projectIssues(p);
+        const canUpdate = PDMS.can('Add Remarks');
+        const user = PDMS.getUser();
+        const isLeadOwner = user && PDMS.isSalesRole(user) && PDMS.projectOwnedByUser(p, user);
+        const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
+        const targetStage = p.requestedStatus || p.targetStatus || 'Lead';
+        const rejNote = p.salesHeadRejectionNote || p.rejectionNote || 'No rejection note provided.';
+        const docs = Array.isArray(p.documents) ? p.documents : [];
+        document.getElementById('content').innerHTML = `
+  <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>${breadcrumbText}</span><span>${PDMS.esc(p.client || p.name)}</span></div>
+  <div style="max-width:960px;margin:30px auto 40px">
+    <div style="background:rgba(239,68,68,0.07);border:1.5px solid rgba(239,68,68,0.25);border-radius:20px;padding:24px 28px;margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+        <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#ef4444,#b91c1c);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 8px 24px rgba(239,68,68,.3)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:2px">Rejected by Sales Head</div>
+          <div style="font-size:13px;color:var(--text-soft)">This status change request was reviewed and returned for revision</div>
+        </div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:16px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#ef4444;margin-bottom:5px">Sales Head Feedback / Reason</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--text);font-weight:500">${PDMS.esc(rejNote)}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px">
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Client</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(p.client || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Deal Owner</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(dealOwner)}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Requested Stage</div><div><span class="badge badge-danger">${PDMS.esc(targetStage)} (Rejected)</span></div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.type || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Workstream / Dept</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.workstream || p.dept || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—'}</div></div>
+        <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px;margin-top:2px">
+          <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Project Description</div>
+          <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(p.description || 'No description provided.')}</div>
+        </div>
+      </div>
+      ${isLeadOwner ? `
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap">
+        <button onclick="resendRequestModal()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#f59e0b;border:1px solid #d97706;color:#fff;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(245,158,11,.25)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          Edit &amp; Resend Request
+        </button>
+        <a href="projects.html#view=sales" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none">← Back to Pipeline</a>
+      </div>` : ''}
+    </div>
+
+    ${isLeadOwner ? `
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-head"><div><div class="card-title">Documents</div><div class="card-sub">${docs.length} file${docs.length !== 1 ? 's' : ''} attached</div></div><button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button></div>
+      <div style="padding:16px 20px">
+        ${docs.length ? docs.map(d => `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${I('file')}</div>
+          <div style="flex:1;min-width:0">
+            <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
+            <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}</div>
+          </div>
+          ${d.url ? `<a href="${PDMS.esc(d.url)}" target="_blank" style="font-size:12px;font-weight:600;color:var(--primary);text-decoration:none">View</a>` : ''}
+        </div>`).join('') : `<div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>`}
+      </div>
+    </div>` : ''}
+
+    <div class="card">
+      <div class="card-head"><div><div class="card-title">Issues &amp; Remarks</div><div class="card-sub">Visible only on this project</div></div></div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:20px">
+        ${canUpdate ? `
+        <div style="border:1px solid var(--border);border-radius:16px;background:var(--surface-2);display:flex;flex-direction:column;min-height:120px">
+          <div style="flex:1"></div>
+          <div style="display:flex;gap:10px;align-items:center;padding:10px 14px">
+            <div class="avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0">${PDMS.initials((PDMS.getUser() || {}).name || '?')}</div>
+            <textarea id="inlineIssue" rows="2" placeholder="Type an issue or remark…" style="flex:1;border:none;background:transparent;color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:none;line-height:1.5;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitInlineIssue();}"></textarea>
+            <button onclick="submitInlineIssue()" title="Send" style="background:var(--primary);color:#fff;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>` : ''}
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">${reviews.length} comment${reviews.length !== 1 ? 's' : ''}</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            ${reviews.length ? reviews.map(r => {
+          const isRejection = /^\[Rejection Reason\]/.test(r.message || '');
+          const displayMsg = (r.message || '').replace(/^\[(Rejection Reason|Resubmission Note)\]\s*/, '');
+          return `<div class="activity" style="${isRejection ? 'border-left:3px solid var(--danger);background:rgba(239,68,68,.04);padding:10px 14px;border-radius:0 10px 10px 0' : ''}">
+                <div class="avatar" style="width:32px;height:32px;font-size:12px;${isRejection ? 'background:var(--danger)' : ''}">${PDMS.initials(r.author || '?')}</div>
+                <div style="flex:1">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+                    <span class="font-semi" style="font-size:13px">${PDMS.esc(r.author || 'User')}</span>
+                    ${r.authorRole ? `<span class="badge badge-muted" style="font-size:10px">${PDMS.esc(r.authorRole)}</span>` : ''}
+                    ${isRejection ? `<span class="badge badge-danger" style="font-size:10px">Sales Head Feedback</span>` : ''}
+                    <span class="text-muted" style="font-size:11px;margin-left:auto">${r.time ? timeAgo(r.time) : ''}</span>
+                  </div>
+                  <div class="text-sm" style="color:var(--text);line-height:1.5">${PDMS.esc(displayMsg)}</div>
+                </div>
+              </div>`;
+        }).join('') : '<div style="color:var(--text-soft);font-size:13px;text-align:center;padding:24px 0">No remarks yet.</div>'}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
       } else if (PDMS.isPendingSalesHeadApproval(p) && !(PDMS.getUser() && ['Sales Head', 'COO', 'General Admin', 'System Administrator'].includes(PDMS.getUser().role))) {
         // Locked state — non-approvers see pending screen when project is awaiting sales head approval
         const fromVal = new URLSearchParams(location.hash.replace(/^#/, '')).get('from');
         const breadcrumbText = fromVal === 'sales' ? 'Sales Pipeline' : 'Projects';
         const reviews = projectIssues(p);
         const canUpdate = PDMS.can('Add Remarks');
+        const user = PDMS.getUser();
+        const isLeadOwner = user && PDMS.isSalesRole(user) && PDMS.projectOwnedByUser(p, user);
         const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
         const targetStage = p.requestedStatus || p.targetStatus || 'Lead';
+        const hasPriceUpdate = p.requestedNegotiatedPrice !== undefined && p.requestedNegotiatedPrice !== null && p.requestedNegotiatedPrice !== '';
+        const docs = Array.isArray(p.documents) ? p.documents : [];
         document.getElementById('content').innerHTML = `
   <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>${breadcrumbText}</span><span>${PDMS.esc(p.client || p.name)}</span></div>
-  <div style="max-width:580px;margin:60px auto 40px;text-align:center">
-    <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 12px 32px rgba(245,158,11,.35)">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-    </div>
-    <h2 style="font-size:22px;font-weight:800;margin:0 0 10px;color:var(--text)">Pending Sales Head Approval</h2>
-    <p style="color:var(--text-soft);font-size:14px;line-height:1.7;margin:0 0 28px">This project was submitted by the sales personnel and is currently under review by the Sales Head before entering the active pipeline.</p>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:left;margin-bottom:24px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Client</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.client || '—')}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Deal Owner</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(dealOwner)}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Requested Stage</div><div style="font-weight:700;color:var(--text)"><span class="badge badge-${D.statusColors[targetStage]||'info'}">${PDMS.esc(targetStage)}</span></div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Type</div><div style="color:var(--text)">${PDMS.esc(p.type || '—')}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Opportunity Value</div><div style="font-weight:700;color:var(--text)">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—'}</div></div>
+  <div style="max-width:960px;margin:30px auto 40px">
+    <div style="background:rgba(245,158,11,0.07);border:1.5px solid rgba(245,158,11,0.3);border-radius:20px;padding:24px 28px;margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+        <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 8px 24px rgba(245,158,11,.3)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:2px">Pending Sales Head Approval</div>
+          <div style="font-size:13px;color:var(--text-soft)">Awaiting review &amp; sign-off from Sales Head</div>
+        </div>
       </div>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:12px;color:#d97706;font-size:13px;font-weight:600;margin-bottom:24px">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      Awaiting review &amp; approval by the Sales Head
-    </div>
-  </div>
-  
-  <div style="max-width:800px;margin:0 auto">
-    <div class="card" style="display:flex;flex-direction:column">
-      <div class="card-head">
-        <div><div class="card-title">Issues &amp; Remarks</div><div class="card-sub">Visible only on this project</div></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px">
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Client</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(p.client || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Deal Owner</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(dealOwner)}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Requested Stage</div><div><span class="badge badge-${D.statusColors[targetStage] || 'info'}">${PDMS.esc(targetStage)}</span></div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.type || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Workstream / Dept</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.workstream || p.dept || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—'}</div></div>
+        <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px;margin-top:2px">
+          <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Project Description</div>
+          <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(p.description || 'No description provided.')}</div>
+        </div>
       </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:10px;color:#d97706;font-size:13px;font-weight:600;margin-bottom:${isLeadOwner ? '16px' : '0'}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Awaiting review &amp; approval by the Sales Head
+      </div>
+      ${isLeadOwner ? `
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button onclick="resendRequestModal()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#f59e0b;border:1px solid #d97706;color:#fff;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(245,158,11,.25)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          Edit &amp; Resend Request
+        </button>
+        <a href="projects.html#view=sales" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none">← Back to Pipeline</a>
+      </div>` : ''}
+    </div>
+
+    ${isLeadOwner ? `
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-head"><div><div class="card-title">Documents</div><div class="card-sub">${docs.length} file${docs.length !== 1 ? 's' : ''} attached</div></div><button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button></div>
+      <div style="padding:16px 20px">
+        ${docs.length ? docs.map(d => `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${I('file')}</div>
+          <div style="flex:1;min-width:0">
+            <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
+            <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}</div>
+          </div>
+          ${d.url ? `<a href="${PDMS.esc(d.url)}" target="_blank" style="font-size:12px;font-weight:600;color:var(--primary);text-decoration:none">View</a>` : ''}
+        </div>`).join('') : `<div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>`}
+      </div>
+    </div>` : ''}
+
+    <div class="card">
+      <div class="card-head"><div><div class="card-title">Issues &amp; Remarks</div><div class="card-sub">Visible only on this project</div></div></div>
       <div style="padding:16px 20px;display:flex;flex-direction:column;gap:20px">
         ${canUpdate ? `
         <div style="border:1px solid var(--border);border-radius:16px;background:var(--surface-2);display:flex;flex-direction:column;min-height:120px">
@@ -275,7 +466,6 @@
                 <div style="flex:1;background:var(--surface-2);border-radius:10px;padding:12px 16px">
                   <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
                     <span style="font-size:13px;font-weight:700;color:var(--primary)">${PDMS.esc(r.author || 'Unknown')}</span>
-                    ${isLate ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:6px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">Late Delivery</span>` : ''}
                     <span style="font-size:11px;color:var(--text-soft)">${timeAgo(r.time)}</span>
                   </div>
                   <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(displayMsg)}</div>
@@ -287,41 +477,73 @@
       </div>
     </div>
   </div>`;
+
       } else if (PDMS.isPendingAccountApproval(p) && (new URLSearchParams(location.hash.replace(/^#/, '')).get('from') === 'sales' || !(PDMS.getUser() && ['Accounts', 'General Admin'].includes(PDMS.getUser().role)))) {
         // Locked state — all users see pending screen when coming from Sales Pipeline; non-Accounts see it everywhere
-        const fromVal = new URLSearchParams(location.hash.replace(/^#/, '')).get('from');
-        const breadcrumbText = fromVal === 'sales' ? 'Sales Pipeline' : 'Projects';
+        const u = PDMS.getUser();
+        const isLeadOwner = u && PDMS.isSalesRole(u) && PDMS.projectOwnedByUser(p, u);
         const reviews = projectIssues(p);
         const canUpdate = PDMS.can('Add Remarks');
+        const docs = Array.isArray(p.documents) ? p.documents : [];
         const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
         document.getElementById('content').innerHTML = `
-  <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>${breadcrumbText}</span><span>${PDMS.esc(p.client || p.name)}</span></div>
-  <div style="max-width:580px;margin:60px auto 40px;text-align:center">
-    <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 12px 32px rgba(124,58,237,.35)">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-    </div>
-    <h2 style="font-size:22px;font-weight:800;margin:0 0 10px;color:var(--text)">Pending Account Approval</h2>
-    <p style="color:var(--text-soft);font-size:14px;line-height:1.7;margin:0 0 28px">This project has reached Award/SLA and is currently awaiting approval from the Accounts team before delivery operations begin.</p>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:left;margin-bottom:24px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Client</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.client || '—')}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Deal Owner</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(dealOwner)}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Type</div><div style="color:var(--text)">${PDMS.esc(p.type || '—')}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Opportunity Value</div><div style="font-weight:700;color:var(--text)">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—'}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Award Value (excl. VAT)</div><div style="font-weight:700;color:var(--text)">${Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice) : '—'}</div></div>
+  <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>Projects</span><span>${PDMS.esc(p.client || p.name)}</span></div>
+  <div style="max-width:960px;margin:30px auto 40px">
+    <div style="background:rgba(124,58,237,0.07);border:1.5px solid rgba(124,58,237,0.25);border-radius:20px;padding:24px 28px;margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+        <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 8px 24px rgba(124,58,237,.3)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:2px">Pending Account Approval</div>
+          <div style="font-size:13px;color:var(--text-soft)">Awaiting financial review &amp; sign-off from Accounts</div>
+        </div>
       </div>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:12px;color:#7c3aed;font-size:13px;font-weight:600;margin-bottom:24px">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      Awaiting review &amp; approval by the Accounts team
-    </div>
-  </div>
-  
-  <div style="max-width:800px;margin:0 auto">
-    <div class="card" style="display:flex;flex-direction:column">
-      <div class="card-head">
-        <div><div class="card-title">Issues &amp; Remarks</div><div class="card-sub">Visible only on this project</div></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px">
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Client</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(p.client || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Deal Owner</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(dealOwner)}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Status / Stage</div><div><span class="badge badge-success">Award/SLA</span></div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.type || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Workstream / Dept</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.workstream || p.dept || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—'}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Award Value (excl. VAT)</div><div style="font-weight:800;color:var(--primary);font-size:15px">${Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice) : '—'}</div></div>
+        <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px;margin-top:2px">
+          <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Project Description</div>
+          <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(p.description || 'No description provided.')}</div>
+        </div>
       </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:10px;color:#7c3aed;font-size:13px;font-weight:600;margin-bottom:${isLeadOwner ? '16px' : '0'}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Awaiting review &amp; approval by the Accounts team
+      </div>
+      ${isLeadOwner ? `
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button onclick="resendToAccountsInline()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(99,102,241,.25)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Update Details
+        </button>
+        <a href="projects.html#view=sales" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none">← Back to Pipeline</a>
+      </div>` : ''}
+    </div>
+
+    ${isLeadOwner ? `
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-head"><div><div class="card-title">Documents</div><div class="card-sub">${docs.length} file${docs.length !== 1 ? 's' : ''} attached</div></div><button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button></div>
+      <div style="padding:16px 20px">
+        ${docs.length ? docs.map(d => `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${I('file')}</div>
+          <div style="flex:1;min-width:0">
+            <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
+            <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}</div>
+          </div>
+          ${d.url ? `<a href="${PDMS.esc(d.url)}" target="_blank" style="font-size:12px;font-weight:600;color:var(--primary);text-decoration:none">View</a>` : ''}
+        </div>`).join('') : `<div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>`}
+      </div>
+    </div>` : ''}
+
+    <div class="card">
+      <div class="card-head"><div><div class="card-title">Issues &amp; Remarks</div><div class="card-sub">Visible only on this project</div></div></div>
       <div style="padding:16px 20px;display:flex;flex-direction:column;gap:20px">
         ${canUpdate ? `
         <div style="border:1px solid var(--border);border-radius:16px;background:var(--surface-2);display:flex;flex-direction:column;min-height:120px">
@@ -359,7 +581,7 @@
       </div>
     </div>
   </div>`;
-      } else if ((PDMS.isDeliveryStatus(p.status) || p.status === 'Closed' || p.stage === 'Delivery') && (['sales', 'accounts'].includes(new URLSearchParams(location.hash.replace(/^#/, '')).get('from')))) {
+      } else if (p.status !== 'Cancelled' && p.status !== 'Awaiting Account Approval' && p.status !== 'Awaiting Sales Head Approval' && (p.status === 'Closed' || p.stage === 'Delivery' || (PDMS.stageOf(p) === 'Delivery')) && (['sales', 'accounts'].includes(new URLSearchParams(location.hash.replace(/^#/, '')).get('from')))) {
         // Anyone opened this from Sales Pipeline or Awaiting Projects (Accounts) — show read-only locked view (can still chat and click to view from delivery)
         const fromVal = new URLSearchParams(location.hash.replace(/^#/, '')).get('from');
         const breadcrumbText = fromVal === 'accounts' ? 'Awaiting Projects' : 'Sales Pipeline';
@@ -379,7 +601,7 @@
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Client</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.client || '—')}</div></div>
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Deal Owner</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(dealOwner)}</div></div>
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Type</div><div style="color:var(--text)">${PDMS.esc(p.type || '—')}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Delivery Status</div><div style="color:var(--text)"><span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status || '—')}</span></div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Delivery Status</div><div style="color:var(--text)"><span class="badge badge-${D.statusColors[PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Not Started') : (p.deliveryStatus || 'Not Started')] || 'muted'}">${PDMS.esc(PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Not Started') : (p.deliveryStatus || 'Not Started'))}</span></div></div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
@@ -415,90 +637,24 @@
           <div style="display:flex;flex-direction:column;gap:12px">
             ${reviews.length ? reviews.map(r => {
           const isLate = r.type === 'late-delivery' || r.tag === 'Late Delivery' || /^\[Late Delivery\]/.test(r.message || '');
+          const isRejection = /^\[Rejection Reason\]/.test(r.message || '');
           const reasonMatch = (r.message || '').match(/Reason:\s*(.+)$/s);
-          const displayMsg = isLate && reasonMatch ? reasonMatch[1].trim() : (r.message || '');
+          const displayMsg = isLate && reasonMatch ? reasonMatch[1].trim() : (r.message || '').replace(/^\[(Late Delivery|Rejection Reason)\]\s*/, '');
           return `
-              <div style="display:flex;gap:12px;align-items:flex-start">
-                <div class="avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0">${PDMS.initials(r.author || '?')}</div>
-                <div style="flex:1;background:var(--surface-2);border-radius:10px;padding:12px 16px">
-                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
-                    <span style="font-size:13px;font-weight:700;color:var(--primary)">${PDMS.esc(r.author || 'Unknown')}</span>
-                    ${isLate ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:6px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">Late Delivery</span>` : ''}
-                    <span style="font-size:11px;color:var(--text-soft)">${timeAgo(r.time)}</span>
+              <div class="activity" style="${isRejection ? 'border-left:3px solid var(--danger);background:rgba(239,68,68,.04);padding:10px 14px;border-radius:0 10px 10px 0' : ''}">
+                <div class="avatar" style="width:32px;height:32px;font-size:12px;${isRejection ? 'background:var(--danger)' : ''}">${PDMS.initials(r.author || '?')}</div>
+                <div style="flex:1">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+                    <span class="font-semi" style="font-size:13px">${PDMS.esc(r.author || 'User')}</span>
+                    ${r.authorRole ? `<span class="badge badge-muted" style="font-size:10px">${PDMS.esc(r.authorRole)}</span>` : ''}
+                    ${isRejection ? `<span class="badge badge-danger" style="font-size:10px">Rejection Reason</span>` : ''}
+                    ${isLate ? `<span class="badge badge-danger" style="font-size:10px">Late Delivery</span>` : ''}
+                    <span class="text-muted" style="font-size:11px;margin-left:auto">${r.time ? timeAgo(r.time) : ''}</span>
                   </div>
-                  <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(displayMsg)}</div>
+                  <div class="text-sm" style="color:var(--text);line-height:1.5">${PDMS.esc(displayMsg)}</div>
                 </div>
               </div>`;
-        }).join('') : `<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No comments yet — be the first to post.')}</div>`}
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>`;
-      } else if (PDMS.isPendingAccountApproval(p) && (new URLSearchParams(location.hash.replace(/^#/, '')).get('from') === 'sales' || !(PDMS.getUser() && ['Accounts', 'General Admin'].includes(PDMS.getUser().role)))) {
-        // Locked state — all users see pending screen when coming from Sales Pipeline; non-Accounts see it everywhere
-        const u = PDMS.getUser();
-        const reviews = projectIssues(p);
-        const canUpdate = PDMS.can('Add Remarks');
-        document.getElementById('content').innerHTML = `
-  <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>Projects</span><span>${PDMS.esc(p.client || p.name)}</span></div>
-  <div style="max-width:580px;margin:60px auto 40px;text-align:center">
-    <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 12px 32px rgba(124,58,237,.35)">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-    </div>
-    <h2 style="font-size:22px;font-weight:800;margin:0 0 10px;color:var(--text)">Pending Account Approval</h2>
-    <p style="color:var(--text-soft);font-size:14px;line-height:1.7;margin:0 0 28px">This project has been signed and is currently under financial review by the Accounts team. It will be available for delivery operations once approved.</p>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:left;margin-bottom:28px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Client</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.client || '—')}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Project</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.name)}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Type</div><div style="color:var(--text)">${PDMS.esc(p.type || '—')}</div></div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:12px;color:#7c3aed;font-size:13px;font-weight:600;margin-bottom:24px">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      Awaiting review by the Accounts team
-    </div>
-  </div>
-  
-  <div style="max-width:800px;margin:0 auto">
-    <div class="card" style="display:flex;flex-direction:column">
-      <div class="card-head">
-        <div><div class="card-title">Issues & Remarks</div><div class="card-sub">Visible only on this project</div></div>
-      </div>
-      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:20px">
-        ${canUpdate ? `
-        <div style="border:1px solid var(--border);border-radius:16px;background:var(--surface-2);display:flex;flex-direction:column;min-height:120px">
-          <div style="flex:1"></div>
-          <div style="display:flex;gap:10px;align-items:center;padding:10px 14px">
-            <div class="avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0">${PDMS.initials((PDMS.getUser() || {}).name || '?')}</div>
-            <textarea id="inlineIssue" rows="2" placeholder="Type an issue or remark…" style="flex:1;border:none;background:transparent;color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:none;line-height:1.5;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitInlineIssue();}"></textarea>
-            <button onclick="submitInlineIssue()" title="Send" style="background:var(--primary);color:#fff;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            </button>
-          </div>
-        </div>` : ''}
-
-        <div>
-          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">${reviews.length} comment${reviews.length !== 1 ? 's' : ''}</div>
-          <div style="display:flex;flex-direction:column;gap:12px">
-            ${reviews.length ? reviews.map(r => {
-          const isLate = r.type === 'late-delivery' || r.tag === 'Late Delivery' || /^\[Late Delivery\]/.test(r.message || '');
-          const reasonMatch = (r.message || '').match(/Reason:\s*(.+)$/s);
-          const displayMsg = isLate && reasonMatch ? reasonMatch[1].trim() : (r.message || '');
-          return `
-              <div style="display:flex;gap:12px;align-items:flex-start">
-                <div class="avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0">${PDMS.initials(r.author || '?')}</div>
-                <div style="flex:1;background:var(--surface-2);border-radius:10px;padding:12px 16px">
-                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
-                    <span style="font-size:13px;font-weight:700;color:var(--primary)">${PDMS.esc(r.author || 'Unknown')}</span>
-                    ${isLate ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:6px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">Late Delivery</span>` : ''}
-                    <span style="font-size:11px;color:var(--text-soft)">${timeAgo(r.time)}</span>
-                  </div>
-                  <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(displayMsg)}</div>
-                </div>
-              </div>`;
-        }).join('') : `<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No comments yet — be the first to post.')}</div>`}
+        }).join('') : '<div style="color:var(--text-soft);font-size:13px;text-align:center;padding:24px 0">No remarks or issues yet.</div>'}
           </div>
         </div>
       </div>
@@ -534,26 +690,18 @@
           (p.lead || '').toLowerCase() === myName ||
           (Array.isArray(p.consultants) && p.consultants.map(n => n.toLowerCase()).includes(myName))
         );
-        // Determine effective stage from current status (more reliable than stored stage field,
-        // since projects moved from sales still carry stage='Sales' in the sheet).
-        const _D = window.PDMS_DATA;
-        const normalizedStatus = PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status;
-        const isPendingSalesHead = p.status === 'Awaiting Sales Head Approval';
-        const pStage = isPendingSalesHead ? 'Sales'
-          : (_D && _D.deliveryStatuses && (_D.deliveryStatuses.includes(p.status) || _D.deliveryStatuses.includes(normalizedStatus))) ? 'Delivery'
-          : PDMS.isSalesStatus(p.status) ? 'Sales'
-            : PDMS.stageOf(p);
+        const pStage = PDMS.stageOf(p);
         const isDeliveryStage = pStage === 'Delivery';
         const isSalesStage = pStage === 'Sales';
         const canAssign = PDMS.can('Assign Consultant') && isDeliveryStage && (!isPMO || isAssignedPMO);
         const canManageStatus = user && (
-          (PDMS.isSalesRole(user) && isSalesStage && p.status !== 'Awaiting Sales Head Approval') ||
+          (PDMS.isSalesRole(user) && isSalesStage && p.status !== 'Awaiting Sales Head Approval' && PDMS.projectOwnedByUser(p, user)) ||
           (['HTD', 'COO', 'PM Head'].includes(user.role) && isDeliveryStage) ||
           (isPMO && isDeliveryStage && isAssignedPMO)
         );
         const canStartDelivery = PDMS.can('Start Delivery') && isSalesStage && p.status === 'Approved';
         const canEditDetails = user && (
-          (PDMS.isSalesRole(user) && isSalesStage && p.status !== 'Awaiting Sales Head Approval') ||
+          (PDMS.isSalesRole(user) && isSalesStage && p.status !== 'Awaiting Sales Head Approval' && PDMS.projectOwnedByUser(p, user)) ||
           (['HTD', 'COO', 'PM Head'].includes(user.role) && isDeliveryStage) ||
           (isPMO && isDeliveryStage && isAssignedPMO)
         );
@@ -565,6 +713,24 @@
         const canSalesHeadApproveReject = isSalesHeadUser && p.status === 'Awaiting Sales Head Approval';
 
         document.getElementById('content').innerHTML = `
+${p.status === 'Cancelled' && p.salesHeadRejectionNote ? `
+<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:16px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:flex-start;gap:14px">
+  <div style="width:36px;height:36px;border-radius:10px;background:rgba(239,68,68,0.15);color:#ef4444;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0">✕</div>
+  <div style="flex:1">
+    <div style="font-weight:700;color:#ef4444;font-size:14px;margin-bottom:4px">Project Rejected / Cancelled by Sales Head</div>
+    <div style="color:var(--text);font-size:13px;line-height:1.5"><strong>Reason:</strong> ${PDMS.esc(p.salesHeadRejectionNote)}</div>
+    <div style="color:var(--text-soft);font-size:12px;margin-top:6px">You can click <strong>Resend Request</strong> above to revise the details and re-submit.</div>
+  </div>
+</div>` : ''}
+${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
+<div style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.3);border-radius:16px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:flex-start;gap:14px">
+  <div style="width:36px;height:36px;border-radius:10px;background:rgba(239,68,68,0.15);color:#ef4444;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0">✕</div>
+  <div style="flex:1">
+    <div style="font-weight:700;color:#ef4444;font-size:14px;margin-bottom:4px">Award/SLA Returned by Accounts</div>
+    <div style="color:var(--text);font-size:13px;line-height:1.5"><strong>Reason / Feedback:</strong> ${PDMS.esc(p.accountsRejectionNote || p.rejectionNote)}</div>
+    <div style="color:var(--text-soft);font-size:12px;margin-top:6px">You can click <strong>Edit Details</strong> to update information, or <strong>Change Status</strong> to re-enter the Award Value and re-submit for Account Approval.</div>
+  </div>
+</div>` : ''}
 <div style="border-radius:20px;overflow:hidden;margin-bottom:24px;box-shadow:0 8px 32px rgba(29,60,136,.18)">
     <!-- Hero banner -->
     <div style="background:linear-gradient(135deg,#090d16 0%,#1d3c88 45%,#8b5cf6 80%,#ec4899 100%);padding:28px 28px 24px;position:relative;overflow:hidden">
@@ -573,7 +739,7 @@
         <div style="flex:1;min-width:240px">
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
             <span style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;letter-spacing:.6px">${p.id}</span>
-            <span style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;letter-spacing:.6px">${PDMS.stageOf(p) === 'Sales' ? 'SALES PIPELINE' : 'DELIVERY'}</span>
+            <span style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;letter-spacing:.6px">${pStage === 'Sales' ? 'SALES PIPELINE' : 'DELIVERY'}</span>
             ${p.status === 'In Progress' ? (currentSubStatus ? `<span class="badge badge-muted">${PDMS.esc(currentSubStatus)}</span>` : '') : `<span class="badge badge-${D.statusColors[p.status === 'Awaiting Account Approval' ? 'Award/SLA' : p.status] || 'muted'}">${p.status === 'Awaiting Account Approval' ? 'Award/SLA' : p.status}</span>`}
             <span class="badge ${health.cls}">${health.label}</span>
           </div>
@@ -582,9 +748,16 @@
           <p style="color:rgba(255,255,255,.65);font-size:13px;line-height:1.6;max-width:520px;margin:0">${PDMS.esc(p.description || 'No description provided.')}</p>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;align-self:flex-start;flex-wrap:wrap">
-          ${canStartDelivery ? `<button class="btn btn-primary" onclick="startDelivery()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('zap')} Start Delivery</button>` : ''}
-          ${canManageStatus ? `<button class="btn btn-primary" onclick="changeStatus()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('refresh')} Change Status</button>` : ''}
-          ${canEditDetails ? `<button class="btn btn-primary" onclick="editDetails()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('edit')} Edit Details</button>` : ''}
+          ${p.status === 'Cancelled' && PDMS.isSalesRole(user) && PDMS.projectOwnedByUser(p, user) ? `
+            <button class="btn btn-primary" onclick="resendRequestModal()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);color:#fff;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.15);display:flex;align-items:center;gap:6px">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              Resend Request
+            </button>
+          ` : `
+            ${canStartDelivery ? `<button class="btn btn-primary" onclick="startDelivery()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('zap')} Start Delivery</button>` : ''}
+            ${canManageStatus ? `<button class="btn btn-primary" onclick="changeStatus()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('refresh')} Change Status</button>` : ''}
+            ${canEditDetails ? `<button class="btn btn-primary" onclick="editDetails()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('edit')} Edit Details</button>` : ''}
+          `}
           ${canApproveReject ? `<button id="approveBtn" onclick="approveProjectInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:#10b981;color:#fff;border:none">✓ Approve</button>` : ''}
           ${canApproveReject ? `<button id="rejectBtn" onclick="rejectProjectInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.35)">✕ Reject</button>` : ''}
           ${canSalesHeadApproveReject ? `<button id="shApproveBtn" onclick="approveSalesHeadInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:#10b981;color:#fff;border:none">✓ Approve</button>` : ''}
@@ -622,7 +795,7 @@
         <div class="card"><div class="card-head"><div class="card-title">Project Timeline</div> ${p.status === 'In Progress' && canManageStatus ? `<button class="btn btn-primary btn-sm" style="margin-left:auto;background:var(--primary);color:#fff;border:none" onclick="editInProgressStage()">Add Stage</button>` : ''}</div>
           <div class="card-body">
             <div class="timeline">
-              ${stages.map(s => `<div class="tl-item ${s.state}"><div class="tl-title">${s.label}${s.isPendingApproval ? ` <span class="badge" style="font-size:10px;padding:2px 8px;vertical-align:middle;margin-left:6px;background:rgba(245,158,11,.15);color:#d97706;border:1px solid rgba(245,158,11,.35);font-weight:600"><span class="sh-pending-dot" style="width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block;margin-right:4px"></span>Awaiting Sales Head Approval</span>` : ''}${s.label === 'In Progress' && p.status === 'In Progress' && canManageStatus ? ` <button class="btn btn-primary btn-xs" style="margin-left:10px;padding:4px 8px;font-size:11px;background:var(--primary);color:#fff;border:none" onclick="event.stopPropagation();editInProgressStage()">Add Stage</button>` : ''}</div><div class="tl-meta">${s.meta || (s.state === 'done' ? 'Completed' : s.state === 'active' ? 'Ongoing' : 'Upcoming')}</div>${s.label === 'In Progress' && subStatuses.length ? `<div class="tl-sub" style="margin-top:8px;margin-left:14px;padding-left:12px;border-left:2px solid var(--border);display:flex;flex-direction:column;gap:6px">${subStatuses.map((ss, idx) => {
+              ${stages.map(s => `<div class="tl-item ${s.state}"><div class="tl-title">${s.label}${s.isPendingApproval ? ` <span class="badge" style="font-size:10px;padding:2px 8px;vertical-align:middle;margin-left:6px;background:rgba(245,158,11,.15);color:#d97706;border:1px solid rgba(245,158,11,.35);font-weight:600"><span class="sh-pending-dot" style="width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block;margin-right:4px"></span>Awaiting Sales Head Approval</span>` : ''}${s.label === 'In Progress' && p.status === 'In Progress' && canManageStatus ? ` <button class="btn btn-primary btn-xs" style="margin-left:10px;padding:4px 8px;font-size:11px;background:var(--primary);color:#fff;border:none" onclick="event.stopPropagation();editInProgressStage()">Add Stage</button>` : ''}</div><div class="tl-meta" style="${s.isCancelled ? 'color:#ef4444;font-weight:600' : ''}">${s.meta || (s.state === 'done' ? 'Completed' : s.state === 'cancelled' ? 'Cancelled' : s.state === 'active' ? 'Ongoing' : 'Upcoming')}</div>${s.label === 'In Progress' && subStatuses.length ? `<div class="tl-sub" style="margin-top:8px;margin-left:14px;padding-left:12px;border-left:2px solid var(--border);display:flex;flex-direction:column;gap:6px">${subStatuses.map((ss, idx) => {
             const isLast = idx === subStatuses.length - 1;
             return `
                   <div style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:2px">
@@ -1190,70 +1363,518 @@
     }
     function editDetails() {
       const isSales = PDMS.stageOf(p) === 'Sales';
-      const liveClients = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients) || D.clients;
-      const clientOpts = liveClients.map(c => `<option value="${PDMS.esc(c.name)}" ${c.name === p.client ? 'selected' : ''}>${PDMS.esc(c.name)}</option>`).join('');
+      const user = PDMS.getUser();
+      const isSalesEdit = isSales || (user && user.role === 'Sales');
+      const liveClients = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients) || D.clients || [];
+      const currentClient = p.client || p.name || '';
+      const clientExists = liveClients.some(c => (c.name || c) === currentClient);
+      const clientOpts = `
+        ${!clientExists && currentClient ? `<option value="${PDMS.esc(currentClient)}" selected>${PDMS.esc(currentClient)}</option>` : ''}
+        ${liveClients.map(c => {
+          const cName = c.name || c;
+          return `<option value="${PDMS.esc(cName)}" ${cName === currentClient ? 'selected' : ''}>${PDMS.esc(cName)}</option>`;
+        }).join('')}
+      `;
       const typeOpts = D.types.map(t => `<option ${t === p.type ? 'selected' : ''}>${t}</option>`).join('');
       const prioOpts = D.priorities.map(pr => `<option ${pr === p.priority ? 'selected' : ''}>${pr}</option>`).join('');
       const showSubStatus = !isSales && p.status === 'In Progress';
       const subStatuses = getSubStatuses(p);
       const currentSubStatusLocal = subStatuses.length ? subStatuses[subStatuses.length - 1] : '';
-      const modal = PDMS.modal('Edit Project Details', `
-    <div class="form-row"><label>Project Name</label><input id="ed-name" value="${PDMS.esc(p.name || '')}"/></div>
-    <div class="form-row"><label>Client</label><select id="ed-client"><option value="">— Select —</option>${clientOpts}</select></div>
-    <div class="form-row"><label>Type</label><select id="ed-type"><option value="">— Select —</option>${typeOpts}</select></div>
-    <div class="form-row"><label>Workstream</label><input id="ed-workstream" value="${PDMS.esc(p.workstream || p.dept || '')}"/></div>
-    <div class="form-row"><label>Priority</label><select id="ed-priority"><option value="">— Select —</option>${prioOpts}</select></div>
-    ${showSubStatus ? `<div class="form-row"><label>Current In Progress Stage</label><input id="ed-substatus" type="text" value="${PDMS.esc(currentSubStatusLocal || '')}" placeholder="e.g. Internal Testing"/></div>` : ''}
-    <div class="form-row"><label>Start Date</label><input id="ed-start" type="date" value="${PDMS.esc(p.start || '')}"/></div>
-    <div class="form-row"><label>Planned Completion</label><input id="ed-due" type="date" value="${PDMS.esc(p.due || '')}"/></div>
-    ${PDMS.canEditPrice() ? `<div class="form-row"><label>${(p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') ? 'Award Value (Exclusive of VAT)' : 'Opportunity Value'}</label><input id="ed-price" type="number" min="0" step="0.01" value="${PDMS.esc((p.awardValue !== undefined && p.awardValue !== null && p.awardValue !== '') ? String(p.awardValue) : ((p.negotiatedPrice === '' || p.negotiatedPrice === null || p.negotiatedPrice === undefined) ? '' : String(p.negotiatedPrice)))}" placeholder="0.00"/></div>` : ''}
-    ${!isSales ? `<div class="form-row"><label>Actual Completion</label><input id="ed-actual" type="date" value="${PDMS.esc(p.actualCompletion || '')}"/></div>` : ''}
-    <div class="form-row"><label>Description</label><textarea id="ed-desc" rows="3" style="resize:vertical">${PDMS.esc(p.description || '')}</textarea></div>
-  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ed-save">Save Changes</button>`);
+      const clientDisplayName = p.client || p.name || 'Project';
+      const modal = PDMS.modal('', `
+    <style>
+      .np-modal{font-family:Inter,sans-serif}
+      .np-hero{background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 60%,#a855f7 100%);border-radius:16px;padding:20px 22px;margin-bottom:20px;display:flex;align-items:center;gap:14px}
+      .np-hero-icon{width:44px;height:44px;background:rgba(255,255,255,.18);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+      .np-hero-icon svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2}
+      .np-hero-copy .np-title{font-size:17px;font-weight:800;color:#fff;line-height:1.2}
+      .np-hero-copy .np-sub{font-size:12px;color:rgba(255,255,255,.65);margin-top:3px}
+      .np-section{margin-bottom:18px}
+      .np-section-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+      .np-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+      .np-field{display:flex;flex-direction:column;gap:5px}
+      .np-field.full{grid-column:1/-1}
+      .np-field label{font-size:11px;font-weight:600;color:var(--text-soft);letter-spacing:.03em}
+      .np-field input,.np-field select,.np-field textarea{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;font-family:Inter,sans-serif;width:100%;box-sizing:border-box}
+      .np-field input:focus,.np-field select:focus,.np-field textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+      .np-field textarea{resize:vertical;min-height:72px}
+      .np-ac-wrap{position:relative}
+      .np-ac-wrap input{width:100%;box-sizing:border-box}
+      .np-ac-drop{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.13);max-height:180px;overflow-y:auto;display:none}
+      .np-ac-drop.open{display:block}
+      .np-ac-item{padding:9px 13px;cursor:pointer;font-size:13px;color:var(--text)}
+      .np-ac-item:hover{background:var(--surface-2)}
+      .np-required{color:#ef4444;margin-left:2px}
+    </style>
+    <div class="np-modal">
+      <div class="np-hero">
+        <div class="np-hero-icon"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div>
+        <div class="np-hero-copy">
+          <div class="np-title">Edit ${PDMS.esc(clientDisplayName)}</div>
+          <div class="np-sub">Update project information, timeline, and deliverables</div>
+        </div>
+      </div>
+
+      <div class="np-section">
+        <div class="np-section-label">Project Information</div>
+        <div class="np-grid">
+          <div class="np-field full">
+            <label>Client</label>
+            <select id="ed-client">
+              ${clientOpts}
+            </select>
+          </div>
+          <div class="np-field">
+            <label>Project Type</label>
+            <select id="ed-type">${(D.types || []).map(t => `<option${t === p.type ? ' selected' : ''}>${t}</option>`).join('')}</select>
+          </div>
+          <div class="np-field">
+            <label>Workstream</label>
+            <input id="ed-workstream" type="text" value="${PDMS.esc(p.workstream || p.dept || '')}" placeholder="e.g. QMS, FSMS…"/>
+          </div>
+          <div class="np-field full">
+            <label>${(p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') ? 'Award Value (Exclusive of VAT)' : 'Opportunity Value (₦)'}</label>
+            <input id="ed-price" type="number" min="0" step="0.01" value="${PDMS.esc((p.requestedNegotiatedPrice !== undefined && p.requestedNegotiatedPrice !== null && p.requestedNegotiatedPrice !== '') ? String(p.requestedNegotiatedPrice) : ((p.awardValue !== undefined && p.awardValue !== null && p.awardValue !== '') ? String(p.awardValue) : ((p.negotiatedPrice === '' || p.negotiatedPrice === null || p.negotiatedPrice === undefined) ? '' : String(p.negotiatedPrice))))}" placeholder="0.00" ${isSalesEdit ? 'disabled style="background:var(--surface-2);color:var(--text-muted);cursor:not-allowed;opacity:.8"' : ''}/>
+            ${isSalesEdit ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Current Value: ${Number.isFinite(Number(p.negotiatedPrice)) && Number(p.negotiatedPrice) > 0 ? PDMS.currency(p.negotiatedPrice) : 'Not set'}</div>` : ''}
+          </div>
+          ${(!isSalesEdit && showSubStatus) ? `
+          <div class="np-field full">
+            <label>Current In Progress Stage</label>
+            <input id="ed-substatus" type="text" value="${PDMS.esc(currentSubStatusLocal || '')}" placeholder="e.g. Internal Testing"/>
+          </div>` : ''}
+        </div>
+      </div>
+
+      ${!isSalesEdit ? `
+      <div class="np-section">
+        <div class="np-section-label">Timeline & Completion</div>
+        <div class="np-grid" style="grid-template-columns:1fr 1fr 1fr">
+          <div class="np-field">
+            <label>Start Date</label>
+            <input id="ed-start" type="date" value="${PDMS.esc(p.start || '')}"/>
+          </div>
+          <div class="np-field">
+            <label>Planned Completion</label>
+            <input id="ed-due" type="date" value="${PDMS.esc(p.due || '')}"/>
+          </div>
+          <div class="np-field">
+            <label>Actual Completion</label>
+            <input id="ed-actual" type="date" value="${PDMS.esc(p.actualCompletion || '')}"/>
+          </div>
+        </div>
+      </div>` : ''}
+
+      <div class="np-section" style="${isSalesEdit ? 'margin-bottom:14px' : 'margin-bottom:0'}">
+        <div class="np-section-label">Description</div>
+        <div class="np-field">
+          <textarea id="ed-desc" placeholder="Scope, goals, deliverables…">${PDMS.esc(p.description || '')}</textarea>
+        </div>
+      </div>
+
+      ${isSalesEdit ? `
+      <div style="background:var(--surface-2);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:6px">
+        <label for="togglePriceUpdate" style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;user-select:none;margin:0">
+          <div>
+            <div style="font-weight:700;font-size:13px;color:var(--text)">Update Opportunity Value?</div>
+            <div style="font-size:12px;color:var(--text-soft);margin-top:2px">Tick to unlock the Opportunity Value field above. Updating it will submit an approval request to the Sales Head before taking effect.</div>
+          </div>
+          <input type="checkbox" id="togglePriceUpdate" style="width:20px;height:20px;cursor:pointer;flex-shrink:0;accent-color:var(--primary,#4f46e5)"/>
+        </label>
+      </div>` : ''}
+    </div>
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ed-save">${I('check')} Save Changes</button>`, { hideCloseButton: true });
+
+      if (isSalesEdit) {
+        const toggleBox = modal.querySelector('#togglePriceUpdate');
+        const priceInput = modal.querySelector('#ed-price');
+        const originalPrice = (p.negotiatedPrice === '' || p.negotiatedPrice === null || p.negotiatedPrice === undefined) ? '' : String(p.negotiatedPrice);
+        if (toggleBox && priceInput) {
+          toggleBox.addEventListener('change', function () {
+            if (this.checked) {
+              priceInput.disabled = false;
+              priceInput.style.cursor = 'text';
+              priceInput.style.color = 'var(--text)';
+              priceInput.style.opacity = '1';
+              priceInput.style.borderColor = 'var(--primary)';
+              priceInput.focus();
+            } else {
+              priceInput.disabled = true;
+              priceInput.style.cursor = 'not-allowed';
+              priceInput.style.color = 'var(--text-muted)';
+              priceInput.style.opacity = '.8';
+              priceInput.style.borderColor = 'var(--border)';
+              priceInput.value = originalPrice;
+            }
+          });
+        }
+      }
+
       modal.querySelector('#ed-save').onclick = function () {
-        const name = modal.querySelector('#ed-name').value.trim();
-        if (!name) { PDMS.toast('Required', 'Project name is required', 'error'); return; }
-        const priceField = modal.querySelector('#ed-price');
-        const negotiatedPrice = priceField ? (priceField.value.trim() === '' ? '' : Number(priceField.value)) : undefined;
+        const clientVal = modal.querySelector('#ed-client') ? modal.querySelector('#ed-client').value.trim() : (p.client || p.name);
+        const ws = modal.querySelector('#ed-workstream').value.trim();
         const patch = {
-          name,
-          client: modal.querySelector('#ed-client').value,
+          name: clientVal,
+          client: clientVal,
           type: modal.querySelector('#ed-type').value,
-          workstream: modal.querySelector('#ed-workstream').value.trim(),
-          priority: modal.querySelector('#ed-priority').value,
-          start: modal.querySelector('#ed-start').value,
-          due: modal.querySelector('#ed-due').value,
+          workstream: ws,
+          dept: ws,
+          priority: p.priority || 'Medium',
           description: modal.querySelector('#ed-desc').value.trim(),
         };
-        if (priceField && PDMS.canEditPrice()) {
-          const numPrice = Number.isFinite(negotiatedPrice) ? negotiatedPrice : '';
-          patch.negotiatedPrice = numPrice;
-          if (p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') {
-            patch.awardValue = numPrice;
-          }
-        }
-        if (!isSales) patch.actualCompletion = modal.querySelector('#ed-actual').value;
-        if (showSubStatus) {
-          const nextStage = modal.querySelector('#ed-substatus').value.trim();
-          if (nextStage) {
-            patch.subStatuses = getSubStatuses(p).slice();
-            if (!patch.subStatuses.length || patch.subStatuses[patch.subStatuses.length - 1] !== nextStage) {
-              patch.subStatuses.push(nextStage);
+
+        const isCancelledLead = p.status === 'Cancelled';
+        let resubmissionRequested = false;
+        let priceChangeRequested = false;
+        let requestedPriceVal = null;
+
+        if (isSalesEdit) {
+          const toggleBox = modal.querySelector('#togglePriceUpdate');
+          const priceField = modal.querySelector('#ed-price');
+          if (toggleBox && toggleBox.checked && priceField) {
+            const rawVal = priceField.value.trim();
+            if (rawVal !== '') {
+              const num = Number(rawVal);
+              const currentVal = Number(p.negotiatedPrice || 0);
+              if (Number.isFinite(num) && num >= 0 && (num !== currentVal || isCancelledLead)) {
+                priceChangeRequested = true;
+                requestedPriceVal = num;
+                patch.negotiatedPrice = num;
+                patch.opportunityValue = num;
+                patch.requestedNegotiatedPrice = num;
+                patch.previousStatus = p.previousStatus || 'Lead';
+                patch.requestedStatus = p.previousStatus || 'Lead';
+                patch.status = 'Awaiting Sales Head Approval';
+                patch.priceUpdatePending = true;
+                patch.salesHeadRejectionNote = '';
+              }
             }
-            patch.subStatus = nextStage;
+          }
+
+          // If the project was cancelled by Sales Head, ANY field update sends a re-submission request to Sales Head
+          if (isCancelledLead && !priceChangeRequested) {
+            resubmissionRequested = true;
+            patch.status = 'Awaiting Sales Head Approval';
+            patch.requestedStatus = p.previousStatus || 'Lead';
+            patch.previousStatus = p.previousStatus || 'Lead';
+            patch.salesHeadRejectionNote = '';
+            patch.priceUpdatePending = false;
+          }
+        } else {
+          if (modal.querySelector('#ed-start')) patch.start = modal.querySelector('#ed-start').value;
+          if (modal.querySelector('#ed-due')) patch.due = modal.querySelector('#ed-due').value;
+          if (modal.querySelector('#ed-actual')) patch.actualCompletion = modal.querySelector('#ed-actual').value;
+          const priceField = modal.querySelector('#ed-price');
+          if (priceField && PDMS.canEditPrice()) {
+            const numPrice = priceField.value.trim() === '' ? '' : Number(priceField.value);
+            if (Number.isFinite(numPrice)) {
+              patch.negotiatedPrice = numPrice;
+              if (p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') {
+                patch.awardValue = numPrice;
+              }
+            }
+          }
+          if (showSubStatus) {
+            const nextStage = modal.querySelector('#ed-substatus').value.trim();
+            if (nextStage) {
+              patch.subStatuses = getSubStatuses(p).slice();
+              if (!patch.subStatuses.length || patch.subStatuses[patch.subStatuses.length - 1] !== nextStage) {
+                patch.subStatuses.push(nextStage);
+              }
+              patch.subStatus = nextStage;
+            }
           }
         }
+
         const btn = this;
         PDMS.setButtonLoading(btn, true, 'Saving...');
         PDMS.api.update('projects', p.id, patch).then(saved => {
           Object.assign(p, patch, saved);
-          p.subStatuses = saved.subStatuses || patch.subStatuses;
+          if (patch.subStatuses) p.subStatuses = saved.subStatuses || patch.subStatuses;
           modal.remove();
-          PDMS.toast('Saved', 'Project details updated', 'success');
+          if (priceChangeRequested) {
+            PDMS.notify('Opportunity Value Update Request', `${user ? user.name : 'Sales'} requested to update Opportunity Value for "${p.name}" to ${PDMS.currency(requestedPriceVal)}`, 'clock', 'awaiting-projects.html');
+            PDMS.toast('Request Sent', `Project updated. Opportunity value change (${PDMS.currency(requestedPriceVal)}) was sent to Sales Head for approval.`, 'success');
+          } else if (resubmissionRequested) {
+            PDMS.notify('Revised Lead Submitted for Approval', `${user ? user.name : 'Sales'} updated and re-submitted revised lead "${p.name}" for approval`, 'clock', 'awaiting-projects.html');
+            PDMS.toast('Re-submitted', `Revised lead details submitted to Sales Head for approval.`, 'success');
+          } else {
+            PDMS.toast('Saved', 'Project details updated', 'success');
+          }
           render();
-        }).catch(err => { PDMS.setButtonLoading(btn, false); PDMS.toast('Error', err.message || 'Could not save', 'error'); });
+        }).catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not save', 'error');
+        });
       };
     }
+
+    function resendRequestModal() {
+      const user = PDMS.getUser();
+      const liveClients = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients) || D.clients || [];
+      const currentClient = p.client || p.name || '';
+      const clientExists = liveClients.some(c => (c.name || c) === currentClient);
+      const clientOpts = `
+        ${!clientExists && currentClient ? `<option value="${PDMS.esc(currentClient)}" selected>${PDMS.esc(currentClient)}</option>` : ''}
+        ${liveClients.map(c => {
+          const cName = c.name || c;
+          return `<option value="${PDMS.esc(cName)}" ${cName === currentClient ? 'selected' : ''}>${PDMS.esc(cName)}</option>`;
+        }).join('')}
+      `;
+      const salesStatuses = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA'];
+      const currentTargetStatus = p.previousStatus || p.requestedStatus || 'Lead';
+      const clientDisplayName = p.client || p.name || 'Project';
+
+      const modal = PDMS.modal('', `
+    <style>
+      .rs-modal{font-family:Inter,sans-serif}
+      .rs-hero{background:linear-gradient(135deg,#d97706 0%,#ea580c 50%,#dc2626 100%);border-radius:16px;padding:20px 22px;margin-bottom:20px;display:flex;align-items:center;gap:14px}
+      .rs-hero-icon{width:44px;height:44px;background:rgba(255,255,255,.18);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+      .rs-hero-icon svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2}
+      .rs-hero-copy .rs-title{font-size:17px;font-weight:800;color:#fff;line-height:1.2}
+      .rs-hero-copy .rs-sub{font-size:12px;color:rgba(255,255,255,.8);margin-top:3px}
+      .rs-section{margin-bottom:18px}
+      .rs-section-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+      .rs-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+      .rs-field{display:flex;flex-direction:column;gap:5px}
+      .rs-field.full{grid-column:1/-1}
+      .rs-field label{font-size:11px;font-weight:600;color:var(--text-soft);letter-spacing:.03em}
+      .rs-field input,.rs-field select,.rs-field textarea{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;font-family:Inter,sans-serif;width:100%;box-sizing:border-box}
+      .rs-field input:focus,.rs-field select:focus,.rs-field textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+      .rs-field textarea{resize:vertical;min-height:72px}
+      .rs-rejection-box{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:12px;padding:12px 14px;margin-bottom:16px}
+      .rs-rejection-title{font-size:12px;font-weight:700;color:#ef4444;margin-bottom:2px}
+      .rs-rejection-text{font-size:12px;color:var(--text);line-height:1.4}
+    </style>
+    <div class="rs-modal">
+      <div class="rs-hero">
+        <div class="rs-hero-icon">
+          <svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        </div>
+        <div class="rs-hero-copy">
+          <div class="rs-title">Resend Request to Sales Head</div>
+          <div class="rs-sub">Update project fields and re-submit for review &amp; approval</div>
+        </div>
+      </div>
+
+      ${p.salesHeadRejectionNote ? `
+      <div class="rs-rejection-box">
+        <div class="rs-rejection-title">Sales Head Rejection Reason:</div>
+        <div class="rs-rejection-text">${PDMS.esc(p.salesHeadRejectionNote)}</div>
+      </div>` : ''}
+
+      <div class="rs-section">
+        <div class="rs-section-label">Project Details</div>
+        <div class="rs-grid">
+          <div class="rs-field">
+            <label>Client</label>
+            <select id="rs-client">
+              ${clientOpts}
+            </select>
+          </div>
+          <div class="rs-field">
+            <label>Target Status / Stage</label>
+            <select id="rs-status">
+              ${salesStatuses.map(s => `<option value="${s}" ${s === currentTargetStatus ? 'selected' : ''}>${s}</option>`).join('')}
+            </select>
+          </div>
+          <div class="rs-field">
+            <label>Opportunity Value (₦)</label>
+            <input id="rs-price" type="number" min="0" value="${p.opportunityValue || p.negotiatedPrice || ''}" placeholder="e.g. 5000000" />
+          </div>
+          <div class="rs-field">
+            <label>Project Type</label>
+            <select id="rs-type">
+              ${(D.types || []).map(t => `<option ${t === p.type ? 'selected' : ''}>${t}</option>`).join('')}
+            </select>
+          </div>
+          <div class="rs-field">
+            <label>Workstream / Dept</label>
+            <input id="rs-workstream" type="text" value="${PDMS.esc(p.workstream || p.dept || '')}" placeholder="e.g. QMS, FSMS…" />
+          </div>
+          <div class="rs-field full">
+            <label>Project Description</label>
+            <textarea id="rs-desc" rows="3" placeholder="Project overview, scope, and objectives…">${PDMS.esc(p.description || '')}</textarea>
+          </div>
+          <div class="rs-field full">
+            <label>Note / Remarks to Sales Head (Optional)</label>
+            <textarea id="rs-note" rows="2" placeholder="Explain the revisions or updates made…"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>`,
+      `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="submitResendBtn" style="background:#f59e0b;border-color:#d97706;color:#fff;font-weight:700">Resend Request</button>`
+      );
+
+      modal.querySelector('#submitResendBtn').onclick = function () {
+        const clientVal = modal.querySelector('#rs-client').value.trim() || p.client || p.name;
+        const targetStatus = modal.querySelector('#rs-status').value;
+        const priceVal = modal.querySelector('#rs-price').value.trim();
+        const wsVal = modal.querySelector('#rs-workstream').value.trim();
+        const typeVal = modal.querySelector('#rs-type').value;
+        const descVal = modal.querySelector('#rs-desc').value.trim();
+        const noteVal = modal.querySelector('#rs-note').value.trim();
+
+        const patch = {
+          client: clientVal,
+          name: clientVal,
+          status: 'Awaiting Sales Head Approval',
+          requestedStatus: targetStatus,
+          previousStatus: targetStatus,
+          targetStatus: targetStatus,
+          stage: 'Sales',
+          type: typeVal,
+          workstream: wsVal,
+          dept: wsVal,
+          priority: p.priority || 'Medium',
+          description: descVal,
+          priceUpdatePending: false,
+          salesHeadRejectionNote: ''
+        };
+
+        if (priceVal !== '') {
+          const num = Number(priceVal);
+          if (Number.isFinite(num) && num >= 0) {
+            patch.opportunityValue = num;
+            patch.negotiatedPrice = num;
+            patch.requestedNegotiatedPrice = num;
+          }
+        }
+
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Resending...');
+        PDMS.api.update('projects', p.id, patch).then(saved => {
+          Object.assign(p, patch, saved);
+          if (noteVal) {
+            const user = PDMS.getUser();
+            const record = {
+              id: 'tmp-' + Date.now(),
+              author: user ? user.name : 'Sales User',
+              authorRole: user ? user.role : 'Sales',
+              projectId: p.id,
+              projectName: p.name,
+              message: `[Resubmission Note] ${noteVal}`,
+              time: new Date().toISOString()
+            };
+            PDMS.api.create('issues', record).catch(() => {});
+            if (D.issues) D.issues.unshift(record);
+          }
+          modal.remove();
+          PDMS.notify('Revised Lead Submitted for Approval', `${user ? user.name : 'Sales'} re-submitted "${p.name}" for Sales Head approval (Target: ${targetStatus})`, 'clock', 'awaiting-projects.html');
+          PDMS.toast('Request Sent', `Project re-submitted to Sales Head for approval.`, 'success');
+          render();
+        }).catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not resend request', 'error');
+        });
+      };
+    }
+    window.resendRequestModal = resendRequestModal;
+
+    function resendToAccountsInline() {
+      const liveClients = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients) || D.clients || [];
+      const currentClient = p.client || p.name || '';
+      const clientExists = liveClients.some(c => (c.name || c) === currentClient);
+      const clientOpts = `
+        ${!clientExists && currentClient ? `<option value="${PDMS.esc(currentClient)}" selected>${PDMS.esc(currentClient)}</option>` : ''}
+        ${liveClients.map(c => {
+          const cName = c.name || c;
+          return `<option value="${PDMS.esc(cName)}" ${cName === currentClient ? 'selected' : ''}>${PDMS.esc(cName)}</option>`;
+        }).join('')}
+      `;
+      const currentAwardVal = (p.awardValue !== undefined && p.awardValue !== null && p.awardValue !== '') ? p.awardValue : (p.negotiatedPrice || '');
+      const rejNote = p.accountsRejectionNote || p.rejectionNote || '';
+
+      const modal = PDMS.modal('Edit & Resubmit to Accounts', `
+      <style>
+        .ra-field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+        .ra-field.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+        .ra-field label{font-size:11px;font-weight:600;color:var(--text-soft);letter-spacing:.03em}
+        .ra-field input,.ra-field select,.ra-field textarea{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;color:var(--text);outline:none;width:100%;box-sizing:border-box;font-family:inherit}
+        .ra-field input:focus,.ra-field select:focus,.ra-field textarea:focus{border-color:var(--primary)}
+        .ra-rejection{background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:12px 14px;margin-bottom:16px}
+        .ra-rejection-title{font-size:11px;font-weight:700;color:#ef4444;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+      </style>
+      ${rejNote ? `<div class="ra-rejection"><div class="ra-rejection-title">Accounts Feedback to Address:</div><div style="font-size:13px;color:var(--text);line-height:1.5">${PDMS.esc(rejNote)}</div></div>` : ''}
+      <div class="ra-field">
+        <label>Client</label>
+        <select id="ra-client">${clientOpts}</select>
+      </div>
+      <div class="ra-field grid-2">
+        <div><label>Project Type</label><select id="ra-type">${(D.types || []).map(t => `<option ${t === p.type ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+        <div><label>Workstream / Dept</label><input id="ra-ws" type="text" value="${PDMS.esc(p.workstream || p.dept || '')}" placeholder="e.g. QMS, FSMS…" /></div>
+      </div>
+      <div class="ra-field">
+        <label>Award Value (Exclusive of VAT) ₦ <span style="color:var(--danger)">*</span></label>
+        <input id="ra-award" type="number" min="0" value="${currentAwardVal}" placeholder="e.g. 5000000" />
+      </div>
+      <div class="ra-field">
+        <label>Project Description</label>
+        <textarea id="ra-desc" rows="3" placeholder="Project overview, scope, and objectives…">${PDMS.esc(p.description || '')}</textarea>
+      </div>
+      <div class="ra-field">
+        <label>Note to Accounts (Optional)</label>
+        <textarea id="ra-note" rows="2" placeholder="Explain what was updated or revised…"></textarea>
+      </div>
+      `,
+      `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="raSubmitBtn" style="background:var(--primary);border-color:var(--primary);color:#fff;font-weight:700">Resubmit to Accounts</button>`
+      );
+
+      modal.querySelector('#raSubmitBtn').onclick = function() {
+        const clientVal = modal.querySelector('#ra-client').value.trim() || p.client;
+        const typeVal = modal.querySelector('#ra-type').value;
+        const wsVal = modal.querySelector('#ra-ws').value.trim();
+        const awardRaw = modal.querySelector('#ra-award').value.trim();
+        const awardVal = awardRaw === '' ? 0 : Number(awardRaw);
+        const descVal = modal.querySelector('#ra-desc').value.trim();
+        const noteVal = modal.querySelector('#ra-note').value.trim();
+
+        if (!Number.isFinite(awardVal) || awardVal <= 0) {
+          PDMS.toast('Award Value Required', 'Please enter a valid Award Value (exclusive of VAT).', 'error');
+          return;
+        }
+
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Submitting…');
+
+        const existingOppVal = (p.opportunityValue !== undefined && p.opportunityValue !== null && p.opportunityValue !== '') ? p.opportunityValue : awardVal;
+        const patch = {
+          client: clientVal,
+          name: clientVal,
+          type: typeVal,
+          workstream: wsVal,
+          dept: wsVal,
+          description: descVal,
+          status: 'Awaiting Account Approval',
+          stage: 'Delivery',
+          requestedStatus: 'Award/SLA',
+          opportunityValue: existingOppVal,
+          awardValue: awardVal,
+          negotiatedPrice: awardVal,
+          accountsRejectionNote: '',
+          rejectionNote: ''
+        };
+
+        PDMS.api.update('projects', p.id, patch).then(saved => {
+          Object.assign(p, patch, saved);
+          if (noteVal) {
+            const u = PDMS.getUser();
+            const record = { id: 'tmp-' + Date.now(), author: u ? u.name : 'Sales', authorRole: u ? u.role : 'Sales', projectId: p.id, projectName: p.name, message: `[Resubmission Note] ${noteVal}`, time: new Date().toISOString() };
+            PDMS.api.create('issues', record).catch(() => {});
+            if (D.issues) D.issues.unshift(record);
+          }
+          modal.remove();
+          const u = PDMS.getUser();
+          PDMS.notify('Award/SLA Resubmitted to Accounts', `${u ? u.name : 'Sales'} resubmitted "${p.name}" to Accounts with Award Value ₦${awardVal.toLocaleString()} (excl. VAT)`, 'refresh', 'project-details.html#id=' + p.id);
+          PDMS.toast('Resubmitted', `"${p.name}" has been sent back to Accounts for review.`, 'success');
+          render();
+        }).catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not resubmit', 'error');
+        });
+      };
+    }
+    window.resendToAccountsInline = resendToAccountsInline;
+
     function editInProgressStage() {
       const subStatuses = getSubStatuses(p).slice();
       const modal = PDMS.modal('Manage In Progress Stages', `
@@ -1358,12 +1979,16 @@
             const btn = this;
             PDMS.setButtonLoading(btn, true, 'Submitting...');
 
+            const existingOppVal = (p.opportunityValue !== undefined && p.opportunityValue !== null && p.opportunityValue !== '') ? p.opportunityValue : (p.negotiatedPrice || awardVal);
             const patch = {
               status: 'Awaiting Account Approval',
               stage: 'Delivery',
               requestedStatus: 'Award/SLA',
+              opportunityValue: existingOppVal,
               awardValue: awardVal,
-              negotiatedPrice: awardVal
+              negotiatedPrice: awardVal,
+              accountsRejectionNote: '',
+              rejectionNote: ''
             };
 
             PDMS.api.update('projects', p.id, patch).then(saved => {
@@ -1493,9 +2118,13 @@
         if (!reason) { PDMS.toast('Required', 'Please provide a rejection reason', 'error'); return; }
         const btn2 = this;
         PDMS.setButtonLoading(btn2, true, 'Rejecting...');
-        PDMS.api.update('projects', p.id, { status: 'Award/SLA', rejectionNote: reason })
+        PDMS.api.update('projects', p.id, { status: 'Award/SLA', stage: 'Sales', accountsRejectionNote: reason, rejectionNote: reason })
           .then(saved => {
             Object.assign(p, saved);
+            p.accountsRejectionNote = reason;
+            p.rejectionNote = reason;
+            p.stage = 'Sales';
+            p.status = 'Award/SLA';
             const user = PDMS.getUser();
             const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Accounts', authorRole: user ? user.role : 'Accounts', projectId: p.id, projectName: p.name, message: `[Rejection Reason] ${reason}`, time: new Date().toISOString() };
             pushIssueOptimistic(record);
@@ -1512,10 +2141,21 @@
     }
 
     function approveSalesHeadInline() {
-      const targetStatus = p.requestedStatus || p.targetStatus || 'Lead';
+      const targetStatus = p.requestedStatus || p.targetStatus || (p.status !== 'Awaiting Sales Head Approval' ? p.status : 'Lead');
+      const hasPriceUpdate = p.requestedNegotiatedPrice !== undefined && p.requestedNegotiatedPrice !== null && p.requestedNegotiatedPrice !== '';
+      const priceMsg = hasPriceUpdate ? `
+        <div style="margin:12px 0;padding:12px 14px;background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.3);border-radius:10px;font-size:13px">
+          <div style="font-weight:700;color:#d97706;margin-bottom:8px">Opportunity Value Update Request</div>
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <div><span style="font-size:11px;color:var(--text-soft);text-transform:uppercase;display:block">Current Value (Old)</span><strong>${Number.isFinite(Number(p.negotiatedPrice)) && Number(p.negotiatedPrice) > 0 ? PDMS.currency(p.negotiatedPrice) : 'Not set'}</strong></div>
+            <div style="color:var(--text-muted);font-size:18px">➔</div>
+            <div><span style="font-size:11px;color:#d97706;text-transform:uppercase;display:block">To Be Value (New)</span><strong style="color:#d97706;font-size:15px">${PDMS.currency(p.requestedNegotiatedPrice)}</strong></div>
+          </div>
+        </div>` : '';
       const modal = PDMS.modal('Approve Project (Sales Head)', `
-        <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">You are approving <strong>${PDMS.esc(p.name)}</strong> to enter the sales pipeline at stage <strong>${PDMS.esc(targetStatus)}</strong>.</p>
-        <div class="form-row">
+        <p style="color:var(--text-soft);margin:0 0 12px;font-size:14px">You are approving <strong>${PDMS.esc(p.name)}</strong> to enter the sales pipeline at stage <strong>${PDMS.esc(targetStatus)}</strong>.</p>
+        ${priceMsg}
+        <div class="form-row" style="margin-top:12px">
           <label>Approval Comment / Remarks</label>
           <textarea id="shApproveComment" rows="3" placeholder="Enter approval comment or remarks..."></textarea>
         </div>
@@ -1525,19 +2165,28 @@
         const comment = modal.querySelector('#shApproveComment').value.trim();
         const btn2 = this;
         PDMS.setButtonLoading(btn2, true, 'Approving...');
-        PDMS.api.update('projects', p.id, { status: targetStatus, stage: 'Sales' })
+        const patch = { status: targetStatus, stage: 'Sales', priceUpdatePending: false };
+        if (hasPriceUpdate) {
+          patch.negotiatedPrice = p.requestedNegotiatedPrice;
+          patch.requestedNegotiatedPrice = '';
+        }
+        PDMS.api.update('projects', p.id, patch)
           .then(saved => {
             Object.assign(p, saved);
             p.status = targetStatus;
             p.stage = 'Sales';
+            if (hasPriceUpdate) {
+              p.negotiatedPrice = patch.negotiatedPrice;
+              p.requestedNegotiatedPrice = '';
+            }
             if (comment) {
               const user = PDMS.getUser();
               const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Sales Head', authorRole: user ? user.role : 'Sales Head', projectId: p.id, projectName: p.name, message: `[Approval Remarks] ${comment}`, time: new Date().toISOString() };
               pushIssueOptimistic(record);
             }
             modal.remove();
-            PDMS.toast('Approved', `"${p.name}" has been approved and is now active at stage "${targetStatus}".`, 'success');
-            PDMS.notify('Sales Head Approved', `Sales Head approved "${p.name}" \u2014 now active at "${targetStatus}" in pipeline`, 'check', 'project-details.html#id=' + p.id);
+            PDMS.toast('Approved', `"${p.name}" has been approved.${hasPriceUpdate ? ' Opportunity value updated.' : ''}`, 'success');
+            PDMS.notify('Sales Head Approved', `Sales Head approved "${p.name}"${hasPriceUpdate ? ` (Opportunity Value: ${PDMS.currency(patch.negotiatedPrice)})` : ''}`, 'check', 'project-details.html#id=' + p.id);
             render();
           })
           .catch(err => {
@@ -1558,9 +2207,14 @@
         if (!reason) { PDMS.toast('Required', 'Please provide a rejection reason', 'error'); return; }
         const btn2 = this;
         PDMS.setButtonLoading(btn2, true, 'Rejecting...');
-        PDMS.api.update('projects', p.id, { status: 'Cancelled', salesHeadRejectionNote: reason })
+        const prevStage = p.previousStatus || p.requestedStatus || 'Lead';
+        PDMS.api.update('projects', p.id, { status: 'Cancelled', stage: 'Sales', previousStatus: prevStage, salesHeadRejectionNote: reason, priceUpdatePending: false })
           .then(saved => {
             Object.assign(p, saved);
+            p.status = 'Cancelled';
+            p.stage = 'Sales';
+            p.previousStatus = prevStage;
+            p.priceUpdatePending = false;
             const user = PDMS.getUser();
             const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Sales Head', authorRole: user ? user.role : 'Sales Head', projectId: p.id, projectName: p.name, message: `[Rejection Reason] ${reason}`, time: new Date().toISOString() };
             pushIssueOptimistic(record);

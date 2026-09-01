@@ -97,7 +97,7 @@
   const statuses = [...salesStatuses, ...deliveryStatuses.filter(s=>!salesStatuses.includes(s))];
   const statusColors = {
     'Initial Proposal':'primary','Lead':'info','Opportunity':'purple',
-    'Negotiation':'warn','Invoicing':'warn','Award/SLA':'success',
+    'Negotiation':'warn','Invoicing':'warn','Award/SLA':'success','Award/SLA Signed':'warn',
     'Awaiting Sales Head Approval':'warn','Awaiting Account Approval':'purple',
     'Closed':'primary','Cancelled':'danger','On Hold':'muted',
     'Not Started':'muted','In Progress':'warn','Awaiting Review':'warn',
@@ -362,6 +362,17 @@
     return symbol + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
   PDMS.formatCurrency = PDMS.currency;
+  PDMS.timeAgo = function(iso){
+    if (!iso) return '';
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const mins = Math.round(diffMs / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    return Math.round(hrs / 24) + 'd ago';
+  };
+  PDMS.relativeTime = PDMS.timeAgo;
   PDMS.initials = name => (name||'').split(' ').filter(Boolean).map(p=>p[0]).slice(0,2).join('').toUpperCase();
 
   // Escape HTML
@@ -1219,6 +1230,30 @@
       .then(res => res.json())
       .then(json => {
         if (!json.ok) throw new Error(json.error || 'Request failed');
+        try {
+          const resKey = payload.resource;
+          if (resKey) {
+            const syncList = (list) => {
+              if (!Array.isArray(list)) return;
+              if (action === 'update') {
+                const target = list.find(item => String(item.id) === String(payload.id));
+                if (target) Object.assign(target, payload.patch, json.data);
+              } else if (action === 'create' && json.data) {
+                const exists = list.find(item => String(item.id) === String(json.data.id));
+                if (!exists) list.unshift(json.data);
+              } else if (action === 'remove') {
+                const idx = list.findIndex(item => String(item.id) === String(payload.id));
+                if (idx !== -1) list.splice(idx, 1);
+              }
+            };
+            if (global.PDMS_REMOTE) syncList(global.PDMS_REMOTE[resKey]);
+            if (global.PDMS_DATA) syncList(global.PDMS_DATA[resKey]);
+            if (global.PDMS_REMOTE) {
+              localStorage.setItem(CACHE_KEY, JSON.stringify(global.PDMS_REMOTE));
+              localStorage.setItem('pdms-cache-ts', String(Date.now()));
+            }
+          }
+        } catch (_) {}
         return json.data;
       });
   }
@@ -1310,15 +1345,27 @@
   };
 
   PDMS.stageOf = function (project) {
-    if (project && (project.status === 'Awaiting Account Approval' || project.status === 'Awaiting Sales Head Approval')) return 'Sales';
-    const salesStatuses = (window.PDMS_DATA && window.PDMS_DATA.salesStatuses) || [];
-    const deliveryStatuses = (window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || [];
+    if (!project) return 'Sales';
+    if (project.status === 'Awaiting Account Approval' || project.status === 'Awaiting Sales Head Approval') return 'Sales';
+
     const normalized = PDMS.normalizeStatus ? PDMS.normalizeStatus(project.status) : project.status;
-    if (deliveryStatuses.includes(normalized) || deliveryStatuses.includes(project.status)) return 'Delivery';
-    if (salesStatuses.includes(normalized)) return 'Sales';
-    if (project.stage) return project.stage;
-    if (project.createdByRole) return DELIVERY_ROLES.includes(project.createdByRole) ? 'Delivery' : 'Sales';
-    return 'Delivery';
+    const preAwardSales = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing'];
+    if (preAwardSales.includes(normalized)) return 'Sales';
+
+    if ((project.status === 'Cancelled' || project.status === 'On Hold') && project.stage === 'Sales' && !project.deliveryStatus) {
+      return 'Sales';
+    }
+
+    const deliveryExecution = ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
+    if (deliveryExecution.includes(normalized) || deliveryExecution.includes(project.status)) return 'Delivery';
+
+    if (project.status === 'Closed') return 'Delivery';
+    if (project.stage === 'Delivery') return 'Delivery';
+    if (project.deliveryStatus) return 'Delivery';
+
+    if (project.stage === 'Sales') return 'Sales';
+    if (project.createdByRole && DELIVERY_ROLES.includes(project.createdByRole)) return 'Delivery';
+    return 'Sales';
   };
 
   PDMS.statusOptionsFor = function (user) {
@@ -1361,6 +1408,10 @@
   };
   PDMS.deliveryStatusOf = function (project) {
     if (!project) return 'Not Started';
+    const preAwardSales = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Awaiting Sales Head Approval', 'Awaiting Account Approval'];
+    if (preAwardSales.includes(project.status) || (project.status === 'Cancelled' && project.stage === 'Sales' && !project.deliveryStatus)) {
+      return null;
+    }
     if (project.deliveryStatus) {
       const dList = (window.D && window.D.deliveryStatuses) || (window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || [];
       const match = dList.find(s => s.toLowerCase() === String(project.deliveryStatus).trim().toLowerCase());
@@ -1369,16 +1420,15 @@
       }
     }
     const st = String(project.status || '').trim();
-    const dExecutionStatuses = ['In Progress', 'On Hold', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
+    const dExecutionStatuses = ['Not Started', 'In Progress', 'On Hold', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
     const execMatch = dExecutionStatuses.find(s => s.toLowerCase() === st.toLowerCase());
     if (execMatch) return execMatch;
 
     return 'Not Started';
   };
   PDMS.projectBucket = function (project) {
-    if (project.status === 'Awaiting Account Approval' || project.status === 'Awaiting Sales Head Approval') return 'Sales'; // pending but locked
-    if (PDMS.isDeliveryStatus(project.status)) return 'Delivery';
-    if (PDMS.isSalesStatus(project.status)) return 'Sales';
+    if (project.status === 'Awaiting Account Approval' || project.status === 'Awaiting Sales Head Approval') return 'Sales';
+    if (PDMS.stageOf(project) === 'Sales') return 'Sales';
     return 'Delivery';
   };
 
@@ -1401,7 +1451,8 @@
     return true;
   };
   PDMS.isPendingAccountApproval = function (project) {
-    return project && (project.status === 'Awaiting Account Approval' || (project.status === 'Award/SLA' && !project.rejectionNote));
+    if (!project) return false;
+    return project.status === 'Awaiting Account Approval';
   };
   PDMS.isPendingSalesHeadApproval = function (project) {
     return project && project.status === 'Awaiting Sales Head Approval';

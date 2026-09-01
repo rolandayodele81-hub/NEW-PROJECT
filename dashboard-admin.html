@@ -178,7 +178,17 @@
                   <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
                   <td>${PDMS.esc(p.client)}</td>
                   <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
-                  <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
+                  <td>${
+                    p.status === 'Awaiting Sales Head Approval'
+                      ? `<span class="badge" style="background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25);font-weight:600">${PDMS.esc(p.requestedStatus || p.targetStatus || 'Lead')} (Pending Approval)</span>`
+                      : (p.status === 'Cancelled' && p.salesHeadRejectionNote
+                          ? `<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">${PDMS.esc(p.requestedStatus || p.targetStatus || 'Lead')} (Rejected)</span>`
+                          : (p.status === 'Awaiting Account Approval'
+                              ? '<span class="badge" style="background:rgba(124,58,237,.12);color:#7c3aed;border:1px solid rgba(124,58,237,.25);font-weight:600">Award/SLA (Pending Accounts)</span>'
+                              : ((p.accountsRejectionNote || p.rejectionNote) && p.status !== 'Cancelled'
+                                  ? '<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">Award/SLA (Returned)</span>'
+                                  : `<span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span>`)))
+                  }</td>
                 </tr>`).join('') || `<tr><td colspan="4" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects')}</td></tr>`}
             </tbody>
           </table>
