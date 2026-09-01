@@ -162,6 +162,16 @@
                 if (idx !== -1) list.splice(idx, 1);
               }
             };
+            if (action === 'create' && json.data) {
+              try {
+                const recStr = sessionStorage.getItem('pdms_recent_creates') || '{}';
+                const recs = JSON.parse(recStr);
+                recs[resKey] = recs[resKey] || [];
+                recs[resKey] = recs[resKey].filter(x => (Date.now() - (x._savedAt || 0)) < 180000 && String(x.id) !== String(json.data.id));
+                recs[resKey].unshift(Object.assign({ _savedAt: Date.now() }, json.data));
+                sessionStorage.setItem('pdms_recent_creates', JSON.stringify(recs));
+              } catch (_) {}
+            }
             if (global.PDMS_REMOTE) syncList(global.PDMS_REMOTE[resKey]);
             if (global.PDMS_DATA) syncList(global.PDMS_DATA[resKey]);
             if (global.PDMS_REMOTE) {

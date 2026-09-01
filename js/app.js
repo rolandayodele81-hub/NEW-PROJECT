@@ -79,16 +79,25 @@
       '</div>'+
     '</div>'+
     '<div class="panel" id="notifPanel"></div>'+
-    '<div class="pdms-loading-bar" id="pdmsLoadingBar"></div>';
+    '<div id="pdmsSplashLoader" class="pdms-splash-loader' + (window.PDMS_DATA_LOADED ? ' hidden' : '') + '">' +
+      '<div class="pdms-splash-content">' +
+        '<div class="pdms-rolling-loader-box">' +
+          '<div class="pdms-rolling-spinner"></div>' +
+        '</div>' +
+        '<h2 class="pdms-splash-title" id="pdmsSplashTitle">Loading your workspace...</h2>' +
+        '<p class="pdms-splash-sub" id="pdmsSplashSub">Retrieving data from database</p>' +
+      '</div>' +
+    '</div>';
 
-    // Show the top loading bar until this page's data has actually arrived —
-    // PDMS_REFRESH() was already kicked off by config.js before this shell mounted.
-    const loadingBar = document.getElementById('pdmsLoadingBar');
-    if (!window.PDMS_REMOTE) {
-      loadingBar.classList.add('active');
-      const stop = () => { loadingBar.classList.remove('active'); };
+    // Splash screen stays visible until live database data has landed
+    if (!window.PDMS_DATA_LOADED) {
+      const stop = () => {
+        setTimeout(PDMS.hideSplashLoader, 150);
+      };
       document.addEventListener('pdms:refresh', stop, { once: true });
+      document.addEventListener('pdms:data-ready', stop, { once: true });
       document.addEventListener('pdms:loading-end', stop, { once: true });
+      setTimeout(stop, 8000);
     }
 
     document.getElementById('hamburger').onclick = ()=>document.getElementById('sidebar').classList.toggle('open');

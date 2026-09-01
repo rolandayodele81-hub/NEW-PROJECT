@@ -127,11 +127,67 @@
     return user;
   };
 
-  // Renders immediately with whatever's available (cached or seed data),
-  // then re-renders whenever js/config.js's background fetch lands fresh data.
+  // Workspace Splash Loader (Slack-inspired rolling loader)
+  PDMS.ensureSplashLoader = function(){
+    let loader = document.getElementById('pdmsSplashLoader');
+    if (!loader && document.body) {
+      loader = document.createElement('div');
+      loader.id = 'pdmsSplashLoader';
+      loader.className = 'pdms-splash-loader';
+      loader.innerHTML = `
+        <div class="pdms-splash-content">
+          <div class="pdms-rolling-loader-box">
+            <div class="pdms-rolling-spinner"></div>
+          </div>
+          <h2 class="pdms-splash-title" id="pdmsSplashTitle">Loading your workspace...</h2>
+          <p class="pdms-splash-sub" id="pdmsSplashSub">Retrieving data from database</p>
+        </div>
+      `;
+      document.body.appendChild(loader);
+    }
+    return loader;
+  };
+
+  PDMS.showSplashLoader = function(title, subtitle){
+    const loader = PDMS.ensureSplashLoader();
+    if (loader) {
+      if (title) {
+        const t = loader.querySelector('#pdmsSplashTitle');
+        if (t) t.textContent = title;
+      }
+      if (subtitle) {
+        const s = loader.querySelector('#pdmsSplashSub');
+        if (s) s.textContent = subtitle;
+      }
+      loader.classList.remove('hidden');
+    }
+  };
+
+  PDMS.hideSplashLoader = function(){
+    const loader = document.getElementById('pdmsSplashLoader');
+    if (loader) {
+      loader.classList.add('hidden');
+    }
+  };
+
+  // Renders when data is ready. Shows splash screen while loading data so that
+  // incomplete or empty states are never displayed before database retrieval finishes.
   PDMS.onRefresh = function(renderFn){
-    renderFn();
-    document.addEventListener('pdms:refresh', renderFn);
+    if (!g.PDMS_DATA_LOADED && !g.PDMS_REMOTE) {
+      PDMS.showSplashLoader('Loading your workspace...', 'Retrieving project data from database');
+    }
+    const safeRender = () => {
+      try { renderFn(); } catch(e){ console.error('Render error:', e); }
+      if (g.PDMS_DATA_LOADED || g.PDMS_REMOTE) {
+        setTimeout(PDMS.hideSplashLoader, 180);
+      }
+    };
+    if (g.PDMS_DATA_LOADED || g.PDMS_REMOTE) {
+      safeRender();
+    }
+    document.addEventListener('pdms:refresh', safeRender);
+    document.addEventListener('pdms:data-ready', safeRender);
+    setTimeout(PDMS.hideSplashLoader, 6000);
   };
 
   // Toast
@@ -747,7 +803,12 @@
 
           const tmpId = 'TMP-' + Date.now();
           const tmp = Object.assign({ id: tmpId, _optimistic: true }, finalRecord);
-          (D.projects = D.projects || []).unshift(tmp);
+          if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
+            window.PDMS_REMOTE.projects.unshift(tmp);
+          }
+          if (D.projects && Array.isArray(D.projects)) {
+            D.projects.unshift(tmp);
+          }
 
           if (typeof opts.onSuccess === 'function') opts.onSuccess(tmp);
 
@@ -756,8 +817,16 @@
               projectOwnerId: String((saved && saved.projectOwnerId) || (currentUser && currentUser.id) || ''),
               projectOwnerName: String((saved && saved.projectOwnerName) || (currentUser && currentUser.name) || '')
             });
-            const idx = D.projects.findIndex(p => p.id === tmpId);
-            if (idx > -1) D.projects.splice(idx, 1, savedRecord); else D.projects.unshift(savedRecord);
+            if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
+              const rIdx = window.PDMS_REMOTE.projects.findIndex(p => p.id === tmpId || p.id === savedRecord.id);
+              if (rIdx > -1) window.PDMS_REMOTE.projects.splice(rIdx, 1, savedRecord);
+              else window.PDMS_REMOTE.projects.unshift(savedRecord);
+            }
+            if (D.projects && Array.isArray(D.projects)) {
+              const idx = D.projects.findIndex(p => p.id === tmpId || p.id === savedRecord.id);
+              if (idx > -1) D.projects.splice(idx, 1, savedRecord);
+              else D.projects.unshift(savedRecord);
+            }
             modalRef.remove();
             const toastMsg = isSalesHeadCreator ? 'Lead onboarded to sales pipeline' : 'Lead submitted for Sales Head approval';
             PDMS.toast('Lead created', toastMsg, 'success');
@@ -769,8 +838,14 @@
               }
             }
           }).catch(err => {
-            const idx = D.projects.findIndex(p => p.id === tmpId);
-            if (idx > -1) D.projects.splice(idx, 1);
+            if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
+              const rIdx = window.PDMS_REMOTE.projects.findIndex(p => p.id === tmpId);
+              if (rIdx > -1) window.PDMS_REMOTE.projects.splice(rIdx, 1);
+            }
+            if (D.projects && Array.isArray(D.projects)) {
+              const idx = D.projects.findIndex(p => p.id === tmpId);
+              if (idx > -1) D.projects.splice(idx, 1);
+            }
             if (typeof opts.onSuccess === 'function') opts.onSuccess();
             PDMS.setButtonLoading(btn, false);
             PDMS.toast('Error', err.message || 'Could not create lead', 'error');

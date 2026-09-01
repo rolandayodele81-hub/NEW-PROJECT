@@ -8,25 +8,17 @@
 
   var CACHE_KEY = 'pdms-cache';
   var CACHE_TS_KEY = 'pdms-cache-ts';
-  var CACHE_TTL = 30 * 1000; // refresh in background if cache is older than 30s
 
-  // ── 1. Serve cache immediately so the page renders without waiting ──────────
-  try {
-    var cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      var data = JSON.parse(cached);
-      global.PDMS_REMOTE = data;
-    }
-  } catch (e) {
-    try { localStorage.removeItem(CACHE_KEY); } catch (_) { }
-  }
+  global.PDMS_DATA_LOADED = false;
+  global.PDMS_IS_LOADING = true;
+  global.PDMS_REMOTE = null;
 
-  // ── 2. Background refresh ───────────────────────────────────────────────────
+  // ── Network Fetch ───────────────────────────────────────────────────────────
   function fetchWithRetry(url, retries) {
     retries = retries || 2;
     return fetch(url).catch(function (err) {
       if (retries > 0) {
-        return new Promise(function (resolve) { setTimeout(resolve, 1000); }).then(function () {
+        return new Promise(function (resolve) { setTimeout(resolve, 800); }).then(function () {
           return fetchWithRetry(url, retries - 1);
         });
       }
@@ -37,40 +29,64 @@
   global.PDMS_REFRESH = function (force) {
     if (!global.PDMS_API_URL || global.PDMS_API_URL.indexOf('REPLACE_WITH') === 0) return;
 
-    // Skip refresh if cache is fresh enough (unless forced)
-    if (!force) {
-      try {
-        var ts = parseInt(localStorage.getItem(CACHE_TS_KEY) || '0', 10);
-        if (Date.now() - ts < CACHE_TTL) return;
-      } catch (_) { }
-    }
+    global.PDMS_IS_LOADING = true;
+    document.dispatchEvent(new CustomEvent('pdms:loading-start'));
 
     fetchWithRetry(global.PDMS_API_URL + '?action=bootstrap')
       .then(function (res) { return res.json(); })
       .then(function (json) {
-        if (!json.ok) throw new Error(json.error || 'Bootstrap failed');
+        if (json.data) {
+          try {
+            var recStr = sessionStorage.getItem('pdms_recent_creates') || '{}';
+            var recs = JSON.parse(recStr);
+            Object.keys(recs).forEach(function(resKey) {
+              if (Array.isArray(json.data[resKey]) && Array.isArray(recs[resKey])) {
+                recs[resKey].forEach(function(item) {
+                  if ((Date.now() - (item._savedAt || 0)) < 180000) {
+                    var exists = json.data[resKey].some(function(x) { return String(x.id) === String(item.id); });
+                    if (!exists) {
+                      json.data[resKey].unshift(item);
+                    }
+                  }
+                });
+              }
+            });
+          } catch (_) {}
+        }
         try {
           localStorage.setItem(CACHE_KEY, JSON.stringify(json.data));
           localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
         } catch (_) { }
         global.PDMS_REMOTE = json.data;
+        global.PDMS_DATA_LOADED = true;
+        global.PDMS_IS_LOADING = false;
         if (global.PDMS_DATA) {
           Object.keys(json.data).forEach(function (key) { global.PDMS_DATA[key] = json.data[key]; });
         }
         document.dispatchEvent(new CustomEvent('pdms:refresh', { detail: json.data }));
+        document.dispatchEvent(new CustomEvent('pdms:data-ready', { detail: json.data }));
+        document.dispatchEvent(new CustomEvent('pdms:loading-end'));
       })
-      .catch(function () {
-        if (!global.PDMS_REMOTE && global.PDMS_DATA) {
-          global.PDMS_REMOTE = global.PDMS_DATA;
-          document.dispatchEvent(new CustomEvent('pdms:refresh', { detail: global.PDMS_DATA }));
-        } else if (global.PDMS_REMOTE) {
-          // Already have cached data — just notify pages to render with it
-          document.dispatchEvent(new CustomEvent('pdms:refresh', { detail: global.PDMS_REMOTE }));
+      .catch(function (err) {
+        console.warn('Live fetch failed, attempting cache fallback:', err);
+        global.PDMS_IS_LOADING = false;
+        var fallback = null;
+        try {
+          var cached = localStorage.getItem(CACHE_KEY);
+          if (cached) fallback = JSON.parse(cached);
+        } catch (_) { }
+        if (!fallback && global.PDMS_DATA) fallback = global.PDMS_DATA;
+        if (fallback) {
+          global.PDMS_REMOTE = fallback;
+          global.PDMS_DATA_LOADED = true;
+          document.dispatchEvent(new CustomEvent('pdms:refresh', { detail: fallback }));
+          document.dispatchEvent(new CustomEvent('pdms:data-ready', { detail: fallback }));
         }
+        document.dispatchEvent(new CustomEvent('pdms:loading-end'));
       });
   };
 
-  global.PDMS_REFRESH();
+  global.PDMS_REFRESH(true);
 })(window);
 /* ============================================
    PSE PDMS - Data Schema
@@ -292,11 +308,67 @@
     return user;
   };
 
-  // Renders immediately with whatever's available (cached or seed data),
-  // then re-renders whenever js/config.js's background fetch lands fresh data.
+  // Workspace Splash Loader (Slack-inspired rolling loader)
+  PDMS.ensureSplashLoader = function(){
+    let loader = document.getElementById('pdmsSplashLoader');
+    if (!loader && document.body) {
+      loader = document.createElement('div');
+      loader.id = 'pdmsSplashLoader';
+      loader.className = 'pdms-splash-loader';
+      loader.innerHTML = `
+        <div class="pdms-splash-content">
+          <div class="pdms-rolling-loader-box">
+            <div class="pdms-rolling-spinner"></div>
+          </div>
+          <h2 class="pdms-splash-title" id="pdmsSplashTitle">Loading your workspace...</h2>
+          <p class="pdms-splash-sub" id="pdmsSplashSub">Retrieving data from database</p>
+        </div>
+      `;
+      document.body.appendChild(loader);
+    }
+    return loader;
+  };
+
+  PDMS.showSplashLoader = function(title, subtitle){
+    const loader = PDMS.ensureSplashLoader();
+    if (loader) {
+      if (title) {
+        const t = loader.querySelector('#pdmsSplashTitle');
+        if (t) t.textContent = title;
+      }
+      if (subtitle) {
+        const s = loader.querySelector('#pdmsSplashSub');
+        if (s) s.textContent = subtitle;
+      }
+      loader.classList.remove('hidden');
+    }
+  };
+
+  PDMS.hideSplashLoader = function(){
+    const loader = document.getElementById('pdmsSplashLoader');
+    if (loader) {
+      loader.classList.add('hidden');
+    }
+  };
+
+  // Renders when data is ready. Shows splash screen while loading data so that
+  // incomplete or empty states are never displayed before database retrieval finishes.
   PDMS.onRefresh = function(renderFn){
-    renderFn();
-    document.addEventListener('pdms:refresh', renderFn);
+    if (!g.PDMS_DATA_LOADED && !g.PDMS_REMOTE) {
+      PDMS.showSplashLoader('Loading your workspace...', 'Retrieving project data from database');
+    }
+    const safeRender = () => {
+      try { renderFn(); } catch(e){ console.error('Render error:', e); }
+      if (g.PDMS_DATA_LOADED || g.PDMS_REMOTE) {
+        setTimeout(PDMS.hideSplashLoader, 180);
+      }
+    };
+    if (g.PDMS_DATA_LOADED || g.PDMS_REMOTE) {
+      safeRender();
+    }
+    document.addEventListener('pdms:refresh', safeRender);
+    document.addEventListener('pdms:data-ready', safeRender);
+    setTimeout(PDMS.hideSplashLoader, 6000);
   };
 
   // Toast
@@ -912,7 +984,12 @@
 
           const tmpId = 'TMP-' + Date.now();
           const tmp = Object.assign({ id: tmpId, _optimistic: true }, finalRecord);
-          (D.projects = D.projects || []).unshift(tmp);
+          if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
+            window.PDMS_REMOTE.projects.unshift(tmp);
+          }
+          if (D.projects && Array.isArray(D.projects)) {
+            D.projects.unshift(tmp);
+          }
 
           if (typeof opts.onSuccess === 'function') opts.onSuccess(tmp);
 
@@ -921,8 +998,16 @@
               projectOwnerId: String((saved && saved.projectOwnerId) || (currentUser && currentUser.id) || ''),
               projectOwnerName: String((saved && saved.projectOwnerName) || (currentUser && currentUser.name) || '')
             });
-            const idx = D.projects.findIndex(p => p.id === tmpId);
-            if (idx > -1) D.projects.splice(idx, 1, savedRecord); else D.projects.unshift(savedRecord);
+            if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
+              const rIdx = window.PDMS_REMOTE.projects.findIndex(p => p.id === tmpId || p.id === savedRecord.id);
+              if (rIdx > -1) window.PDMS_REMOTE.projects.splice(rIdx, 1, savedRecord);
+              else window.PDMS_REMOTE.projects.unshift(savedRecord);
+            }
+            if (D.projects && Array.isArray(D.projects)) {
+              const idx = D.projects.findIndex(p => p.id === tmpId || p.id === savedRecord.id);
+              if (idx > -1) D.projects.splice(idx, 1, savedRecord);
+              else D.projects.unshift(savedRecord);
+            }
             modalRef.remove();
             const toastMsg = isSalesHeadCreator ? 'Lead onboarded to sales pipeline' : 'Lead submitted for Sales Head approval';
             PDMS.toast('Lead created', toastMsg, 'success');
@@ -934,8 +1019,14 @@
               }
             }
           }).catch(err => {
-            const idx = D.projects.findIndex(p => p.id === tmpId);
-            if (idx > -1) D.projects.splice(idx, 1);
+            if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
+              const rIdx = window.PDMS_REMOTE.projects.findIndex(p => p.id === tmpId);
+              if (rIdx > -1) window.PDMS_REMOTE.projects.splice(rIdx, 1);
+            }
+            if (D.projects && Array.isArray(D.projects)) {
+              const idx = D.projects.findIndex(p => p.id === tmpId);
+              if (idx > -1) D.projects.splice(idx, 1);
+            }
             if (typeof opts.onSuccess === 'function') opts.onSuccess();
             PDMS.setButtonLoading(btn, false);
             PDMS.toast('Error', err.message || 'Could not create lead', 'error');
@@ -1246,6 +1337,16 @@
                 if (idx !== -1) list.splice(idx, 1);
               }
             };
+            if (action === 'create' && json.data) {
+              try {
+                const recStr = sessionStorage.getItem('pdms_recent_creates') || '{}';
+                const recs = JSON.parse(recStr);
+                recs[resKey] = recs[resKey] || [];
+                recs[resKey] = recs[resKey].filter(x => (Date.now() - (x._savedAt || 0)) < 180000 && String(x.id) !== String(json.data.id));
+                recs[resKey].unshift(Object.assign({ _savedAt: Date.now() }, json.data));
+                sessionStorage.setItem('pdms_recent_creates', JSON.stringify(recs));
+              } catch (_) {}
+            }
             if (global.PDMS_REMOTE) syncList(global.PDMS_REMOTE[resKey]);
             if (global.PDMS_DATA) syncList(global.PDMS_DATA[resKey]);
             if (global.PDMS_REMOTE) {
@@ -1549,16 +1650,25 @@
       '</div>'+
     '</div>'+
     '<div class="panel" id="notifPanel"></div>'+
-    '<div class="pdms-loading-bar" id="pdmsLoadingBar"></div>';
+    '<div id="pdmsSplashLoader" class="pdms-splash-loader' + (window.PDMS_DATA_LOADED ? ' hidden' : '') + '">' +
+      '<div class="pdms-splash-content">' +
+        '<div class="pdms-rolling-loader-box">' +
+          '<div class="pdms-rolling-spinner"></div>' +
+        '</div>' +
+        '<h2 class="pdms-splash-title" id="pdmsSplashTitle">Loading your workspace...</h2>' +
+        '<p class="pdms-splash-sub" id="pdmsSplashSub">Retrieving data from database</p>' +
+      '</div>' +
+    '</div>';
 
-    // Show the top loading bar until this page's data has actually arrived —
-    // PDMS_REFRESH() was already kicked off by config.js before this shell mounted.
-    const loadingBar = document.getElementById('pdmsLoadingBar');
-    if (!window.PDMS_REMOTE) {
-      loadingBar.classList.add('active');
-      const stop = () => { loadingBar.classList.remove('active'); };
+    // Splash screen stays visible until live database data has landed
+    if (!window.PDMS_DATA_LOADED) {
+      const stop = () => {
+        setTimeout(PDMS.hideSplashLoader, 150);
+      };
       document.addEventListener('pdms:refresh', stop, { once: true });
+      document.addEventListener('pdms:data-ready', stop, { once: true });
       document.addEventListener('pdms:loading-end', stop, { once: true });
+      setTimeout(stop, 8000);
     }
 
     document.getElementById('hamburger').onclick = ()=>document.getElementById('sidebar').classList.toggle('open');

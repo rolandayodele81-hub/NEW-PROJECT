@@ -843,14 +843,101 @@ canvas{max-width:100%;display:block}
   content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--gradient);
 }
 
-/* Page loading bar — shown at the top of the viewport while a page's data is
-   still being fetched from the backend, hidden once fresh data lands. */
-.pdms-loading-bar{position:fixed;top:0;left:0;height:3px;width:100%;z-index:9999;pointer-events:none}
-.pdms-loading-bar::before{content:"";display:block;height:100%;width:20%;background:var(--gradient);opacity:0;transition:opacity .2s ease}
-.pdms-loading-bar.active::before{opacity:1;animation:pdms-loading-pulse 1.1s ease-in-out infinite}
-@keyframes pdms-loading-pulse{0%{width:10%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:10%;margin-left:100%}}
 
 /* Inline loading state for table/list sections while data is still arriving. */
 .pdms-loading-inline{display:flex;align-items:center;gap:10px;padding:32px;justify-content:center;color:var(--text-muted);font-size:13px}
 .pdms-spinner{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--primary);animation:pdms-spin .7s linear infinite}
 @keyframes pdms-spin{to{transform:rotate(360deg)}}
+
+/* =========================================================
+   Workspace Data Loading Splash Screen (Slack-inspired)
+   ========================================================= */
+.pdms-splash-loader {
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-w);
+  right: 0;
+  bottom: 0;
+  width: calc(100vw - var(--sidebar-w));
+  height: 100vh;
+  background: var(--bg);
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.4s ease;
+  pointer-events: all;
+}
+body:not(:has(.sidebar)) .pdms-splash-loader,
+.no-sidebar .pdms-splash-loader {
+  left: 0;
+  width: 100vw;
+}
+@media (max-width: 900px) {
+  .pdms-splash-loader {
+    left: 0;
+    width: 100vw;
+  }
+}
+.pdms-splash-loader.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.pdms-splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: 440px;
+  padding: 32px 24px;
+  animation: pdmsSplashPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+@keyframes pdmsSplashPop {
+  0% { transform: scale(0.92); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.pdms-rolling-loader-box {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+.pdms-rolling-spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3.5px solid rgba(29, 60, 136, 0.12);
+  border-top-color: var(--primary);
+  border-right-color: var(--accent);
+  animation: pdmsRollingSpin 0.75s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.18);
+}
+[data-theme="dark"] .pdms-rolling-spinner {
+  border-color: rgba(255, 255, 255, 0.1);
+  border-top-color: #818cf8;
+  border-right-color: var(--accent);
+}
+@keyframes pdmsRollingSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.pdms-splash-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+.pdms-splash-sub {
+  font-size: 13.5px;
+  color: var(--text-soft);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}

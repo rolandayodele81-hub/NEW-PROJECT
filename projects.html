@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788183270"/>
+<link rel="stylesheet" href="css/style.css?v=1788286901"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788183270"></script>
+<script src="js/bundle.js?v=1788286901"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -407,11 +407,19 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
       // Optimistic UI: insert temp project immediately
       const tmpId = 'TMP-' + Date.now();
       const tmp = Object.assign({id: tmpId, _optimistic: true}, record);
+      if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
+        window.PDMS_REMOTE.projects.unshift(tmp);
+      }
       D.projects.unshift(tmp);
       renderProjects();
       return PDMS.api.create('projects', record).then(saved => {
         // Replace temp with saved project
-        const idx = D.projects.findIndex(p => p.id === tmpId);
+        if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
+          const rIdx = window.PDMS_REMOTE.projects.findIndex(p => p.id === tmpId || p.id === saved.id);
+          if (rIdx > -1) window.PDMS_REMOTE.projects.splice(rIdx, 1, saved);
+          else window.PDMS_REMOTE.projects.unshift(saved);
+        }
+        const idx = D.projects.findIndex(p => p.id === tmpId || p.id === saved.id);
         if (idx > -1) D.projects.splice(idx, 1, saved); else D.projects.unshift(saved);
         modal.remove();
         PDMS.toast('Project created','New project added to pipeline','success');
@@ -419,6 +427,10 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
         renderProjects();
       }).catch(err => {
         // Rollback optimistic insert
+        if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
+          const rIdx = window.PDMS_REMOTE.projects.findIndex(p => p.id === tmpId);
+          if (rIdx > -1) window.PDMS_REMOTE.projects.splice(rIdx, 1);
+        }
         const idx = D.projects.findIndex(p => p.id === tmpId);
         if (idx > -1) D.projects.splice(idx,1);
         renderProjects();
