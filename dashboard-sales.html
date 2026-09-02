@@ -7,7 +7,7 @@
   <title>Sales Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788356681"/>
+<link rel="stylesheet" href="css/style.css?v=1788357757"/>
   <style>
     .sales-hero {
       display: grid;
@@ -94,7 +94,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788356681"></script>
+  <script src="js/bundle.js?v=1788357757"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -136,11 +136,13 @@
         ? salesProjectSet.filter(p => projectOwnedByUser(p, currentUser))
         : salesProjectSet;
       // Sales user sees their own projects; general/Sales Head see active approved pipeline
-      const salesProjects = isSalesUser
+      const rawSales = isSalesUser
         ? userSalesSet
         : salesProjectSet.filter(p => p.status !== 'Awaiting Sales Head Approval' && p.status !== 'Cancelled');
+      const salesProjects = PDMS.sortNewestFirst ? PDMS.sortNewestFirst(rawSales.slice()) : rawSales;
       // Delivery table should show deals that Sales created which have moved to Delivery
-      const deliveryProjects = salesProjectSet.filter(p => (p.status === 'Closed' || p.stage === 'Delivery' || (PDMS.stageOf && PDMS.stageOf(p) === 'Delivery')) && p.status !== 'Cancelled' && p.status !== 'On Hold');
+      const rawDelivery = salesProjectSet.filter(p => (p.status === 'Closed' || p.stage === 'Delivery' || (PDMS.stageOf && PDMS.stageOf(p) === 'Delivery')) && p.status !== 'Cancelled' && p.status !== 'On Hold');
+      const deliveryProjects = PDMS.sortNewestFirst ? PDMS.sortNewestFirst(rawDelivery.slice()) : rawDelivery;
       const totalInSales = salesProjects.length;
       const inPipeline = salesProjects.filter(p => ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status) && p.status !== 'Awaiting Sales Head Approval' && p.status !== 'Awaiting Account Approval' && p.status !== 'Cancelled' && p.status !== 'On Hold' && p.status !== 'Closed' && p.stage !== 'Delivery').length;
       const pendingApprovalCount = salesProjects.filter(p => p.status === 'Awaiting Sales Head Approval').length;

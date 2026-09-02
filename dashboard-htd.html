@@ -7,7 +7,7 @@
   <title>Delivery Dashboard — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788356681" />
+  <link rel="stylesheet" href="css/style.css?v=1788357757" />
   <style>
     .htd-hero {
       display: grid;
@@ -149,7 +149,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788356681"></script>
+  <script src="js/bundle.js?v=1788357757"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -167,14 +167,14 @@
       const currentUser = PDMS.getUser();
       const isPMO = currentUser && currentUser.role === 'PMO';
       const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
-      const allDelivery = liveProjects.filter(isDeliveryProject);
-      const deliveryProjects = isPMO
+      const rawDelivery = isPMO
         ? allDelivery.filter(p => {
           const myName = (currentUser.name || '').toLowerCase();
           const consultants = Array.isArray(p.consultants) ? p.consultants.map(n => n.toLowerCase()) : [];
           return (p.pm || '').toLowerCase() === myName || (p.lead || '').toLowerCase() === myName || consultants.includes(myName);
         })
         : allDelivery;
+      const deliveryProjects = PDMS.sortNewestFirst ? PDMS.sortNewestFirst(rawDelivery.slice()) : rawDelivery;
 
       const getDeliveryStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) ? p.status : 'Not Started'));
 

@@ -7,7 +7,7 @@
   <title>PMO Dashboard — PSE PDMS</title>
   
   
-  <link rel="stylesheet" href="css/style.css?v=1788356681"/>
+  <link rel="stylesheet" href="css/style.css?v=1788357757"/>
   <style>
     .pmo-hero {
       display: grid;
@@ -62,7 +62,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788356681"></script>
+  <script src="js/bundle.js?v=1788357757"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -72,12 +72,13 @@
       const user = PDMS.getUser();
       if (!user) return [];
       const myName = (user.name || '').toLowerCase();
-      return lp.filter(p => {
+      const res = lp.filter(p => {
         const consultants = Array.isArray(p.consultants) ? p.consultants.map(n => n.toLowerCase()) : [];
         return (p.pm || '').toLowerCase() === myName
           || (p.lead || '').toLowerCase() === myName
           || consultants.includes(myName);
       });
+      return PDMS.sortNewestFirst ? PDMS.sortNewestFirst(res.slice()) : res;
     }
 
     function render() {

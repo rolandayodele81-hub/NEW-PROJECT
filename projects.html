@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788356681"/>
+<link rel="stylesheet" href="css/style.css?v=1788357757"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788356681"></script>
+<script src="js/bundle.js?v=1788357757"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -32,33 +32,29 @@ const pageInfo = viewParam==='sales' ? {title:'Sales Pipeline', sub:'Projects cr
 function scopedProjects(){
   const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
   const user = PDMS.getUser() || currentUser;
+  let list = liveProjects;
   if(user && (user.role === 'Consultant' || user.role === 'PMO')){
     const myName = (user.name||'').toLowerCase();
     const myId = (user.id||'').toLowerCase();
-    return liveProjects.filter(p=>{
+    list = liveProjects.filter(p=>{
       const consultants = Array.isArray(p.consultants) ? p.consultants.map(String).map(n=>n.toLowerCase()) : [];
       return consultants.includes(myName) || consultants.includes(myId)
         || (p.pm||'').toLowerCase()===myName
         || (p.lead||'').toLowerCase()===myName;
     });
-  }
-  // Bucket purely by current status: sales statuses → Sales Pipeline, delivery statuses → Delivery
-  if(viewParam==='sales' || (!viewParam && user && String(user.role).trim().toLowerCase() === 'sales')) {
+  } else if(viewParam==='sales' || (!viewParam && user && String(user.role).trim().toLowerCase() === 'sales')) {
     const isSalesOnly = user && String(user.role).trim().toLowerCase() === 'sales';
     if(isSalesOnly) {
-      // Sales user sees ALL their own deals (including their own pending approval & cancelled leads)
       const mySales = liveProjects.filter(p => PDMS.isSalesStatus(p.status) || p.status==='Awaiting Account Approval' || p.status==='Awaiting Sales Head Approval' || p.status==='Cancelled' || p.stage==='Delivery' || p.status==='Closed' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)));
-      return mySales.filter(p => PDMS.projectOwnedByUser(p, user));
+      list = mySales.filter(p => PDMS.projectOwnedByUser(p, user));
+    } else {
+      list = liveProjects.filter(p => {
+        if (p.status === 'Awaiting Sales Head Approval' || p.status === 'Cancelled') return false;
+        return PDMS.isSalesStatus(p.status) || p.status==='Awaiting Account Approval' || p.stage==='Delivery' || p.status==='Closed' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status));
+      });
     }
-    // For general viewers (Sales Head, Delivery team, PMO, HTD, COO, etc.):
-    // Only show active, approved sales pipeline deals (exclude unapproved awaiting approval and cancelled deals)
-    return liveProjects.filter(p => {
-      if (p.status === 'Awaiting Sales Head Approval' || p.status === 'Cancelled') return false;
-      return PDMS.isSalesStatus(p.status) || p.status==='Awaiting Account Approval' || p.stage==='Delivery' || p.status==='Closed' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status));
-    });
-  }
-  if(viewParam==='delivery') {
-    return liveProjects.filter(p => {
+  } else if(viewParam==='delivery') {
+    list = liveProjects.filter(p => {
       if (p.status === 'Awaiting Account Approval' || p.status === 'Awaiting Sales Head Approval') return false;
       const preAward = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA'];
       if (preAward.includes(p.status)) return false;
@@ -66,7 +62,7 @@ function scopedProjects(){
       return true;
     });
   }
-  return liveProjects;
+  return PDMS.sortNewestFirst ? PDMS.sortNewestFirst(list.slice()) : list;
 }
 // Each bucket is filtered/kanban'd using its own status vocabulary.
 const bucketStatuses = (viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : D.statuses).filter(s => s !== 'Awaiting Sales Head Approval' && s !== 'Awaiting Account Approval' && (viewParam !== 'sales' || s !== 'Cancelled'));

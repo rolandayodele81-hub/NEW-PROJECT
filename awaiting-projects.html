@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Awaiting Approval — PSE PDMS</title>
-  <link rel="stylesheet" href="css/style.css?v=1788356681"/>
+  <link rel="stylesheet" href="css/style.css?v=1788357757"/>
   <style>
     .approve-btn {
       padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
@@ -22,7 +22,7 @@
   </style>
 </head>
 <body>
-<script src="js/bundle.js?v=1788356681"></script>
+<script src="js/bundle.js?v=1788357757"></script>
 <script>
   PDMS.mountShell('awaiting-approval');
   const D = PDMS_DATA; const I = PDMS.icon;
@@ -50,8 +50,10 @@
   function render() {
     const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
     const liveClients  = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients)  || D.clients;
-    const pending = liveProjects.filter(p => p.status === pendingStatus);
-    const cancelled = isSalesHead ? liveProjects.filter(p => p.status === 'Cancelled' && (p.stage === 'Sales' || (!p.stage && p.sales))) : [];
+    const rawPending = liveProjects.filter(p => p.status === pendingStatus);
+    const pending = PDMS.sortNewestFirst ? PDMS.sortNewestFirst(rawPending.slice()) : rawPending;
+    const rawCancelled = isSalesHead ? liveProjects.filter(p => p.status === 'Cancelled' && (p.stage === 'Sales' || (!p.stage && p.sales))) : [];
+    const cancelled = PDMS.sortNewestFirst ? PDMS.sortNewestFirst(rawCancelled.slice()) : rawCancelled;
 
     const displayList = (isSalesHead && activeTab === 'cancelled') ? cancelled : pending;
 

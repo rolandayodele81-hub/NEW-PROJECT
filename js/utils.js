@@ -543,6 +543,39 @@
   PDMS.relativeTime = PDMS.timeAgo;
   PDMS.initials = name => (name||'').split(' ').filter(Boolean).map(p=>p[0]).slice(0,2).join('').toUpperCase();
 
+  // Sorts records newest-first (optimistic TMP first, then latest dates/timestamps, then highest numeric ID)
+  PDMS.sortNewestFirst = function (arr) {
+    if (!Array.isArray(arr)) return arr;
+    return arr.sort(function (a, b) {
+      if (!a && !b) return 0;
+      if (!a) return 1;
+      if (!b) return -1;
+      if (a._optimistic && !b._optimistic) return -1;
+      if (!a._optimistic && b._optimistic) return 1;
+      var timeA = a.time || a.createdAt || a._savedAt || (a.joined && /^\d{4}-\d{2}-\d{2}/.test(a.joined) ? a.joined : null);
+      var timeB = b.time || b.createdAt || b._savedAt || (b.joined && /^\d{4}-\d{2}-\d{2}/.test(b.joined) ? b.joined : null);
+      if (timeA && timeB) {
+        var diffTime = new Date(timeB).getTime() - new Date(timeA).getTime();
+        if (!isNaN(diffTime) && diffTime !== 0) return diffTime;
+      }
+      var strA = String(a.id || '');
+      var strB = String(b.id || '');
+      var matchA = strA.match(/\d+/g);
+      var matchB = strB.match(/\d+/g);
+      if (matchA && matchB) {
+        var numA = parseInt(matchA.join(''), 10);
+        var numB = parseInt(matchB.join(''), 10);
+        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+          return numB - numA;
+        }
+      }
+      if (strA && strB && strA !== strB) {
+        return strB.localeCompare(strA, undefined, { numeric: true });
+      }
+      return 0;
+    });
+  };
+
   // Escape HTML
   PDMS.esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -554,7 +587,10 @@
     const pageSize = opts.pageSize||10;
 
     function filtered(){
-      let arr = opts.rows.slice();
+      let arr = (opts.rows || []).slice();
+      if (!state.sortKey) {
+        PDMS.sortNewestFirst(arr);
+      }
       if(state.filter){
         const q = state.filter.toLowerCase();
         arr = arr.filter(r=>(opts.searchKeys||Object.keys(r)).some(k=>String(r[k]||'').toLowerCase().includes(q)));

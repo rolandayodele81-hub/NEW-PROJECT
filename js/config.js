@@ -33,6 +33,48 @@
     return data;
   }
 
+  function sortCollectionNewestFirst(arr) {
+    if (!Array.isArray(arr)) return arr;
+    return arr.sort(function (a, b) {
+      if (!a && !b) return 0;
+      if (!a) return 1;
+      if (!b) return -1;
+      if (a._optimistic && !b._optimistic) return -1;
+      if (!a._optimistic && b._optimistic) return 1;
+      var timeA = a.time || a.createdAt || a._savedAt || (a.joined && /^\d{4}-\d{2}-\d{2}/.test(a.joined) ? a.joined : null);
+      var timeB = b.time || b.createdAt || b._savedAt || (b.joined && /^\d{4}-\d{2}-\d{2}/.test(b.joined) ? b.joined : null);
+      if (timeA && timeB) {
+        var diffTime = new Date(timeB).getTime() - new Date(timeA).getTime();
+        if (!isNaN(diffTime) && diffTime !== 0) return diffTime;
+      }
+      var strA = String(a.id || '');
+      var strB = String(b.id || '');
+      var matchA = strA.match(/\d+/g);
+      var matchB = strB.match(/\d+/g);
+      if (matchA && matchB) {
+        var numA = parseInt(matchA.join(''), 10);
+        var numB = parseInt(matchB.join(''), 10);
+        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+          return numB - numA;
+        }
+      }
+      if (strA && strB && strA !== strB) {
+        return strB.localeCompare(strA, undefined, { numeric: true });
+      }
+      return 0;
+    });
+  }
+
+  function sortAllDataNewestFirst(data) {
+    if (!data || typeof data !== 'object') return data;
+    Object.keys(data).forEach(function (key) {
+      if (Array.isArray(data[key])) {
+        sortCollectionNewestFirst(data[key]);
+      }
+    });
+    return data;
+  }
+
   // ── Network Fetch ───────────────────────────────────────────────────────────
   function fetchWithRetry(url, retries) {
     retries = retries || 2;
@@ -63,6 +105,7 @@
           var cachedData = JSON.parse(cachedRaw);
           if (cachedData && typeof cachedData === 'object') {
             mergeRecentCreates(cachedData);
+            sortAllDataNewestFirst(cachedData);
             global.PDMS_REMOTE = cachedData;
             global.PDMS_DATA_LOADED = true;
             if (global.PDMS_DATA) {
@@ -79,6 +122,7 @@
       .then(function (res) { return res.json(); })
       .then(function (json) {
         mergeRecentCreates(json.data);
+        sortAllDataNewestFirst(json.data);
         try {
           localStorage.setItem(CACHE_KEY, JSON.stringify(json.data));
           localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
@@ -104,6 +148,7 @@
         if (!fallback && global.PDMS_DATA) fallback = global.PDMS_DATA;
         if (fallback) {
           mergeRecentCreates(fallback);
+          sortAllDataNewestFirst(fallback);
           global.PDMS_REMOTE = fallback;
           global.PDMS_DATA_LOADED = true;
           document.dispatchEvent(new CustomEvent('pdms:refresh', { detail: fallback }));
