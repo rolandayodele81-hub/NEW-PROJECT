@@ -7,7 +7,7 @@
   <title>PMO Dashboard — PSE PDMS</title>
   
   
-  <link rel="stylesheet" href="css/style.css?v=1788351174"/>
+  <link rel="stylesheet" href="css/style.css?v=1788356105"/>
   <style>
     .pmo-hero {
       display: grid;
@@ -62,7 +62,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788351174"></script>
+  <script src="js/bundle.js?v=1788356105"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -83,7 +83,8 @@
     function render() {
       const user = PDMS.getUser();
       const projects = myProjects();
-      const ongoing   = projects.filter(p => p.status === 'In Progress').length;
+      const isOngoingStatus = st => st !== 'Not Started' && st !== 'Completed' && st !== 'Closed';
+      const ongoing   = projects.filter(p => isOngoingStatus(p.status)).length;
       const completed = projects.filter(p => p.status === 'Completed').length;
       const closed    = projects.filter(p => p.status === 'Closed').length;
       const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -229,7 +230,8 @@
       const legend = document.getElementById('pmoDonutLegend');
       if (!canvas || !legend) return;
       const projects = myProjects();
-      const ongoing   = projects.filter(p => p.status === 'In Progress').length;
+      const isOngoingStatus = st => st !== 'Not Started' && st !== 'Completed' && st !== 'Closed';
+      const ongoing   = projects.filter(p => isOngoingStatus(p.status)).length;
       const completed = projects.filter(p => p.status === 'Completed').length;
       PDMS.charts.donut(canvas, [ongoing, completed], ['#f59e0b', '#10b981']);
       legend.innerHTML = [

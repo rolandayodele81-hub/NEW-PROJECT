@@ -2045,7 +2045,6 @@
       '<div class="main">'+
         '<header class="header">'+
           '<button class="hamburger" id="hamburger">'+I('menu')+'</button>'+
-          '<div class="search"><span>'+I('search')+'</span><input id="globalSearch" placeholder="Search projects, users, clients, reviews..."/></div>'+
           '<div class="header-actions">'+
             '<button class="icon-btn" id="themeToggle" title="Toggle theme">'+I(theme==='light'?'moon':'sun')+'</button>'+
             '<button class="icon-btn" id="notifBtn" title="Notifications">'+I('bell')+'<span class="dot"></span></button>'+
@@ -2103,9 +2102,12 @@
     document.getElementById('themeToggle').onclick = PDMS.toggleTheme;
     document.getElementById('logoutBtn').onclick = confirmLogout;
     document.getElementById('notifBtn').onclick = ()=>togglePanel('notif');
-    document.getElementById('globalSearch').addEventListener('keydown',e=>{
-      if(e.key==='Enter'){ location.href='search.html?q='+encodeURIComponent(e.target.value); }
-    });
+    const globalSearchInput = document.getElementById('globalSearch');
+    if(globalSearchInput){
+      globalSearchInput.addEventListener('keydown',e=>{
+        if(e.key==='Enter'){ location.href='search.html?q='+encodeURIComponent(e.target.value); }
+      });
+    }
     renderNotifPanel();
     document.addEventListener('pdms:refresh', ()=>{ renderNotifPanel(); maybeShowUnreadPopup(activeId); });
     document.addEventListener('pdms:data-ready', ()=>{ renderNotifPanel(); maybeShowUnreadPopup(activeId); });

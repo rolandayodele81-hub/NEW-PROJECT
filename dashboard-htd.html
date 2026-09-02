@@ -7,7 +7,7 @@
   <title>Delivery Dashboard — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788351174" />
+  <link rel="stylesheet" href="css/style.css?v=1788356105" />
   <style>
     .htd-hero {
       display: grid;
@@ -149,7 +149,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788351174"></script>
+  <script src="js/bundle.js?v=1788356105"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -180,7 +180,8 @@
 
       const activeProjects = deliveryProjects.length;
       const notStartedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Not Started').length;
-      const ongoingProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'In Progress').length;
+      const isOngoingStatus = st => st !== 'Not Started' && st !== 'Completed' && st !== 'Closed';
+      const ongoingProjects = deliveryProjects.filter(p => isOngoingStatus(getDeliveryStatus(p))).length;
       const completedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Completed').length;
       const closedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Closed').length;
       const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -702,7 +703,8 @@
       const lp = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
       const dp = lp.filter(isDeliveryProject);
       const getDeliveryStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || 'Not Started');
-      const ongoing = dp.filter(p => getDeliveryStatus(p) === 'In Progress').length;
+      const isOngoingStatus = st => st !== 'Not Started' && st !== 'Completed' && st !== 'Closed';
+      const ongoing = dp.filter(p => isOngoingStatus(getDeliveryStatus(p))).length;
       const completed = dp.filter(p => getDeliveryStatus(p) === 'Completed').length;
       const notStarted = dp.filter(p => getDeliveryStatus(p) === 'Not Started').length;
       const other = Math.max(dp.length - ongoing - completed - notStarted, 0);
