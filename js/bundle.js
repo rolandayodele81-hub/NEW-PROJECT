@@ -837,7 +837,7 @@
     // opts: {columns, rows, pageSize, searchKeys, filterOptions,
     //        dateFilter:{key,label}  ← adds a From/To date range on that row field}
     const state = { page:1, sortKey:null, sortDir:1, filter:'', filters:opts.filters||{}, dateFrom:'', dateTo:'' };
-    const pageSize = opts.pageSize||10;
+    const pageSize = opts.pageSize || 20;
 
     function filtered(){
       let arr = (opts.rows || []).slice();

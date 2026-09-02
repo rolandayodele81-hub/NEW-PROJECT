@@ -3,8 +3,8 @@
 <title>Activity Logs — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788357757"/></head><body>
-<script src="js/bundle.js?v=1788357757"></script>
+<link rel="stylesheet" href="css/style.css?v=1788359934"/></head><body>
+<script src="js/bundle.js?v=1788359934"></script>
 <script>
 PDMS.mountShell('activity');
 const D=PDMS_DATA;const I=PDMS.icon;
@@ -20,7 +20,7 @@ PDMS.renderTable(document.getElementById('tbl'),{
     {key:'action',label:'Action'},
     {key:'target',label:'Target'},
     {key:'time',label:'When'}
-  ],rows:D.activities,pageSize:15,searchKeys:['user','action','target']
+  ],rows:D.activities,pageSize:20,searchKeys:['user','action','target']
 });
 }
 PDMS.onRefresh(render);
