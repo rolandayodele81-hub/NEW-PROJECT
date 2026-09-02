@@ -2102,12 +2102,6 @@
     document.getElementById('themeToggle').onclick = PDMS.toggleTheme;
     document.getElementById('logoutBtn').onclick = confirmLogout;
     document.getElementById('notifBtn').onclick = ()=>togglePanel('notif');
-    const globalSearchInput = document.getElementById('globalSearch');
-    if(globalSearchInput){
-      globalSearchInput.addEventListener('keydown',e=>{
-        if(e.key==='Enter'){ location.href='search.html?q='+encodeURIComponent(e.target.value); }
-      });
-    }
     renderNotifPanel();
     document.addEventListener('pdms:refresh', ()=>{ renderNotifPanel(); maybeShowUnreadPopup(activeId); });
     document.addEventListener('pdms:data-ready', ()=>{ renderNotifPanel(); maybeShowUnreadPopup(activeId); });
