@@ -15,7 +15,7 @@ var ENTITIES = {
   departments: { sheet: 'Departments', idPrefix: 'D' },
   users: { sheet: 'Users', idPrefix: 'U', publicExclude: ['passwordHash'], textFields: ['joined', 'birthday'] },
   consultants: { sheet: 'Consultants', idPrefix: 'C', textFields: ['joined'] },
-  clients: { sheet: 'Clients', idPrefix: 'CL' },
+  clients: { sheet: 'Clients', idPrefix: 'CL', textFields: ['createdAt'] },
   projects: { sheet: 'Projects', idPrefix: 'PSE-', jsonFields: ['consultants', 'privateTasks', 'documents', 'milestones', 'subStatuses'], textFields: ['start', 'due', 'completion', 'actualCompletion'] },
   notifications: { sheet: 'Notifications', idPrefix: 'N' },
   threads: { sheet: 'Threads', idPrefix: 'T', jsonFields: ['user', 'messages'] },

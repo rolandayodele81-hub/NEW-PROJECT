@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788286901" />
+  <link rel="stylesheet" href="css/style.css?v=1788351174" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788286901"></script>
+  <script src="js/bundle.js?v=1788351174"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -694,13 +694,16 @@
         const isDeliveryStage = pStage === 'Delivery';
         const isSalesStage = pStage === 'Sales';
         const canAssign = PDMS.can('Assign Consultant') && isDeliveryStage && (!isPMO || isAssignedPMO);
+        const isSalesHead = user && user.role === 'Sales Head';
         const canManageStatus = user && (
+          (isSalesHead && isSalesStage && p.status !== 'Awaiting Sales Head Approval') ||
           (PDMS.isSalesRole(user) && isSalesStage && p.status !== 'Awaiting Sales Head Approval' && PDMS.projectOwnedByUser(p, user)) ||
           (['HTD', 'COO', 'PM Head'].includes(user.role) && isDeliveryStage) ||
           (isPMO && isDeliveryStage && isAssignedPMO)
         );
         const canStartDelivery = PDMS.can('Start Delivery') && isSalesStage && p.status === 'Approved';
         const canEditDetails = user && (
+          (isSalesHead && isSalesStage && p.status !== 'Awaiting Sales Head Approval') ||
           (PDMS.isSalesRole(user) && isSalesStage && p.status !== 'Awaiting Sales Head Approval' && PDMS.projectOwnedByUser(p, user)) ||
           (['HTD', 'COO', 'PM Head'].includes(user.role) && isDeliveryStage) ||
           (isPMO && isDeliveryStage && isAssignedPMO)
@@ -797,11 +800,12 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             <div class="timeline">
               ${stages.map(s => `<div class="tl-item ${s.state}"><div class="tl-title">${s.label}${s.isPendingApproval ? ` <span class="badge" style="font-size:10px;padding:2px 8px;vertical-align:middle;margin-left:6px;background:rgba(245,158,11,.15);color:#d97706;border:1px solid rgba(245,158,11,.35);font-weight:600"><span class="sh-pending-dot" style="width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block;margin-right:4px"></span>Awaiting Sales Head Approval</span>` : ''}${s.label === 'In Progress' && p.status === 'In Progress' && canManageStatus ? ` <button class="btn btn-primary btn-xs" style="margin-left:10px;padding:4px 8px;font-size:11px;background:var(--primary);color:#fff;border:none" onclick="event.stopPropagation();editInProgressStage()">Add Stage</button>` : ''}</div><div class="tl-meta" style="${s.isCancelled ? 'color:#ef4444;font-weight:600' : ''}">${s.meta || (s.state === 'done' ? 'Completed' : s.state === 'cancelled' ? 'Cancelled' : s.state === 'active' ? 'Ongoing' : 'Upcoming')}</div>${s.label === 'In Progress' && subStatuses.length ? `<div class="tl-sub" style="margin-top:8px;margin-left:14px;padding-left:12px;border-left:2px solid var(--border);display:flex;flex-direction:column;gap:6px">${subStatuses.map((ss, idx) => {
             const isLast = idx === subStatuses.length - 1;
+            const isOngoing = isLast && (s.state === 'active' || p.status === 'In Progress');
             return `
                   <div style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:2px">
-                    <span style="color:${isLast ? '#f59e0b' : '#10b981'};font-size:14px;font-weight:bold">${isLast ? '●' : '✓'}</span>
+                    <span style="color:${isOngoing ? '#f59e0b' : '#10b981'};font-size:14px;font-weight:bold">${isOngoing ? '●' : '✓'}</span>
                     <span style="color:var(--text);font-weight:600">${PDMS.esc(ss)}</span>
-                    <span style="font-size:11px;color:var(--text-muted);font-weight:500;margin-left:6px">(${isLast ? 'Ongoing' : 'Completed'})</span>
+                    <span style="font-size:11px;color:var(--text-muted);font-weight:500;margin-left:6px">(${isOngoing ? 'Ongoing' : 'Completed'})</span>
                   </div>
                 `;
           }).join('')}</div>` : ''}</div>`).join('')}
@@ -1167,11 +1171,10 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       modal.querySelector('#prSaveBtn').onclick = function () {
         const message = modal.querySelector('#prMessage').value.trim();
         if (!message) { PDMS.toast('Empty remark', 'Please write something first', 'error'); return; }
-        const user = PDMS.getUser();
         const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Unknown', authorRole: user ? user.role : '', projectId: p.id, projectName: p.name, message, time: new Date().toISOString() };
         modal.remove();
         pushIssueOptimistic(record);
-        PDMS.notify('Project Issue', `${record.author} raised an issue on "${p.name}"`, 'message', 'project-details.html#id=' + p.id);
+        PDMS.notify('Project Issue', `${record.author} raised an issue on "${p.name}"`, 'message', 'project-details.html#id=' + p.id, '', '', p.id);
       };
     }
     function submitInlineIssue() {
@@ -1183,7 +1186,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Unknown', authorRole: user ? user.role : '', projectId: p.id, projectName: p.name, message, time: new Date().toISOString() };
       ta.value = '';
       pushIssueOptimistic(record);
-      PDMS.notify('Project Issue', `${record.author} raised an issue on "${p.name}"`, 'message', 'project-details.html#id=' + p.id);
+      PDMS.notify('Project Issue', `${record.author} raised an issue on "${p.name}"`, 'message', 'project-details.html#id=' + p.id, '', '', p.id);
     }
     function assignTeam() {
       const state = {
@@ -1306,7 +1309,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           if (state.pm) parts.push('PM: ' + state.pm);
           if (state.lead) parts.push('Lead: ' + state.lead);
           if (consultants.length) parts.push(consultants.length + ' consultant(s)');
-          PDMS.notify('Team Assigned', `${assignUser.name} (${assignUser.role}) assigned team on "${p.name}" — ${parts.join(', ')}`, 'users', 'project-details.html#id=' + p.id);
+          PDMS.notify('Team Assigned', `${assignUser.name} (${assignUser.role}) assigned team on "${p.name}" — ${parts.join(', ')}`, 'users', 'project-details.html#id=' + p.id, '', '', p.id);
           render();
         }).catch(err => { PDMS.setButtonLoading(btn, false); PDMS.toast('Error', err.message || 'Could not update assignment', 'error'); });
       };
@@ -1365,6 +1368,9 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       const isSales = PDMS.stageOf(p) === 'Sales';
       const user = PDMS.getUser();
       const isSalesEdit = isSales || (user && user.role === 'Sales');
+      // Sales Head edits any pipeline lead directly (incl. price) — no approval loop.
+      const isSalesHeadEdit = !!(user && user.role === 'Sales Head' && isSales);
+      const priceLocked = isSalesEdit && !isSalesHeadEdit;
       const liveClients = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients) || D.clients || [];
       const currentClient = p.client || p.name || '';
       const clientExists = liveClients.some(c => (c.name || c) === currentClient);
@@ -1434,8 +1440,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           </div>
           <div class="np-field full">
             <label>${(p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') ? 'Award Value (Exclusive of VAT)' : 'Opportunity Value (₦)'}</label>
-            <input id="ed-price" type="number" min="0" step="0.01" value="${PDMS.esc((p.requestedNegotiatedPrice !== undefined && p.requestedNegotiatedPrice !== null && p.requestedNegotiatedPrice !== '') ? String(p.requestedNegotiatedPrice) : ((p.awardValue !== undefined && p.awardValue !== null && p.awardValue !== '') ? String(p.awardValue) : ((p.negotiatedPrice === '' || p.negotiatedPrice === null || p.negotiatedPrice === undefined) ? '' : String(p.negotiatedPrice))))}" placeholder="0.00" ${isSalesEdit ? 'disabled style="background:var(--surface-2);color:var(--text-muted);cursor:not-allowed;opacity:.8"' : ''}/>
-            ${isSalesEdit ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Current Value: ${Number.isFinite(Number(p.negotiatedPrice)) && Number(p.negotiatedPrice) > 0 ? PDMS.currency(p.negotiatedPrice) : 'Not set'}</div>` : ''}
+            <input id="ed-price" type="number" min="0" step="0.01" value="${PDMS.esc((p.requestedNegotiatedPrice !== undefined && p.requestedNegotiatedPrice !== null && p.requestedNegotiatedPrice !== '') ? String(p.requestedNegotiatedPrice) : ((p.awardValue !== undefined && p.awardValue !== null && p.awardValue !== '') ? String(p.awardValue) : ((p.negotiatedPrice === '' || p.negotiatedPrice === null || p.negotiatedPrice === undefined) ? '' : String(p.negotiatedPrice))))}" placeholder="0.00" ${priceLocked ? 'disabled style="background:var(--surface-2);color:var(--text-muted);cursor:not-allowed;opacity:.8"' : ''}/>
+            ${priceLocked ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Current Value: ${Number.isFinite(Number(p.negotiatedPrice)) && Number(p.negotiatedPrice) > 0 ? PDMS.currency(p.negotiatedPrice) : 'Not set'}</div>` : ''}
           </div>
           ${(!isSalesEdit && showSubStatus) ? `
           <div class="np-field full">
@@ -1471,7 +1477,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         </div>
       </div>
 
-      ${isSalesEdit ? `
+      ${priceLocked ? `
       <div style="background:var(--surface-2);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:6px">
         <label for="togglePriceUpdate" style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;user-select:none;margin:0">
           <div>
@@ -1484,7 +1490,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
     </div>
   `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ed-save">${I('check')} Save Changes</button>`, { hideCloseButton: true });
 
-      if (isSalesEdit) {
+      if (priceLocked) {
         const toggleBox = modal.querySelector('#togglePriceUpdate');
         const priceInput = modal.querySelector('#ed-price');
         const originalPrice = (p.negotiatedPrice === '' || p.negotiatedPrice === null || p.negotiatedPrice === undefined) ? '' : String(p.negotiatedPrice);
@@ -1527,7 +1533,18 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         let priceChangeRequested = false;
         let requestedPriceVal = null;
 
-        if (isSalesEdit) {
+        if (isSalesHeadEdit) {
+          // Sales Head edits are authoritative — apply everything (incl. price) directly.
+          const priceField = modal.querySelector('#ed-price');
+          if (priceField && priceField.value.trim() !== '') {
+            const num = Number(priceField.value);
+            if (Number.isFinite(num) && num >= 0) {
+              patch.negotiatedPrice = num;
+              patch.opportunityValue = num;
+              if (p.awardValue || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') patch.awardValue = num;
+            }
+          }
+        } else if (isSalesEdit) {
           const toggleBox = modal.querySelector('#togglePriceUpdate');
           const priceField = modal.querySelector('#ed-price');
           if (toggleBox && toggleBox.checked && priceField) {
@@ -1546,6 +1563,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
                 patch.status = 'Awaiting Sales Head Approval';
                 patch.priceUpdatePending = true;
                 patch.salesHeadRejectionNote = '';
+                patch.submissionCount = (p.submissionCount || 0) + 1;
               }
             }
           }
@@ -1558,6 +1576,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             patch.previousStatus = p.previousStatus || 'Lead';
             patch.salesHeadRejectionNote = '';
             patch.priceUpdatePending = false;
+            patch.submissionCount = (p.submissionCount || 0) + 1;
           }
         } else {
           if (modal.querySelector('#ed-start')) patch.start = modal.querySelector('#ed-start').value;
@@ -1592,10 +1611,10 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           if (patch.subStatuses) p.subStatuses = saved.subStatuses || patch.subStatuses;
           modal.remove();
           if (priceChangeRequested) {
-            PDMS.notify('Opportunity Value Update Request', `${user ? user.name : 'Sales'} requested to update Opportunity Value for "${p.name}" to ${PDMS.currency(requestedPriceVal)}`, 'clock', 'awaiting-projects.html');
+            PDMS.notify('Opportunity Value Update Request', `${user ? user.name : 'Sales'} requested to update Opportunity Value for "${p.name}" to ${PDMS.currency(requestedPriceVal)}`, 'clock', 'awaiting-projects.html', 'Sales Head', '', p.id);
             PDMS.toast('Request Sent', `Project updated. Opportunity value change (${PDMS.currency(requestedPriceVal)}) was sent to Sales Head for approval.`, 'success');
           } else if (resubmissionRequested) {
-            PDMS.notify('Revised Lead Submitted for Approval', `${user ? user.name : 'Sales'} updated and re-submitted revised lead "${p.name}" for approval`, 'clock', 'awaiting-projects.html');
+            PDMS.workflowNotify('lead.resubmitted', p);
             PDMS.toast('Re-submitted', `Revised lead details submitted to Sales Head for approval.`, 'success');
           } else {
             PDMS.toast('Saved', 'Project details updated', 'success');
@@ -1728,7 +1747,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           priority: p.priority || 'Medium',
           description: descVal,
           priceUpdatePending: false,
-          salesHeadRejectionNote: ''
+          salesHeadRejectionNote: '',
+          submissionCount: (p.submissionCount || 0) + 1
         };
 
         if (priceVal !== '') {
@@ -1759,7 +1779,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             if (D.issues) D.issues.unshift(record);
           }
           modal.remove();
-          PDMS.notify('Revised Lead Submitted for Approval', `${user ? user.name : 'Sales'} re-submitted "${p.name}" for Sales Head approval (Target: ${targetStatus})`, 'clock', 'awaiting-projects.html');
+          PDMS.workflowNotify('lead.resubmitted', p);
           PDMS.toast('Request Sent', `Project re-submitted to Sales Head for approval.`, 'success');
           render();
         }).catch(err => {
@@ -1851,7 +1871,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           awardValue: awardVal,
           negotiatedPrice: awardVal,
           accountsRejectionNote: '',
-          rejectionNote: ''
+          rejectionNote: '',
+          submissionCount: (p.submissionCount || 0) + 1
         };
 
         PDMS.api.update('projects', p.id, patch).then(saved => {
@@ -1863,8 +1884,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             if (D.issues) D.issues.unshift(record);
           }
           modal.remove();
-          const u = PDMS.getUser();
-          PDMS.notify('Award/SLA Resubmitted to Accounts', `${u ? u.name : 'Sales'} resubmitted "${p.name}" to Accounts with Award Value ₦${awardVal.toLocaleString()} (excl. VAT)`, 'refresh', 'project-details.html#id=' + p.id);
+          PDMS.workflowNotify('award.submitted', p);
           PDMS.toast('Resubmitted', `"${p.name}" has been sent back to Accounts for review.`, 'success');
           render();
         }).catch(err => {
@@ -1988,7 +2008,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
               awardValue: awardVal,
               negotiatedPrice: awardVal,
               accountsRejectionNote: '',
-              rejectionNote: ''
+              rejectionNote: '',
+              submissionCount: (p.submissionCount || 0) + 1
             };
 
             PDMS.api.update('projects', p.id, patch).then(saved => {
@@ -2000,8 +2021,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
               }
               awardModal.remove();
               PDMS.toast('Sent for Account Approval', `"${p.name}" updated with Award Value ₦${awardVal.toLocaleString()} (excl. VAT) and sent to Accounts.`, 'success');
-              const statusUser = PDMS.getUser();
-              PDMS.notify('Status Changed', `${statusUser.name} (${statusUser.role}) submitted "${p.name}" for Account Approval with Award Value ₦${awardVal.toLocaleString()} (excl. VAT)`, 'refresh', 'project-details.html#id=' + p.id);
+              PDMS.workflowNotify('award.submitted', p);
               render();
             }).catch(err => {
               PDMS.setButtonLoading(btn, false);
@@ -2017,7 +2037,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           modal.remove();
           PDMS.toast('Status updated', 'Project status has been updated', 'success');
           const statusUser = PDMS.getUser();
-          PDMS.notify('Status Changed', `${statusUser.name} (${statusUser.role}) changed "${p.name}" status to "${newStatus}"`, 'refresh', 'project-details.html#id=' + p.id);
+          PDMS.notify('Status Changed', `${statusUser.name} (${statusUser.role}) changed "${p.name}" status to "${newStatus}"`, 'refresh', 'project-details.html#id=' + p.id, '', '', p.id);
           render();
         }).catch(err => PDMS.toast('Error', err.message || 'Could not update status', 'error'));
       };
@@ -2067,7 +2087,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           modal.remove();
           PDMS.toast('Delivery started', `${p.name} is now being managed by delivery`, 'success');
           const delUser = PDMS.getUser();
-          PDMS.notify('Delivery Started', `${delUser.name} (${delUser.role}) moved "${p.name}" into delivery`, 'zap', 'project-details.html#id=' + p.id);
+          PDMS.notify('Delivery Started', `${delUser.name} (${delUser.role}) moved "${p.name}" into delivery`, 'zap', 'project-details.html#id=' + p.id, 'COO,HTD,PM Head,PMO', '', p.id);
           render();
         }).catch(err => PDMS.toast('Error', err.message || 'Could not start delivery', 'error'));
       };
@@ -2097,7 +2117,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             }
             modal.remove();
             PDMS.toast('Approved', `"${p.name}" has been approved and moved to Not Started in delivery.`, 'success');
-            PDMS.notify('Project Approved', `Accounts approved "${p.name}" — now in delivery`, 'check', 'project-details.html#id=' + p.id);
+            PDMS.workflowNotify('award.approved', p);
             render();
           })
           .catch(err => {
@@ -2130,7 +2150,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             pushIssueOptimistic(record);
             modal.remove();
             PDMS.toast('Rejected', `"${p.name}" has been returned to Sales.`, 'warn');
-            PDMS.notify('Project Rejected', `Accounts rejected "${p.name}" — returned to Sales`, 'zap', 'project-details.html#id=' + p.id);
+            PDMS.workflowNotify('award.rejected', p, { reason });
             render();
           })
           .catch(err => {
@@ -2152,8 +2172,11 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             <div><span style="font-size:11px;color:#d97706;text-transform:uppercase;display:block">To Be Value (New)</span><strong style="color:#d97706;font-size:15px">${PDMS.currency(p.requestedNegotiatedPrice)}</strong></div>
           </div>
         </div>` : '';
+      const willForwardToAccounts = (targetStatus === 'Award/SLA' || targetStatus === 'SLA Signed');
       const modal = PDMS.modal('Approve Project (Sales Head)', `
-        <p style="color:var(--text-soft);margin:0 0 12px;font-size:14px">You are approving <strong>${PDMS.esc(p.name)}</strong> to enter the sales pipeline at stage <strong>${PDMS.esc(targetStatus)}</strong>.</p>
+        <p style="color:var(--text-soft);margin:0 0 12px;font-size:14px">${willForwardToAccounts
+          ? `You are approving <strong>${PDMS.esc(p.name)}</strong> at <strong>Award/SLA</strong>. It will be forwarded to Accounts for approval.`
+          : `You are approving <strong>${PDMS.esc(p.name)}</strong> to enter the sales pipeline at stage <strong>${PDMS.esc(targetStatus)}</strong>.`}</p>
         ${priceMsg}
         <div class="form-row" style="margin-top:12px">
           <label>Approval Comment / Remarks</label>
@@ -2165,28 +2188,25 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         const comment = modal.querySelector('#shApproveComment').value.trim();
         const btn2 = this;
         PDMS.setButtonLoading(btn2, true, 'Approving...');
-        const patch = { status: targetStatus, stage: 'Sales', priceUpdatePending: false };
-        if (hasPriceUpdate) {
+        const patch = PDMS.salesHeadApprovalPatch(p);
+        const forwardedToAccounts = patch.status === 'Awaiting Account Approval';
+        if (hasPriceUpdate && !forwardedToAccounts) {
           patch.negotiatedPrice = p.requestedNegotiatedPrice;
           patch.requestedNegotiatedPrice = '';
         }
         PDMS.api.update('projects', p.id, patch)
           .then(saved => {
-            Object.assign(p, saved);
-            p.status = targetStatus;
-            p.stage = 'Sales';
-            if (hasPriceUpdate) {
-              p.negotiatedPrice = patch.negotiatedPrice;
-              p.requestedNegotiatedPrice = '';
-            }
+            Object.assign(p, saved, patch);
+            if (hasPriceUpdate && !forwardedToAccounts) p.requestedNegotiatedPrice = '';
             if (comment) {
               const user = PDMS.getUser();
               const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Sales Head', authorRole: user ? user.role : 'Sales Head', projectId: p.id, projectName: p.name, message: `[Approval Remarks] ${comment}`, time: new Date().toISOString() };
               pushIssueOptimistic(record);
             }
             modal.remove();
-            PDMS.toast('Approved', `"${p.name}" has been approved.${hasPriceUpdate ? ' Opportunity value updated.' : ''}`, 'success');
-            PDMS.notify('Sales Head Approved', `Sales Head approved "${p.name}"${hasPriceUpdate ? ` (Opportunity Value: ${PDMS.currency(patch.negotiatedPrice)})` : ''}`, 'check', 'project-details.html#id=' + p.id);
+            PDMS.toast('Approved', forwardedToAccounts ? `"${p.name}" approved and forwarded to Accounts.` : `"${p.name}" has been approved.${hasPriceUpdate ? ' Opportunity value updated.' : ''}`, 'success');
+            PDMS.workflowNotify('lead.accepted', p);
+            if (forwardedToAccounts) PDMS.workflowNotify('award.submitted', p);
             render();
           })
           .catch(err => {
@@ -2220,7 +2240,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             pushIssueOptimistic(record);
             modal.remove();
             PDMS.toast('Rejected', `"${p.name}" has been rejected by Sales Head.`, 'warn');
-            PDMS.notify('Sales Head Rejected', `Sales Head rejected "${p.name}"`, 'zap', 'project-details.html#id=' + p.id);
+            PDMS.workflowNotify('lead.rejected', p, { reason });
             render();
           })
           .catch(err => {

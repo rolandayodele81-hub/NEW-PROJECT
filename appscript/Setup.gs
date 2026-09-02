@@ -25,7 +25,8 @@ function initializeSheets() {
       rows: []
     },
     Clients: {
-      headers: ['id', 'name', 'industry', 'contact', 'email', 'phone', 'address', 'projects', 'revenue'],
+      headers: ['id', 'name', 'industry', 'contact', 'email', 'phone', 'address', 'projects', 'revenue', 'createdById', 'createdByName', 'createdAt'],
+      textColumns: ['createdAt'],
       rows: []
     },
     Projects: {

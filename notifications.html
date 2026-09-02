@@ -3,7 +3,7 @@
 <title>Notifications — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788286901"/>
+<link rel="stylesheet" href="css/style.css?v=1788351174"/>
 <style>
   .notif-card{
     display:flex;align-items:flex-start;gap:14px;padding:16px 20px;
@@ -32,7 +32,7 @@
   .notif-link:hover{text-decoration:underline}
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788286901"></script>
+<script src="js/bundle.js?v=1788351174"></script>
 <script>
 PDMS.mountShell('notifications');
 const D = PDMS_DATA; const I = PDMS.icon;
@@ -65,23 +65,10 @@ function markAllRead(){
 
 function render(){
   const user = PDMS.getUser();
-  const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
   const liveNotifs = (window.PDMS_REMOTE && window.PDMS_REMOTE.notifications) || D.notifications;
 
-  let visibleNotifs = liveNotifs;
-  if(user && (user.role === 'Consultant' || user.role === 'PMO')){
-    const myName = (user.name||'').toLowerCase();
-    const myId = (user.id||'').toLowerCase();
-    const myProjectIds = new Set(
-      liveProjects.filter(p=>{
-        const consultants = Array.isArray(p.consultants) ? p.consultants.map(n=>n.toLowerCase()) : [];
-        return consultants.includes(myName) || consultants.includes(myId)
-          || (p.pm||'').toLowerCase()===myName
-          || (p.lead||'').toLowerCase()===myName;
-      }).map(p=>String(p.id))
-    );
-    visibleNotifs = liveNotifs.filter(n => n.projectId && myProjectIds.has(String(n.projectId)));
-  }
+  // Role/user-targeted filtering (legacy untargeted notifications still show to everyone).
+  let visibleNotifs = PDMS.notificationsFor ? PDMS.notificationsFor(user) : liveNotifs;
 
   const total = visibleNotifs.length;
   const unreadCount = visibleNotifs.filter(n=>n.unread).length;

@@ -170,9 +170,11 @@ img{max-width:100%;display:block}
 .icon-btn .dot{
   position:absolute;top:8px;right:8px;width:8px;height:8px;
   background:var(--danger);border-radius:50%;border:2px solid var(--bg-elev);
+  display:none;
 }
 
 .content{padding:24px 28px 40px}
+
 .page-head{
   display:flex;align-items:flex-end;justify-content:space-between;
   gap:16px;margin-bottom:24px;flex-wrap:wrap;
@@ -196,14 +198,16 @@ img{max-width:100%;display:block}
 .card-sub{font-size:12px;color:var(--text-muted)}
 
 .grid{display:grid;gap:20px}
+.grid-6{grid-template-columns:repeat(6,minmax(0,1fr))}
 .grid-5{grid-template-columns:repeat(5,minmax(0,1fr))}
 .grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:1300px){.grid-6{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:1200px){.grid-5{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:1100px){.grid-4{grid-template-columns:repeat(2,1fr)}.grid-3{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:768px){.grid-5{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:640px){.grid-5,.grid-4,.grid-3,.grid-2{grid-template-columns:1fr}}
+@media(max-width:768px){.grid-5{grid-template-columns:repeat(2,1fr)}.grid-6{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:640px){.grid-6,.grid-5,.grid-4,.grid-3,.grid-2{grid-template-columns:1fr}}
 
 /* Stat card */
 .stat{
@@ -228,6 +232,7 @@ img{max-width:100%;display:block}
 .stat.i-info .icon-wrap{background:linear-gradient(135deg,#1d3c88,#8b5cf6)}
 .stat.i-purple .icon-wrap{background:linear-gradient(135deg,#8b5cf6,#ec4899)}
 .stat.i-pink .icon-wrap{background:var(--gradient-2)}
+.stat.i-danger .icon-wrap{background:linear-gradient(135deg,#ef4444,#b91c1c)}
 
 /* Badges */
 .badge{
@@ -350,9 +355,31 @@ img{max-width:100%;display:block}
 /* Tables */
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
 .table-tools{
-  display:flex;align-items:center;gap:10px;padding:14px 16px;
+  display:flex;align-items:flex-end;gap:12px;padding:14px 16px;
   border-bottom:1px solid var(--border);flex-wrap:wrap;
 }
+.table-tools .form-group{display:flex;flex-direction:column;gap:5px;min-width:0}
+.table-tools .form-group > label{
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--text-soft);white-space:nowrap;
+}
+.table-tools .form-group input,
+.table-tools .form-group select{
+  background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
+  padding:8px 12px;color:var(--text);font-size:13px;height:36px;box-sizing:border-box;
+}
+.table-tools .form-group input:focus,
+.table-tools .form-group select:focus{outline:none;border-color:var(--primary);background:var(--surface)}
+.table-tools .form-group select{cursor:pointer}
+.table-tools .tt-search{flex:1;min-width:200px;max-width:320px}
+.table-tools .tt-search-box{position:relative}
+.table-tools .tt-search-box svg{
+  position:absolute;left:11px;top:50%;transform:translateY(-50%);
+  width:15px;height:15px;color:var(--text-soft);pointer-events:none;
+}
+.table-tools .tt-search-box input{width:100%;padding-left:34px}
+.table-tools .tt-actions{display:flex;gap:8px;align-items:center;margin-left:auto}
+/* legacy — kept for any other callers */
 .table-tools .search-mini{position:relative;flex:1;max-width:280px}
 .table-tools .search-mini input{
   width:100%;background:var(--surface-2);border:1px solid var(--border);
@@ -362,6 +389,10 @@ img{max-width:100%;display:block}
 .select{
   background:var(--surface-2);border:1px solid var(--border);
   padding:7px 12px;border-radius:8px;color:var(--text);cursor:pointer;
+}
+@media(max-width:640px){
+  .table-tools .tt-search,.table-tools .form-group{flex:1 1 100%;max-width:none}
+  .table-tools .tt-actions{margin-left:0;width:100%}
 }
 table.data{width:100%;border-collapse:separate;border-spacing:0}
 table.data th,table.data td{padding:12px 16px;text-align:left;font-size:13px;border-bottom:1px solid var(--border)}

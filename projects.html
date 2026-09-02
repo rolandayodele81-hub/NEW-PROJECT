@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788286901"/>
+<link rel="stylesheet" href="css/style.css?v=1788351174"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788286901"></script>
+<script src="js/bundle.js?v=1788351174"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -91,7 +91,13 @@ const statTiles = viewParam==='sales'
   ? [
       {label:'Total', match:()=>true, color:'primary', icon:'folder'},
       {label:'Not Started', match:p=>PDMS.deliveryStatusOf(p)==='Not Started', color:'muted', icon:'clock'},
-      {label:'In Progress', match:p=>PDMS.deliveryStatusOf(p)==='In Progress', color:'warn', icon:'activity'},
+      // In Progress = any delivery project that has started (past "Not Started")
+      // and is not yet finished (Completed / Closed / Cancelled). This rolls up
+      // On Hold, Awaiting Review, Internal/External Audit, Testing/QA, etc.
+      {label:'In Progress', match:p=>{
+        const s = PDMS.deliveryStatusOf(p);
+        return !!s && !['Not Started','Completed','Closed','Cancelled'].includes(s);
+      }, color:'warn', icon:'activity'},
       {label:'Completed', match:p=>PDMS.deliveryStatusOf(p)==='Completed', color:'success', icon:'check'}
     ]
   : (currentUser && currentUser.role==='Consultant')
@@ -193,7 +199,8 @@ function renderProjects(){
     filterOptions:[
       {key:'status',label:'Status',options:bucketStatuses},
       {key:'type',label:'Project Type',options:D.types||[]}
-    ]
+    ],
+    dateFilter: (viewParam==='sales' || viewParam==='delivery') ? { key:'start', label:'Start date' } : null
   });
   document.getElementById('kanbanView').innerHTML = `<div class="kanban">${kanbanStatuses.map(s=>{
     const matchCol = p => {
@@ -383,26 +390,29 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
     PDMS.setButtonLoading(btn, true, 'Creating...');
     setTimeout(()=>PDMS.setButtonLoading(btn, false), 10000);
     const existingClient = D.clients.find(cl=>norm(cl.name)===norm(clientTyped));
-    const ensureClient = existingClient ? Promise.resolve(existingClient) : PDMS.api.create('clients',{name:clientTyped, industry:'', email:'', phone:'', address:'', projects:0});
+    const ensureClient = existingClient ? Promise.resolve(existingClient) : PDMS.api.create('clients',{name:clientTyped, industry:'', email:'', phone:'', address:'', projects:0, createdById:String(currentUser&&currentUser.id||''), createdByName:String(currentUser&&currentUser.name||''), createdAt:new Date().toISOString().slice(0,10)});
     ensureClient.then(client=>{
       if(!existingClient) D.clients.unshift(client);
       let finalStatus = status;
       let finalStage = stage;
-      const isSalesHeadCreator = currentUser && currentUser.role === 'Sales Head';
-      if (finalStatus === 'SLA Signed' || finalStatus === 'Award/SLA') {
-        finalStatus = 'Awaiting Account Approval';
-        finalStage = 'Delivery';
-      } else if (!isSalesHeadCreator && currentUser.role === 'Sales') {
+      if (currentUser.role === 'Sales') {
+        // Every lead a Sales user creates goes to the Sales Head first, whatever
+        // stage it was entered at (Award/SLA included).
         finalStatus = 'Awaiting Sales Head Approval';
         finalStage = 'Sales';
+      } else if (finalStatus === 'SLA Signed' || finalStatus === 'Award/SLA') {
+        finalStatus = 'Awaiting Account Approval';
+        finalStage = 'Delivery';
       }
       
       const record = {
         name: client.name, client:client.name, type, workstream, dept:workstream,
-        sales:'Sales Team', pm:'', lead:'', consultants:[],
+        sales: currentUser.name || 'Sales Team', pm:'', lead:'', consultants:[],
         status: finalStatus, stage: finalStage, requestedStatus: status, createdByRole: currentUser.role, progress:0,
+        projectOwnerId: String(currentUser.id || ''), projectOwnerName: String(currentUser.name || ''),
         start:'', due:'', actualCompletion:'', completion:null,
-        description:desc, files:0, remarks:0
+        description:desc, files:0, remarks:0,
+        submissionCount: 1
       };
       // Optimistic UI: insert temp project immediately
       const tmpId = 'TMP-' + Date.now();
@@ -413,18 +423,25 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
       D.projects.unshift(tmp);
       renderProjects();
       return PDMS.api.create('projects', record).then(saved => {
-        // Replace temp with saved project
-        if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
-          const rIdx = window.PDMS_REMOTE.projects.findIndex(p => p.id === tmpId || p.id === saved.id);
-          if (rIdx > -1) window.PDMS_REMOTE.projects.splice(rIdx, 1, saved);
-          else window.PDMS_REMOTE.projects.unshift(saved);
-        }
-        const idx = D.projects.findIndex(p => p.id === tmpId || p.id === saved.id);
-        if (idx > -1) D.projects.splice(idx, 1, saved); else D.projects.unshift(saved);
+        // Drop the optimistic TMP placeholder + any duplicate, leaving one real record
+        const reconcile = (arr) => {
+          if (!Array.isArray(arr)) return;
+          for (let i = arr.length - 1; i >= 0; i--) {
+            if (arr[i] && (arr[i].id === tmpId || String(arr[i].id) === String(saved.id))) arr.splice(i, 1);
+          }
+          arr.unshift(saved);
+        };
+        reconcile(window.PDMS_REMOTE && window.PDMS_REMOTE.projects);
+        if (D.projects && D.projects !== (window.PDMS_REMOTE && window.PDMS_REMOTE.projects)) reconcile(D.projects);
         modal.remove();
         PDMS.toast('Project created','New project added to pipeline','success');
-        PDMS.notify('Project Created', `${currentUser.name} (${currentUser.role}) created "${saved.name}" for ${saved.client}`, 'folder', 'project-details.html#id='+saved.id);
+        if (saved.status === 'Awaiting Sales Head Approval') {
+          PDMS.workflowNotify('lead.created', saved);
+        } else if (saved.status === 'Awaiting Account Approval') {
+          PDMS.workflowNotify('award.submitted', saved);
+        }
         renderProjects();
+        PDMS.awaitFreshData('Saving...', 'Updating projects');
       }).catch(err => {
         // Rollback optimistic insert
         if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
@@ -614,6 +631,7 @@ function editProject(id){
               patch.status = 'Awaiting Sales Head Approval';
               patch.priceUpdatePending = true;
               patch.salesHeadRejectionNote = '';
+              patch.submissionCount = (project.submissionCount || 0) + 1;
             }
           }
         }
@@ -626,6 +644,7 @@ function editProject(id){
           patch.previousStatus = project.previousStatus || 'Lead';
           patch.salesHeadRejectionNote = '';
           patch.priceUpdatePending = false;
+          patch.submissionCount = (project.submissionCount || 0) + 1;
         }
       } else {
         if (modal.querySelector('#editProjStart')) patch.start = modal.querySelector('#editProjStart').value;
@@ -649,10 +668,10 @@ function editProject(id){
         Object.assign(project,patch,saved);
         modal.remove();
         if (priceChangeRequested) {
-          PDMS.notify('Opportunity Value Update Request', `${currentUser ? currentUser.name : 'Sales'} requested to update Opportunity Value for "${project.name}" to ${PDMS.currency(requestedPriceVal)}`, 'clock', 'awaiting-projects.html');
+          PDMS.notify('Opportunity Value Update Request', `${currentUser ? currentUser.name : 'Sales'} requested to update Opportunity Value for "${project.name}" to ${PDMS.currency(requestedPriceVal)}`, 'clock', 'awaiting-projects.html', 'Sales Head', '', project.id);
           PDMS.toast('Request Sent', `Project updated. Opportunity value change (${PDMS.currency(requestedPriceVal)}) was sent to Sales Head for approval.`, 'success');
         } else if (resubmissionRequested) {
-          PDMS.notify('Revised Lead Submitted for Approval', `${currentUser ? currentUser.name : 'Sales'} updated and re-submitted revised lead "${project.name}" for approval`, 'clock', 'awaiting-projects.html');
+          PDMS.workflowNotify('lead.resubmitted', project);
           PDMS.toast('Re-submitted', `Revised lead details submitted to Sales Head for approval.`, 'success');
         } else {
           PDMS.toast('Project updated','Project details were saved','success');

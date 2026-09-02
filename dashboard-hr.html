@@ -7,7 +7,7 @@
   <title>HR Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788286901"/>
+<link rel="stylesheet" href="css/style.css?v=1788351174"/>
   <style>
     .hr-hero {
       display: grid;
@@ -75,7 +75,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788286901"></script>
+  <script src="js/bundle.js?v=1788351174"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -333,7 +333,7 @@
           modal.remove();
           showNewUserPasswordNote(saved, password);
           const creator = PDMS.getUser();
-          PDMS.notify('User Onboarded', `${creator ? creator.name : 'HR'} onboarded ${saved.name} as ${saved.role}`, 'user-plus', 'user-details.html#id='+saved.id);
+          PDMS.notify('User Onboarded', `${creator ? creator.name : 'HR'} onboarded ${saved.name} as ${saved.role}`, 'user-plus', 'user-details.html#id='+saved.id, 'HR,System Administrator');
           render(); // immediate local re-render, including stat cards
           if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
         }).catch(err => {

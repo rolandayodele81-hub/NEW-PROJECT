@@ -63,7 +63,10 @@
   PDMS.getUser = function(){
     try{ return JSON.parse(localStorage.getItem('pdms-user'))||null; }catch(e){return null;}
   };
-  PDMS.setUser = function(u){ localStorage.setItem('pdms-user',JSON.stringify(u)); };
+  PDMS.setUser = function(u){
+    localStorage.setItem('pdms-user',JSON.stringify(u));
+    try{ sessionStorage.removeItem('pdms-unread-popup-shown'); }catch(e){} // fresh login re-shows the unread popup
+  };
   PDMS.getLocalAuthUsers = function(){
     const base = [];
     const persisted = (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.users)) ? window.PDMS_DATA.users.filter(u => u._localPassword).map(u => Object.assign({}, u)) : [];
@@ -120,7 +123,7 @@
   PDMS.isAdmin = function(){ const user = PDMS.getUser(); return user && user.role==='System Administrator'; };
   PDMS.requireAdmin = function(){ if(!PDMS.isAdmin()) location.href='dashboard.html'; };
   PDMS.requireRole = function(role){ const user = PDMS.getUser(); if(!user || user.role !== role){ location.href = PDMS.dashboardFor(user); return null; } return user; };
-  PDMS.logout = function(){ localStorage.removeItem('pdms-user'); location.href='index.html'; };
+  PDMS.logout = function(){ localStorage.removeItem('pdms-user'); try{ sessionStorage.removeItem('pdms-unread-popup-shown'); }catch(e){} location.href='index.html'; };
   PDMS.requireAuth = function(){
     const user = PDMS.getUser();
     if(!user){ location.href='index.html'; return null; }
@@ -170,6 +173,23 @@
     }
   };
 
+  // Show the loading screen and re-fetch from the server, hiding it once the
+  // fresh data has landed (pages re-render off pdms:refresh). Use right after a
+  // create so the user waits on the loader instead of a stale list, then sees
+  // their new record when it clears.
+  PDMS.awaitFreshData = function(title, subtitle){
+    if (typeof g.PDMS_REFRESH !== 'function') return;
+    PDMS.showSplashLoader(title || 'Saving...', subtitle || 'Getting the latest data');
+    const done = function(){
+      document.removeEventListener('pdms:loading-end', done);
+      clearTimeout(timer);
+      setTimeout(PDMS.hideSplashLoader, 150);
+    };
+    const timer = setTimeout(done, 30000);
+    document.addEventListener('pdms:loading-end', done);
+    g.PDMS_REFRESH(true);
+  };
+
   // Renders when data is ready. Shows splash screen while loading data so that
   // incomplete or empty states are never displayed before database retrieval finishes.
   PDMS.onRefresh = function(renderFn){
@@ -187,7 +207,7 @@
     }
     document.addEventListener('pdms:refresh', safeRender);
     document.addEventListener('pdms:data-ready', safeRender);
-    setTimeout(PDMS.hideSplashLoader, 6000);
+    setTimeout(PDMS.hideSplashLoader, 30000); // safety ceiling; events above normally end it
   };
 
   // Toast
@@ -224,9 +244,12 @@
     return g.PDMS_REMOTE ? emptyMessage : '<span class="pdms-spinner" style="margin-right:8px;vertical-align:-2px"></span>Loading...';
   };
 
-  // Broadcast a notification to all users — fires and forgets (never blocks the caller).
+  // Broadcast a notification to targeted roles/users — fires and forgets.
   // icon: any key from ICONS; link: optional href the notification card links to.
-  PDMS.notify = function(title, msg, icon, link){
+  // recipientRole: optional target role(s) (e.g. 'Sales Head', 'Accounts', 'HR', 'COO,HTD,PM Head')
+  // recipientId: optional target user id
+  // projectId: optional project ID to scope to project members
+  PDMS.notify = function(title, msg, icon, link, recipientRole, recipientId, projectId){
     const user = PDMS.getUser();
     const record = {
       title, msg,
@@ -235,13 +258,267 @@
       actor: user ? user.name : 'System',
       actorRole: user ? user.role : '',
       time: new Date().toISOString(),
-      unread: true
+      unread: true,
+      recipientRole: recipientRole || '',
+      recipientId: recipientId || '',
+      projectId: projectId || ''
     };
     PDMS.api.create('notifications', record).then(saved=>{
       if(window.PDMS_DATA && Array.isArray(window.PDMS_DATA.notifications)){
         window.PDMS_DATA.notifications.unshift(saved);
       }
+      if(window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.notifications) && window.PDMS_REMOTE.notifications !== window.PDMS_DATA.notifications){
+        window.PDMS_REMOTE.notifications.unshift(saved);
+      }
+      document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
     }).catch(()=>{}); // silent — notifications are best-effort
+  };
+
+  // ------------------------------------------------------------------
+  // Targeted workflow notifications (lead lifecycle)
+  // Reuses the same `notifications` entity as PDMS.notify — records simply
+  // carry recipient metadata (role and/or user). On login the shell shows a
+  // single generic "you have unread notifications" sticky (see js/app.js).
+  // ------------------------------------------------------------------
+  function liveList(key){
+    return (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE[key]) && window.PDMS_REMOTE[key])
+        || (window.PDMS_DATA && Array.isArray(window.PDMS_DATA[key]) && window.PDMS_DATA[key])
+        || [];
+  }
+
+  // Resolve the lead owner from the project record itself — never assume it is
+  // the currently logged-in user (the owner acts at only some workflow stages).
+  PDMS.leadOwnerOf = function(project){
+    if(!project) return { id:'', name:'' };
+    const idFields = ['projectOwnerId','salesOwnerId','onboardedById','createdByUserId'];
+    const nameFields = ['projectOwnerName','salesOwnerName','onboardedByName','createdByUserName','sales'];
+    let id = '';
+    for(const f of idFields){ if(project[f]){ id = String(project[f]); break; } }
+    let name = '';
+    for(const f of nameFields){ if(project[f] && project[f] !== 'Sales Team'){ name = String(project[f]); break; } }
+    const users = PDMS.getUsers();
+    if(id && !name){
+      const u = users.find(x => String(x.id) === id);
+      if(u) name = u.name;
+    }
+    if(!id && name){
+      const u = users.find(x => String(x.name || '').trim().toLowerCase() === name.trim().toLowerCase());
+      if(u) id = String(u.id);
+    }
+    return { id, name };
+  };
+
+  const DELIVERY_TEAM_ROLES = 'HTD,COO,PM Head';
+
+  // event -> builder returning one or more partial notification records.
+  // ctx: { project, actor, actorRole, owner, reason, link }
+  const WORKFLOW_EVENTS = {
+    'lead.created': ctx => [{
+      recipientRole: 'Sales Head', kind: 'action', actionStage: 'sales_head_review',
+      icon: 'zap',
+      title: 'New Lead Awaiting Review',
+      msg: `A new lead "${ctx.project.name}" (${ctx.project.client || ctx.project.name}) was created by ${ctx.actor} and is awaiting your review.`
+    }],
+    'lead.resubmitted': ctx => [{
+      recipientRole: 'Sales Head', kind: 'action', actionStage: 'sales_head_review',
+      icon: 'refresh',
+      title: 'Lead Resubmitted for Review',
+      msg: `A previously rejected lead "${ctx.project.name}" was corrected and resubmitted by ${ctx.actor} and is awaiting your review.`
+    }],
+    'lead.accepted': ctx => [{
+      owner: true, kind: 'info',
+      icon: 'check',
+      title: 'Lead Accepted by Sales Head',
+      msg: `Your lead "${ctx.project.name}" was accepted by the Sales Head (${ctx.actor}). You can now progress it through the sales workflow.`
+    }],
+    'lead.rejected': ctx => [{
+      owner: true, kind: 'info',
+      icon: 'zap',
+      title: 'Lead Rejected by Sales Head',
+      msg: `Your lead "${ctx.project.name}" was rejected by the Sales Head (${ctx.actor}).${ctx.reason ? ` Reason: ${ctx.reason}.` : ''} Correct the issues and resubmit for review.`
+    }],
+    'award.submitted': ctx => [{
+      recipientRole: 'Accounts', kind: 'action', actionStage: 'accounts_review',
+      icon: 'zap',
+      title: 'Award Awaiting Approval',
+      msg: `Lead "${ctx.project.name}" (${ctx.project.client || ctx.project.name}) has been awarded (Award/SLA) by ${ctx.actor} and is awaiting your approval.`
+    }],
+    'award.approved': ctx => [
+      { owner: true, kind: 'info', icon: 'check',
+        title: 'Award Approved by Accounts',
+        msg: `Your lead "${ctx.project.name}" has been awarded and approved by Accounts (${ctx.actor}).` },
+      { recipientRole: 'Sales Head', kind: 'info', icon: 'check',
+        title: 'Award Approved by Accounts',
+        msg: `The lead "${ctx.project.name}" has been awarded and approved by Accounts (${ctx.actor}).` },
+      { recipientRole: DELIVERY_TEAM_ROLES, kind: 'info', icon: 'folder',
+        title: 'Lead Ready for Delivery',
+        msg: `Lead "${ctx.project.name}" has been awarded and approved by Accounts. It is now ready for the delivery process.` }
+    ],
+    'award.rejected': ctx => [{
+      owner: true, kind: 'info',
+      icon: 'zap',
+      title: 'Award Rejected by Accounts',
+      msg: `Your awarded lead "${ctx.project.name}" was rejected by Accounts (${ctx.actor}).${ctx.reason ? ` Reason: ${ctx.reason}.` : ''} Review the feedback, make corrections, and resubmit.`
+    }]
+  };
+
+  function dedupeExists(key){
+    if(!key) return false;
+    return liveList('notifications').some(n => n.dedupeKey === key);
+  }
+
+  function postNotification(rec){
+    // Optimistic insert so the sticky bar / bell update immediately and the
+    // dedupe check sees this record synchronously (guards double-clicks).
+    const optimistic = Object.assign({ id: 'tmp-' + Math.random().toString(36).slice(2), _optimistic: true }, rec);
+    const dataArr = (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.notifications)) ? window.PDMS_DATA.notifications : null;
+    const remoteArr = (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.notifications)) ? window.PDMS_REMOTE.notifications : null;
+    if(dataArr) dataArr.unshift(optimistic);
+    if(remoteArr && remoteArr !== dataArr) remoteArr.unshift(optimistic);
+    document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
+    PDMS.api.create('notifications', rec).then(saved=>{
+      Object.assign(optimistic, saved);
+      delete optimistic._optimistic;
+      document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
+    }).catch(()=>{
+      if(dataArr){ const i = dataArr.indexOf(optimistic); if(i>-1) dataArr.splice(i,1); }
+      if(remoteArr && remoteArr !== dataArr){ const j = remoteArr.indexOf(optimistic); if(j>-1) remoteArr.splice(j,1); }
+      document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
+    });
+  }
+
+  // Fire a workflow notification. `event` is a key of WORKFLOW_EVENTS.
+  // Duplicate-safe: keyed on event + project + submissionCount, so repeated
+  // saves / refreshes never create a second copy, but a genuine resubmission
+  // (which bumps submissionCount) does.
+  PDMS.workflowNotify = function(event, project, opts){
+    opts = opts || {};
+    const build = WORKFLOW_EVENTS[event];
+    if(!build || !project) return;
+    const user = PDMS.getUser();
+    const ctx = {
+      project,
+      actor: opts.actor || (user ? user.name : 'System'),
+      actorRole: user ? user.role : '',
+      owner: PDMS.leadOwnerOf(project),
+      reason: opts.reason || ''
+    };
+    const submissionCount = Number(project.submissionCount) || 1;
+    const nowIso = new Date().toISOString();
+    build(ctx).forEach(part => {
+      const rRole = part.recipientRole || '';
+      const isOwner = !!part.owner;
+      if(!isOwner && !rRole) return; // nothing to target
+      // For owner notifications we always create the record and resolve the
+      // recipient live (by id/name OR project ownership) — so even a legacy lead
+      // with no owner id recorded still reaches whoever owns it.
+      const rId = isOwner ? (ctx.owner.id || '') : '';
+      const rName = isOwner ? (ctx.owner.name || '') : '';
+      const dedupeKey = `${event}:${project.id}:${submissionCount}:${rRole || 'owner'}`;
+      if(dedupeExists(dedupeKey)) return;
+      postNotification({
+        title: part.title,
+        msg: part.msg,
+        icon: part.icon || 'bell',
+        link: opts.link || ('project-details.html#id=' + project.id),
+        actor: ctx.actor,
+        actorRole: ctx.actorRole,
+        time: nowIso,
+        unread: true,
+        recipientRole: rRole,
+        recipientId: rId,
+        recipientName: rName,
+        recipientOwner: isOwner ? String(project.id) : '',
+        kind: part.kind || 'info',
+        actionStage: part.actionStage || '',
+        event: event,
+        projectId: String(project.id),
+        projectName: project.name || project.client || '',
+        dedupeKey: dedupeKey
+      });
+    });
+  };
+
+  // Notifications visible strictly to `user`:
+  // - Targeted to their user id or name
+  // - Targeted to their specific role
+  // - Targeted to project owner (for leads they own)
+  // - Project-scoped updates (only for members assigned to that project)
+  // - Generic system announcements only for Admins & Executive Leadership (COO)
+  PDMS.notificationsFor = function(user){
+    user = user || PDMS.getUser();
+    if(!user) return [];
+    const all = liveList('notifications');
+    const projectsAll = liveList('projects');
+    const role = String(user.role || '').trim();
+    const roleLower = role.toLowerCase();
+    const uid = String(user.id || '');
+    const uname = String(user.name || '').trim().toLowerCase();
+    const isAdmin = ['System Administrator', 'General Admin'].includes(role);
+
+    const ownsProject = function(projectId){
+      if(!projectId || !PDMS.projectOwnedByUser) return false;
+      const proj = projectsAll.find(p => String(p.id) === String(projectId));
+      return !!proj && PDMS.projectOwnedByUser(proj, user);
+    };
+
+    const isProjectMember = function(projectId){
+      if(!projectId) return false;
+      const proj = projectsAll.find(p => String(p.id) === String(projectId));
+      if(!proj) return false;
+      if(PDMS.projectOwnedByUser && PDMS.projectOwnedByUser(proj, user)) return true;
+      const pm = String(proj.pm || '').trim().toLowerCase();
+      const lead = String(proj.lead || '').trim().toLowerCase();
+      if(pm === uname || lead === uname) return true;
+      const cons = Array.isArray(proj.consultants) ? proj.consultants.map(n => String(n).trim().toLowerCase()) : [];
+      if(cons.includes(uname) || cons.includes(uid.toLowerCase())) return true;
+      return false;
+    };
+
+    return all.filter(n => {
+      // 1. Direct recipient by user ID
+      if(n.recipientId && String(n.recipientId) === uid) return true;
+
+      // 2. Direct recipient by user Name
+      if(n.recipientName && uname && String(n.recipientName).trim().toLowerCase() === uname) return true;
+
+      // 3. Direct recipient by project ownership (Lead Owner)
+      if(n.recipientOwner && ownsProject(n.recipientOwner)) return true;
+
+      // 4. Targeted by specific Role(s) (e.g. "Sales Head", "Accounts", "HR", "HTD,COO,PM Head")
+      if(n.recipientRole){
+        const roles = String(n.recipientRole).split(',').map(s => s.trim().toLowerCase());
+        if(roles.includes(roleLower) || roles.includes('*')) return true;
+        // If targeted to other specific role(s), do NOT show to this user
+        return false;
+      }
+
+      // 5. Project-scoped notification (issues, team assignments on a project)
+      if(n.projectId){
+        if(['COO', 'HTD', 'PM Head', 'System Administrator', 'General Admin'].includes(role)) return true;
+        return isProjectMember(n.projectId);
+      }
+
+      // 6. Generic untargeted broadcast — only show to Admins and executive leadership (COO)
+      if(isAdmin || role === 'COO') return true;
+
+      return false;
+    });
+    list.sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+    return list;
+  };
+
+  // Count of unread notifications addressed to this user specifically (by id,
+  // name, role, or project ownership) — drives the login popup shown by the
+  // shell when the user reaches their dashboard. Legacy untargeted broadcasts
+  // are excluded so a historical backlog doesn't trigger the popup on every
+  // login; they still show in the Notification Center and on the header bell.
+  PDMS.unreadCountFor = function(user){
+    user = user || PDMS.getUser();
+    if(!user) return 0;
+    return PDMS.notificationsFor(user).filter(n =>
+      n.unread && (n.recipientId || n.recipientName || n.recipientRole || n.recipientOwner)
+    ).length;
   };
 
   // Money & date fmt
@@ -271,8 +548,9 @@
 
   // Table renderer
   PDMS.renderTable = function(container, opts){
-    // opts: {columns:[{key,label,render?,sortable?}], rows, pageSize, searchKeys}
-    const state = { page:1, sortKey:null, sortDir:1, filter:'', filters:opts.filters||{} };
+    // opts: {columns, rows, pageSize, searchKeys, filterOptions,
+    //        dateFilter:{key,label}  ← adds a From/To date range on that row field}
+    const state = { page:1, sortKey:null, sortDir:1, filter:'', filters:opts.filters||{}, dateFrom:'', dateTo:'' };
     const pageSize = opts.pageSize||10;
 
     function filtered(){
@@ -280,6 +558,16 @@
       if(state.filter){
         const q = state.filter.toLowerCase();
         arr = arr.filter(r=>(opts.searchKeys||Object.keys(r)).some(k=>String(r[k]||'').toLowerCase().includes(q)));
+      }
+      if(opts.dateFilter && (state.dateFrom || state.dateTo)){
+        const dk = opts.dateFilter.key;
+        arr = arr.filter(r=>{
+          const raw = String(r[dk]||'').slice(0,10);
+          if(!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return false;
+          if(state.dateFrom && raw < state.dateFrom) return false;
+          if(state.dateTo && raw > state.dateTo) return false;
+          return true;
+        });
       }
       Object.keys(state.filters).forEach(k=>{
         if(state.filters[k]) {
@@ -304,21 +592,33 @@
       return arr;
     }
 
-    function render(){
+    function render(focusSel){
+      const caret = focusSel ? ((container.querySelector(focusSel)||{}).selectionStart ?? null) : null;
       const arr = filtered();
       const totalPages = Math.max(1,Math.ceil(arr.length/pageSize));
       if(state.page>totalPages) state.page=totalPages;
       const slice = arr.slice((state.page-1)*pageSize, state.page*pageSize);
       const filterHtml = (opts.filterOptions||[]).map(f=>{
         const opts2 = ['<option value="">All '+f.label+'</option>'].concat(f.options.map(o=>'<option value="'+PDMS.esc(o)+'"'+(state.filters[f.key]===o?' selected':'')+'>'+PDMS.esc(o)+'</option>'));
-        return '<select class="select" data-filter="'+f.key+'">'+opts2.join('')+'</select>';
+        return '<div class="form-group"><label>'+PDMS.esc(f.label)+'</label><select class="select" data-filter="'+f.key+'">'+opts2.join('')+'</select></div>';
       }).join('');
+      const dateHtml = opts.dateFilter ? (
+        '<div class="form-group"><label>'+PDMS.esc(opts.dateFilter.label||'Date')+' from</label><input type="date" class="tt-date-from" value="'+PDMS.esc(state.dateFrom)+'"></div>'+
+        '<div class="form-group"><label>to</label><input type="date" class="tt-date-to" value="'+PDMS.esc(state.dateTo)+'"></div>'
+      ) : '';
+      const hasActiveFilter = state.filter || state.dateFrom || state.dateTo || Object.keys(state.filters).some(k=>state.filters[k]);
       container.innerHTML =
         '<div class="table-tools">'+
-          '<div class="search-mini">'+ICONS.search+'<input placeholder="Search..." value="'+PDMS.esc(state.filter)+'"></div>'+
+          '<div class="form-group tt-search"><label>Search</label>'+
+            '<div class="tt-search-box">'+ICONS.search+'<input class="tt-search-input" placeholder="Search…" value="'+PDMS.esc(state.filter)+'"></div>'+
+          '</div>'+
           filterHtml+
-          '<button class="btn btn-secondary btn-sm" data-act="export">'+ICONS.download+' Export CSV</button>'+
-          '<button class="btn btn-secondary btn-sm" data-act="print">Print</button>'+
+          dateHtml+
+          '<div class="tt-actions">'+
+            (hasActiveFilter ? '<button class="btn btn-ghost btn-sm" data-act="clear">Clear</button>' : '')+
+            '<button class="btn btn-secondary btn-sm" data-act="export">'+ICONS.download+' Export CSV</button>'+
+            '<button class="btn btn-secondary btn-sm" data-act="print">Print</button>'+
+          '</div>'+
         '</div>'+
         '<div style="overflow-x:auto"><table class="data"><thead><tr>'+
         opts.columns.map(c=>'<th data-key="'+c.key+'">'+c.label+(state.sortKey===c.key?(state.sortDir>0?' ↑':' ↓'):'')+'</th>').join('')+
@@ -335,7 +635,16 @@
         '<button class="page-btn" data-p="next">›</button>'+
         '</div></div>';
 
-      container.querySelector('input').addEventListener('input',e=>{state.filter=e.target.value;state.page=1;render();});
+      const searchInput = container.querySelector('.tt-search-input');
+      if(searchInput) searchInput.addEventListener('input',e=>{state.filter=e.target.value;state.page=1;render('.tt-search-input');});
+      const dFrom = container.querySelector('.tt-date-from');
+      if(dFrom) dFrom.addEventListener('change',e=>{state.dateFrom=e.target.value;state.page=1;render();});
+      const dTo = container.querySelector('.tt-date-to');
+      if(dTo) dTo.addEventListener('change',e=>{state.dateTo=e.target.value;state.page=1;render();});
+      const clearBtn = container.querySelector('[data-act="clear"]');
+      if(clearBtn) clearBtn.addEventListener('click',()=>{
+        state.filter=''; state.dateFrom=''; state.dateTo=''; state.filters={}; state.page=1; render();
+      });
       container.querySelectorAll('th').forEach(th=>th.addEventListener('click',()=>{
         const k=th.dataset.key;
         if(state.sortKey===k) state.sortDir=-state.sortDir; else {state.sortKey=k;state.sortDir=1;}
@@ -364,6 +673,11 @@
         PDMS.toast('Exported','CSV downloaded','success');
       });
       container.querySelector('[data-act="print"]').addEventListener('click',()=>window.print());
+
+      if(focusSel){
+        const el = container.querySelector(focusSel);
+        if(el){ el.focus(); if(caret!=null && el.setSelectionRange){ try{ el.setSelectionRange(caret,caret); }catch(e){} } }
+      }
     }
     render();
   };
@@ -395,7 +709,7 @@
       clientMode: null, // 'new' or 'existing'
       selectedClient: null, // { name, industry, email, phone, address, workedBefore }
       newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
-      projForm: { type: (D.types && D.types[0]) || 'ERP', workstream: '', status: (D.salesStatuses && D.salesStatuses[0]) || 'Lead', price: '', desc: '' }
+      projForm: { type: (D.types && D.types[0]) || 'ERP', workstream: '', status: (D.salesStatuses && D.salesStatuses[0]) || 'Lead', price: '', awardVal: '', desc: '' }
     };
 
     function renderModal() {
@@ -563,8 +877,12 @@
               <select id="swProjStatus">${statusOptions.map(s => `<option${s === wizardState.projForm.status ? ' selected' : ''}>${s}</option>`).join('')}</select>
             </div>
             <div class="form-row" style="grid-column:1/-1">
-              <label id="swPriceLabel">${(wizardState.projForm.status === 'Award/SLA' || wizardState.projForm.status === 'SLA Signed') ? 'Award Value (₦) <span style="font-size:12px;color:var(--primary);font-weight:600">(Exclusive of VAT)</span>' : 'Opportunity Value (₦)'}</label>
+              <label>Opportunity Value (₦)</label>
               <input id="swProjPrice" type="number" min="0" step="0.01" value="${PDMS.esc(wizardState.projForm.price || '')}" placeholder="0.00" />
+            </div>
+            <div class="form-row" id="swAwardRow" style="grid-column:1/-1;${(wizardState.projForm.status === 'Award/SLA' || wizardState.projForm.status === 'SLA Signed') ? '' : 'display:none'}">
+              <label>Award Value (₦) <span style="font-size:12px;color:var(--primary);font-weight:600">(Exclusive of VAT)</span></label>
+              <input id="swProjAward" type="number" min="0" step="0.01" value="${PDMS.esc(wizardState.projForm.awardVal || '')}" placeholder="0.00" />
             </div>
           </div>
           <div class="form-row" style="margin-top:12px">
@@ -643,7 +961,12 @@
           const btn = this;
           PDMS.setButtonLoading(btn, true, 'Creating Client...');
 
-          const clientPayload = { name, industry, email, phone, address, workedBefore, projects: 0 };
+          const clientPayload = {
+            name, industry, email, phone, address, workedBefore, projects: 0,
+            createdById: String((currentUser && currentUser.id) || ''),
+            createdByName: String((currentUser && currentUser.name) || ''),
+            createdAt: new Date().toISOString().slice(0, 10)
+          };
           PDMS.api.create('clients', clientPayload).then(createdClient => {
             const clientObj = Object.assign({}, clientPayload, createdClient || {});
             const existingIdx = (D.clients || []).findIndex(c => (c.name || '').toLowerCase() === name.toLowerCase());
@@ -721,11 +1044,13 @@
           const deptInput = modalRef.querySelector('#swProjDept');
           const statusInput = modalRef.querySelector('#swProjStatus');
           const priceInput = modalRef.querySelector('#swProjPrice');
+          const awardInput = modalRef.querySelector('#swProjAward');
           const descInput = modalRef.querySelector('#swProjDesc');
           if (typeInput) wizardState.projForm.type = typeInput.value.trim();
           if (deptInput) wizardState.projForm.workstream = deptInput.value.trim();
           if (statusInput) wizardState.projForm.status = statusInput.value;
           if (priceInput) wizardState.projForm.price = priceInput.value.trim();
+          if (awardInput) wizardState.projForm.awardVal = awardInput.value.trim();
           if (descInput) wizardState.projForm.desc = descInput.value.trim();
 
           wizardState.step = 2;
@@ -737,12 +1062,8 @@
           statusSelect.onchange = () => {
             const val = statusSelect.value;
             wizardState.projForm.status = val;
-            const priceLabel = modalRef.querySelector('#swPriceLabel');
-            if (priceLabel) {
-              priceLabel.innerHTML = (val === 'Award/SLA' || val === 'SLA Signed')
-                ? 'Award Value (₦) <span style="font-size:12px;color:var(--primary);font-weight:600">(Exclusive of VAT)</span>'
-                : 'Opportunity Value (₦)';
-            }
+            const awardRow = modalRef.querySelector('#swAwardRow');
+            if (awardRow) awardRow.style.display = (val === 'Award/SLA' || val === 'SLA Signed') ? '' : 'none';
           };
         }
 
@@ -767,20 +1088,27 @@
           const status = modalRef.querySelector('#swProjStatus').value;
           const negotiatedPriceRaw = modalRef.querySelector('#swProjPrice').value.trim();
           const negotiatedPrice = negotiatedPriceRaw === '' ? '' : Number(negotiatedPriceRaw);
+          const awardInputEl = modalRef.querySelector('#swProjAward');
+          const awardRaw = awardInputEl ? awardInputEl.value.trim() : '';
+          const awardVal = awardRaw === '' ? '' : Number(awardRaw);
           const desc = modalRef.querySelector('#swProjDesc').value.trim();
 
           const btn = this;
           PDMS.setButtonLoading(btn, true, 'Creating Lead...');
 
-          let initialStatus = status;
-          let initialStage = 'Sales';
           const isSalesHeadCreator = currentUser && currentUser.role === 'Sales Head';
-          const isAwardInitial = (initialStatus === 'SLA Signed' || initialStatus === 'Award/SLA');
-          if (isAwardInitial) {
+          const isAwardInitial = (status === 'SLA Signed' || status === 'Award/SLA');
+          let initialStatus, initialStage;
+          if (!isSalesHeadCreator) {
+            // Every lead a Sales user creates goes to the Sales Head first —
+            // whatever stage it was entered at, including Award/SLA.
+            initialStatus = 'Awaiting Sales Head Approval';
+            initialStage = 'Sales';
+          } else if (isAwardInitial) {
             initialStatus = 'Awaiting Account Approval';
             initialStage = 'Delivery';
-          } else if (!isSalesHeadCreator) {
-            initialStatus = 'Awaiting Sales Head Approval';
+          } else {
+            initialStatus = status;
             initialStage = 'Sales';
           }
 
@@ -791,10 +1119,12 @@
             name: client, client, type, workstream, dept: workstream, sales: (currentUser && currentUser.name) || 'Sales Team', pm: '', lead: '', consultants: [],
             status: initialStatus, stage: initialStage, requestedStatus: status, createdByRole: currentUser.role, projectOwnerId: '', projectOwnerName: '', progress: 0, start: '', due: '', completion: null,
             negotiatedPrice: Number.isFinite(negotiatedPrice) ? negotiatedPrice : '',
-            awardValue: isAwardInitial && Number.isFinite(negotiatedPrice) ? negotiatedPrice : '',
+            opportunityValue: Number.isFinite(negotiatedPrice) ? negotiatedPrice : '',
+            awardValue: isAwardInitial ? (Number.isFinite(awardVal) ? awardVal : (Number.isFinite(negotiatedPrice) ? negotiatedPrice : '')) : '',
             description: desc, files: 0, remarks: 0,
             clientStatus, clientType: wizardState.clientMode || 'existing',
-            workedBefore: isPrior
+            workedBefore: isPrior,
+            submissionCount: 1
           };
           const finalRecord = Object.assign({}, record, {
             projectOwnerId: String((currentUser && currentUser.id) || ''),
@@ -817,25 +1147,34 @@
               projectOwnerId: String((saved && saved.projectOwnerId) || (currentUser && currentUser.id) || ''),
               projectOwnerName: String((saved && saved.projectOwnerName) || (currentUser && currentUser.name) || '')
             });
-            if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
-              const rIdx = window.PDMS_REMOTE.projects.findIndex(p => p.id === tmpId || p.id === savedRecord.id);
-              if (rIdx > -1) window.PDMS_REMOTE.projects.splice(rIdx, 1, savedRecord);
-              else window.PDMS_REMOTE.projects.unshift(savedRecord);
-            }
-            if (D.projects && Array.isArray(D.projects)) {
-              const idx = D.projects.findIndex(p => p.id === tmpId || p.id === savedRecord.id);
-              if (idx > -1) D.projects.splice(idx, 1, savedRecord);
-              else D.projects.unshift(savedRecord);
-            }
+            // Drop the optimistic TMP placeholder and any duplicate the api
+            // layer may have already inserted, leaving exactly one real record.
+            const reconcile = (arr) => {
+              if (!Array.isArray(arr)) return;
+              for (let i = arr.length - 1; i >= 0; i--) {
+                if (arr[i] && (arr[i].id === tmpId || String(arr[i].id) === String(savedRecord.id))) arr.splice(i, 1);
+              }
+              arr.unshift(savedRecord);
+            };
+            reconcile(window.PDMS_REMOTE && window.PDMS_REMOTE.projects);
+            if (D.projects && D.projects !== (window.PDMS_REMOTE && window.PDMS_REMOTE.projects)) reconcile(D.projects);
             modalRef.remove();
+            if (savedRecord.status === 'Awaiting Sales Head Approval') {
+              PDMS.workflowNotify('lead.created', savedRecord);
+            } else if (savedRecord.status === 'Awaiting Account Approval') {
+              PDMS.workflowNotify('award.submitted', savedRecord);
+            }
             const toastMsg = isSalesHeadCreator ? 'Lead onboarded to sales pipeline' : 'Lead submitted for Sales Head approval';
             PDMS.toast('Lead created', toastMsg, 'success');
-            if (opts.redirectUrl !== false) {
-              if (location.pathname.endsWith('projects.html')) {
-                if (typeof renderProjects === 'function') renderProjects();
-              } else {
-                location.href = 'projects.html#view=sales';
-              }
+            if (opts.redirectUrl !== false && !location.pathname.endsWith('projects.html')) {
+              // Navigating to the pipeline — hold the loading screen there until
+              // fresh server data (with this lead) lands.
+              try { sessionStorage.setItem('pdms-await-fresh', String(Date.now())); } catch (e) {}
+              location.href = 'projects.html#view=sales';
+            } else {
+              // Staying on this page — show the loader while we re-fetch so the
+              // list that comes back actually contains the new lead.
+              PDMS.awaitFreshData('Saving your lead...', 'Updating the pipeline');
             }
           }).catch(err => {
             if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {

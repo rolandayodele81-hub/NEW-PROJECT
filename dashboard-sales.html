@@ -7,7 +7,7 @@
   <title>Sales Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788286901"/>
+<link rel="stylesheet" href="css/style.css?v=1788351174"/>
   <style>
     .sales-hero {
       display: grid;
@@ -94,7 +94,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788286901"></script>
+  <script src="js/bundle.js?v=1788351174"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -188,7 +188,7 @@
       </div>
     </div>
 
-    <div class="grid ${isSalesUser ? 'grid-5' : 'grid-4'} mb-4">
+    <div class="grid ${isSalesUser ? 'grid-6' : 'grid-4'} mb-4">
       <div class="stat i-primary">
         <div class="label">Total in Sales</div>
         <div class="value">${totalInSales}</div>
@@ -220,6 +220,13 @@
         <div class="delta up">Handed to delivery</div>
         <div class="icon-wrap">${I('briefcase')}</div>
       </div>
+      ${isSalesUser ? `
+      <div class="stat i-danger">
+        <div class="label">Cancelled</div>
+        <div class="value">${offRampCounts.Cancelled}</div>
+        <div class="delta down">Rejected / dropped</div>
+        <div class="icon-wrap">${I('close')}</div>
+      </div>` : ''}
     </div>
 
     <div class="grid grid-2 mb-4">
@@ -394,11 +401,14 @@
       const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
       const p = liveProjects.find(x => x.id === id);
       if (!p) { PDMS.toast('Error', 'Project not found', 'error'); PDMS.setButtonLoading(btn, false); return; }
-      const targetStatus = p.requestedStatus || p.targetStatus || 'Lead';
-      PDMS.api.update('projects', id, { status: targetStatus, stage: 'Sales' })
+      const patch = PDMS.salesHeadApprovalPatch(p);
+      const forwardedToAccounts = patch.status === 'Awaiting Account Approval';
+      PDMS.api.update('projects', id, patch)
         .then(() => {
-          p.status = targetStatus; p.stage = 'Sales';
-          PDMS.toast('Approved', `"${p.name || p.client}" has been approved and is now active at stage "${targetStatus}".`, 'success');
+          Object.assign(p, patch);
+          PDMS.workflowNotify('lead.accepted', p);
+          if (forwardedToAccounts) PDMS.workflowNotify('award.submitted', p);
+          PDMS.toast('Approved', forwardedToAccounts ? `"${p.name || p.client}" approved and forwarded to Accounts.` : `"${p.name || p.client}" approved and now active at "${patch.status}".`, 'success');
           render();
         })
         .catch(err => {
@@ -426,6 +436,7 @@
           .then(() => {
             p.status = 'Cancelled';
             p.salesHeadRejectionNote = reason;
+            PDMS.workflowNotify('lead.rejected', p, { reason });
             modal.remove();
             PDMS.toast('Rejected', `"${p.name || p.client}" has been rejected.`, 'warn');
             render();

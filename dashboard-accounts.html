@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Accounts Dashboard — PSE PDMS</title>
-  <link rel="stylesheet" href="css/style.css?v=1788286901"/>
+  <link rel="stylesheet" href="css/style.css?v=1788351174"/>
   <style>
     .accounts-hero {
       display: grid;
@@ -59,7 +59,7 @@
   </style>
 </head>
 <body>
-<script src="js/bundle.js?v=1788286901"></script>
+<script src="js/bundle.js?v=1788351174"></script>
 <script>
   PDMS.mountShell('dashboard');
   const D = PDMS_DATA; const I = PDMS.icon;
@@ -245,6 +245,7 @@
           }
           modal.remove();
           PDMS.toast('Approved', `"${p.name}" has been approved and moved to Not Started in delivery.`, 'success');
+          PDMS.workflowNotify('award.approved', p);
           render();
         })
         .catch(err => {
@@ -276,6 +277,7 @@
           const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Accounts', authorRole: user ? user.role : 'Accounts', projectId: p.id, projectName: p.name, message: `[Rejection Reason] ${reason}`, time: new Date().toISOString() };
           PDMS.api.create('issues', record).catch(()=>{});
           if (D.issues) D.issues.unshift(record);
+          PDMS.workflowNotify('award.rejected', p, { reason });
           modal.remove();
           PDMS.toast('Rejected', `"${p.name}" has been returned to Sales.`, 'warn');
           render();

@@ -120,6 +120,28 @@
     return (userId && ownerValues.includes(userId)) || (userName && ownerValues.includes(userName));
   };
 
+  // Client visibility/editing: Sales Head sees & edits every client; a Sales
+  // user only sees & edits clients they created.
+  PDMS.clientOwnedByUser = function (client, user) {
+    if (!client || !user) return false;
+    const userId = String(user.id || '').trim().toLowerCase();
+    const userName = String(user.name || '').trim().toLowerCase();
+    const ownerValues = [
+      client.createdById, client.createdByName,
+      client.ownerId, client.ownerName,
+      client.salesOwnerId, client.salesOwnerName
+    ].map(v => String(v || '').trim().toLowerCase()).filter(Boolean);
+    return (userId && ownerValues.includes(userId)) || (userName && ownerValues.includes(userName));
+  };
+  PDMS.canManageAllClients = function (user) {
+    user = user || PDMS.getUser();
+    return !!user && (user.role === 'Sales Head' || user.role === 'System Administrator' || user.role === 'General Admin');
+  };
+  PDMS.canEditClient = function (client, user) {
+    user = user || PDMS.getUser();
+    return PDMS.canManageAllClients(user) || PDMS.clientOwnedByUser(client, user);
+  };
+
   // Shared status/bucket helpers used across all dashboard pages.
   PDMS.isSalesStatus = function (status) {
     if (status === 'Awaiting Sales Head Approval' || status === 'Awaiting Account Approval') return true;
@@ -176,6 +198,26 @@
   PDMS.isPendingAccountApproval = function (project) {
     if (!project) return false;
     return project.status === 'Awaiting Account Approval';
+  };
+
+  // The patch to apply when a Sales Head approves a lead that is Awaiting Sales
+  // Head Approval. A lead entered at Award/SLA is forwarded straight to Accounts
+  // (Awaiting Account Approval) instead of dropping into the pipeline.
+  PDMS.salesHeadApprovalPatch = function (project) {
+    const target = project.requestedStatus || project.targetStatus ||
+      (project.status !== 'Awaiting Sales Head Approval' ? project.status : 'Lead');
+    if (target === 'Award/SLA' || target === 'SLA Signed') {
+      const award = (project.awardValue !== undefined && project.awardValue !== null && project.awardValue !== '')
+        ? project.awardValue
+        : (project.negotiatedPrice || '');
+      return {
+        status: 'Awaiting Account Approval', stage: 'Delivery',
+        requestedStatus: 'Award/SLA', targetStatus: 'Award/SLA',
+        awardValue: award, negotiatedPrice: award,
+        priceUpdatePending: false, salesHeadRejectionNote: ''
+      };
+    }
+    return { status: target, stage: 'Sales', priceUpdatePending: false, salesHeadRejectionNote: '' };
   };
   PDMS.isPendingSalesHeadApproval = function (project) {
     return project && project.status === 'Awaiting Sales Head Approval';

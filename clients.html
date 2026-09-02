@@ -3,26 +3,170 @@
 <title>Clients — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788286901"/></head><body>
-<script src="js/bundle.js?v=1788286901"></script>
+<link rel="stylesheet" href="css/style.css?v=1788351174"/>
+<style>
+  .cl-tools{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px}
+  .cl-tools .form-group{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .cl-tools .form-group > label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);white-space:nowrap}
+  .cl-tools .form-group input{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;height:36px;box-sizing:border-box}
+  .cl-tools .form-group input:focus{outline:none;border-color:var(--primary);background:var(--surface)}
+  .cl-tools .tt-search{flex:1;min-width:200px;max-width:340px}
+  .cl-tools .tt-search-box{position:relative}
+  .cl-tools .tt-search-box svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-soft);pointer-events:none}
+  .cl-tools .tt-search-box input{width:100%;padding-left:34px}
+  .cl-tools .tt-actions{display:flex;gap:8px;align-items:center;margin-left:auto}
+  .cl-scope{font-size:12px;color:var(--text-soft)}
+  .cl-edit-btn{margin-top:12px;width:100%;justify-content:center}
+  .cl-total{
+    background:var(--gradient);color:#fff;border-radius:18px;
+    padding:22px 26px;margin-bottom:20px;display:flex;align-items:center;gap:18px;
+    box-shadow:0 14px 34px -10px rgba(29,60,136,.5);position:relative;overflow:hidden;
+  }
+  .cl-total::after{content:"";position:absolute;right:-30px;top:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.12)}
+  .cl-total-icon{width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.18);display:grid;place-items:center;flex-shrink:0}
+  .cl-total-icon svg{width:26px;height:26px;stroke:#fff}
+  .cl-total-num{font-size:44px;font-weight:900;line-height:1;letter-spacing:-1px}
+  .cl-total-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.85);margin-top:4px}
+  .cl-total-copy{position:relative;z-index:1}
+</style>
+</head><body>
+<script src="js/bundle.js?v=1788351174"></script>
 <script>
 PDMS.mountShell('clients');
-const D=PDMS_DATA;const I=PDMS.icon;
+const D = PDMS_DATA; const I = PDMS.icon;
+const currentUser = PDMS.getUser();
+const seeAll = PDMS.canManageAllClients(currentUser);
+
+let searchTerm = '';
+let dateFrom = '';
+let dateTo = '';
+
+function allClients(){
+  return (window.PDMS_REMOTE && window.PDMS_REMOTE.clients) || D.clients || [];
+}
+
+// Names of clients that appear on a lead/project this Sales user owns — those
+// count as "their" clients even if the client record predates creator tracking.
+let _myClientNames = null;
+function myClientNames(){
+  if(_myClientNames) return _myClientNames;
+  const projects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects || [];
+  _myClientNames = new Set(
+    projects
+      .filter(p => PDMS.projectOwnedByUser(p, currentUser))
+      .map(p => String(p.client || p.name || '').trim().toLowerCase())
+      .filter(Boolean)
+  );
+  return _myClientNames;
+}
+
+// A Sales user's clients = ones they created + ones on a deal they own.
+function isMyClient(c){
+  return PDMS.clientOwnedByUser(c, currentUser)
+    || myClientNames().has(String(c && c.name || '').trim().toLowerCase());
+}
+
+// Sales Head (and admins) see every client; a Sales user sees only their own.
+function scopedClients(){
+  const list = allClients();
+  return seeAll ? list : list.filter(isMyClient);
+}
+function canEditClientRow(c){
+  return seeAll || isMyClient(c);
+}
+function filteredClients(){
+  const q = searchTerm.trim().toLowerCase();
+  let list = scopedClients();
+  if(q){
+    list = list.filter(c => ['name','industry','email','phone','address']
+      .some(k => String(c[k] || '').toLowerCase().includes(q)));
+  }
+  if(dateFrom || dateTo){
+    list = list.filter(c => {
+      const d = String(c.createdAt || '').slice(0,10);
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+      if(dateFrom && d < dateFrom) return false;
+      if(dateTo && d > dateTo) return false;
+      return true;
+    });
+  }
+  return list;
+}
+
 function render(){
-document.getElementById('content').innerHTML=`
-  <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Clients</span></div>
-    <h1 class="page-title">Clients</h1><div class="page-sub">Enterprise partners and account overview</div></div>
-    <button class="btn btn-primary" onclick="openClientModal()">${I('plus')} New Client</button></div>
-  <div class="grid grid-3">${D.clients.map(c=>`
+  _myClientNames = null; // recompute against the latest projects data
+  document.getElementById('content').innerHTML = `
+  <div class="page-head">
+    <div>
+      <div class="breadcrumbs"><span>Home</span><span>Clients</span></div>
+      <h1 class="page-title">Clients</h1>
+      <div class="page-sub">${seeAll ? 'All enterprise partners across the organization' : 'Clients you added or have a deal with'}</div>
+    </div>
+    <button class="btn btn-primary" onclick="openClientModal()">${I('plus')} New Client</button>
+  </div>
+
+  <div class="cl-total">
+    <div class="cl-total-icon">${I('globe')}</div>
+    <div class="cl-total-copy">
+      <div class="cl-total-num" id="clTotalNum">${scopedClients().length}</div>
+      <div class="cl-total-label">${seeAll ? 'Total Clients' : 'Your Clients'}</div>
+    </div>
+  </div>
+
+  <div class="cl-tools">
+    <div class="form-group tt-search"><label>Search</label>
+      <div class="tt-search-box">${I('search')}
+        <input id="clSearch" placeholder="Name, industry, email…" value="${PDMS.esc(searchTerm)}" autocomplete="off"/>
+      </div>
+    </div>
+    <div class="form-group"><label>Added from</label><input type="date" id="clDateFrom" value="${PDMS.esc(dateFrom)}"/></div>
+    <div class="form-group"><label>to</label><input type="date" id="clDateTo" value="${PDMS.esc(dateTo)}"/></div>
+    <div class="tt-actions">
+      <button class="btn btn-ghost btn-sm" id="clClear" hidden>Clear</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportClientsPdf()">${I('download')} Export PDF</button>
+      <span class="cl-scope" id="clCount"></span>
+    </div>
+  </div>
+
+  <div class="grid grid-3" id="clGrid"></div>`;
+
+  const s = document.getElementById('clSearch');
+  if(s) s.addEventListener('input', () => { searchTerm = s.value; renderList(); });
+  const df = document.getElementById('clDateFrom');
+  if(df) df.addEventListener('change', () => { dateFrom = df.value; renderList(); });
+  const dt = document.getElementById('clDateTo');
+  if(dt) dt.addEventListener('change', () => { dateTo = dt.value; renderList(); });
+  const clr = document.getElementById('clClear');
+  if(clr) clr.addEventListener('click', () => {
+    searchTerm=''; dateFrom=''; dateTo='';
+    if(s) s.value=''; if(df) df.value=''; if(dt) dt.value='';
+    renderList();
+  });
+  renderList();
+}
+
+function renderList(){
+  const grid = document.getElementById('clGrid');
+  if(!grid) return;
+  const rows = filteredClients();
+  const totalScope = scopedClients().length;
+  const active = !!(searchTerm || dateFrom || dateTo);
+  const cnt = document.getElementById('clCount');
+  if(cnt) cnt.textContent = `${rows.length}${active ? ' of ' + totalScope : ''} client${rows.length === 1 ? '' : 's'}`;
+  const clr = document.getElementById('clClear');
+  if(clr) clr.hidden = !active;
+  grid.innerHTML = rows.map(c => {
+    const canEdit = canEditClientRow(c);
+    return `
     <div class="card"><div class="card-body">
       <div class="flex items-center gap-3 mb-3">
-        <div style="width:52px;height:52px;border-radius:14px;background:var(--gradient-2);color:#fff;display:grid;place-items:center;font-weight:800;flex-shrink:0">${c.name.split(' ').map(w=>w[0]).slice(0,2).join('')}</div>
+        <div style="width:52px;height:52px;border-radius:14px;background:var(--gradient-2);color:#fff;display:grid;place-items:center;font-weight:800;flex-shrink:0">${PDMS.esc((c.name||'?').split(' ').map(w=>w[0]).slice(0,2).join(''))}</div>
         <div style="flex:1;min-width:0">
           <div class="font-bold" style="display:flex;align-items:center;gap:6px">
             ${PDMS.esc(c.name)}
             ${c.workedBefore ? `<span class="badge badge-info" style="font-size:10px;padding:2px 6px">Prior Client</span>` : ''}
           </div>
-          <div class="text-sm text-muted">${PDMS.esc(c.industry)}</div>
+          <div class="text-sm text-muted">${PDMS.esc(c.industry||'—')}</div>
         </div>
       </div>
       <div class="flex flex-col gap-2" style="border-top:1px solid var(--border);padding-top:12px">
@@ -30,46 +174,175 @@ document.getElementById('content').innerHTML=`
         <div class="flex items-center gap-2 text-sm"><span class="text-muted" style="width:20px">${I('phone')}</span><span>${PDMS.esc(c.phone||'—')}</span></div>
         <div class="flex items-center gap-2 text-sm"><span class="text-muted" style="width:20px">${I('globe')}</span><span>${PDMS.esc(c.address||'—')}</span></div>
       </div>
-    </div></div>`).join('') || `<div class="text-muted" style="padding:24px;text-align:center;grid-column:1/-1">${PDMS.emptyOrLoading('No clients yet')}</div>`}</div>`;
+      ${seeAll && c.createdByName ? `<div class="text-sm text-muted" style="margin-top:8px;font-size:11px">Added by ${PDMS.esc(c.createdByName)}</div>` : ''}
+      ${canEdit ? `<button class="btn btn-secondary btn-sm cl-edit-btn" onclick='openClientModal(${JSON.stringify(String(c.id))})'>${I('settings')} Edit details</button>` : ''}
+    </div></div>`;
+  }).join('') || `<div class="text-muted" style="padding:24px;text-align:center;grid-column:1/-1">${
+    searchTerm ? 'No clients match your search.' : PDMS.emptyOrLoading(seeAll ? 'No clients yet' : 'No clients yet. Clients you add here or on your leads will show up.')
+  }</div>`;
 }
 PDMS.onRefresh(render);
-function openClientModal(){
-  const modal = PDMS.modal('New Client',`
-    <div class="form-row"><label>Client Name <span style="color:var(--danger)">*</span></label><input id="newClientName"/></div>
-    <div class="form-row"><label>Client Industry <span style="color:var(--danger)">*</span></label><input id="newClientIndustry"/></div>
-    <div class="form-row"><label>Client Email</label><input id="newClientEmail" type="email"/></div>
-    <div class="form-row"><label>Client Phone No.</label><input id="newClientPhone"/></div>
-    <div class="form-row"><label>Client Address</label><input id="newClientAddress" placeholder="Street, City, Country"/></div>
+
+function clientFormFields(c){
+  c = c || {};
+  return `
+    <div class="form-row"><label>Client Name <span style="color:var(--danger)">*</span></label><input id="clfName" value="${PDMS.esc(c.name||'')}"/></div>
+    <div class="form-row"><label>Client Industry <span style="color:var(--danger)">*</span></label><input id="clfIndustry" value="${PDMS.esc(c.industry||'')}"/></div>
+    <div class="form-row"><label>Client Email</label><input id="clfEmail" type="email" value="${PDMS.esc(c.email||'')}"/></div>
+    <div class="form-row"><label>Client Phone No.</label><input id="clfPhone" value="${PDMS.esc(c.phone||'')}"/></div>
+    <div class="form-row"><label>Client Address</label><input id="clfAddress" placeholder="Street, City, Country" value="${PDMS.esc(c.address||'')}"/></div>
     <div class="form-row" style="margin-top:6px;padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;user-select:none">
-        <input type="checkbox" id="newClientWorkedBefore" style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer"/>
+        <input type="checkbox" id="clfWorkedBefore" ${c.workedBefore ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer"/>
         <span style="font-weight:600;color:var(--text);font-size:13px">We have worked with this client before</span>
       </label>
       <div style="font-size:11px;color:var(--text-soft);margin-left:28px;margin-top:2px">
         Check this if PSE previously delivered projects or services for this client prior to entering them into this new system.
       </div>
-    </div>
-  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveClientBtn">Create Client</button>`);
-  modal.querySelector('#saveClientBtn').onclick = function(){
-    const name = modal.querySelector('#newClientName').value.trim();
-    const industry = modal.querySelector('#newClientIndustry').value.trim();
-    const email = modal.querySelector('#newClientEmail').value.trim().toLowerCase();
-    const phone = modal.querySelector('#newClientPhone').value.trim();
-    const address = modal.querySelector('#newClientAddress').value.trim();
-    const workedBefore = !!(modal.querySelector('#newClientWorkedBefore') && modal.querySelector('#newClientWorkedBefore').checked);
-    if(!name || !industry){
-      PDMS.toast('Missing info','Client Name and Client industry are required','error');
-      return;
-    }
-    const btn = this;
-    PDMS.setButtonLoading(btn, true, 'Creating...');
-    PDMS.api.create('clients',{name,industry,email,phone,address,workedBefore,projects:0}).then(()=>{
-      modal.remove();
-      PDMS.toast('Client created','New client added','success');
-      location.reload();
-    }).catch(err=>{ PDMS.setButtonLoading(btn, false); PDMS.toast('Error',err.message||'Could not create client','error'); });
+    </div>`;
+}
+
+function readClientForm(modal){
+  const name = modal.querySelector('#clfName').value.trim();
+  const industry = modal.querySelector('#clfIndustry').value.trim();
+  if(!name || !industry){ PDMS.toast('Missing info','Client Name and Client Industry are required','error'); return null; }
+  return {
+    name, industry,
+    email: modal.querySelector('#clfEmail').value.trim().toLowerCase(),
+    phone: modal.querySelector('#clfPhone').value.trim(),
+    address: modal.querySelector('#clfAddress').value.trim(),
+    workedBefore: !!modal.querySelector('#clfWorkedBefore').checked
   };
 }
+
+function openClientModal(clientId){
+  const editing = clientId ? allClients().find(c => String(c.id) === String(clientId)) : null;
+  if(clientId && !editing){ PDMS.toast('Not found','That client could not be found','error'); return; }
+  if(editing && !canEditClientRow(editing)){ PDMS.toast('Not allowed','You can only edit your own clients','error'); return; }
+
+  const modal = PDMS.modal(editing ? 'Edit Client' : 'New Client', clientFormFields(editing),
+    `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveClientBtn">${editing ? 'Save Changes' : 'Create Client'}</button>`);
+
+  modal.querySelector('#saveClientBtn').onclick = function(){
+    const data = readClientForm(modal);
+    if(!data) return;
+    const btn = this;
+    PDMS.setButtonLoading(btn, true, editing ? 'Saving...' : 'Creating...');
+
+    if(editing){
+      PDMS.api.update('clients', editing.id, data).then(saved => {
+        Object.assign(editing, data, saved || {});
+        modal.remove();
+        PDMS.toast('Client updated','Client details were saved','success');
+        PDMS.awaitFreshData('Saving your client...', 'Updating clients');
+      }).catch(err => { PDMS.setButtonLoading(btn, false); PDMS.toast('Error', err.message || 'Could not update client', 'error'); });
+    } else {
+      const payload = Object.assign({}, data, {
+        projects: 0,
+        createdById: String(currentUser && currentUser.id || ''),
+        createdByName: String(currentUser && currentUser.name || ''),
+        createdAt: new Date().toISOString().slice(0, 10)
+      });
+      PDMS.api.create('clients', payload).then(() => {
+        modal.remove();
+        PDMS.toast('Client created','New client added','success');
+        PDMS.awaitFreshData('Saving your client...', 'Updating clients');
+      }).catch(err => { PDMS.setButtonLoading(btn, false); PDMS.toast('Error', err.message || 'Could not create client', 'error'); });
+    }
+  };
+}
+window.openClientModal = openClientModal;
+
+function exportClientsPdf(){
+  const rows = filteredClients();
+  const esc = PDMS.esc;
+  const scopeLabel = seeAll ? 'All clients' : ((currentUser && currentUser.name ? currentUser.name + "'s clients" : 'My clients'));
+  const generated = new Date().toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+
+  const field = (label, value, cls) => `
+        <div class="row"><span class="k">${label}</span><span class="v ${cls || ''}">${esc(value || '—')}</span></div>`;
+  const cards = rows.map(c => `
+      <div class="cli">
+        <div class="cli-head">
+          <span class="cli-name">${esc(c.name || 'Unnamed client')}</span>
+          ${c.industry ? `<span class="chip">${esc(c.industry)}</span>` : ''}
+        </div>
+        <div class="cli-body">
+          ${field('Email', c.email, 'email')}
+          ${field('Phone', c.phone)}
+          ${field('Address', c.address)}
+        </div>
+      </div>`).join('') || `<div class="empty">No clients to display</div>`;
+
+  const doc = `<!doctype html><html><head><meta charset="utf-8"><title>Clients Report — PSE PDMS</title><style>
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{font-family:'Segoe UI',system-ui,-apple-system,Roboto,'Helvetica Neue',sans-serif;color:#1e293b;font-size:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .page{padding:30px 34px}
+    .masthead{
+      background:linear-gradient(135deg,#1d3c88 0%,#6d28d9 55%,#db2777 100%);
+      color:#fff;border-radius:14px;padding:22px 26px;display:flex;justify-content:space-between;align-items:flex-end;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact;
+    }
+    .brand{font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;opacity:.8}
+    .title{font-size:24px;font-weight:800;margin-top:6px;letter-spacing:-.4px}
+    .count-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:7px 16px;font-size:13px;font-weight:700;white-space:nowrap}
+    .subline{display:flex;gap:18px;margin:14px 2px 20px;font-size:11px;color:#64748b}
+    .subline b{color:#334155;font-weight:600}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .cli{
+      border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px 15px;position:relative;overflow:hidden;
+      break-inside:avoid;page-break-inside:avoid;
+    }
+    .cli::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+      background:linear-gradient(180deg,#1d3c88,#6d28d9,#db2777);
+      -webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .cli-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+    .cli-name{font-size:14px;font-weight:800;color:#1d3c88;letter-spacing:-.2px;line-height:1.25}
+    .chip{
+      flex-shrink:0;background:#eef0f8;color:#3c3489;border-radius:999px;padding:3px 10px;
+      font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact;
+    }
+    .cli-body{margin-top:11px;padding-top:11px;border-top:1px solid #eef1f6;display:flex;flex-direction:column;gap:7px}
+    .row{display:flex;gap:10px;font-size:11px;line-height:1.4}
+    .k{flex:0 0 52px;color:#94a3b8;font-weight:700;text-transform:uppercase;font-size:8.5px;letter-spacing:.06em;padding-top:2px}
+    .v{color:#334155;flex:1;word-break:break-word}
+    .v.email{color:#6d28d9}
+    .empty{grid-column:1/-1;text-align:center;color:#94a3b8;padding:40px;border:1px dashed #e2e8f0;border-radius:12px}
+    .foot{margin-top:22px;padding-top:12px;border-top:2px solid #1d3c88;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between}
+    @page{margin:12mm}
+  </style></head><body>
+    <div class="page">
+      <div class="masthead">
+        <div>
+          <div class="brand">PSE &middot; Project Delivery Management</div>
+          <div class="title">Clients Report</div>
+        </div>
+        <div class="count-badge">${rows.length} client${rows.length === 1 ? '' : 's'}</div>
+      </div>
+      <div class="subline">
+        <span><b>Scope:</b> ${esc(scopeLabel)}</span>
+        <span><b>Generated:</b> ${esc(generated)}</span>
+      </div>
+      <div class="grid">${cards}</div>
+      <div class="foot"><span>PSE PDMS — Confidential</span><span>${rows.length} record${rows.length === 1 ? '' : 's'}</span></div>
+    </div>
+  </body></html>`;
+
+  const frame = document.createElement('iframe');
+  frame.setAttribute('aria-hidden', 'true');
+  frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(frame);
+  const cleanup = () => { if (frame.parentNode) frame.remove(); };
+  const fdoc = frame.contentWindow.document;
+  fdoc.open(); fdoc.write(doc); fdoc.close();
+  frame.contentWindow.focus();
+  frame.contentWindow.onafterprint = () => setTimeout(cleanup, 200);
+  setTimeout(() => {
+    try { frame.contentWindow.print(); } catch(e){ PDMS.toast('Export failed', 'Could not open the print dialog', 'error'); cleanup(); return; }
+    setTimeout(cleanup, 60000); // fallback if onafterprint never fires
+  }, 350);
+}
+window.exportClientsPdf = exportClientsPdf;
 </script></body></html>
-
-

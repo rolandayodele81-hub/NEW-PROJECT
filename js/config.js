@@ -13,6 +13,26 @@
   global.PDMS_IS_LOADING = true;
   global.PDMS_REMOTE = null;
 
+  // Fold any just-created records (kept in sessionStorage by js/api.js for ~3min)
+  // into a data payload, so a record the user created a moment ago shows up even
+  // before the server round-trip that persists it has completed.
+  function mergeRecentCreates(data) {
+    if (!data) return data;
+    try {
+      var recs = JSON.parse(sessionStorage.getItem('pdms_recent_creates') || '{}');
+      Object.keys(recs).forEach(function (resKey) {
+        if (!Array.isArray(data[resKey]) || !Array.isArray(recs[resKey])) return;
+        recs[resKey].forEach(function (item) {
+          if ((Date.now() - (item._savedAt || 0)) >= 180000) return;
+          if (!data[resKey].some(function (x) { return String(x.id) === String(item.id); })) {
+            data[resKey].unshift(item);
+          }
+        });
+      });
+    } catch (_) { }
+    return data;
+  }
+
   // ── Network Fetch ───────────────────────────────────────────────────────────
   function fetchWithRetry(url, retries) {
     retries = retries || 2;
@@ -32,27 +52,33 @@
     global.PDMS_IS_LOADING = true;
     document.dispatchEvent(new CustomEvent('pdms:loading-start'));
 
+    // Cache-first paint: if we have a previous good payload, render from it
+    // immediately so the user never stares at a blank screen while the
+    // (sometimes slow) Apps Script bootstrap request is in flight. The network
+    // response below overwrites it with fresh data when it lands.
+    if (!global.PDMS_REMOTE) {
+      try {
+        var cachedRaw = localStorage.getItem(CACHE_KEY);
+        if (cachedRaw) {
+          var cachedData = JSON.parse(cachedRaw);
+          if (cachedData && typeof cachedData === 'object') {
+            mergeRecentCreates(cachedData);
+            global.PDMS_REMOTE = cachedData;
+            global.PDMS_DATA_LOADED = true;
+            if (global.PDMS_DATA) {
+              Object.keys(cachedData).forEach(function (key) { global.PDMS_DATA[key] = cachedData[key]; });
+            }
+            document.dispatchEvent(new CustomEvent('pdms:refresh', { detail: cachedData }));
+            document.dispatchEvent(new CustomEvent('pdms:data-ready', { detail: cachedData }));
+          }
+        }
+      } catch (_) { }
+    }
+
     fetchWithRetry(global.PDMS_API_URL + '?action=bootstrap')
       .then(function (res) { return res.json(); })
       .then(function (json) {
-        if (json.data) {
-          try {
-            var recStr = sessionStorage.getItem('pdms_recent_creates') || '{}';
-            var recs = JSON.parse(recStr);
-            Object.keys(recs).forEach(function(resKey) {
-              if (Array.isArray(json.data[resKey]) && Array.isArray(recs[resKey])) {
-                recs[resKey].forEach(function(item) {
-                  if ((Date.now() - (item._savedAt || 0)) < 180000) {
-                    var exists = json.data[resKey].some(function(x) { return String(x.id) === String(item.id); });
-                    if (!exists) {
-                      json.data[resKey].unshift(item);
-                    }
-                  }
-                });
-              }
-            });
-          } catch (_) {}
-        }
+        mergeRecentCreates(json.data);
         try {
           localStorage.setItem(CACHE_KEY, JSON.stringify(json.data));
           localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
@@ -77,6 +103,7 @@
         } catch (_) { }
         if (!fallback && global.PDMS_DATA) fallback = global.PDMS_DATA;
         if (fallback) {
+          mergeRecentCreates(fallback);
           global.PDMS_REMOTE = fallback;
           global.PDMS_DATA_LOADED = true;
           document.dispatchEvent(new CustomEvent('pdms:refresh', { detail: fallback }));

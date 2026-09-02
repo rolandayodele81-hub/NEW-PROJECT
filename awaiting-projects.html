@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Awaiting Approval — PSE PDMS</title>
-  <link rel="stylesheet" href="css/style.css?v=1788286901"/>
+  <link rel="stylesheet" href="css/style.css?v=1788351174"/>
   <style>
     .approve-btn {
       padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
@@ -22,7 +22,7 @@
   </style>
 </head>
 <body>
-<script src="js/bundle.js?v=1788286901"></script>
+<script src="js/bundle.js?v=1788351174"></script>
 <script>
   PDMS.mountShell('awaiting-approval');
   const D = PDMS_DATA; const I = PDMS.icon;
@@ -193,19 +193,16 @@
       const user = PDMS.getUser();
 
       if (isSalesHead) {
-        const targetStatus = p.requestedStatus || p.targetStatus || (p.status !== 'Awaiting Sales Head Approval' ? p.status : 'Lead');
-        const patch = { status: targetStatus, stage: 'Sales', priceUpdatePending: false };
-        if (hasPriceUpdate) {
+        const patch = PDMS.salesHeadApprovalPatch(p);
+        const forwardedToAccounts = patch.status === 'Awaiting Account Approval';
+        if (hasPriceUpdate && !forwardedToAccounts) {
           patch.negotiatedPrice = p.requestedNegotiatedPrice;
           patch.requestedNegotiatedPrice = '';
         }
         PDMS.api.update('projects', id, patch)
           .then(() => {
-            p.status = targetStatus; p.stage = 'Sales';
-            if (hasPriceUpdate) {
-              p.negotiatedPrice = patch.negotiatedPrice;
-              p.requestedNegotiatedPrice = '';
-            }
+            Object.assign(p, patch);
+            if (hasPriceUpdate && !forwardedToAccounts) p.requestedNegotiatedPrice = '';
             if (comment) {
               const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Sales Head', authorRole: user ? user.role : 'Sales Head', projectId: p.id, projectName: p.name, message: `[Approval Remarks] ${comment}`, time: new Date().toISOString() };
               PDMS.api.create('issues', record).catch(()=>{});
@@ -213,8 +210,9 @@
             }
             modal.remove();
             sessionApproved++;
-            PDMS.toast('Approved', `"${p.name}" has been approved.${hasPriceUpdate ? ' Opportunity value updated.' : ''}`, 'success');
-            PDMS.notify('Project Approved', `Sales Head approved "${p.name}"${hasPriceUpdate ? ` (Opportunity Value: ${PDMS.currency(patch.negotiatedPrice)})` : ''}`, 'check', 'project-details.html#id=' + p.id);
+            PDMS.toast('Approved', forwardedToAccounts ? `"${p.name}" approved and forwarded to Accounts.` : `"${p.name}" has been approved.${hasPriceUpdate ? ' Opportunity value updated.' : ''}`, 'success');
+            PDMS.workflowNotify('lead.accepted', p);
+            if (forwardedToAccounts) PDMS.workflowNotify('award.submitted', p);
             render();
             updateSessionCounts();
           })
@@ -234,6 +232,7 @@
             modal.remove();
             sessionApproved++;
             PDMS.toast('Approved', `"${p.name}" has been approved and moved to Not Started in delivery.`, 'success');
+            PDMS.workflowNotify('award.approved', p);
             render();
             updateSessionCounts();
           })
@@ -272,6 +271,7 @@
             const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Sales Head', authorRole: user ? user.role : 'Sales Head', projectId: p.id, projectName: p.name, message: `[Rejection Reason] ${reason}`, time: new Date().toISOString() };
             PDMS.api.create('issues', record).catch(()=>{});
             if (D.issues) D.issues.unshift(record);
+            PDMS.workflowNotify('lead.rejected', p, { reason });
             modal.remove();
             sessionRejected++;
             PDMS.toast('Rejected', `"${p.name}" has been rejected.`, 'warn');
@@ -306,7 +306,7 @@
             modal.remove();
             sessionRejected++;
             PDMS.toast('Returned to Sales', `"${p.name}" has been returned to Sales for revision.`, 'warn');
-            PDMS.notify('Project Returned by Accounts', `Accounts returned "${p.name}" to Sales for revision: ${reason}`, 'clock', 'project-details.html#id=' + p.id);
+            PDMS.workflowNotify('award.rejected', p, { reason });
             render();
             updateSessionCounts();
           })

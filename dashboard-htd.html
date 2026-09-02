@@ -7,7 +7,7 @@
   <title>Delivery Dashboard — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788286901" />
+  <link rel="stylesheet" href="css/style.css?v=1788351174" />
   <style>
     .htd-hero {
       display: grid;
@@ -149,7 +149,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788286901"></script>
+  <script src="js/bundle.js?v=1788351174"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -411,7 +411,7 @@
         const patch = {}; patch[field] = val;
         PDMS.api.update('projects', projectId, patch).then(saved => {
           Object.assign(project, saved);
-          PDMS.notify('Team Updated', `${PDMS.getUser().name} set ${field === 'pm' ? 'PM' : 'Lead'} of "${project.name}" to ${val || '(none)'}`, 'users', 'project-details.html#id=' + projectId);
+          PDMS.notify('Team Updated', `${PDMS.getUser().name} set ${field === 'pm' ? 'PM' : 'Lead'} of "${project.name}" to ${val || '(none)'}`, 'users', 'project-details.html#id=' + projectId, 'COO,HTD,PM Head,PMO', '', projectId);
           PDMS.toast('Saved', `${field.toUpperCase()} updated`, 'success');
         }).catch(err => PDMS.toast('Error', err.message || 'Could not save', 'error'));
       }, delay);
@@ -477,7 +477,7 @@
         PDMS.api.update('projects', projectId, { consultants: selected }).then(saved => {
           Object.assign(project, saved);
           modal.remove();
-          PDMS.notify('Consultants Assigned', `${PDMS.getUser().name} staffed ${selected.length} consultant(s) on "${project.name}"`, 'users', 'project-details.html#id=' + projectId);
+          PDMS.notify('Consultants Assigned', `${PDMS.getUser().name} staffed ${selected.length} consultant(s) on "${project.name}"`, 'users', 'project-details.html#id=' + projectId, 'COO,HTD,PM Head,PMO', '', projectId);
           PDMS.toast('Staff updated', `Consultants saved for ${projectId}`, 'success');
           render();
         }).catch(err => PDMS.toast('Error', err.message || 'Could not save', 'error'));
@@ -514,7 +514,7 @@
           D.users.unshift(saved);
           modal.remove();
           const creator = PDMS.getUser();
-          PDMS.notify('User Onboarded', `${creator ? creator.name : 'HTD'} onboarded ${saved.name} as ${saved.role}`, 'user-plus', 'user-details.html#id=' + saved.id);
+          PDMS.notify('User Onboarded', `${creator ? creator.name : 'HTD'} onboarded ${saved.name} as ${saved.role}`, 'user-plus', 'user-details.html#id=' + saved.id, 'HR,HTD,System Administrator');
           showNewUserPasswordNote(saved, password);
           render();
         }).catch(err => PDMS.toast('Error', err.message || 'Could not onboard user', 'error'));
@@ -678,7 +678,7 @@
             if (idx > -1) D.projects.splice(idx, 1, saved); else D.projects.unshift(saved);
             modal.remove();
             PDMS.toast('Project created', 'New delivery project onboarded', 'success');
-            PDMS.notify('Project Onboarded', `${user ? user.name : 'HTD'} onboarded "${saved.name}" for ${saved.client}`, 'folder', 'project-details.html#id=' + saved.id);
+            PDMS.notify('Project Onboarded', `${user ? user.name : 'HTD'} onboarded "${saved.name}" for ${saved.client}`, 'folder', 'project-details.html#id=' + saved.id, 'COO,HTD,PM Head,PMO', '', saved.id);
             renderAll();
           }).catch(err => {
             const idx = D.projects.findIndex(p => p.id === tmpId);
