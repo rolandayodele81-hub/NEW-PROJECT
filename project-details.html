@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788455827" />
+  <link rel="stylesheet" href="css/style.css?v=1788457845" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788455827"></script>
+  <script src="js/bundle.js?v=1788457845"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -2380,7 +2380,9 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             PDMS.toast('Approved', forwardedToAccounts ? `"${p.name}" approved and forwarded to Accounts.` : `"${p.name}" has been approved.${hasPriceUpdate ? ' Opportunity value updated.' : ''}`, 'success');
             PDMS.workflowNotify('lead.accepted', p);
             if (forwardedToAccounts) PDMS.workflowNotify('award.submitted', p);
-            render();
+            setTimeout(() => {
+              location.href = 'awaiting-projects.html';
+            }, 350);
           })
           .catch(err => {
             PDMS.setButtonLoading(btn2, false);
@@ -2414,7 +2416,9 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             modal.remove();
             PDMS.toast('Rejected', `"${p.name}" has been rejected by Sales Head.`, 'warn');
             PDMS.workflowNotify('lead.rejected', p, { reason });
-            render();
+            setTimeout(() => {
+              location.href = 'awaiting-projects.html';
+            }, 350);
           })
           .catch(err => {
             PDMS.setButtonLoading(btn2, false);

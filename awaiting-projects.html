@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Awaiting Approval — PSE PDMS</title>
-  <link rel="stylesheet" href="css/style.css?v=1788455827"/>
+  <link rel="stylesheet" href="css/style.css?v=1788457845"/>
   <style>
     .approve-btn {
       padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
@@ -22,7 +22,7 @@
   </style>
 </head>
 <body>
-<script src="js/bundle.js?v=1788455827"></script>
+<script src="js/bundle.js?v=1788457845"></script>
 <script>
   PDMS.mountShell('awaiting-approval');
   const D = PDMS_DATA; const I = PDMS.icon;
@@ -128,7 +128,7 @@
                 const clientName = (clientObj && clientObj.name) || p.client || p.name || '—';
                 const creator = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
                 const isItemCancelled = p.status === 'Cancelled';
-                return `<tr style="cursor:pointer" onclick="location.href='project-details.html#id=${p.id}'">
+                return `<tr style="cursor:pointer" onclick="location.href='project-details.html#id=${p.id}&from=awaiting'">
                   <td class="font-bold" style="color:var(--primary)">${PDMS.esc(clientName)}</td>
                   <td class="font-semi" style="color:var(--text)">${PDMS.esc(creator)}</td>
                   <td class="font-semi">${p.requestedNegotiatedPrice ? `<span style="color:#d97706;font-weight:700">${PDMS.currency(p.requestedNegotiatedPrice)}</span> <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(245,158,11,.15);color:#d97706;margin-left:4px">Requested</span>` : (Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—')}</td>
