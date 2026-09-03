@@ -622,11 +622,15 @@
         if(state.filters[k]) {
           arr = arr.filter(r => {
             const v = String(r[k] || '');
-            if (k === 'status' && state.filters[k] === 'Award/SLA') {
-              return v === 'Award/SLA' || v === 'Awaiting Account Approval';
-            }
-            if (k === 'status' && state.filters[k] === 'Closed') {
-              return v === 'Closed' || r.stage === 'Delivery' || (window.D && window.D.deliveryStatuses && window.D.deliveryStatuses.includes(v) && v !== 'Awaiting Account Approval');
+            if (k === 'status') {
+              if (state.filters[k] === 'Award/SLA') {
+                return v === 'Award/SLA' || v === 'Awaiting Account Approval';
+              }
+              if (state.filters[k] === 'Closed') {
+                return v === 'Closed' || r.stage === 'Delivery' || (window.D && window.D.deliveryStatuses && window.D.deliveryStatuses.includes(v) && v !== 'Awaiting Account Approval');
+              }
+              const dStat = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : v;
+              return v === state.filters[k] || dStat === state.filters[k];
             }
             return v === state.filters[k];
           });
@@ -1261,7 +1265,7 @@
       clientMode: null, // 'new' or 'existing'
       selectedClient: null, // { name, industry, email, phone, address, workedBefore }
       newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
-      projForm: { type: (D.types && D.types[0]) || 'ERP', workstream: '', status: (D.deliveryStatuses && D.deliveryStatuses[0]) || 'Not Started', start: '', due: '', actualCompletion: '', desc: '' }
+      projForm: { type: (D.types && D.types[0]) || 'ERP', workstream: '', status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'ERP')) || ['Not Started'])[0] || 'Not Started', start: '', due: '', actualCompletion: '', desc: '' }
     };
 
     function renderModal() {
@@ -1382,7 +1386,7 @@
         const clientName = (wizardState.selectedClient && wizardState.selectedClient.name) || '';
         const clientIndustry = (wizardState.selectedClient && wizardState.selectedClient.industry) || '';
         const isPrior = !!(wizardState.selectedClient && wizardState.selectedClient.workedBefore);
-        const statusOptions = (D.deliveryStatuses || ['Not Started', 'In Progress', 'On Hold', 'Awaiting Review', 'Completed', 'Closed']);
+        const statusOptions = (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(wizardState.projForm.type) : (D.deliveryStatuses || ['Not Started', 'In Progress', 'On Hold', 'Awaiting Review', 'Completed', 'Closed']));
         bodyHtml = `
           <div style="background:linear-gradient(135deg,#090d16 0%,#1d3c88 45%,#8b5cf6 85%,#ec4899 100%);border-radius:14px;padding:18px 22px;color:#fff;margin-bottom:16px">
             <div style="font-size:17px;font-weight:800;line-height:1.2;margin-bottom:4px">Delivery Project Scope &amp; Timeline</div>
@@ -1622,6 +1626,18 @@
           wizardState.selectedClient = null;
           renderModal();
         };
+
+        const typeInput = modalRef.querySelector('#dwProjType');
+        const statusInput = modalRef.querySelector('#dwProjStatus');
+        if (typeInput && statusInput) {
+          typeInput.onchange = () => {
+            const newType = typeInput.value.trim();
+            const opts = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(newType) : (D.deliveryStatuses || []);
+            statusInput.innerHTML = opts.map(s => `<option value="${PDMS.esc(s)}">${PDMS.esc(s)}</option>`).join('');
+            wizardState.projForm.type = newType;
+            wizardState.projForm.status = opts[0] || 'Not Started';
+          };
+        }
 
         if (submitBtn) submitBtn.onclick = function() {
           const client = wizardState.selectedClient && wizardState.selectedClient.name;

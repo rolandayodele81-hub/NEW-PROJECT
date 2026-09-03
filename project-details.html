@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788453166" />
+  <link rel="stylesheet" href="css/style.css?v=1788455827" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788453166"></script>
+  <script src="js/bundle.js?v=1788455827"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -77,13 +77,18 @@
       const isSales = !isConsultantView && (isPendingSalesHead || isSalesStage || (!hasDeliveryStatus && hasSalesStatus));
       const mainSequence = isSales
         ? ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed']
-        : ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
+        : (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(proj) : ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed']);
 
       let statusToMatch = proj.status;
       if (isPendingSalesHead) {
         statusToMatch = proj.requestedStatus || proj.targetStatus || 'Lead';
       }
-      const status = PDMS.normalizeStatus ? PDMS.normalizeStatus(statusToMatch) : statusToMatch;
+      let status = PDMS.normalizeStatus ? PDMS.normalizeStatus(statusToMatch) : statusToMatch;
+      if (status === 'Completed' && !mainSequence.includes('Completed') && mainSequence.includes('Closure')) {
+        status = 'Closure';
+      } else if (status === 'Closure' && !mainSequence.includes('Closure') && mainSequence.includes('Completed')) {
+        status = 'Completed';
+      }
 
       if (status === 'Cancelled') {
         const lastKnown = proj.previousStatus || proj.requestedStatus || proj.targetStatus || 'Lead';
@@ -2123,7 +2128,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
 
     function changeStatus() {
       const user = PDMS.getUser();
-      let options = PDMS.statusOptionsFor(user || undefined);
+      let options = PDMS.statusOptionsFor(user || undefined, p);
       if (PDMS.isSalesRole(user)) {
         options = options.filter(s => s !== 'Closed');
       }
@@ -2209,8 +2214,10 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       };
     }
     function startDelivery() {
+      const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(p) : ['Not Started'];
+      const initialStatus = seq[0] || 'Not Started';
       const modal = PDMS.modal('Start Delivery', `
-    <p class="text-sm text-muted" style="margin-bottom:16px">This moves ${PDMS.esc(p.name)} from the Sales pipeline into delivery, starting at "Not Started". You can assign a Project Manager and Lead now or later.</p>
+    <p class="text-sm text-muted" style="margin-bottom:16px">This moves ${PDMS.esc(p.name)} from the Sales pipeline into delivery, starting at "${PDMS.esc(initialStatus)}". You can assign a Project Manager and Lead now or later.</p>
     <style>
       .assign-ac-wrap{position:relative}.assign-ac-wrap input{width:100%;box-sizing:border-box}
       .assign-ac-drop{position:absolute;top:100%;left:0;right:0;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:180px;overflow-y:auto;display:none}
@@ -2245,7 +2252,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       modal.querySelector('#startDelBtn').onclick = function () {
         const pm = modal.querySelector('#startDelPm').value.trim();
         const lead = modal.querySelector('#startDelLead').value.trim();
-        const patch = { stage: 'Delivery', status: 'Not Started' };
+        const patch = { stage: 'Delivery', status: initialStatus };
         if (pm) patch.pm = pm;
         if (lead) patch.lead = lead;
         PDMS.api.update('projects', p.id, patch).then(saved => {

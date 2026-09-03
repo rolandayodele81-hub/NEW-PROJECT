@@ -214,7 +214,51 @@
     'Awaiting Account Approval': 'Award/SLA'
   };
   const salesStatuses = [...salesJourney, 'On Hold', 'Cancelled'];
-  const deliveryStatuses = ['Not Started', 'In Progress', 'On Hold', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed', 'Closed', 'Cancelled'];
+
+  const deliveryStagesByType = {
+    'Management System': [
+      'Gap Assessment',
+      'Training',
+      'Implementation',
+      'Internal Audit',
+      'Recommendation',
+      'External Audit',
+      'Certificate Reception',
+      'Closure'
+    ],
+    'SAPT': [
+      'Gap Assessment',
+      'Internal Testing',
+      'Penetration Testing',
+      'Report Submission',
+      'Review',
+      'Closure'
+    ],
+    'ERP': [
+      'Requirements Gathering',
+      'Configuration',
+      'Design',
+      'Data Preparation',
+      'Migration',
+      'Integration',
+      'Testing',
+      'User Acceptance Testing (UAT)',
+      'Training',
+      'Go-Live',
+      'Closure'
+    ]
+  };
+
+  const defaultDeliverySequence = ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
+
+  const allTypeDeliveryStatuses = [
+    ...defaultDeliverySequence,
+    ...deliveryStagesByType['Management System'],
+    ...deliveryStagesByType['SAPT'],
+    ...deliveryStagesByType['ERP'],
+    'On Hold', 'Closed', 'Cancelled'
+  ];
+  const deliveryStatuses = [...new Set(allTypeDeliveryStatuses)];
   const inProgressSubStatuses = ['Design', 'Development', 'Testing / QA / Internal Testing', 'Deployment', 'UAT', 'Release'];
   const statuses = [...salesStatuses, ...deliveryStatuses.filter(s => !salesStatuses.includes(s))];
   const statusColors = {
@@ -224,7 +268,32 @@
     'Closed': 'primary', 'Cancelled': 'danger', 'On Hold': 'muted',
     'Not Started': 'muted', 'In Progress': 'warn', 'Awaiting Review': 'warn',
     'Testing / Quality Assurance': 'purple', 'Completed': 'success',
-    'Internal Audit': 'info', 'External Audit': 'warn'
+    'Internal Audit': 'info', 'External Audit': 'warn',
+
+    // Management System
+    'Gap Assessment': 'info',
+    'Training': 'primary',
+    'Implementation': 'purple',
+    'Recommendation': 'warn',
+    'Certificate Reception': 'success',
+    'Closure': 'success',
+
+    // SAPT
+    'Internal Testing': 'info',
+    'Penetration Testing': 'purple',
+    'Report Submission': 'primary',
+    'Review': 'warn',
+
+    // ERP
+    'Requirements Gathering': 'info',
+    'Configuration': 'purple',
+    'Design': 'primary',
+    'Data Preparation': 'info',
+    'Migration': 'purple',
+    'Integration': 'primary',
+    'Testing': 'purple',
+    'User Acceptance Testing (UAT)': 'warn',
+    'Go-Live': 'success'
   };
   Object.assign(statusColors, {
     'Incoming': 'info', 'Initial Contact': 'info', 'Requirement Gathering': 'purple',
@@ -235,6 +304,14 @@
 
   function normalizeStatus(status) {
     return salesStatusAliases[status] || status;
+  }
+
+  function deliverySequenceFor(projectOrType) {
+    let type = typeof projectOrType === 'string' ? projectOrType : (projectOrType && (projectOrType.type || projectOrType.projectType));
+    if (type && deliveryStagesByType[type]) {
+      return deliveryStagesByType[type].slice();
+    }
+    return defaultDeliverySequence.slice();
   }
 
   // -----------------------------
@@ -280,11 +357,14 @@
     departments, users, consultants, clients, projects,
     notifications, threads, activities, reviews, issues,
     roles, types, priorities, workstreams, statuses, salesJourney, salesStatuses, salesStatusAliases, deliveryStatuses,
+    deliveryStagesByType, deliverySequenceFor,
     statusColors, prioColors,
     tasksFor
   };
   global.PDMS = global.PDMS || {};
   global.PDMS.normalizeStatus = normalizeStatus;
+  global.PDMS.deliverySequenceFor = deliverySequenceFor;
+  global.PDMS.deliveryStagesByType = deliveryStagesByType;
 })(window);/* PDMS Utils */
 (function(g){
   const PDMS = g.PDMS = g.PDMS || {};
@@ -909,11 +989,15 @@
         if(state.filters[k]) {
           arr = arr.filter(r => {
             const v = String(r[k] || '');
-            if (k === 'status' && state.filters[k] === 'Award/SLA') {
-              return v === 'Award/SLA' || v === 'Awaiting Account Approval';
-            }
-            if (k === 'status' && state.filters[k] === 'Closed') {
-              return v === 'Closed' || r.stage === 'Delivery' || (window.D && window.D.deliveryStatuses && window.D.deliveryStatuses.includes(v) && v !== 'Awaiting Account Approval');
+            if (k === 'status') {
+              if (state.filters[k] === 'Award/SLA') {
+                return v === 'Award/SLA' || v === 'Awaiting Account Approval';
+              }
+              if (state.filters[k] === 'Closed') {
+                return v === 'Closed' || r.stage === 'Delivery' || (window.D && window.D.deliveryStatuses && window.D.deliveryStatuses.includes(v) && v !== 'Awaiting Account Approval');
+              }
+              const dStat = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : v;
+              return v === state.filters[k] || dStat === state.filters[k];
             }
             return v === state.filters[k];
           });
@@ -1548,7 +1632,7 @@
       clientMode: null, // 'new' or 'existing'
       selectedClient: null, // { name, industry, email, phone, address, workedBefore }
       newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
-      projForm: { type: (D.types && D.types[0]) || 'ERP', workstream: '', status: (D.deliveryStatuses && D.deliveryStatuses[0]) || 'Not Started', start: '', due: '', actualCompletion: '', desc: '' }
+      projForm: { type: (D.types && D.types[0]) || 'ERP', workstream: '', status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'ERP')) || ['Not Started'])[0] || 'Not Started', start: '', due: '', actualCompletion: '', desc: '' }
     };
 
     function renderModal() {
@@ -1669,7 +1753,7 @@
         const clientName = (wizardState.selectedClient && wizardState.selectedClient.name) || '';
         const clientIndustry = (wizardState.selectedClient && wizardState.selectedClient.industry) || '';
         const isPrior = !!(wizardState.selectedClient && wizardState.selectedClient.workedBefore);
-        const statusOptions = (D.deliveryStatuses || ['Not Started', 'In Progress', 'On Hold', 'Awaiting Review', 'Completed', 'Closed']);
+        const statusOptions = (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(wizardState.projForm.type) : (D.deliveryStatuses || ['Not Started', 'In Progress', 'On Hold', 'Awaiting Review', 'Completed', 'Closed']));
         bodyHtml = `
           <div style="background:linear-gradient(135deg,#090d16 0%,#1d3c88 45%,#8b5cf6 85%,#ec4899 100%);border-radius:14px;padding:18px 22px;color:#fff;margin-bottom:16px">
             <div style="font-size:17px;font-weight:800;line-height:1.2;margin-bottom:4px">Delivery Project Scope &amp; Timeline</div>
@@ -1909,6 +1993,18 @@
           wizardState.selectedClient = null;
           renderModal();
         };
+
+        const typeInput = modalRef.querySelector('#dwProjType');
+        const statusInput = modalRef.querySelector('#dwProjStatus');
+        if (typeInput && statusInput) {
+          typeInput.onchange = () => {
+            const newType = typeInput.value.trim();
+            const opts = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(newType) : (D.deliveryStatuses || []);
+            statusInput.innerHTML = opts.map(s => `<option value="${PDMS.esc(s)}">${PDMS.esc(s)}</option>`).join('');
+            wizardState.projForm.type = newType;
+            wizardState.projForm.status = opts[0] || 'Not Started';
+          };
+        }
 
         if (submitBtn) submitBtn.onclick = function() {
           const client = wizardState.selectedClient && wizardState.selectedClient.name;
@@ -2451,8 +2547,9 @@
       return 'Sales';
     }
 
-    const deliveryExecution = ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
-    if (deliveryExecution.includes(normalized) || deliveryExecution.includes(project.status)) return 'Delivery';
+    const D = window.PDMS_DATA;
+    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
+    if (allDelivery.includes(normalized) || allDelivery.includes(project.status)) return 'Delivery';
 
     if (project.status === 'Closed') return 'Delivery';
     if (project.stage === 'Delivery') return 'Delivery';
@@ -2463,14 +2560,30 @@
     return 'Sales';
   };
 
-  PDMS.statusOptionsFor = function (user) {
+  PDMS.statusOptionsFor = function (user, project) {
     user = user || PDMS.getUser();
     if (!user) return [];
     const D = window.PDMS_DATA;
     if (!D) return [];
     const exclude = ['Awaiting Sales Head Approval', 'Awaiting Account Approval'];
-    if (PDMS.isSalesRole(user) || PDMS.isSalesHeadRole(user)) return (D.salesStatuses || []).filter(s => !exclude.includes(s));
-    if (PDMS.isDeliveryRole(user)) return (D.deliveryStatuses || []).filter(s => !exclude.includes(s));
+    
+    // Projects in Sales Pipeline MUST ALWAYS maintain their sales statuses
+    if (project && PDMS.stageOf(project) === 'Sales') {
+      return (D.salesStatuses || []).filter(s => !exclude.includes(s));
+    }
+    if (PDMS.isSalesRole(user) || PDMS.isSalesHeadRole(user)) {
+      return (D.salesStatuses || []).filter(s => !exclude.includes(s));
+    }
+
+    // Projects that have been moved to Delivery use their project-type-specific delivery sequence
+    if (project) {
+      const typeSequence = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D.deliveryStatuses || []);
+      const options = [...typeSequence, 'On Hold', 'Cancelled'];
+      return [...new Set(options)].filter(s => !exclude.includes(s));
+    }
+    if (PDMS.isDeliveryRole(user)) {
+      return (D.deliveryStatuses || []).filter(s => !exclude.includes(s));
+    }
     return [...new Set([...(D.salesStatuses || []), ...(D.deliveryStatuses || [])])].filter(s => !exclude.includes(s));
   };
 
@@ -2507,7 +2620,7 @@
   };
   PDMS.canManageAllClients = function (user) {
     user = user || PDMS.getUser();
-    return !!user && (user.role === 'Sales Head' || user.role === 'System Administrator' || user.role === 'General Admin');
+    return !!user && ['System Administrator', 'HR', 'Sales Head'].includes(user.role);
   };
   PDMS.canEditClient = function (client, user) {
     user = user || PDMS.getUser();
@@ -2516,9 +2629,8 @@
 
   // Shared status/bucket helpers used across all dashboard pages.
   PDMS.isSalesStatus = function (status) {
-    if (status === 'Awaiting Sales Head Approval' || status === 'Awaiting Account Approval') return true;
-    const normalized = PDMS.normalizeStatus ? PDMS.normalizeStatus(status) : status;
-    return ((window.PDMS_DATA && window.PDMS_DATA.salesStatuses) || []).includes(normalized);
+    const s = PDMS.normalizeStatus ? PDMS.normalizeStatus(status) : status;
+    return ((window.PDMS_DATA && window.PDMS_DATA.salesStatuses) || []).includes(s);
   };
   PDMS.isDeliveryStatus = function (status) {
     return ((window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || []).includes(status);
@@ -2529,19 +2641,51 @@
     if (preAwardSales.includes(project.status) || (project.status === 'Cancelled' && project.stage === 'Sales' && !project.deliveryStatus)) {
       return null;
     }
-    if (project.deliveryStatus) {
-      const dList = (window.D && window.D.deliveryStatuses) || (window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || [];
-      const match = dList.find(s => s.toLowerCase() === String(project.deliveryStatus).trim().toLowerCase());
-      if (match && match !== 'Awaiting Account Approval' && match !== 'Awaiting Sales Head Approval') {
-        return match;
-      }
+    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
+    
+    // 1. Check explicit deliveryStatus field
+    const delivRaw = String(project.deliveryStatus || '').trim();
+    if (delivRaw) {
+      const matchInSeq = seq.find(s => s.toLowerCase() === delivRaw.toLowerCase());
+      if (matchInSeq) return matchInSeq;
+      if (delivRaw.toLowerCase() === 'completed' && seq.includes('Closure')) return 'Closure';
+      if (delivRaw.toLowerCase() === 'closure' && seq.includes('Completed')) return 'Completed';
+      if (delivRaw.toLowerCase() === 'on hold') return 'On Hold';
+      if (delivRaw.toLowerCase() === 'cancelled') return 'Cancelled';
     }
-    const st = String(project.status || '').trim();
-    const dExecutionStatuses = ['Not Started', 'In Progress', 'On Hold', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
-    const execMatch = dExecutionStatuses.find(s => s.toLowerCase() === st.toLowerCase());
-    if (execMatch) return execMatch;
 
-    return 'Not Started';
+    // 2. Check project.status directly against this project's pipeline sequence
+    const st = String(project.status || '').trim();
+    const matchStatusInSeq = seq.find(s => s.toLowerCase() === st.toLowerCase());
+    if (matchStatusInSeq) return matchStatusInSeq;
+
+    if (st.toLowerCase() === 'completed' && seq.includes('Closure')) return 'Closure';
+    if (st.toLowerCase() === 'closure' && seq.includes('Completed')) return 'Completed';
+    if (st.toLowerCase() === 'on hold') return 'On Hold';
+    if (st.toLowerCase() === 'cancelled') return 'Cancelled';
+
+    // 3. For projects with legacy generic statuses (e.g. 'In Progress', 'Awaiting Review', 'Not Started', 'Closed'),
+    // map them cleanly into this project type's pipeline sequence:
+    const type = String(project.type || project.projectType || '').trim();
+    if (type === 'SAPT') {
+      if (st.toLowerCase() === 'awaiting review' || st.toLowerCase() === 'testing / quality assurance') return 'Review';
+      if (st.toLowerCase() === 'in progress') return 'Internal Testing';
+    } else if (type === 'ERP') {
+      if (st.toLowerCase() === 'awaiting review') return 'Testing';
+      if (st.toLowerCase() === 'in progress') return 'Configuration';
+    } else if (type === 'Management System') {
+      if (st.toLowerCase() === 'awaiting review') return 'Internal Audit';
+      if (st.toLowerCase() === 'in progress') return 'Implementation';
+    }
+
+    // If progress % is recorded and > 0, map to corresponding step
+    if (Number.isFinite(Number(project.progress)) && Number(project.progress) > 0) {
+      const idx = Math.min(seq.length - 1, Math.max(0, Math.floor((Number(project.progress) / 100) * (seq.length - 1))));
+      return seq[idx];
+    }
+
+    // Default to the first stage of this project type's sequence
+    return seq[0] || 'Not Started';
   };
   PDMS.projectBucket = function (project) {
     if (project.status === 'Awaiting Account Approval' || project.status === 'Awaiting Sales Head Approval') return 'Sales';

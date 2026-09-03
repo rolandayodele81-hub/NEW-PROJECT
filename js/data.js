@@ -18,7 +18,51 @@
     'Awaiting Account Approval': 'Award/SLA'
   };
   const salesStatuses = [...salesJourney, 'On Hold', 'Cancelled'];
-  const deliveryStatuses = ['Not Started', 'In Progress', 'On Hold', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed', 'Closed', 'Cancelled'];
+
+  const deliveryStagesByType = {
+    'Management System': [
+      'Gap Assessment',
+      'Training',
+      'Implementation',
+      'Internal Audit',
+      'Recommendation',
+      'External Audit',
+      'Certificate Reception',
+      'Closure'
+    ],
+    'SAPT': [
+      'Gap Assessment',
+      'Internal Testing',
+      'Penetration Testing',
+      'Report Submission',
+      'Review',
+      'Closure'
+    ],
+    'ERP': [
+      'Requirements Gathering',
+      'Configuration',
+      'Design',
+      'Data Preparation',
+      'Migration',
+      'Integration',
+      'Testing',
+      'User Acceptance Testing (UAT)',
+      'Training',
+      'Go-Live',
+      'Closure'
+    ]
+  };
+
+  const defaultDeliverySequence = ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
+
+  const allTypeDeliveryStatuses = [
+    ...defaultDeliverySequence,
+    ...deliveryStagesByType['Management System'],
+    ...deliveryStagesByType['SAPT'],
+    ...deliveryStagesByType['ERP'],
+    'On Hold', 'Closed', 'Cancelled'
+  ];
+  const deliveryStatuses = [...new Set(allTypeDeliveryStatuses)];
   const inProgressSubStatuses = ['Design', 'Development', 'Testing / QA / Internal Testing', 'Deployment', 'UAT', 'Release'];
   const statuses = [...salesStatuses, ...deliveryStatuses.filter(s => !salesStatuses.includes(s))];
   const statusColors = {
@@ -28,7 +72,32 @@
     'Closed': 'primary', 'Cancelled': 'danger', 'On Hold': 'muted',
     'Not Started': 'muted', 'In Progress': 'warn', 'Awaiting Review': 'warn',
     'Testing / Quality Assurance': 'purple', 'Completed': 'success',
-    'Internal Audit': 'info', 'External Audit': 'warn'
+    'Internal Audit': 'info', 'External Audit': 'warn',
+
+    // Management System
+    'Gap Assessment': 'info',
+    'Training': 'primary',
+    'Implementation': 'purple',
+    'Recommendation': 'warn',
+    'Certificate Reception': 'success',
+    'Closure': 'success',
+
+    // SAPT
+    'Internal Testing': 'info',
+    'Penetration Testing': 'purple',
+    'Report Submission': 'primary',
+    'Review': 'warn',
+
+    // ERP
+    'Requirements Gathering': 'info',
+    'Configuration': 'purple',
+    'Design': 'primary',
+    'Data Preparation': 'info',
+    'Migration': 'purple',
+    'Integration': 'primary',
+    'Testing': 'purple',
+    'User Acceptance Testing (UAT)': 'warn',
+    'Go-Live': 'success'
   };
   Object.assign(statusColors, {
     'Incoming': 'info', 'Initial Contact': 'info', 'Requirement Gathering': 'purple',
@@ -39,6 +108,14 @@
 
   function normalizeStatus(status) {
     return salesStatusAliases[status] || status;
+  }
+
+  function deliverySequenceFor(projectOrType) {
+    let type = typeof projectOrType === 'string' ? projectOrType : (projectOrType && (projectOrType.type || projectOrType.projectType));
+    if (type && deliveryStagesByType[type]) {
+      return deliveryStagesByType[type].slice();
+    }
+    return defaultDeliverySequence.slice();
   }
 
   // -----------------------------
@@ -84,9 +161,12 @@
     departments, users, consultants, clients, projects,
     notifications, threads, activities, reviews, issues,
     roles, types, priorities, workstreams, statuses, salesJourney, salesStatuses, salesStatusAliases, deliveryStatuses,
+    deliveryStagesByType, deliverySequenceFor,
     statusColors, prioColors,
     tasksFor
   };
   global.PDMS = global.PDMS || {};
   global.PDMS.normalizeStatus = normalizeStatus;
+  global.PDMS.deliverySequenceFor = deliverySequenceFor;
+  global.PDMS.deliveryStagesByType = deliveryStagesByType;
 })(window);
