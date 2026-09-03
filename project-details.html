@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788457845" />
+  <link rel="stylesheet" href="css/style.css?v=1788459159" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788457845"></script>
+  <script src="js/bundle.js?v=1788459159"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -2202,6 +2202,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           return;
         }
 
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Updating...');
         const patch = { status: newStatus };
         PDMS.api.update('projects', p.id, patch).then(saved => {
           Object.assign(p, saved);
@@ -2210,7 +2212,10 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           const statusUser = PDMS.getUser();
           PDMS.notify('Status Changed', `${statusUser.name} (${statusUser.role}) changed "${p.name}" status to "${newStatus}"`, 'refresh', 'project-details.html#id=' + p.id, '', '', p.id);
           render();
-        }).catch(err => PDMS.toast('Error', err.message || 'Could not update status', 'error'));
+        }).catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not update status', 'error');
+        });
       };
     }
     function startDelivery() {
@@ -2255,6 +2260,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         const patch = { stage: 'Delivery', status: initialStatus };
         if (pm) patch.pm = pm;
         if (lead) patch.lead = lead;
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Starting...');
         PDMS.api.update('projects', p.id, patch).then(saved => {
           Object.assign(p, saved);
           modal.remove();
@@ -2262,7 +2269,10 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           const delUser = PDMS.getUser();
           PDMS.notify('Delivery Started', `${delUser.name} (${delUser.role}) moved "${p.name}" into delivery`, 'zap', 'project-details.html#id=' + p.id, 'COO,HTD,PM Head,PMO', '', p.id);
           render();
-        }).catch(err => PDMS.toast('Error', err.message || 'Could not start delivery', 'error'));
+        }).catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not start delivery', 'error');
+        });
       };
     }
     window.postProjectReview = postProjectReview; window.submitInlineIssue = submitInlineIssue; window.assignTeam = assignTeam; window.uploadDoc = uploadDoc; window.changeStatus = changeStatus; window.startDelivery = startDelivery;
