@@ -7,7 +7,7 @@
   <title>Delivery Dashboard — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788418329" />
+  <link rel="stylesheet" href="css/style.css?v=1788419290" />
   <style>
     .htd-hero {
       display: grid;
@@ -149,7 +149,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788418329"></script>
+  <script src="js/bundle.js?v=1788419290"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -546,150 +546,10 @@
     }
 
     function newProject() {
-      const user = PDMS.getUser();
-      const statusOptions = D.deliveryStatuses;
-      const defaultStatus = statusOptions[0];
-      const modal = PDMS.modal('', `
-        <style>
-          .np-hero{background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 60%,#a855f7 100%);border-radius:16px;padding:20px 22px;margin-bottom:20px;display:flex;align-items:center;gap:14px}
-          .np-hero-icon{width:44px;height:44px;background:rgba(255,255,255,.18);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-          .np-hero-icon svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round}
-          .np-hero-copy .np-title{font-size:17px;font-weight:800;color:#fff;line-height:1.2}
-          .np-hero-copy .np-sub{font-size:12px;color:rgba(255,255,255,.65);margin-top:3px}
-          .np-section{margin-bottom:18px}
-          .np-section-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
-          .np-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-          .np-field{display:flex;flex-direction:column;gap:5px}
-          .np-field.full{grid-column:1/-1}
-          .np-field label{font-size:11px;font-weight:600;color:var(--text-soft);letter-spacing:.03em}
-          .np-field input,.np-field select,.np-field textarea{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;font-family:Inter,sans-serif;width:100%;box-sizing:border-box}
-          .np-field input:focus,.np-field select:focus,.np-field textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
-          .np-field textarea{resize:vertical;min-height:72px}
-          .np-ac-wrap{position:relative}
-          .np-ac-wrap input{width:100%;box-sizing:border-box}
-          .np-ac-drop{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.13);max-height:180px;overflow-y:auto;display:none}
-          .np-ac-drop.open{display:block}
-          .np-ac-item{padding:9px 13px;cursor:pointer;font-size:13px;color:var(--text)}
-          .np-ac-item:hover{background:var(--surface-2)}
-          .np-required{color:#ef4444;margin-left:2px}
-        </style>
-        <div>
-          <div class="np-hero">
-            <div class="np-hero-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
-            <div class="np-hero-copy">
-              <div class="np-title">Onboard New Project</div>
-              <div class="np-sub">Fill in the details below to add a delivery project</div>
-            </div>
-          </div>
-          <div class="np-section">
-            <div class="np-section-label">Project Information</div>
-            <div class="np-grid">
-              <div class="np-field">
-                <label>Client<span class="np-required">*</span></label>
-                <div class="np-ac-wrap">
-                  <input id="npClient" autocomplete="off" placeholder="Search or type client name…"/>
-                  <div class="np-ac-drop" id="npClientDrop"></div>
-                </div>
-                <div id="npClientNotice" style="margin-top:6px;font-size:12px;color:#b91c1c;min-height:16px"></div>
-              </div>
-              <div class="np-field">
-                <label>Project Type</label>
-                <select id="npType">${(D.types || []).map(t => `<option>${t}</option>`).join('')}</select>
-              </div>
-              <div class="np-field">
-                <label>Workstream</label>
-                <input id="npWorkstream" type="text" placeholder="e.g. QMS, FSMS…"/>
-              </div>
-              <div class="np-field">
-                <label>Status</label>
-                <select id="npStatus">${statusOptions.map(s => `<option${s === defaultStatus ? ' selected' : ''}>${s}</option>`).join('')}</select>
-              </div>
-            </div>
-          </div>
-          <div class="np-section">
-            <div class="np-section-label">Timeline</div>
-            <div class="np-grid">
-              <div class="np-field">
-                <label>Start Date</label>
-                <input id="npStart" type="date"/>
-              </div>
-              <div class="np-field">
-                <label>Planned Completion</label>
-                <input id="npDue" type="date"/>
-              </div>
-              <div class="np-field full">
-                <label>Actual Completion</label>
-                <input id="npActual" type="date"/>
-              </div>
-            </div>
-          </div>
-          <div class="np-section" style="margin-bottom:0">
-            <div class="np-section-label">Description</div>
-            <div class="np-field">
-              <textarea id="npDesc" placeholder="Scope, goals, deliverables…"></textarea>
-            </div>
-          </div>
-        </div>
-      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="npCreateBtn">${I('plus')} Create Project</button>`, { hideCloseButton: true });
-
-      npMakeAc(modal.querySelector('#npClient'), modal.querySelector('#npClientDrop'), () => D.clients.map(c => c.name));
-
-      const norm = s => (s || '').toString().trim().replace(/\s+/g, ' ').toLowerCase();
-      const clientInput = modal.querySelector('#npClient');
-      const clientNotice = modal.querySelector('#npClientNotice');
-      const updateClientNotice = () => {
-        const typed = clientInput.value.trim();
-        if (!typed) { clientNotice.textContent = ''; return; }
-        const matches = (D.clients || []).some(c => norm(c.name) === norm(typed));
-        clientNotice.textContent = matches ? '' : 'That is not an existing client name.';
-      };
-      clientInput.addEventListener('input', updateClientNotice);
-      updateClientNotice();
-
-      modal.querySelector('#npCreateBtn').onclick = function () {
-        const clientTyped = modal.querySelector('#npClient').value.trim();
-        const type = modal.querySelector('#npType').value.trim();
-        const workstream = modal.querySelector('#npWorkstream').value.trim();
-        const status = modal.querySelector('#npStatus').value;
-        const start = modal.querySelector('#npStart').value;
-        const due = modal.querySelector('#npDue').value;
-        const actualCompletion = modal.querySelector('#npActual').value;
-        const desc = modal.querySelector('#npDesc').value.trim();
-        if (!clientTyped) { PDMS.toast('Missing info', 'Client is required', 'error'); return; }
-        const btn = this;
-        PDMS.setButtonLoading(btn, true, 'Creating...');
-        setTimeout(() => PDMS.setButtonLoading(btn, false), 10000);
-        const existingClient = (D.clients || []).find(c => norm(c.name) === norm(clientTyped));
-        const ensureClient = existingClient ? Promise.resolve(existingClient) : PDMS.api.create('clients', { name: clientTyped, industry: '', email: '', phone: '', address: '', projects: 0 });
-        ensureClient.then(client => {
-          if (!existingClient) D.clients.unshift(client);
-          // Optimistic insert for immediate UI responsiveness
-          const record = {
-            name: client.name, client: client.name, type, workstream, dept: workstream,
-            sales: '', pm: '', lead: '', consultants: [],
-            status, stage: 'Delivery', createdByRole: user ? user.role : 'HTD', progress: 0,
-            start: start || '', due: due || '', actualCompletion: actualCompletion || '', completion: null,
-            description: desc, files: 0, remarks: 0
-          };
-          const tmpId = 'TMP-' + Date.now();
-          const tmp = Object.assign({ id: tmpId, _optimistic: true }, record);
-          D.projects.unshift(tmp);
-          renderAll();
-          return PDMS.api.create('projects', record).then(saved => {
-            const idx = D.projects.findIndex(p => p.id === tmpId);
-            if (idx > -1) D.projects.splice(idx, 1, saved); else D.projects.unshift(saved);
-            modal.remove();
-            PDMS.toast('Project created', 'New delivery project onboarded', 'success');
-            PDMS.notify('Project Onboarded', `${user ? user.name : 'HTD'} onboarded "${saved.name}" for ${saved.client}`, 'folder', 'project-details.html#id=' + saved.id, 'COO,HTD,PM Head,PMO', '', saved.id);
-            renderAll();
-          }).catch(err => {
-            const idx = D.projects.findIndex(p => p.id === tmpId);
-            if (idx > -1) D.projects.splice(idx, 1);
-            renderAll();
-            PDMS.toast('Error', err.message || 'Could not create project', 'error');
-          });
-        }).catch(err => PDMS.toast('Error', err.message || 'Could not create project', 'error'));
-      };
+      PDMS.openDeliveryProjectWizard({
+        onSuccess: () => renderAll(),
+        redirectUrl: false
+      });
     }
     window.newProject = newProject;
     window.newUser = newUser;

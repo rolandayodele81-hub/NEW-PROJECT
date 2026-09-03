@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788418329"/>
+<link rel="stylesheet" href="css/style.css?v=1788419290"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788418329"></script>
+<script src="js/bundle.js?v=1788419290"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -280,177 +280,10 @@ if(document.getElementById('newProj')) document.getElementById('newProj').onclic
     });
     return;
   }
-  const createdByRole = viewParam==='sales' ? 'Sales' : currentUser.role;
-  const stage = viewParam==='sales' ? 'Sales' : viewParam==='delivery' ? 'Delivery' : (PDMS.isSalesRole(currentUser) ? 'Sales' : 'Delivery');
-  const statusOptions = viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : PDMS.statusOptionsFor(currentUser);
-  const defaultStatus = statusOptions[0];
-  const modal = PDMS.modal('',`
-    <style>
-      .np-modal{font-family:Inter,sans-serif}
-      .np-hero{background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 60%,#a855f7 100%);border-radius:16px;padding:20px 22px;margin-bottom:20px;display:flex;align-items:center;gap:14px}
-      .np-hero-icon{width:44px;height:44px;background:rgba(255,255,255,.18);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-      .np-hero-icon svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2}
-      .np-hero-copy .np-title{font-size:17px;font-weight:800;color:#fff;line-height:1.2}
-      .np-hero-copy .np-sub{font-size:12px;color:rgba(255,255,255,.65);margin-top:3px}
-      .np-section{margin-bottom:18px}
-      .np-section-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
-      .np-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-      .np-field{display:flex;flex-direction:column;gap:5px}
-      .np-field.full{grid-column:1/-1}
-      .np-field label{font-size:11px;font-weight:600;color:var(--text-soft);letter-spacing:.03em}
-      .np-field input,.np-field select,.np-field textarea{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;font-family:Inter,sans-serif;width:100%;box-sizing:border-box}
-      .np-field input:focus,.np-field select:focus,.np-field textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
-      .np-field textarea{resize:vertical;min-height:72px}
-      .np-ac-wrap{position:relative}
-      .np-ac-wrap input{width:100%;box-sizing:border-box}
-      .np-ac-drop{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.13);max-height:180px;overflow-y:auto;display:none}
-      .np-ac-drop.open{display:block}
-      .np-ac-item{padding:9px 13px;cursor:pointer;font-size:13px;color:var(--text)}
-      .np-ac-item:hover{background:var(--surface-2)}
-      .np-required{color:#ef4444;margin-left:2px}
-    </style>
-    <div class="np-modal">
-      <div class="np-hero">
-        <div class="np-hero-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
-        <div class="np-hero-copy">
-          <div class="np-title">Create New Project</div>
-          <div class="np-sub">Fill in the details below to add a project to the pipeline</div>
-        </div>
-      </div>
-
-      <div class="np-section">
-        <div class="np-section-label">Project Information</div>
-        <div class="np-grid">
-          <div class="np-field">
-            <label>Client<span class="np-required">*</span></label>
-            <div class="np-ac-wrap">
-              <input id="newProjClient" autocomplete="off" placeholder="Search or type client name…"/>
-              <div class="np-ac-drop" id="newClientDrop"></div>
-            </div>
-            <div id="newProjClientNotice" style="margin-top:6px;font-size:12px;color:#b91c1c;min-height:16px"></div>
-          </div>
-          <div class="np-field">
-            <label>Project Type</label>
-            <select id="newProjType">${(D.types||[]).map(t=>`<option>${t}</option>`).join('')}</select>
-          </div>
-          <div class="np-field">
-            <label>Workstream</label>
-            <input id="newProjWorkstream" type="text" placeholder="e.g. QMS, FSMS…"/>
-          </div>
-          <div class="np-field">
-            <label>Status</label>
-            <select id="newProjStatus">${statusOptions.map(s=>`<option${s===defaultStatus?' selected':''}>${s}</option>`).join('')}</select>
-          </div>
-        </div>
-      </div>
-
-      <div class="np-section" style="margin-bottom:0">
-        <div class="np-section-label">Description</div>
-        <div class="np-field">
-          <textarea id="newProjDesc" placeholder="Scope, goals, deliverables…"></textarea>
-        </div>
-      </div>
-    </div>
-  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createProjectBtn">${I('plus')} Create Project</button>`, { hideCloseButton: true });
-
-  // Wire typeaheads
-  makeAc(modal.querySelector('#newProjClient'), modal.querySelector('#newClientDrop'),
-    ()=>D.clients.map(c=>c.name), 'np-ac-item', 'np-ac-drop');
-
-  const clientInput = modal.querySelector('#newProjClient');
-  const clientNotice = modal.querySelector('#newProjClientNotice');
-  const updateClientNotice = () => {
-    const typed = clientInput.value.trim();
-    if (!typed) {
-      clientNotice.textContent = '';
-      return;
-    }
-    const matches = (D.clients || []).some(c => (c.name || '').toLowerCase() === typed.toLowerCase());
-    clientNotice.textContent = matches ? '' : 'That is not an existing client name.';
-  };
-  clientInput.addEventListener('input', updateClientNotice);
-  updateClientNotice();
-
-  modal.querySelector('#createProjectBtn').onclick = function(){
-    const norm = s => (s||'').toString().trim().replace(/\s+/g,' ').toLowerCase();
-    const clientTyped = modal.querySelector('#newProjClient').value.trim();
-    const type = modal.querySelector('#newProjType').value.trim();
-    const workstream = modal.querySelector('#newProjWorkstream').value;
-    const status = modal.querySelector('#newProjStatus').value;
-    const desc = modal.querySelector('#newProjDesc').value.trim();
-    if(!clientTyped){
-      PDMS.toast('Missing project info','Client is required','error');
-      return;
-    }
-    const btn = this;
-    PDMS.setButtonLoading(btn, true, 'Creating...');
-    setTimeout(()=>PDMS.setButtonLoading(btn, false), 10000);
-    const existingClient = D.clients.find(cl=>norm(cl.name)===norm(clientTyped));
-    const ensureClient = existingClient ? Promise.resolve(existingClient) : PDMS.api.create('clients',{name:clientTyped, industry:'', email:'', phone:'', address:'', projects:0, createdById:String(currentUser&&currentUser.id||''), createdByName:String(currentUser&&currentUser.name||''), createdAt:new Date().toISOString().slice(0,10)});
-    ensureClient.then(client=>{
-      if(!existingClient) D.clients.unshift(client);
-      let finalStatus = status;
-      let finalStage = stage;
-      if (currentUser.role === 'Sales') {
-        // Every lead a Sales user creates goes to the Sales Head first, whatever
-        // stage it was entered at (Award/SLA included).
-        finalStatus = 'Awaiting Sales Head Approval';
-        finalStage = 'Sales';
-      } else if (finalStatus === 'SLA Signed' || finalStatus === 'Award/SLA') {
-        finalStatus = 'Awaiting Account Approval';
-        finalStage = 'Delivery';
-      }
-      
-      const record = {
-        name: client.name, client:client.name, type, workstream, dept:workstream,
-        sales: currentUser.name || 'Sales Team', pm:'', lead:'', consultants:[],
-        status: finalStatus, stage: finalStage, requestedStatus: status, createdByRole: currentUser.role, progress:0,
-        projectOwnerId: String(currentUser.id || ''), projectOwnerName: String(currentUser.name || ''),
-        start:'', due:'', actualCompletion:'', completion:null,
-        description:desc, files:0, remarks:0,
-        submissionCount: 1
-      };
-      // Optimistic UI: insert temp project immediately
-      const tmpId = 'TMP-' + Date.now();
-      const tmp = Object.assign({id: tmpId, _optimistic: true}, record);
-      if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
-        window.PDMS_REMOTE.projects.unshift(tmp);
-      }
-      D.projects.unshift(tmp);
-      renderProjects();
-      return PDMS.api.create('projects', record).then(saved => {
-        // Drop the optimistic TMP placeholder + any duplicate, leaving one real record
-        const reconcile = (arr) => {
-          if (!Array.isArray(arr)) return;
-          for (let i = arr.length - 1; i >= 0; i--) {
-            if (arr[i] && (arr[i].id === tmpId || String(arr[i].id) === String(saved.id))) arr.splice(i, 1);
-          }
-          arr.unshift(saved);
-        };
-        reconcile(window.PDMS_REMOTE && window.PDMS_REMOTE.projects);
-        if (D.projects && D.projects !== (window.PDMS_REMOTE && window.PDMS_REMOTE.projects)) reconcile(D.projects);
-        modal.remove();
-        PDMS.toast('Project created','New project added to pipeline','success');
-        if (saved.status === 'Awaiting Sales Head Approval') {
-          PDMS.workflowNotify('lead.created', saved);
-        } else if (saved.status === 'Awaiting Account Approval') {
-          PDMS.workflowNotify('award.submitted', saved);
-        }
-        renderProjects();
-        PDMS.awaitFreshData('Saving...', 'Updating projects');
-      }).catch(err => {
-        // Rollback optimistic insert
-        if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
-          const rIdx = window.PDMS_REMOTE.projects.findIndex(p => p.id === tmpId);
-          if (rIdx > -1) window.PDMS_REMOTE.projects.splice(rIdx, 1);
-        }
-        const idx = D.projects.findIndex(p => p.id === tmpId);
-        if (idx > -1) D.projects.splice(idx,1);
-        renderProjects();
-        PDMS.toast('Error', err.message || 'Could not create project','error');
-      });
-    }).catch(err=>PDMS.toast('Error',err.message||'Could not create project','error'));
-  };
+  PDMS.openDeliveryProjectWizard({
+    onSuccess: () => renderProjects(),
+    redirectUrl: false
+  });
 };
 
 function editProject(id){
