@@ -3,8 +3,8 @@
 <title>User Details — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788419290"/></head><body>
-<script src="js/bundle.js?v=1788419290"></script>
+<link rel="stylesheet" href="css/style.css?v=1788420462"/></head><body>
+<script src="js/bundle.js?v=1788420462"></script>
 <script>
 // A hash survives any host's clean-URL rewriting untouched, since it's never
 // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -38,8 +38,13 @@ function projectsFor(user){
 
 function render(){
   const hasUsers = Array.isArray(D.users) && D.users.length > 0;
-  const id = hasUsers ? new URLSearchParams(location.hash.replace(/^#/,'')).get('id') || D.users[0].id : null;
-  u = hasUsers ? D.users.find(x=>x.id===id) || D.users[0] : null;
+  const id = hasUsers ? (new URLSearchParams(location.hash.replace(/^#/,'')).get('id') || '') : '';
+  const currentLoggedIn = PDMS.getUser();
+  u = hasUsers
+    ? (id ? D.users.find(x => String(x.id) === String(id) || (x.email && x.email.toLowerCase() === String(id).toLowerCase()) || (x.name && x.name.toLowerCase() === String(id).toLowerCase())) : null)
+      || (currentLoggedIn ? D.users.find(x => String(x.id) === String(currentLoggedIn.id) || (x.email && x.email.toLowerCase() === (currentLoggedIn.email || '').toLowerCase())) : null)
+      || D.users[0]
+    : (currentLoggedIn || null);
 
   if(!u){
     document.getElementById('content').innerHTML = window.PDMS_REMOTE ? `

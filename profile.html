@@ -7,17 +7,36 @@
   <title>Profile — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788419290" />
+  <link rel="stylesheet" href="css/style.css?v=1788420462" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788419290"></script>
+  <script src="js/bundle.js?v=1788420462"></script>
   <script>
     PDMS.mountShell('profile');
     const u = PDMS.getUser(); const I = PDMS.icon;
     const D = PDMS_DATA;
 
     function render() {
+      const userProjects = (D.projects || []).filter(p => {
+        if (!p || !u) return false;
+        const userId = String(u.id || '').trim().toLowerCase();
+        const userName = String(u.name || '').trim().toLowerCase();
+        const ownerIds = [
+          String(p.projectOwnerId || p.onboardedById || p.salesOwnerId || p.createdByUserId || '').trim().toLowerCase(),
+          String(p.projectOwnerName || p.onboardedByName || p.salesOwnerName || p.createdByUserName || '').trim().toLowerCase()
+        ];
+        return (p.pm === u.name || p.lead === u.name || (p.consultants || []).includes(u.name) || (userId && ownerIds.includes(userId)) || (userName && ownerIds.includes(userName)));
+      });
+      const currentProjects = u && u.role === 'Sales'
+        ? userProjects.filter(p => {
+          const status = String(p && p.status || '').trim();
+          return status !== 'Completed' && status !== 'Closed' && status !== 'Rejected';
+        })
+        : userProjects.filter(p => p.status !== 'Completed' && p.status !== 'Closed' && p.status !== 'Rejected');
+      const currentCount = currentProjects.length;
+      const totalCount = userProjects.length;
+
       document.getElementById('content').innerHTML = `
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Profile</span></div>
     <h1 class="page-title">My Profile</h1><div class="page-sub">Personal information and security settings</div></div></div>
@@ -28,8 +47,13 @@
       <div class="text-muted mb-3">${PDMS.esc(u.email)}</div>
       <div><span class="badge badge-primary">${PDMS.esc(u.role)}</span></div>
       <div class="grid grid-2 mt-4" style="gap:12px">
-        <div><div class="font-bold">${(D.projects || []).filter(p => (p.pm === u.name || p.lead === u.name || (p.consultants || []).includes(u.name)) && !['Closed', 'Completed'].includes(p.status)).length}</div><div class="text-sm text-muted">Current Project</div></div>
-        <div><div class="font-bold">${(D.projects || []).filter(p => p.pm === u.name || p.lead === u.name || (p.consultants || []).includes(u.name)).length}</div><div class="text-sm text-muted">Total Projects</div></div>
+        <div><div class="font-bold" style="font-size:20px">${currentCount}</div><div class="text-sm text-muted">Current Project${currentCount === 1 ? '' : 's'}</div></div>
+        <div><div class="font-bold" style="font-size:20px">${totalCount}</div><div class="text-sm text-muted">Total Projects</div></div>
+      </div>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <a href="user-details.html#id=${encodeURIComponent(u.id || '')}" class="btn btn-secondary btn-sm" style="width:100%;justify-content:center;display:flex;align-items:center;gap:6px;font-weight:600">
+          ${I('folder')} View Projects
+        </a>
       </div>
     </div></div>
     <div>
