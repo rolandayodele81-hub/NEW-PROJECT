@@ -48,6 +48,15 @@
             var patch = Object.assign({}, item);
             delete patch._savedAt;
             Object.assign(target, patch);
+            if (resKey === 'users') {
+              try {
+                var currUser = JSON.parse(localStorage.getItem('pdms-user') || 'null');
+                if (currUser && (String(currUser.id) === String(target.id) || String(currUser.email || '').toLowerCase() === String(target.email || '').toLowerCase())) {
+                  Object.assign(currUser, patch);
+                  localStorage.setItem('pdms-user', JSON.stringify(currUser));
+                }
+              } catch (_) {}
+            }
           }
         });
       });

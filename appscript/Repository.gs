@@ -58,8 +58,26 @@ function stripExcluded_(obj, excludeFields) {
   return copy;
 }
 
-function generateId_(prefix) {
-  return (prefix || '') + Math.floor(1000 + Math.random() * 8999);
+function generateId_(prefix, table) {
+  var existingIds = {};
+  if (table && Array.isArray(table.rows)) {
+    var idIdx = table.headers.indexOf('id');
+    if (idIdx !== -1) {
+      table.rows.forEach(function(r) {
+        if (r && r[idIdx]) existingIds[String(r[idIdx]).trim().toLowerCase()] = true;
+      });
+    }
+  }
+  var ts = String(Date.now()).slice(-5);
+  var rand = Math.floor(100 + Math.random() * 900);
+  var candidate = (prefix || '') + ts + rand;
+  var attempts = 0;
+  while (existingIds[candidate.toLowerCase()] && attempts < 100) {
+    rand = Math.floor(1000 + Math.random() * 9000);
+    candidate = (prefix || '') + String(Date.now()).slice(-5) + rand;
+    attempts++;
+  }
+  return candidate;
 }
 
 // Sheets silently converts date-shaped strings ("2026-01-15") to Date cells
@@ -91,7 +109,7 @@ var Repository = {
     var cfg = entityConfig_(entityKey);
     var table = readTable_(cfg.sheet);
     var withId = Object.assign({}, record);
-    if (!withId.id) withId.id = generateId_(cfg.idPrefix);
+    if (!withId.id) withId.id = generateId_(cfg.idPrefix, table);
     var headers = ensureColumns_(table.sheet, table.headers.slice(), withId);
     var row = objectToRow_(headers, withId, cfg.jsonFields);
     var rowIndex = table.sheet.getLastRow() + 1;

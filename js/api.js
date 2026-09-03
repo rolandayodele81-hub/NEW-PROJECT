@@ -53,7 +53,21 @@
 
   function generateId(resource) {
     const prefix = ID_PREFIX[resource] || 'X';
-    return prefix + Math.floor(1000 + Math.random() * 8999);
+    const existingList = getLocalResource(resource);
+    const existingSet = new Set(
+      Array.isArray(existingList)
+        ? existingList.map(x => x && String(x.id || '').trim().toLowerCase())
+        : []
+    );
+    const ts = String(Date.now()).slice(-5);
+    let rand = Math.floor(100 + Math.random() * 900);
+    let candidate = prefix + ts + rand;
+    let attempts = 0;
+    while (existingSet.has(candidate.toLowerCase()) && attempts < 100) {
+      candidate = prefix + String(Date.now()).slice(-5) + Math.floor(1000 + Math.random() * 9000);
+      attempts++;
+    }
+    return candidate;
   }
 
   function getLocalResource(resource) {

@@ -3,8 +3,8 @@
 <title>User Details — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788424867"/></head><body>
-<script src="js/bundle.js?v=1788424867"></script>
+<link rel="stylesheet" href="css/style.css?v=1788426378"/></head><body>
+<script src="js/bundle.js?v=1788426378"></script>
 <script>
 // A hash survives any host's clean-URL rewriting untouched, since it's never
 // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -29,24 +29,78 @@ function isSalesCurrentProject(project){
   return status !== 'Completed' && status !== 'Closed' && status !== 'Rejected';
 }
 
-function projectsFor(user){
-  if(user && user.role === 'Sales') {
-    return D.projects.filter(p => projectOwnedByUser(p, user));
+function getRequestedUserParams() {
+  const hash = (location.hash || '').replace(/^#/, '').trim();
+  const hashParams = new URLSearchParams(hash);
+  const searchParams = new URLSearchParams(location.search || '');
+  let id = hashParams.get('id') || searchParams.get('id') || '';
+  let email = hashParams.get('email') || searchParams.get('email') || '';
+  if (!id && hash && !hash.includes('=')) {
+    id = hash;
   }
-  return D.projects.filter(p => p.pm===user.name || p.lead===user.name || (p.consultants||[]).includes(user.name) || projectOwnedByUser(p, user));
+  return {
+    id: decodeURIComponent(String(id || '').trim()),
+    email: decodeURIComponent(String(email || '').trim())
+  };
+}
+
+function projectsFor(user){
+  const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects || [];
+  if(!user) return [];
+  if(user.role === 'Sales') {
+    return liveProjects.filter(p => projectOwnedByUser(p, user));
+  }
+  return liveProjects.filter(p => p.pm===user.name || p.lead===user.name || (p.consultants||[]).includes(user.name) || projectOwnedByUser(p, user));
 }
 
 function render(){
-  const hasUsers = Array.isArray(D.users) && D.users.length > 0;
-  const id = hasUsers ? (new URLSearchParams(location.hash.replace(/^#/,'')).get('id') || '') : '';
+  const allUsers = (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.users) && window.PDMS_REMOTE.users.length)
+    ? window.PDMS_REMOTE.users
+    : ((window.PDMS_DATA && Array.isArray(window.PDMS_DATA.users)) ? window.PDMS_DATA.users : (PDMS.getUsers ? PDMS.getUsers() : []));
+
+  const params = getRequestedUserParams();
+  const reqId = params.id.toLowerCase();
+  const reqEmail = params.email.toLowerCase();
   const currentLoggedIn = PDMS.getUser();
-  u = hasUsers
-    ? (id ? D.users.find(x => String(x.id) === String(id) || (x.email && x.email.toLowerCase() === String(id).toLowerCase()) || (x.name && x.name.toLowerCase() === String(id).toLowerCase())) : null)
-      || (currentLoggedIn ? D.users.find(x => String(x.id) === String(currentLoggedIn.id) || (x.email && x.email.toLowerCase() === (currentLoggedIn.email || '').toLowerCase())) : null)
-      || D.users[0]
-    : (currentLoggedIn || null);
+
+  if (reqEmail || reqId) {
+    // 1. Match by exact email if available (guarantees unique user even if legacy IDs collided in DB)
+    if (reqEmail) {
+      u = allUsers.find(x => x && String(x.email || '').trim().toLowerCase() === reqEmail);
+    }
+    // 2. Match by exact ID if email didn't match or wasn't provided
+    if (!u && reqId) {
+      u = allUsers.find(x => x && String(x.id || '').trim().toLowerCase() === reqId);
+    }
+    // 3. Match by email/name as fallback
+    if (!u && reqId) {
+      u = allUsers.find(x => {
+        if (!x) return false;
+        const xEmail = String(x.email || '').trim().toLowerCase();
+        const xName = String(x.name || '').trim().toLowerCase();
+        return xEmail === reqId || xName === reqId;
+      });
+    }
+    if (!u && typeof PDMS.getUsers === 'function') {
+      const fallbackList = PDMS.getUsers() || [];
+      if (reqEmail) u = fallbackList.find(x => x && String(x.email || '').trim().toLowerCase() === reqEmail);
+      if (!u && reqId) u = fallbackList.find(x => x && (String(x.id || '').trim().toLowerCase() === reqId || String(x.email || '').trim().toLowerCase() === reqId));
+    }
+  } else {
+    u = (currentLoggedIn ? allUsers.find(x => String(x.id).toLowerCase() === String(currentLoggedIn.id).toLowerCase() || (x.email && x.email.toLowerCase() === (currentLoggedIn.email || '').toLowerCase())) : null)
+      || currentLoggedIn
+      || allUsers[0];
+  }
 
   if(!u){
+    if (reqId) {
+      document.getElementById('content').innerHTML = `
+        <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Users</span></div>
+          <h1 class="page-title">User Not Found</h1><div class="page-sub">Could not find a user profile matching &ldquo;${PDMS.esc(reqId)}&rdquo;.</div></div>
+          <div class="flex gap-2"><a class="btn btn-primary" href="users.html">Back to Users Directory</a></div></div>
+      `;
+      return;
+    }
     document.getElementById('content').innerHTML = window.PDMS_REMOTE ? `
       <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Users</span></div>
         <h1 class="page-title">No User Data</h1><div class="page-sub">You currently do not have any user records.</div></div>

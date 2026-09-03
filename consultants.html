@@ -7,11 +7,11 @@
   <title>Consultants — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788424867"/>
+<link rel="stylesheet" href="css/style.css?v=1788426378"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788424867"></script>
+  <script src="js/bundle.js?v=1788426378"></script>
   <script>
     PDMS.mountShell('consultants');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -246,7 +246,7 @@
           }},
           { key: 'dateOfEntry', label: 'Date of Entry', render: r => PDMS.esc(r.dateOfEntry || '—') }
         ], rows: consultants, pageSize: 20, searchKeys: ['name', 'dept', 'email'],
-        rowHref: r => 'user-details.html#id=' + r.id,
+        rowHref: r => 'user-details.html#id=' + encodeURIComponent(r.id || '') + (r.email ? '&email=' + encodeURIComponent(r.email) : ''),
         filterOptions: []
       });
     }

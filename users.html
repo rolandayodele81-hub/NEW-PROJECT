@@ -7,11 +7,11 @@
   <title>Users — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788424867"/>
+<link rel="stylesheet" href="css/style.css?v=1788426378"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788424867"></script>
+  <script src="js/bundle.js?v=1788426378"></script>
   <script>
     PDMS.mountShell('users');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -38,7 +38,7 @@
           { key: 'dept', label: 'Designation' }
         ],
         rows: D.users, pageSize: 20, searchKeys: ['name', 'email', 'role', 'dept'],
-        rowHref: r => 'user-details.html#id=' + r.id,
+        rowHref: r => 'user-details.html#id=' + encodeURIComponent(r.id || '') + (r.email ? '&email=' + encodeURIComponent(r.email) : ''),
         filterOptions: [{ key: 'role', label: 'Role', options: D.roles }]
       });
     }

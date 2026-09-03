@@ -7,17 +7,26 @@
   <title>Profile — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788424867" />
+  <link rel="stylesheet" href="css/style.css?v=1788426378" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788424867"></script>
+  <script src="js/bundle.js?v=1788426378"></script>
   <script>
     PDMS.mountShell('profile');
-    const u = PDMS.getUser(); const I = PDMS.icon;
+    let u = PDMS.getUser(); const I = PDMS.icon;
     const D = PDMS_DATA;
 
     function render() {
+      u = PDMS.getUser();
+      const liveUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users || [];
+      if (u && Array.isArray(liveUsers)) {
+        const liveMatch = liveUsers.find(x => String(x.id) === String(u.id) || (x.email && x.email.toLowerCase() === String(u.email || '').toLowerCase()));
+        if (liveMatch) {
+          u = Object.assign({}, u, liveMatch);
+          PDMS.setUser(u);
+        }
+      }
       const isHR = u && u.role === 'HR';
       const userProjects = (D.projects || []).filter(p => {
         if (!p || !u) return false;
@@ -126,15 +135,16 @@
       PDMS.setButtonLoading(btn, true, 'Saving...');
 
       PDMS.api.update('users', u.id, patch).then(saved => {
-        Object.assign(u, saved);
-        const sessionUser = PDMS.getUser();
-        if (sessionUser && String(sessionUser.id) === String(u.id)) {
-          Object.assign(sessionUser, saved);
-          localStorage.setItem('pdms_user', JSON.stringify(sessionUser));
-        }
+        Object.assign(u, patch, saved);
+        PDMS.setUser(u);
+        const liveUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users || [];
+        const liveMatch = liveUsers.find(x => String(x.id) === String(u.id));
+        if (liveMatch) Object.assign(liveMatch, patch, saved);
+
         PDMS.setButtonLoading(btn, false);
         PDMS.toast('Success', 'Personal information updated successfully', 'success');
         render();
+        if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
       }).catch(err => {
         PDMS.setButtonLoading(btn, false);
         PDMS.toast('Error', err.message || 'Could not update profile', 'error');
