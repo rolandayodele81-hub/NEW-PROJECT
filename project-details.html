@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788446220" />
+  <link rel="stylesheet" href="css/style.css?v=1788450397" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788446220"></script>
+  <script src="js/bundle.js?v=1788450397"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -675,7 +675,10 @@
         const canUpdate = PDMS.can('Add Remarks');
         const canUploadDoc = canUpdate && !(user && user.role === 'HR');
         const isConsultant = user && user.role === 'Consultant';
-        const myTasks = isConsultant ? (p.privateTasks || []).filter(t =>
+        const myName = (user && user.name || '').toLowerCase();
+        const rawTasks = Array.isArray(p.privateTasks) ? p.privateTasks : [];
+        const validTasks = rawTasks.filter(t => t && typeof t === 'object' && (t.activity || t.deliverable || t.name || t.dueDate || t.date));
+        const myTasks = isConsultant ? validTasks.filter(t =>
           (t.ownerName || '').toLowerCase() === (user.name || '').toLowerCase() ||
           (t.ownerId || '') === (user.id || '')
         ) : [];
@@ -684,12 +687,17 @@
           (Array.isArray(p.consultants) && p.consultants.map(n => String(n).toLowerCase()).includes((user.name || '').toLowerCase()))
         );
         const isPMO = user && user.role === 'PMO';
-        const myName = (user && user.name || '').toLowerCase();
         const isAssignedPMO = isPMO && (
           (p.pm || '').toLowerCase() === myName ||
           (p.lead || '').toLowerCase() === myName ||
           (Array.isArray(p.consultants) && p.consultants.map(n => n.toLowerCase()).includes(myName))
         );
+        const isDeliveryTeam = ['HTD', 'COO', 'PM Head', 'General Admin', 'System Administrator'].includes(user?.role) ||
+          (p.pm && p.pm.toLowerCase() === myName) ||
+          (p.lead && p.lead.toLowerCase() === myName);
+        const canViewTasks = isAssignedConsultant || isDeliveryTeam || (isPMO && isAssignedPMO);
+        const canAssignTask = isAssignedConsultant || isDeliveryTeam || (isPMO && isAssignedPMO);
+        const displayedTasks = isConsultant ? myTasks : validTasks;
         const pStage = PDMS.stageOf(p);
         const isDeliveryStage = pStage === 'Delivery';
         const isSalesStage = pStage === 'Sales';
@@ -794,7 +802,6 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
 
   <div class="grid" style="grid-template-columns:2fr 1fr;gap:20px">
     <div class="flex flex-col gap-4">
-      <div style="display:grid;grid-template-columns:${isAssignedConsultant ? '1fr 1fr' : '1fr'};gap:16px">
         <div class="card"><div class="card-head"><div class="card-title">Project Timeline</div> ${p.status === 'In Progress' && canManageStatus ? `<button class="btn btn-primary btn-sm" style="margin-left:auto;background:var(--primary);color:#fff;border:none" onclick="editInProgressStage()">Add Stage</button>` : ''}</div>
           <div class="card-body">
             <div class="timeline">
@@ -812,50 +819,43 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             </div>
           </div>
         </div>
-        ${isAssignedConsultant ? `
-        <div class="card"><div class="card-head"><div class="card-title">Task Timeline</div><div class="card-sub">Your scheduled activities</div></div>
-          <div class="card-body">
-            <div class="timeline">
-              ${myTasks.length ? myTasks.map(t => {
-            const done = t.done === true;
-            const today = new Date(); today.setHours(0, 0, 0, 0);
-            const td = t.date ? new Date(t.date) : null;
-            if (td) td.setHours(0, 0, 0, 0);
-            const state = done ? 'done' : !td ? '' : td < today ? 'done' : td.getTime() === today.getTime() ? 'active' : '';
-            return `<div class="tl-item ${state}"><div class="tl-title">${PDMS.esc(t.activity || 'Task')}</div><div class="tl-meta">${PDMS.esc(t.deliverable || '—')} · ${PDMS.esc(t.date || 'No date')}</div></div>`;
-          }).join('') : '<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px">No tasks yet</div>'}
-            </div>
-          </div>
-        </div>` : ''}
-      </div>
 
-      ${isAssignedConsultant ? `
-      <!-- My Tasks — consultant only -->
+      ${canViewTasks ? `
+      <!-- Tasks Card -->
       <div class="card">
         <div class="card-head">
-          <div><div class="card-title">My Tasks</div><div class="card-sub">Your activities and deliverables for this project</div></div>
-          <button class="btn btn-primary btn-sm" onclick="addConsultantTask()">${I('plus')} Add Task</button>
+          <div>
+            <div class="card-title">${isConsultant ? 'My Tasks' : 'Consultant Tasks'}</div>
+            <div class="card-sub">${isConsultant ? 'Your activities and deliverables for this project' : 'Consultant activities, deliverables, and assignments for this project'}</div>
+          </div>
+          ${canAssignTask ? `<button class="btn btn-primary btn-sm" onclick="addConsultantTask()">${I('plus')} ${isConsultant ? 'Add Task' : 'Assign Task'}</button>` : ''}
         </div>
         <div style="overflow-x:auto">
           <table class="data">
-            <thead><tr><th>Activity</th><th>Deliverable</th><th>Due Date</th><th>Completion Date</th><th>Status</th></tr></thead>
+            <thead>
+              <tr>
+                ${!isConsultant ? '<th>Consultant</th>' : ''}
+                <th>Activity</th>
+                <th>Due Date</th>
+                <th>Status</th>
+              </tr>
+            </thead>
             <tbody>
-              ${myTasks.length ? myTasks.map(t => {
+              ${displayedTasks.length ? displayedTasks.map(t => {
             const done = t.done === true;
             const today = new Date(); today.setHours(0, 0, 0, 0);
-            const td = t.dueDate ? new Date(t.dueDate) : null;
+            const td = t.dueDate ? new Date(t.dueDate) : (t.date ? new Date(t.date) : null);
             if (td) td.setHours(0, 0, 0, 0);
             const isOverdue = !done && td && td < today;
             const statusLabel = done ? 'Done' : isOverdue ? 'Due' : 'Pending';
             const statusClass = done ? 'badge-success' : isOverdue ? 'badge-danger' : 'badge-muted';
             return `<tr style="cursor:pointer;${done ? 'opacity:.65' : ''}" onclick="viewConsultantTask('${t.id}')">
+                  ${!isConsultant ? `<td><div class="flex items-center gap-2"><div class="avatar avatar-xs" style="width:22px;height:22px;font-size:10px">${PDMS.initials(t.ownerName || '?')}</div><span class="font-semi text-sm">${PDMS.esc(t.ownerName || 'Unassigned')}</span></div></td>` : ''}
                   <td style="font-weight:600;${done ? 'text-decoration:line-through;color:var(--text-muted)' : ''}">${PDMS.esc(t.activity || '—')}</td>
-                  <td>${PDMS.esc(t.deliverable || '—')}</td>
-                  <td style="${isOverdue ? 'color:var(--danger);font-weight:600' : ''}"><span>${PDMS.esc(t.dueDate || '—')}</span></td>
-                  <td>${done && t.completedAt ? `<span style="color:var(--success);font-size:12px">${PDMS.esc(t.completedAt)}</span>` : '<span style="color:var(--text-soft);font-size:12px">—</span>'}</td>
+                  <td style="${isOverdue ? 'color:var(--danger);font-weight:600' : ''}"><span>${PDMS.esc(t.dueDate || t.date || '—')}</span></td>
                   <td><span class="badge ${statusClass}">${statusLabel}</span></td>
                 </tr>`;
-          }).join('') : `<tr><td colspan="5" style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px">No tasks yet — click Add Task to get started</td></tr>`}
+          }).join('') : `<tr><td colspan="${!isConsultant ? 4 : 3}" style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px">No tasks yet — click ${isConsultant ? 'Add Task' : 'Assign Task'} to get started</td></tr>`}
             </tbody>
           </table>
         </div>
@@ -955,24 +955,97 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
 
     function addConsultantTask() {
       const user = PDMS.getUser();
-      const modal = PDMS.modal('Add Task', `
-    <div class="form-row"><label>Activity</label><input id="ctActivity" placeholder="e.g. Requirements analysis"/></div>
-    <div class="form-row"><label>Deliverable</label><input id="ctDeliverable" placeholder="e.g. Analysis report"/></div>
-    <div class="form-row"><label>Due Date</label><input id="ctDueDate" type="date"/></div>
-  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ctSaveBtn">Save Task</button>`);
+      const isConsultant = user && user.role === 'Consultant';
+      const assignedConsultants = Array.isArray(p.consultants) ? p.consultants.filter(Boolean) : [];
+
+      if (!isConsultant && assignedConsultants.length === 0) {
+        PDMS.modal(
+          'No Assigned Consultants',
+          `<div style="padding:12px 0;text-align:center">
+             <div style="font-size:36px;margin-bottom:10px">⚠️</div>
+             <div style="font-weight:700;font-size:16px;color:var(--text);margin-bottom:8px">No Consultants Assigned Yet</div>
+             <div class="text-sm text-muted" style="line-height:1.5;max-width:380px;margin:0 auto">
+               Tasks can only be assigned to consultants who are currently assigned to this project. Please click <strong>Assign Team</strong> on the project card to assign a consultant first.
+             </div>
+           </div>`,
+          `<button class="btn btn-ghost" data-close>Close</button>
+           <button class="btn btn-primary" onclick="this.closest('.modal-backdrop').remove();assignTeam()">Assign Team Now</button>`
+        );
+        return;
+      }
+
+      let assigneeOptions = '';
+      if (!isConsultant) {
+        assigneeOptions = `
+          <div class="form-row">
+            <label>Assign to Consultant <span style="color:var(--danger)">*</span></label>
+            <select id="ctAssignee">
+              ${assignedConsultants.map(c => `<option value="${PDMS.esc(c)}">${PDMS.esc(c)}</option>`).join('')}
+            </select>
+          </div>
+        `;
+      } else if (assignedConsultants.length > 1) {
+        assigneeOptions = `
+          <div class="form-row">
+            <label>Assign to Consultant</label>
+            <select id="ctAssignee">
+              <option value="${PDMS.esc(user.name)}">${PDMS.esc(user.name)} (Me)</option>
+              ${assignedConsultants.filter(c => c !== user.name).map(c => `<option value="${PDMS.esc(c)}">${PDMS.esc(c)}</option>`).join('')}
+            </select>
+          </div>
+        `;
+      }
+
+      const modal = PDMS.modal(isConsultant ? 'Add Task' : 'Assign Task to Consultant', `
+        ${assigneeOptions}
+        <div class="form-row"><label>Activity <span style="color:var(--danger)">*</span></label><input id="ctActivity" placeholder="e.g. Requirements analysis & architecture design"/></div>
+        <div class="form-row"><label>Deliverable <span style="color:var(--danger)">*</span></label><input id="ctDeliverable" placeholder="e.g. Architecture document v1.0"/></div>
+        <div class="form-row"><label>Due Date <span style="color:var(--danger)">*</span></label><input id="ctDueDate" type="date"/></div>
+      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ctSaveBtn">${isConsultant ? 'Save Task' : 'Assign Task'}</button>`);
+
       modal.querySelector('#ctSaveBtn').onclick = function () {
         const btn = this;
         const activity = modal.querySelector('#ctActivity').value.trim();
         const deliverable = modal.querySelector('#ctDeliverable').value.trim();
         const dueDate = modal.querySelector('#ctDueDate').value;
-        if (!activity || !deliverable || !dueDate) { PDMS.toast('Missing fields', 'Please fill in all fields', 'error'); return; }
-        const task = { id: 'T-' + Math.floor(1000 + Math.random() * 9000), activity, deliverable, dueDate, done: false, completedAt: null, ownerId: user?.id || '', ownerName: user?.name || '' };
+        const assigneeSelect = modal.querySelector('#ctAssignee');
+        const assigneeName = assigneeSelect ? assigneeSelect.value : (user?.name || '');
+
+        if (!activity || !deliverable || !dueDate) {
+          PDMS.toast('Missing fields', 'Please fill in the activity, deliverable, and due date', 'error');
+          return;
+        }
+
+        const allUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users || [];
+        const assigneeUser = allUsers.find(u => u && u.name && u.name.toLowerCase() === assigneeName.toLowerCase());
+        const assigneeId = assigneeUser ? assigneeUser.id : '';
+
+        const task = {
+          id: 'T-' + String(Date.now()).slice(-5) + Math.floor(100 + Math.random() * 900),
+          activity,
+          deliverable,
+          dueDate,
+          done: false,
+          completedAt: null,
+          ownerId: assigneeId,
+          ownerName: assigneeName,
+          assignedBy: user?.name || 'Delivery Team',
+          assignedAt: new Date().toISOString()
+        };
+
         if (!p.privateTasks) p.privateTasks = [];
         p.privateTasks.unshift(task);
         modal.remove();
         render();
+
         PDMS.api.update('projects', p.id, { privateTasks: p.privateTasks })
-          .then(saved => { if (saved && saved.privateTasks) p.privateTasks = saved.privateTasks; })
+          .then(saved => {
+            if (saved && saved.privateTasks) p.privateTasks = saved.privateTasks;
+            PDMS.toast('Task Assigned', `Task assigned to ${assigneeName}`, 'success');
+            if (assigneeName && (!user || assigneeName.toLowerCase() !== user.name.toLowerCase())) {
+              PDMS.notify('Task Assigned', `${user ? user.name : 'Delivery Team'} assigned you a task: "${activity}" on ${p.name}`, 'clipboard', 'project-details.html#id=' + p.id, assigneeName);
+            }
+          })
           .catch(err => PDMS.toast('Sync error', err.message || 'Task may not have saved', 'error'));
       };
     }
@@ -981,20 +1054,51 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
     function editConsultantTask(taskId) {
       const task = (p.privateTasks || []).find(t => t.id === taskId);
       if (!task) return;
+      const user = PDMS.getUser();
+      const isConsultant = user && user.role === 'Consultant';
+      const assignedConsultants = Array.isArray(p.consultants) ? p.consultants.filter(Boolean) : [];
+
+      let assigneeOptions = '';
+      if (!isConsultant && assignedConsultants.length > 0) {
+        assigneeOptions = `
+          <div class="form-row">
+            <label>Assigned Consultant</label>
+            <select id="etAssignee">
+              ${assignedConsultants.map(c => `<option value="${PDMS.esc(c)}" ${c === task.ownerName ? 'selected' : ''}>${PDMS.esc(c)}</option>`).join('')}
+            </select>
+          </div>
+        `;
+      }
+
       const modal = PDMS.modal('Edit Task', `
-    <div class="form-row"><label>Activity</label><input id="etActivity" value="${PDMS.esc(task.activity || '')}"/></div>
-    <div class="form-row"><label>Deliverable</label><input id="etDeliverable" value="${PDMS.esc(task.deliverable || '')}"/></div>
-    <div class="form-row"><label>Due Date</label><input id="etDueDate" type="date" value="${PDMS.esc(task.dueDate || '')}"/></div>
-  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="etSaveBtn">Save Changes</button>`);
+        ${assigneeOptions}
+        <div class="form-row"><label>Activity</label><input id="etActivity" value="${PDMS.esc(task.activity || '')}"/></div>
+        <div class="form-row"><label>Deliverable</label><input id="etDeliverable" value="${PDMS.esc(task.deliverable || '')}"/></div>
+        <div class="form-row"><label>Due Date</label><input id="etDueDate" type="date" value="${PDMS.esc(task.dueDate || task.date || '')}"/></div>
+      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="etSaveBtn">Save Changes</button>`);
+
       modal.querySelector('#etSaveBtn').onclick = function () {
         const btn = this;
         const activity = modal.querySelector('#etActivity').value.trim();
         const deliverable = modal.querySelector('#etDeliverable').value.trim();
         const dueDate = modal.querySelector('#etDueDate').value;
+        const assigneeSelect = modal.querySelector('#etAssignee');
+        const assigneeName = assigneeSelect ? assigneeSelect.value : task.ownerName;
+
         if (!activity || !deliverable || !dueDate) { PDMS.toast('Missing fields', 'Please fill in all fields', 'error'); return; }
         if (!p.privateTasks) p.privateTasks = [];
         const idx = p.privateTasks.findIndex(t => t.id === taskId);
-        if (idx !== -1) Object.assign(p.privateTasks[idx], { activity, deliverable, dueDate });
+        if (idx !== -1) {
+          const allUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users || [];
+          const assigneeUser = allUsers.find(u => u && u.name && u.name.toLowerCase() === (assigneeName || '').toLowerCase());
+          Object.assign(p.privateTasks[idx], {
+            activity,
+            deliverable,
+            dueDate,
+            ownerName: assigneeName,
+            ownerId: assigneeUser ? assigneeUser.id : (task.ownerId || '')
+          });
+        }
         modal.remove();
         render();
         PDMS.api.update('projects', p.id, { privateTasks: p.privateTasks })
@@ -1007,9 +1111,15 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
     function viewConsultantTask(taskId) {
       const task = (p.privateTasks || []).find(t => t.id === taskId);
       if (!task) return;
+      const user = PDMS.getUser();
+      const isConsultant = user && user.role === 'Consultant';
+      const isMyTask = isConsultant && (
+        (task.ownerName || '').toLowerCase() === (user.name || '').toLowerCase() ||
+        (task.ownerId || '') === (user.id || '')
+      );
       const done = task.done === true;
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const td = task.dueDate ? new Date(task.dueDate) : null;
+      const td = task.dueDate ? new Date(task.dueDate) : (task.date ? new Date(task.date) : null);
       if (td) td.setHours(0, 0, 0, 0);
       const isOverdue = !done && td && td < today;
       const daysLate = isOverdue ? Math.ceil((today - td) / 86400000) : 0;
@@ -1036,14 +1146,23 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
     </div>
 
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px">
-      <div style="padding:14px 18px;border-bottom:1px solid var(--border)">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-soft);margin-bottom:5px">Deliverable</div>
-        <div style="font-size:14px;color:var(--text);line-height:1.5">${PDMS.esc(task.deliverable || '—')}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)">
+        <div style="padding:14px 18px;border-right:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-soft);margin-bottom:5px">Consultant</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px">
+            <div class="avatar avatar-xs" style="width:22px;height:22px;font-size:10px">${PDMS.initials(task.ownerName || '?')}</div>
+            <span>${PDMS.esc(task.ownerName || 'Unassigned')}</span>
+          </div>
+        </div>
+        <div style="padding:14px 18px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-soft);margin-bottom:5px">Deliverable</div>
+          <div style="font-size:14px;color:var(--text);line-height:1.4">${PDMS.esc(task.deliverable || '—')}</div>
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)">
         <div style="padding:14px 18px;border-right:1px solid var(--border)">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-soft);margin-bottom:5px">Due Date</div>
-          <div style="font-size:14px;font-weight:600;${isOverdue ? 'color:var(--danger)' : 'color:var(--text)'}">${PDMS.esc(task.dueDate || '—')}</div>
+          <div style="font-size:14px;font-weight:600;${isOverdue ? 'color:var(--danger)' : 'color:var(--text)'}">${PDMS.esc(task.dueDate || task.date || '—')}</div>
         </div>
         <div style="padding:14px 18px">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-soft);margin-bottom:5px">Completion Date</div>
@@ -1051,25 +1170,59 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         </div>
       </div>
     </div>
+    ${!done && !isMyTask ? `<div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:12px">ℹ️ Only the assigned consultant (${PDMS.esc(task.ownerName || 'consultant')}) can mark this task as complete.</div>` : ''}
   `, done
-        ? `<button class="btn btn-ghost" data-close>Close</button>`
-        : `<button class="btn btn-ghost" data-close>Close</button>
-       <button class="btn btn-secondary" id="vtEditBtn">${I('edit')} Edit Task</button>
-       <button class="btn btn-primary" id="vtDoneBtn" style="background:${accentColor};border-color:${accentColor}">${I('check')} Mark as Complete</button>`
+        ? `<div style="display:flex;justify-content:space-between;width:100%;align-items:center"><button class="btn btn-ghost" style="color:var(--danger)" id="vtDelBtn">${I('trash') || '🗑'} Delete</button><button class="btn btn-ghost" data-close>Close</button></div>`
+        : `<div style="display:flex;justify-content:space-between;width:100%;align-items:center"><button class="btn btn-ghost" style="color:var(--danger)" id="vtDelBtn">${I('trash') || '🗑'} Delete</button><div style="display:flex;gap:8px"><button class="btn btn-ghost" data-close>Close</button><button class="btn btn-secondary" id="vtEditBtn">${I('edit')} Edit</button>${isMyTask ? `<button class="btn btn-primary" id="vtDoneBtn" style="background:${accentColor};border-color:${accentColor}">${I('check')} Mark Complete</button>` : ''}</div></div>`
       );
 
+      const delBtn = modal.querySelector('#vtDelBtn');
+      if (delBtn) {
+        delBtn.onclick = function () {
+          modal.remove();
+          deleteConsultantTask(taskId);
+        };
+      }
+
       if (!done) {
-        modal.querySelector('#vtEditBtn').onclick = function () {
-          modal.remove();
-          editConsultantTask(taskId);
-        };
-        modal.querySelector('#vtDoneBtn').onclick = function () {
-          modal.remove();
-          toggleConsultantTask(taskId, true);
-        };
+        const editBtn = modal.querySelector('#vtEditBtn');
+        if (editBtn) {
+          editBtn.onclick = function () {
+            modal.remove();
+            editConsultantTask(taskId);
+          };
+        }
+        const doneBtn = modal.querySelector('#vtDoneBtn');
+        if (doneBtn) {
+          doneBtn.onclick = function () {
+            modal.remove();
+            toggleConsultantTask(taskId, true);
+          };
+        }
       }
     }
     window.viewConsultantTask = viewConsultantTask;
+
+    function deleteConsultantTask(taskId) {
+      if (!p.privateTasks) return;
+      const modal = PDMS.modal(
+        'Delete Task',
+        '<div style="padding:10px 0;text-align:center"><div style="font-size:32px;margin-bottom:8px">🗑️</div><div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:6px">Are you sure you want to delete this task?</div><div class="text-sm text-muted">This task will be permanently removed from this project.</div></div>',
+        '<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-danger" id="confirmDelTaskBtn">Delete Task</button>'
+      );
+      modal.querySelector('#confirmDelTaskBtn').onclick = function () {
+        modal.remove();
+        p.privateTasks = (p.privateTasks || []).filter(t => t && t.id !== taskId);
+        render();
+        PDMS.api.update('projects', p.id, { privateTasks: p.privateTasks })
+          .then(saved => {
+            if (saved && Array.isArray(saved.privateTasks)) p.privateTasks = saved.privateTasks;
+            PDMS.toast('Deleted', 'Task removed successfully', 'success');
+          })
+          .catch(err => PDMS.toast('Error', err.message || 'Could not delete task', 'error'));
+      };
+    }
+    window.deleteConsultantTask = deleteConsultantTask;
 
     function applyTaskPatch(taskId, patch) {
       if (!p.privateTasks) p.privateTasks = [];
@@ -1116,12 +1269,23 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
     }
 
     function toggleConsultantTask(taskId, checked) {
+      const user = PDMS.getUser();
+      const task = (p.privateTasks || []).find(t => t.id === taskId);
+      if (!task) return;
+      const isConsultant = user && user.role === 'Consultant';
+      const isMyTask = isConsultant && (
+        (task.ownerName || '').toLowerCase() === (user?.name || '').toLowerCase() ||
+        (task.ownerId || '') === (user?.id || '')
+      );
+      if (!isMyTask) {
+        PDMS.toast('Permission Denied', 'Only the assigned consultant can mark this task as complete', 'warning');
+        return;
+      }
+
       if (!checked) {
         applyTaskPatch(taskId, { done: false, completedAt: null });
         return;
       }
-
-      const task = (p.privateTasks || []).find(t => t.id === taskId);
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const due = task && task.dueDate ? new Date(task.dueDate) : null;
       if (due) due.setHours(0, 0, 0, 0);

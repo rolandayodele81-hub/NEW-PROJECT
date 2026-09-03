@@ -2294,6 +2294,7 @@
     }
     return fetchWithRetry(global.PDMS_API_URL, {
       method: 'POST',
+      redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids a CORS preflight against Apps Script
       body: JSON.stringify(Object.assign({ action }, payload))
     })
