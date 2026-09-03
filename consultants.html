@@ -7,11 +7,11 @@
   <title>Consultants — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788420462"/>
+<link rel="stylesheet" href="css/style.css?v=1788421291"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788420462"></script>
+  <script src="js/bundle.js?v=1788421291"></script>
   <script>
     PDMS.mountShell('consultants');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -183,28 +183,67 @@
     }
 
     function renderConsultantDirectory() {
+      const currentUser = getUser();
+      const isPMO = currentUser && currentUser.role === 'PMO';
       const liveUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users;
       const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
-      const consultants = liveUsers.filter(u => u.role === 'Consultant');
+
+      let consultants = liveUsers.filter(u => u.role === 'Consultant');
+      let scopedProjects = liveProjects;
+
+      if (isPMO) {
+        const myName = (currentUser.name || '').trim().toLowerCase();
+        const myEmail = (currentUser.email || '').trim().toLowerCase();
+        const myId = String(currentUser.id || '').trim().toLowerCase();
+
+        scopedProjects = liveProjects.filter(p => {
+          const pm = (p.pm || '').trim().toLowerCase();
+          const lead = (p.lead || '').trim().toLowerCase();
+          const consultantsList = Array.isArray(p.consultants) ? p.consultants.map(n => String(n).trim().toLowerCase()) : [];
+          const ownerId = String(p.projectOwnerId || p.onboardedById || p.createdByUserId || '').trim().toLowerCase();
+          const ownerName = String(p.projectOwnerName || p.onboardedByName || p.createdByUserName || '').trim().toLowerCase();
+          return pm === myName || pm === myEmail || lead === myName || lead === myEmail ||
+                 consultantsList.includes(myName) || consultantsList.includes(myEmail) ||
+                 (myId && ownerId === myId) || (myName && ownerName === myName);
+        });
+
+        const assignedConsultantSet = new Set();
+        scopedProjects.forEach(p => {
+          if (Array.isArray(p.consultants)) {
+            p.consultants.forEach(c => {
+              if (c) assignedConsultantSet.add(String(c).trim().toLowerCase());
+            });
+          }
+        });
+
+        consultants = consultants.filter(c => {
+          const cName = (c.name || '').trim().toLowerCase();
+          const cEmail = (c.email || '').trim().toLowerCase();
+          return assignedConsultantSet.has(cName) || assignedConsultantSet.has(cEmail);
+        });
+      }
+
+      const withProj = consultants.filter(c => scopedProjects.some(p => (p.pm || '').toLowerCase() === (c.name || '').toLowerCase() || (p.lead || '').toLowerCase() === (c.name || '').toLowerCase() || (Array.isArray(p.consultants) && p.consultants.some(n => String(n).toLowerCase() === (c.name || '').toLowerCase())))).length;
+      const withoutProj = consultants.length - withProj;
+
       document.getElementById('content').innerHTML = `
         <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Consultants</span></div>
-          <h1 class="page-title">Consultants</h1><div class="page-sub">Resource pool availability and specialties</div></div></div>
+          <h1 class="page-title">Consultants</h1><div class="page-sub">${isPMO ? 'Consultants assigned to your active project engagements' : 'Resource pool availability and specialties'}</div></div></div>
         <div class="grid grid-3 mb-4">
-          ${(()=>{
-            const withProj = consultants.filter(c=>liveProjects.some(p=>p.pm===c.name||p.lead===c.name||(p.consultants||[]).includes(c.name))).length;
-            const withoutProj = consultants.length - withProj;
-            return `
           <div class="stat i-primary"><div class="label">Total Consultants</div><div class="value">${consultants.length}</div><div class="icon-wrap">${I('users')}</div></div>
           <div class="stat i-success"><div class="label">With Projects</div><div class="value">${withProj}</div><div class="icon-wrap">${I('folder')}</div></div>
-          <div class="stat i-warn"><div class="label">Without Projects</div><div class="value">${withoutProj}</div><div class="icon-wrap">${I('activity')}</div></div>`;
-          })()}
+          <div class="stat i-warn"><div class="label">Without Projects</div><div class="value">${withoutProj}</div><div class="icon-wrap">${I('activity')}</div></div>
         </div>
         <div id="tbl" class="table-wrap"></div>`;
       PDMS.renderTable(document.getElementById('tbl'), {
         columns: [
           { key: 'name', label: 'Consultant', render: r => `<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.name)}</div><div><div class="font-semi">${PDMS.esc(r.name)}</div><div class="text-sm text-muted">${PDMS.esc(r.email)}</div></div></div>` },
           { key: 'dept', label: 'Designation' },
-          { key: 'projects', label: 'Projects', render: r => { const n = liveProjects.filter(p => p.pm===r.name||p.lead===r.name||(p.consultants||[]).includes(r.name)).length; return `<span class="badge badge-primary">${n} project${n!==1?'s':''}</span>`; } },
+          { key: 'projects', label: 'Projects', render: r => {
+            const rName = (r.name || '').toLowerCase();
+            const n = scopedProjects.filter(p => (p.pm || '').toLowerCase() === rName || (p.lead || '').toLowerCase() === rName || (Array.isArray(p.consultants) && p.consultants.some(c => String(c).toLowerCase() === rName))).length;
+            return `<span class="badge badge-primary">${n} project${n!==1?'s':''}</span>`;
+          }},
           { key: 'dateOfEntry', label: 'Date of Entry', render: r => PDMS.esc(r.dateOfEntry || '—') }
         ], rows: consultants, pageSize: 20, searchKeys: ['name', 'dept', 'email'],
         rowHref: r => 'user-details.html#id=' + r.id,

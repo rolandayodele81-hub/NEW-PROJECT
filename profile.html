@@ -7,11 +7,11 @@
   <title>Profile — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788420462" />
+  <link rel="stylesheet" href="css/style.css?v=1788421291" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788420462"></script>
+  <script src="js/bundle.js?v=1788421291"></script>
   <script>
     PDMS.mountShell('profile');
     const u = PDMS.getUser(); const I = PDMS.icon;
@@ -72,9 +72,12 @@
       
       <div class="card"><div class="card-head"><div class="card-title">Security & Password</div></div>
         <div class="card-body">
+          <!-- Hidden inputs to prevent aggressive browser autofill -->
+          <input type="text" style="display:none" autocomplete="username"/>
+          <input type="password" style="display:none" autocomplete="current-password"/>
           <div class="form-grid">
-            <div class="form-row"><label>New Password</label><input id="newPassword" type="password" placeholder="Enter new password"/></div>
-            <div class="form-row"><label>Confirm Password</label><input id="confirmPassword" type="password" placeholder="Confirm new password"/></div>
+            <div class="form-row"><label>New Password</label><input id="newPassword" type="password" autocomplete="new-password" value="" placeholder="Enter new password"/></div>
+            <div class="form-row"><label>Confirm Password</label><input id="confirmPassword" type="password" autocomplete="new-password" value="" placeholder="Confirm new password"/></div>
           </div>
           <div style="margin-top: 16px;">
             <button id="updatePasswordBtn" class="btn btn-primary" onclick="updatePassword()">Update Password</button>
@@ -83,6 +86,12 @@
       </div>
     </div>
   </div>`;
+      setTimeout(() => {
+        const p1 = document.getElementById('newPassword');
+        const p2 = document.getElementById('confirmPassword');
+        if (p1) p1.value = '';
+        if (p2) p2.value = '';
+      }, 50);
     }
 
     PDMS.onRefresh(render);
