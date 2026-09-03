@@ -124,6 +124,8 @@
     });
   }
 
+  const CACHE_KEY = 'pdms-cache';
+
   function fetchWithRetry(url, options, retries = 2) {
     return fetch(url, options).catch(err => {
       if (retries > 0) {
@@ -172,10 +174,21 @@
                 sessionStorage.setItem('pdms_recent_creates', JSON.stringify(recs));
               } catch (_) {}
             }
+            if (action === 'update') {
+              try {
+                const updStr = sessionStorage.getItem('pdms_recent_updates') || '{}';
+                const upds = JSON.parse(updStr);
+                upds[resKey] = upds[resKey] || [];
+                upds[resKey] = upds[resKey].filter(x => (Date.now() - (x._savedAt || 0)) < 180000 && String(x.id) !== String(payload.id));
+                upds[resKey].push(Object.assign({ id: payload.id, _savedAt: Date.now() }, payload.patch, json.data));
+                sessionStorage.setItem('pdms_recent_updates', JSON.stringify(upds));
+              } catch (_) {}
+            }
             if (global.PDMS_REMOTE) syncList(global.PDMS_REMOTE[resKey]);
             if (global.PDMS_DATA) syncList(global.PDMS_DATA[resKey]);
-            if (global.PDMS_REMOTE) {
-              localStorage.setItem(CACHE_KEY, JSON.stringify(global.PDMS_REMOTE));
+            const cachePayload = global.PDMS_REMOTE || global.PDMS_DATA;
+            if (cachePayload) {
+              localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
               localStorage.setItem('pdms-cache-ts', String(Date.now()));
             }
           }

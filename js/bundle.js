@@ -33,6 +33,28 @@
     return data;
   }
 
+  // Fold any recently edited patches into data payload on reload/refresh
+  function mergeRecentUpdates(data) {
+    if (!data) return data;
+    try {
+      var updStr = sessionStorage.getItem('pdms_recent_updates') || '{}';
+      var upds = JSON.parse(updStr);
+      Object.keys(upds).forEach(function (resKey) {
+        if (!Array.isArray(data[resKey]) || !Array.isArray(upds[resKey])) return;
+        upds[resKey].forEach(function (item) {
+          if ((Date.now() - (item._savedAt || 0)) >= 180000) return;
+          var target = data[resKey].find(function (x) { return String(x.id) === String(item.id); });
+          if (target) {
+            var patch = Object.assign({}, item);
+            delete patch._savedAt;
+            Object.assign(target, patch);
+          }
+        });
+      });
+    } catch (_) { }
+    return data;
+  }
+
   function sortCollectionNewestFirst(arr) {
     if (!Array.isArray(arr)) return arr;
     return arr.sort(function (a, b) {
@@ -105,6 +127,7 @@
           var cachedData = JSON.parse(cachedRaw);
           if (cachedData && typeof cachedData === 'object') {
             mergeRecentCreates(cachedData);
+            mergeRecentUpdates(cachedData);
             sortAllDataNewestFirst(cachedData);
             global.PDMS_REMOTE = cachedData;
             global.PDMS_DATA_LOADED = true;
@@ -122,6 +145,7 @@
       .then(function (res) { return res.json(); })
       .then(function (json) {
         mergeRecentCreates(json.data);
+        mergeRecentUpdates(json.data);
         sortAllDataNewestFirst(json.data);
         try {
           localStorage.setItem(CACHE_KEY, JSON.stringify(json.data));
@@ -148,6 +172,7 @@
         if (!fallback && global.PDMS_DATA) fallback = global.PDMS_DATA;
         if (fallback) {
           mergeRecentCreates(fallback);
+          mergeRecentUpdates(fallback);
           sortAllDataNewestFirst(fallback);
           global.PDMS_REMOTE = fallback;
           global.PDMS_DATA_LOADED = true;
@@ -1746,6 +1771,8 @@
     });
   }
 
+  const CACHE_KEY = 'pdms-cache';
+
   function fetchWithRetry(url, options, retries = 2) {
     return fetch(url, options).catch(err => {
       if (retries > 0) {
@@ -1794,10 +1821,21 @@
                 sessionStorage.setItem('pdms_recent_creates', JSON.stringify(recs));
               } catch (_) {}
             }
+            if (action === 'update') {
+              try {
+                const updStr = sessionStorage.getItem('pdms_recent_updates') || '{}';
+                const upds = JSON.parse(updStr);
+                upds[resKey] = upds[resKey] || [];
+                upds[resKey] = upds[resKey].filter(x => (Date.now() - (x._savedAt || 0)) < 180000 && String(x.id) !== String(payload.id));
+                upds[resKey].push(Object.assign({ id: payload.id, _savedAt: Date.now() }, payload.patch, json.data));
+                sessionStorage.setItem('pdms_recent_updates', JSON.stringify(upds));
+              } catch (_) {}
+            }
             if (global.PDMS_REMOTE) syncList(global.PDMS_REMOTE[resKey]);
             if (global.PDMS_DATA) syncList(global.PDMS_DATA[resKey]);
-            if (global.PDMS_REMOTE) {
-              localStorage.setItem(CACHE_KEY, JSON.stringify(global.PDMS_REMOTE));
+            const cachePayload = global.PDMS_REMOTE || global.PDMS_DATA;
+            if (cachePayload) {
+              localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
               localStorage.setItem('pdms-cache-ts', String(Date.now()));
             }
           }
