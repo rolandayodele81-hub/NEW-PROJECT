@@ -3,8 +3,8 @@
 <title>User Details — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788422889"/></head><body>
-<script src="js/bundle.js?v=1788422889"></script>
+<link rel="stylesheet" href="css/style.css?v=1788424867"/></head><body>
+<script src="js/bundle.js?v=1788424867"></script>
 <script>
 // A hash survives any host's clean-URL rewriting untouched, since it's never
 // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -102,10 +102,9 @@ function render(){
     </div>
 
     <!-- Actions -->
-    ${(PDMS.can('Edit User') || PDMS.can('Delete User') || PDMS.can('Reset Password')) ? `
+    ${(PDMS.can('Edit User') || PDMS.can('Delete User')) ? `
     <div style="display:flex;gap:10px;padding:12px 18px;background:var(--surface);border-left:1px solid var(--border);border-right:1px solid var(--border)">
       ${PDMS.can('Edit User') ? `<button class="btn btn-secondary btn-sm" onclick="editUser()">${I('settings')} Edit User</button>` : ''}
-      ${PDMS.can('Reset Password') ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword()">${I('shield')} Reset Password</button>` : ''}
       ${PDMS.can('Delete User') ? `<button class="btn btn-secondary btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="deleteUser()">${I('close')} Delete User</button>` : ''}
     </div>` : ''}
 
@@ -228,8 +227,29 @@ window.editUser = function() {
       <div class="form-row"><label>Phone</label><input id="editUserPhone" value="${PDMS.esc(u.phone||'')}"/></div>
       <div class="form-row"><label>Date of Birth</label><input id="editUserBirthday" value="${PDMS.esc(u.birthday||'')}"/></div>
       <div class="form-row"><label>Date of Entry</label><input id="editUserEntry" type="date" value="${PDMS.esc(u.dateOfEntry||u.joined||'')}"/></div>
+      <div class="form-row" style="grid-column:1/-1">
+        <label>Password <span style="font-size:11px;color:var(--text-soft);font-weight:400">(leave blank to retain current password)</span></label>
+        <div style="position:relative;display:flex;align-items:center">
+          <input id="editUserPassword" type="text" value="${PDMS.esc(u.password || '')}" placeholder="Enter user password" autocomplete="off" style="width:100%;padding-right:40px;font-family:inherit;font-size:13px"/>
+          <button type="button" id="toggleEditPassBtn" style="position:absolute;right:10px;background:none;border:none;color:var(--text-soft);cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center" title="Toggle visibility">
+            <svg id="passEyeIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </button>
+        </div>
+      </div>
     </div>
   `, '<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveEditBtn">Save Changes</button>');
+
+  const passInput = modal.querySelector('#editUserPassword');
+  const toggleBtn = modal.querySelector('#toggleEditPassBtn');
+
+  if (toggleBtn && passInput) {
+    toggleBtn.onclick = () => {
+      const isPass = passInput.type === 'password';
+      passInput.type = isPass ? 'text' : 'password';
+      toggleBtn.style.color = isPass ? 'var(--primary)' : 'var(--text-soft)';
+    };
+  }
+
   modal.querySelector('#saveEditBtn').onclick = function() {
     const btn = this;
     const patch = {
@@ -241,6 +261,10 @@ window.editUser = function() {
       birthday: modal.querySelector('#editUserBirthday').value.trim(),
       dateOfEntry: modal.querySelector('#editUserEntry').value
     };
+    const newPass = modal.querySelector('#editUserPassword').value;
+    if (newPass !== undefined && newPass.trim() !== '') {
+      patch.password = newPass.trim();
+    }
     PDMS.setButtonLoading(btn, true);
     PDMS.api.update('users', u.id, patch).then(saved => {
       Object.assign(u, saved);
@@ -256,37 +280,43 @@ window.editUser = function() {
 };
 
 window.deleteUser = function() {
-  if(!confirm('Are you sure you want to delete ' + u.name + '? This cannot be undone.')) return;
-  PDMS.api.remove('users', u.id).then(() => {
-    const idx = D.users.findIndex(x=>x.id===u.id);
-    if(idx>-1) D.users.splice(idx, 1);
-    PDMS.toast('Success', 'User deleted', 'success');
-    if(typeof PDMS_REFRESH==='function') PDMS_REFRESH();
-    location.href = 'users.html';
-  }).catch(err => PDMS.toast('Error', err.message, 'error'));
-};
+  const modal = PDMS.modal('Delete User Account', `
+    <div style="padding:4px 0">
+      <div style="display:flex;align-items:flex-start;gap:14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:16px;margin-bottom:16px">
+        <div style="width:38px;height:38px;border-radius:10px;background:rgba(239,68,68,0.15);display:flex;align-items:center;justify-content:center;color:#ef4444;flex-shrink:0">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">Are you sure you want to delete this user?</div>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.4">You are about to permanently remove <strong style="color:var(--text)">${PDMS.esc(u.name)}</strong> (${PDMS.esc(u.email || u.role)}).</div>
+        </div>
+      </div>
 
-window.resetPassword = function() {
-  const modal = PDMS.modal('Reset Password', `
-    <div class="form-grid">
-      <div class="form-row"><label>New Password</label><input id="resetUserPassword" type="password" placeholder="Enter new password"/></div>
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-bottom:8px">Consequences & Impact</div>
+      <ul style="margin:0;padding-left:18px;font-size:13px;color:var(--text-muted);line-height:1.6">
+        <li><strong>Immediate Access Revocation:</strong> This account will be deactivated and unable to sign in to the platform.</li>
+        <li><strong>Project Disengagement:</strong> The user will be removed from all active project assignments, workflows, and task pipelines.</li>
+        <li><strong>Permanent Action:</strong> This operation cannot be reversed. Historical activity audit logs will be preserved.</li>
+      </ul>
     </div>
-  `, '<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveResetBtn">Reset Password</button>');
-  modal.querySelector('#saveResetBtn').onclick = function() {
+  `, `
+    <button class="btn btn-ghost" data-close>Cancel</button>
+    <button class="btn btn-primary" id="confirmDeleteUserBtn" style="background:#ef4444;border-color:#ef4444;color:#fff">${I('trash')} Yes, Delete User</button>
+  `);
+
+  modal.querySelector('#confirmDeleteUserBtn').onclick = function() {
     const btn = this;
-    const password = modal.querySelector('#resetUserPassword').value;
-    if(!password) return PDMS.toast('Error', 'Password cannot be empty', 'error');
-    PDMS.setButtonLoading(btn, true);
-    PDMS.api.update('users', u.id, {password: password}).then(() => {
+    PDMS.setButtonLoading(btn, true, 'Deleting...');
+    PDMS.api.remove('users', u.id).then(() => {
+      const idx = D.users.findIndex(x => x.id === u.id);
+      if (idx > -1) D.users.splice(idx, 1);
       modal.remove();
-      const note = PDMS.modal('Password Reset', `
-        <p class="text-sm text-muted" style="margin-bottom:16px">The password for ${PDMS.esc(u.name)} has been reset to:</p>
-        <div style="text-align:center;padding:18px;background:var(--surface-2);border:1px dashed var(--border);border-radius:10px;font-size:20px;font-weight:800;letter-spacing:1px;color:var(--primary)">${PDMS.esc(password)}</div>
-      `, '<button class="btn btn-primary w-full" data-close>Got it</button>');
-      note.querySelector('.modal').classList.add('modal-sm');
+      PDMS.toast('Success', `${u.name} was successfully deleted`, 'success');
+      if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+      setTimeout(() => { location.href = 'users.html'; }, 300);
     }).catch(err => {
       PDMS.setButtonLoading(btn, false);
-      PDMS.toast('Error', err.message, 'error');
+      PDMS.toast('Error', err.message || 'Could not delete user', 'error');
     });
   };
 };

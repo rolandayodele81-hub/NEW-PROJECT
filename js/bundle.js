@@ -2336,7 +2336,10 @@
   const PDMS = global.PDMS = global.PDMS || {};
 
   const MATRIX = {
-    'Onboard User': ['HR', 'HTD', 'COO', 'PM Head', 'General Admin'],
+    'Onboard User': ['HR', 'General Admin'],
+    'Edit User': ['HR'],
+    'Reset Password': ['HR'],
+    'Delete User': ['HR'],
     'Create Project': ['Sales', 'Sales Head', 'General Admin'],
     'Assign Project': ['HR', 'HTD', 'COO', 'PM Head', 'PMO', 'General Admin'],
     'Assign PM': ['HR', 'HTD', 'COO', 'PM Head', 'PMO', 'General Admin'],

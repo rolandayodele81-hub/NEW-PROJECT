@@ -7,17 +7,18 @@
   <title>Profile — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788422889" />
+  <link rel="stylesheet" href="css/style.css?v=1788424867" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788422889"></script>
+  <script src="js/bundle.js?v=1788424867"></script>
   <script>
     PDMS.mountShell('profile');
     const u = PDMS.getUser(); const I = PDMS.icon;
     const D = PDMS_DATA;
 
     function render() {
+      const isHR = u && u.role === 'HR';
       const userProjects = (D.projects || []).filter(p => {
         if (!p || !u) return false;
         const userId = String(u.id || '').trim().toLowerCase();
@@ -57,16 +58,27 @@
       </div>
     </div></div>
     <div>
-      <div class="card mb-4"><div class="card-head"><div class="card-title">Personal Information</div></div>
-        <div class="card-body"><div class="form-grid">
-          <div class="form-row"><label>Full Name</label><input value="${PDMS.esc(u.name)}" disabled/></div>
-          <div class="form-row"><label>Email</label><input value="${PDMS.esc(u.email)}" disabled/></div>
-          <div class="form-row"><label>Phone</label><input value="${PDMS.esc(u.phone || 'Not provided')}" disabled/></div>
-          <div class="form-row"><label>Department</label><input value="${PDMS.esc(u.dept || u.role)}" disabled/></div>
-          <div class="form-row"><label>Date of Birth</label><input value="${PDMS.esc(u.birthday || 'Unknown')}" disabled/></div>
-          <div class="form-row"><label>Date of Entry</label><input value="${PDMS.esc(u.dateOfEntry || u.joined || 'Unknown')}" disabled/></div>
+      <div class="card mb-4">
+        <div class="card-head">
+          <div class="card-title">Personal Information</div>
+          ${isHR ? '<span class="badge badge-success">HR Editable</span>' : ''}
         </div>
-        <div class="text-sm text-muted mt-3">${I('info')} Contact your system administrator or HR to update your personal information.</div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-row"><label>Full Name</label><input id="profName" value="${PDMS.esc(u.name || '')}" ${!isHR ? 'disabled' : ''}/></div>
+            <div class="form-row"><label>Email</label><input id="profEmail" type="email" value="${PDMS.esc(u.email || '')}" ${!isHR ? 'disabled' : ''}/></div>
+            <div class="form-row"><label>Phone</label><input id="profPhone" type="text" value="${PDMS.esc(u.phone || '')}" placeholder="${isHR ? 'e.g. +1 555 123 4567' : 'Not provided'}" ${!isHR ? 'disabled' : ''}/></div>
+            <div class="form-row"><label>Department</label><input id="profDept" type="text" value="${PDMS.esc(u.dept || u.role || '')}" ${!isHR ? 'disabled' : ''}/></div>
+            <div class="form-row"><label>Date of Birth</label><input id="profBirthday" type="text" value="${PDMS.esc(u.birthday || '')}" placeholder="${isHR ? 'MM/DD' : 'Unknown'}" ${!isHR ? 'disabled' : ''}/></div>
+            <div class="form-row"><label>Date of Entry</label><input id="profEntry" type="date" value="${PDMS.esc(u.dateOfEntry || u.joined || '')}" ${!isHR ? 'disabled' : ''}/></div>
+          </div>
+          ${isHR ? `
+          <div style="margin-top:18px">
+            <button id="saveProfileBtn" class="btn btn-primary" onclick="updatePersonalInfo()">${I('check')} Save Changes</button>
+          </div>
+          ` : `
+          <div class="text-sm text-muted mt-3">${I('info')} Contact your system administrator or HR to update your personal information.</div>
+          `}
         </div>
       </div>
       
@@ -95,6 +107,39 @@
     }
 
     PDMS.onRefresh(render);
+
+    window.updatePersonalInfo = function () {
+      if (!u || u.role !== 'HR') return;
+      const name = document.getElementById('profName').value.trim();
+      const email = document.getElementById('profEmail').value.trim().toLowerCase();
+      const phone = document.getElementById('profPhone').value.trim();
+      const dept = document.getElementById('profDept').value.trim();
+      const birthday = document.getElementById('profBirthday').value.trim();
+      const dateOfEntry = document.getElementById('profEntry').value;
+
+      if (!name || !email) {
+        return PDMS.toast('Required Fields', 'Full name and email are required', 'error');
+      }
+
+      const patch = { name, email, phone, dept, birthday, dateOfEntry };
+      const btn = document.getElementById('saveProfileBtn');
+      PDMS.setButtonLoading(btn, true, 'Saving...');
+
+      PDMS.api.update('users', u.id, patch).then(saved => {
+        Object.assign(u, saved);
+        const sessionUser = PDMS.getUser();
+        if (sessionUser && String(sessionUser.id) === String(u.id)) {
+          Object.assign(sessionUser, saved);
+          localStorage.setItem('pdms_user', JSON.stringify(sessionUser));
+        }
+        PDMS.setButtonLoading(btn, false);
+        PDMS.toast('Success', 'Personal information updated successfully', 'success');
+        render();
+      }).catch(err => {
+        PDMS.setButtonLoading(btn, false);
+        PDMS.toast('Error', err.message || 'Could not update profile', 'error');
+      });
+    };
 
     window.updatePassword = function () {
       const p1 = document.getElementById('newPassword').value;
