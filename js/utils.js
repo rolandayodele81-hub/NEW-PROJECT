@@ -521,6 +521,19 @@
     ).length;
   };
 
+  PDMS.markNotificationAsRead = function(id, link){
+    const liveNotifs = liveList('notifications');
+    const target = liveNotifs.find(n => String(n.id) === String(id));
+    if (target && target.unread) {
+      target.unread = false;
+      PDMS.api.update('notifications', id, { unread: false }).catch(() => {});
+      document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
+    }
+    if (link) {
+      location.href = link;
+    }
+  };
+
   // Money & date fmt
   PDMS.money = n => '$'+Number(n).toLocaleString();
   PDMS.currency = function(val, symbol = '₦'){

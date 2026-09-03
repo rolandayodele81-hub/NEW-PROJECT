@@ -3,7 +3,7 @@
 <title>Notifications — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788426378"/>
+<link rel="stylesheet" href="css/style.css?v=1788446220"/>
 <style>
   .notif-card{
     display:flex;align-items:flex-start;gap:14px;padding:16px 20px;
@@ -32,7 +32,7 @@
   .notif-link:hover{text-decoration:underline}
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788426378"></script>
+<script src="js/bundle.js?v=1788446220"></script>
 <script>
 PDMS.mountShell('notifications');
 const D = PDMS_DATA; const I = PDMS.icon;
@@ -53,12 +53,15 @@ function iconClass(icon){
 }
 
 function markAllRead(){
-  const unread = D.notifications.filter(n=>n.unread);
+  const liveNotifs = (window.PDMS_REMOTE && window.PDMS_REMOTE.notifications) || D.notifications || [];
+  const user = PDMS.getUser();
+  const visible = PDMS.notificationsFor ? PDMS.notificationsFor(user) : liveNotifs;
+  const unread = visible.filter(n=>n.unread);
   if(!unread.length) return;
-  Promise.all(unread.map(n => PDMS.api.update('notifications', n.id, {unread: false}).then(saved=>{
-    Object.assign(n, saved);
-  }))).then(()=>{
+  unread.forEach(n => { n.unread = false; });
+  Promise.all(unread.map(n => PDMS.api.update('notifications', n.id, {unread: false}).catch(()=>{}))).then(()=>{
     PDMS.toast('Done','All notifications marked as read','success');
+    document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
     render();
   }).catch(()=>render());
 }
@@ -82,7 +85,7 @@ function render(){
       <div class="page-sub">${unreadCount} unread · ${total} total</div>
     </div>
     <div class="flex gap-2">
-      ${unreadCount ? `<button class="btn btn-secondary" onclick="markAllRead()">Mark all as read</button>` : ''}
+      ${unreadCount ? `<button class="btn btn-secondary" onclick="markAllRead()">${I('check')} Mark all as read</button>` : ''}
     </div>
   </div>
 
@@ -90,17 +93,17 @@ function render(){
     ${sorted.length ? sorted.map(n => {
       const ic = n.icon || 'bell';
       return `
-      <div class="notif-card ${n.unread?'unread':''}">
+      <div class="notif-card ${n.unread?'unread':''}" style="cursor:pointer" onclick="PDMS.markNotificationAsRead('${PDMS.esc(n.id)}', '${PDMS.esc(n.link||'')}')">
         <div class="notif-icon-wrap ${iconClass(ic)}">${I(ic)}</div>
         <div style="flex:1;min-width:0">
           <div class="notif-title">${PDMS.esc(n.title||'')}</div>
           <div class="notif-msg">${PDMS.esc(n.msg||'')}</div>
           <div class="notif-meta">
             <span class="notif-time">${timeAgo(n.time)}</span>
-            ${n.link ? `<a class="notif-link" href="${PDMS.esc(n.link)}">View →</a>` : ''}
+            ${n.link ? `<span class="notif-link">View →</span>` : ''}
           </div>
         </div>
-        <div class="notif-dot ${n.unread?'':'read'}"></div>
+        <div class="notif-dot ${n.unread?'':'read'}" title="${n.unread?'Unread':'Read'}"></div>
       </div>`;
     }).join('') : `
     <div style="text-align:center;padding:48px 24px;color:var(--text-muted)">

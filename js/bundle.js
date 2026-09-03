@@ -808,6 +808,19 @@
     ).length;
   };
 
+  PDMS.markNotificationAsRead = function(id, link){
+    const liveNotifs = liveList('notifications');
+    const target = liveNotifs.find(n => String(n.id) === String(id));
+    if (target && target.unread) {
+      target.unread = false;
+      PDMS.api.update('notifications', id, { unread: false }).catch(() => {});
+      document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
+    }
+    if (link) {
+      location.href = link;
+    }
+  };
+
   // Money & date fmt
   PDMS.money = n => '$'+Number(n).toLocaleString();
   PDMS.currency = function(val, symbol = '₦'){
@@ -2755,7 +2768,7 @@
     const dot = document.querySelector('#notifBtn .dot');
     if(dot) dot.style.display = unread ? 'block' : 'none';
     p.innerHTML = '<div class="panel-head"><h3>Notifications</h3><a href="notifications.html" class="text-sm" style="color:var(--primary)">View all</a></div><div class="panel-body">'+
-      (list.length ? list.map(n=>'<div class="notif '+(n.unread?'unread':'')+'" '+(n.link?'style="cursor:pointer" onclick="location.href=\''+PDMS.esc(n.link)+'\'"':'')+'><div class="n-icon">'+I(n.icon)+'</div><div><div class="n-title">'+PDMS.esc(n.title)+'</div><div class="n-msg">'+PDMS.esc(n.msg)+'</div><div class="n-time">'+PDMS.timeAgo(n.time)+'</div></div></div>').join('')
+      (list.length ? list.map(n=>'<div class="notif '+(n.unread?'unread':'')+'" style="cursor:pointer" onclick="PDMS.markNotificationAsRead(\''+PDMS.esc(n.id)+'\',\''+PDMS.esc(n.link||'')+'\')"><div class="n-icon">'+I(n.icon)+'</div><div><div class="n-title">'+PDMS.esc(n.title)+'</div><div class="n-msg">'+PDMS.esc(n.msg)+'</div><div class="n-time">'+PDMS.timeAgo(n.time)+'</div></div></div>').join('')
         : '<div style="padding:24px 16px;text-align:center;color:var(--text-muted);font-size:13px">No notifications</div>')+
     '</div>';
   }
