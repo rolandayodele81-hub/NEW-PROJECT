@@ -197,12 +197,12 @@
 /* ============================================
    PSE PDMS - Data Schema
    ============================================ */
-(function(global){
-  const roles = ['System Administrator','HR','COO','HTD','PM Head','PMO','Accounts','Sales','Sales Head','Consultant'];
-  const types = ['ERP','SAPT','Surveillance/ recertification','Software development','Management System'];
-  const priorities = ['Critical','High','Medium','Low'];
-  const workstreams = ['Cloud Engineering','Cybersecurity','Data Analytics','Digital Transformation','ERP Implementation','Infrastructure','Mobile Development','Software Development','Web Platform','Business Consulting','General'];
-  const salesJourney = ['Lead','Opportunity','Initial Proposal','Negotiation','Invoicing','Award/SLA','Closed'];
+(function (global) {
+  const roles = ['System Administrator', 'HR', 'COO', 'HTD', 'PM Head', 'PMO', 'Accounts', 'Sales', 'Sales Head', 'Consultant'];
+  const types = ['ERP', 'SAPT', 'Surveillance/ recertification', 'Software development', 'Management System', 'Artificial Intelligence'];
+  const priorities = ['Critical', 'High', 'Medium', 'Low'];
+  const workstreams = ['Cloud Engineering', 'Cybersecurity', 'Data Analytics', 'Digital Transformation', 'ERP Implementation', 'Infrastructure', 'Mobile Development', 'Software Development', 'Web Platform', 'Business Consulting', 'General'];
+  const salesJourney = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'];
   const salesStatusAliases = {
     'Incoming': 'Lead',
     'Initial Contact': 'Lead',
@@ -213,27 +213,27 @@
     'SLA Signed': 'Award/SLA',
     'Awaiting Account Approval': 'Award/SLA'
   };
-  const salesStatuses = [...salesJourney, 'On Hold','Cancelled'];
-  const deliveryStatuses = ['Not Started','In Progress','On Hold','Awaiting Review','Internal Audit','External Audit','Testing / Quality Assurance','Completed','Closed','Cancelled'];
-  const inProgressSubStatuses = ['Design','Development','Testing / QA / Internal Testing','Deployment','UAT','Release'];
-  const statuses = [...salesStatuses, ...deliveryStatuses.filter(s=>!salesStatuses.includes(s))];
+  const salesStatuses = [...salesJourney, 'On Hold', 'Cancelled'];
+  const deliveryStatuses = ['Not Started', 'In Progress', 'On Hold', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed', 'Closed', 'Cancelled'];
+  const inProgressSubStatuses = ['Design', 'Development', 'Testing / QA / Internal Testing', 'Deployment', 'UAT', 'Release'];
+  const statuses = [...salesStatuses, ...deliveryStatuses.filter(s => !salesStatuses.includes(s))];
   const statusColors = {
-    'Initial Proposal':'primary','Lead':'info','Opportunity':'purple',
-    'Negotiation':'warn','Invoicing':'warn','Award/SLA':'success','Award/SLA Signed':'warn',
-    'Awaiting Sales Head Approval':'warn','Awaiting Account Approval':'purple',
-    'Closed':'primary','Cancelled':'danger','On Hold':'muted',
-    'Not Started':'muted','In Progress':'warn','Awaiting Review':'warn',
-    'Testing / Quality Assurance':'purple','Completed':'success',
-    'Internal Audit':'info','External Audit':'warn'
+    'Initial Proposal': 'primary', 'Lead': 'info', 'Opportunity': 'purple',
+    'Negotiation': 'warn', 'Invoicing': 'warn', 'Award/SLA': 'success', 'Award/SLA Signed': 'warn',
+    'Awaiting Sales Head Approval': 'warn', 'Awaiting Account Approval': 'purple',
+    'Closed': 'primary', 'Cancelled': 'danger', 'On Hold': 'muted',
+    'Not Started': 'muted', 'In Progress': 'warn', 'Awaiting Review': 'warn',
+    'Testing / Quality Assurance': 'purple', 'Completed': 'success',
+    'Internal Audit': 'info', 'External Audit': 'warn'
   };
   Object.assign(statusColors, {
-    'Incoming':'info','Initial Contact':'info','Requirement Gathering':'purple',
-    'Proposal Sent':'primary','Awaiting Client Approval':'success',
-    'PO / Award Granted':'success','SLA Signed':'success'
+    'Incoming': 'info', 'Initial Contact': 'info', 'Requirement Gathering': 'purple',
+    'Proposal Sent': 'primary', 'Awaiting Client Approval': 'success',
+    'PO / Award Granted': 'success', 'SLA Signed': 'success'
   });
-  const prioColors = {'Critical':'prio-critical','High':'prio-high','Medium':'prio-medium','Low':'prio-low'};
+  const prioColors = { 'Critical': 'prio-critical', 'High': 'prio-high', 'Medium': 'prio-medium', 'Low': 'prio-low' };
 
-  function normalizeStatus(status){
+  function normalizeStatus(status) {
     return salesStatusAliases[status] || status;
   }
 
@@ -244,9 +244,9 @@
   // falls back to the seed data below so the app still runs standalone.
   // -----------------------------
 
-  function loadCollection(key, fallback){
+  function loadCollection(key, fallback) {
     const remote = global.PDMS_REMOTE && global.PDMS_REMOTE[key];
-    return Array.isArray(remote) ? remote : (fallback||[]);
+    return Array.isArray(remote) ? remote : (fallback || []);
   }
 
   const departments = loadCollection('departments', []);
@@ -272,7 +272,7 @@
   const reviews = loadCollection('reviews', []);
   const issues = loadCollection('issues', []);
 
-  function tasksFor(projectId){
+  function tasksFor(projectId) {
     return [];
   }
 
