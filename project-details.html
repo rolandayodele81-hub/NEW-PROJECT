@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788421291" />
+  <link rel="stylesheet" href="css/style.css?v=1788422889" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788421291"></script>
+  <script src="js/bundle.js?v=1788422889"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -1383,6 +1383,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       `;
       const typeOpts = D.types.map(t => `<option ${t === p.type ? 'selected' : ''}>${t}</option>`).join('');
       const prioOpts = D.priorities.map(pr => `<option ${pr === p.priority ? 'selected' : ''}>${pr}</option>`).join('');
+      const currentUser = user || PDMS.getUser();
+      const isPMO = currentUser && currentUser.role === 'PMO';
       const showSubStatus = !isSales && p.status === 'In Progress';
       const subStatuses = getSubStatuses(p);
       const currentSubStatusLocal = subStatuses.length ? subStatuses[subStatuses.length - 1] : '';
@@ -1438,11 +1440,12 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             <label>Workstream</label>
             <input id="ed-workstream" type="text" value="${PDMS.esc(p.workstream || p.dept || '')}" placeholder="e.g. QMS, FSMS…"/>
           </div>
+          ${!isPMO ? `
           <div class="np-field full">
             <label>${(p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') ? 'Award Value (Exclusive of VAT)' : 'Opportunity Value (₦)'}</label>
             <input id="ed-price" type="number" min="0" step="0.01" value="${PDMS.esc((p.requestedNegotiatedPrice !== undefined && p.requestedNegotiatedPrice !== null && p.requestedNegotiatedPrice !== '') ? String(p.requestedNegotiatedPrice) : ((p.awardValue !== undefined && p.awardValue !== null && p.awardValue !== '') ? String(p.awardValue) : ((p.negotiatedPrice === '' || p.negotiatedPrice === null || p.negotiatedPrice === undefined) ? '' : String(p.negotiatedPrice))))}" placeholder="0.00" ${priceLocked ? 'disabled style="background:var(--surface-2);color:var(--text-muted);cursor:not-allowed;opacity:.8"' : ''}/>
             ${priceLocked ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Current Value: ${Number.isFinite(Number(p.negotiatedPrice)) && Number(p.negotiatedPrice) > 0 ? PDMS.currency(p.negotiatedPrice) : 'Not set'}</div>` : ''}
-          </div>
+          </div>` : ''}
           ${(!isSalesEdit && showSubStatus) ? `
           <div class="np-field full">
             <label>Current In Progress Stage</label>

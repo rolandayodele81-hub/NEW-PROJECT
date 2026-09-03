@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788421291"/>
+<link rel="stylesheet" href="css/style.css?v=1788422889"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788421291"></script>
+<script src="js/bundle.js?v=1788422889"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -290,6 +290,7 @@ function editProject(id){
   const project = D.projects.find(p=>p.id===id);
   if(!project){ return; }
   const isSalesEdit = (currentUser && currentUser.role === 'Sales') || project.stage === 'Sales' || PDMS.isSalesRole(currentUser);
+  const isPMO = currentUser && currentUser.role === 'PMO';
   const liveClients = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients) || D.clients || [];
   const currentClient = project.client || project.name || '';
   const clientExists = liveClients.some(c => (c.name || c) === currentClient);
@@ -352,11 +353,12 @@ function editProject(id){
             <label>Workstream</label>
             <input id="editProjWorkstream" type="text" value="${PDMS.esc(project.workstream||project.dept||'')}" placeholder="e.g. QMS, FSMS…"/>
           </div>
+          ${!isPMO ? `
           <div class="np-field full">
             <label>${(project.awardValue || project.stage === 'Delivery' || project.status === 'Award/SLA' || project.status === 'Awaiting Account Approval') ? 'Award Value (Exclusive of VAT)' : 'Opportunity Value (₦)'}</label>
             <input id="editProjPrice" type="number" min="0" step="0.01" value="${PDMS.esc((project.requestedNegotiatedPrice !== undefined && project.requestedNegotiatedPrice !== null && project.requestedNegotiatedPrice !== '') ? String(project.requestedNegotiatedPrice) : ((project.awardValue !== undefined && project.awardValue !== null && project.awardValue !== '') ? String(project.awardValue) : ((project.negotiatedPrice === '' || project.negotiatedPrice === null || project.negotiatedPrice === undefined) ? '' : String(project.negotiatedPrice))))}" placeholder="0.00" ${isSalesEdit ? 'disabled style="background:var(--surface-2);color:var(--text-muted);cursor:not-allowed;opacity:.8"' : ''}/>
             ${isSalesEdit ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Current Value: ${Number.isFinite(Number(project.negotiatedPrice)) && Number(project.negotiatedPrice) > 0 ? PDMS.currency(project.negotiatedPrice) : 'Not set'}</div>` : ''}
-          </div>
+          </div>` : ''}
         </div>
       </div>
 
