@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788459159" />
+  <link rel="stylesheet" href="css/style.css?v=1788481808" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788459159"></script>
+  <script src="js/bundle.js?v=1788481808"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -77,7 +77,7 @@
       const isSales = !isConsultantView && (isPendingSalesHead || isSalesStage || (!hasDeliveryStatus && hasSalesStatus));
       const mainSequence = isSales
         ? ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed']
-        : (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(proj) : ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed']);
+        : (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(proj) : ((D && D.deliveryStagesByType && D.deliveryStagesByType['Management System']) || []));
 
       let statusToMatch = proj.status;
       if (isPendingSalesHead) {
@@ -108,15 +108,40 @@
         });
       }
 
-      if (status === 'On Hold') {
-        // On Hold isn't a fixed slot — it can happen at any point, so position it
-        // right after however far progress actually got, not at a fixed spot in the list.
-        const stepsBeforeFinal = mainSequence.length - 1;
-        const doneCount = Math.min(stepsBeforeFinal, Math.floor(((proj.progress || 0) / 100) * stepsBeforeFinal));
-        const result = mainSequence.slice(0, doneCount).map(label => ({ label, state: 'done' }));
-        result.push({ label: 'On Hold', state: 'active' });
-        mainSequence.slice(doneCount).forEach(label => result.push({ label, state: '' }));
-        return result;
+      const mDataMap = getMilestonesMap(proj);
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      if (status === 'On Hold' || (proj.deliveryStatus === 'On Hold' && !isSales)) {
+        const lastKnown = proj.previousStatus || proj.heldAtStatus || (proj.deliveryStatus && proj.deliveryStatus !== 'On Hold' ? proj.deliveryStatus : null) || proj.requestedStatus || proj.targetStatus || '';
+        const normLast = PDMS.normalizeStatus ? PDMS.normalizeStatus(lastKnown) : lastKnown;
+        let targetIndex = mainSequence.indexOf(normLast);
+        if (targetIndex === -1) {
+          const stepsBeforeFinal = Math.max(1, mainSequence.length - 1);
+          targetIndex = Math.min(stepsBeforeFinal, Math.floor(((proj.progress || 0) / 100) * stepsBeforeFinal));
+        }
+        const effectiveIndex = Math.max(0, targetIndex);
+        return mainSequence.map((label, i) => {
+          const isTarget = i === effectiveIndex;
+          const isDone = i < effectiveIndex;
+          const state = isDone ? 'done' : isTarget ? 'on-hold' : '';
+          const mInfo = mDataMap[label] || {};
+          const dueDate = mInfo.dueDate || '';
+          let metaText = isDone ? 'Completed' : (isTarget ? 'On Hold' : 'Upcoming');
+          if (dueDate) {
+            metaText += ` (${PDMS.esc(dueDate)})`;
+          }
+          return {
+            label,
+            state,
+            isOnHold: isTarget,
+            isDue: false,
+            isOverdue: false,
+            dueDate,
+            notes: mInfo.notes || '',
+            isPendingApproval: false,
+            meta: metaText
+          };
+        });
       }
 
       const currentIndex = mainSequence.indexOf(status);
@@ -124,15 +149,62 @@
       return mainSequence.map((label, i) => {
         const isCurrent = i === effectiveIndex;
         const isDone = i < effectiveIndex;
-        const state = isDone ? 'done' : isCurrent ? 'active' : '';
+        let state = isDone ? 'done' : isCurrent ? 'active' : '';
+        const mInfo = mDataMap[label] || {};
+        const dueDate = mInfo.dueDate || '';
+        const hasPassedDue = dueDate && dueDate < todayStr && !isDone;
+        const isDueToday = dueDate && dueDate === todayStr && !isDone;
+        const isMarkedDue = mInfo.isDue === true && !isDone;
+
+        const isOverdue = hasPassedDue;
+        const isDue = isMarkedDue || isDueToday || isOverdue;
+
+        if (isOverdue) state = 'overdue';
+        else if (isDue && state !== 'done') state = 'due';
+
+        let metaText = isDone ? 'Completed' : (isOverdue ? 'Overdue' : (isDue ? 'Due' : (isCurrent ? 'Ongoing' : 'Upcoming')));
+        if (dueDate) {
+          metaText += ` (${PDMS.esc(dueDate)})`;
+        }
+
         const isPendingApproval = isPendingSalesHead && isCurrent;
         return {
           label,
           state,
+          isDue,
+          isOverdue,
+          dueDate,
+          notes: mInfo.notes || '',
           isPendingApproval,
-          meta: state === 'done' ? 'Completed' : state === 'active' ? 'Ongoing' : 'Upcoming'
+          meta: metaText
         };
       });
+    }
+
+    function getMilestonesMap(project) {
+      if (!project) return {};
+      if (project.milestones && typeof project.milestones === 'object' && !Array.isArray(project.milestones)) {
+        return project.milestones;
+      }
+      if (Array.isArray(project.milestones)) {
+        const map = {};
+        project.milestones.forEach(m => {
+          if (m && m.stage) map[m.stage] = m;
+        });
+        return map;
+      }
+      if (typeof project.milestones === 'string' && project.milestones.trim()) {
+        try {
+          const parsed = JSON.parse(project.milestones);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+          if (Array.isArray(parsed)) {
+            const map = {};
+            parsed.forEach(m => { if (m && m.stage) map[m.stage] = m; });
+            return map;
+          }
+        } catch (e) { }
+      }
+      return {};
     }
 
     function getSubStatuses(project) {
@@ -739,6 +811,15 @@ ${p.status === 'Cancelled' && p.salesHeadRejectionNote ? `
     <div style="color:var(--text-soft);font-size:12px;margin-top:6px">You can click <strong>Resend Request</strong> above to revise the details and re-submit.</div>
   </div>
 </div>` : ''}
+${p.status === 'On Hold' ? `
+<div style="background:rgba(245,158,11,0.09);border:1.5px solid rgba(245,158,11,0.35);border-radius:16px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:flex-start;gap:14px">
+  <div style="width:36px;height:36px;border-radius:10px;background:rgba(245,158,11,0.18);color:#d97706;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0">⏸</div>
+  <div style="flex:1">
+    <div style="font-weight:700;color:#d97706;font-size:14px;margin-bottom:4px">Project is currently On Hold</div>
+    <div style="color:var(--text);font-size:13px;line-height:1.5">Work is paused at milestone: <strong>${PDMS.esc(p.previousStatus || p.heldAtStatus || 'Current Stage')}</strong>.${p.onHoldReason ? ` Reason: <em>${PDMS.esc(p.onHoldReason)}</em>` : ''}</div>
+    ${canManageStatus ? `<div style="margin-top:10px"><button class="btn btn-sm" onclick="toggleProjectOnHold(false)" style="background:#10b981;color:#fff;border:none;font-weight:700;padding:5px 14px;border-radius:8px;display:inline-flex;align-items:center;gap:6px"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Resume Project</button></div>` : ''}
+  </div>
+</div>` : ''}
 ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
 <div style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.3);border-radius:16px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:flex-start;gap:14px">
   <div style="width:36px;height:36px;border-radius:10px;background:rgba(239,68,68,0.15);color:#ef4444;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0">✕</div>
@@ -757,6 +838,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
             <span style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;letter-spacing:.6px">${p.id}</span>
             <span style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;letter-spacing:.6px">${pStage === 'Sales' ? 'SALES PIPELINE' : 'DELIVERY'}</span>
+            ${p.status === 'On Hold' ? `<span style="background:rgba(245,158,11,.3);color:#fbbf24;border:1px solid rgba(245,158,11,.5);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.6px">ON HOLD</span>` : ''}
           </div>
           <h1 style="font-size:26px;font-weight:800;color:#fff;margin:0 0 6px;line-height:1.2;text-wrap:balance">${PDMS.esc(clientName)}</h1>
           <div style="color:rgba(255,255,255,.7);font-size:13px;margin-bottom:14px">${PDMS.esc(p.name)} &nbsp;·&nbsp; ${PDMS.esc(p.type || '—')}</div>
@@ -770,7 +852,6 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             </button>
           ` : `
             ${canStartDelivery ? `<button class="btn btn-primary" onclick="startDelivery()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('zap')} Start Delivery</button>` : ''}
-            ${canManageStatus ? `<button class="btn btn-primary" onclick="changeStatus()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('refresh')} Change Status</button>` : ''}
             ${canEditDetails ? `<button class="btn btn-primary" onclick="editDetails()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff">${I('edit')} Edit Details</button>` : ''}
           `}
           ${canApproveReject ? `<button id="approveBtn" onclick="approveProjectInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:#10b981;color:#fff;border:none">✓ Approve</button>` : ''}
@@ -806,20 +887,55 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
 
   <div class="grid" style="grid-template-columns:2fr 1fr;gap:20px">
     <div class="flex flex-col gap-4">
-        <div class="card"><div class="card-head"><div class="card-title">Project Timeline</div> ${p.status === 'In Progress' && canManageStatus ? `<button class="btn btn-primary btn-sm" style="margin-left:auto;background:var(--primary);color:#fff;border:none" onclick="editInProgressStage()">Add Stage</button>` : ''}</div>
+        <div class="card"><div class="card-head"><div class="card-title">Project Timeline</div>
+          <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+            ${canManageStatus && p.status !== 'Cancelled' ? (p.status === 'On Hold' ? `
+              <button class="btn btn-sm" onclick="toggleProjectOnHold(false)" style="background:#10b981;color:#fff;border:none;font-weight:600;display:inline-flex;align-items:center;gap:5px">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Resume Project
+              </button>
+            ` : `
+              <button class="btn btn-secondary btn-sm" onclick="toggleProjectOnHold(true)" style="color:#d97706;border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.08);font-weight:600;display:inline-flex;align-items:center;gap:5px">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Put On Hold
+              </button>
+            `) : ''}
+            ${isDeliveryStage && canManageStatus ? `<button class="btn btn-secondary btn-sm" onclick="customizeTimelineStages()">${I('edit')} Customize Stages</button>` : ''}
+            ${p.status === 'In Progress' && canManageStatus ? `<button class="btn btn-primary btn-sm" style="background:var(--primary);color:#fff;border:none" onclick="editInProgressStage()">Add Stage</button>` : ''}
+          </div>
+        </div>
           <div class="card-body">
             <div class="timeline">
-              ${stages.map(s => `<div class="tl-item ${s.state}"><div class="tl-title">${s.label}${s.isPendingApproval ? ` <span class="badge" style="font-size:10px;padding:2px 8px;vertical-align:middle;margin-left:6px;background:rgba(245,158,11,.15);color:#d97706;border:1px solid rgba(245,158,11,.35);font-weight:600"><span class="sh-pending-dot" style="width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block;margin-right:4px"></span>Awaiting Sales Head Approval</span>` : ''}${s.label === 'In Progress' && p.status === 'In Progress' && canManageStatus ? ` <button class="btn btn-primary btn-xs" style="margin-left:10px;padding:4px 8px;font-size:11px;background:var(--primary);color:#fff;border:none" onclick="event.stopPropagation();editInProgressStage()">Add Stage</button>` : ''}</div><div class="tl-meta" style="${s.isCancelled ? 'color:#ef4444;font-weight:600' : ''}">${s.meta || (s.state === 'done' ? 'Completed' : s.state === 'cancelled' ? 'Cancelled' : s.state === 'active' ? 'Ongoing' : 'Upcoming')}</div>${s.label === 'In Progress' && subStatuses.length ? `<div class="tl-sub" style="margin-top:8px;margin-left:14px;padding-left:12px;border-left:2px solid var(--border);display:flex;flex-direction:column;gap:6px">${subStatuses.map((ss, idx) => {
-            const isLast = idx === subStatuses.length - 1;
-            const isOngoing = isLast && (s.state === 'active' || p.status === 'In Progress');
-            return `
-                  <div style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:2px">
-                    <span style="color:${isOngoing ? '#f59e0b' : '#10b981'};font-size:14px;font-weight:bold">${isOngoing ? '●' : '✓'}</span>
-                    <span style="color:var(--text);font-weight:600">${PDMS.esc(ss)}</span>
-                    <span style="font-size:11px;color:var(--text-muted);font-weight:500;margin-left:6px">(${isOngoing ? 'Ongoing' : 'Completed'})</span>
+              ${stages.map(s => {
+                const isClickable = canManageStatus;
+                const clickAttr = isClickable ? `onclick="openMilestoneScheduleModal('${PDMS.esc(s.label)}')" title="Click circle/stage to set Due Date, mark Due, or change status"` : '';
+                return `
+                <div class="tl-item ${s.state} ${isClickable ? 'selectable' : ''}" ${clickAttr}>
+                  <div class="tl-title" style="display:flex;align-items:center;justify-content:space-between">
+                    <span style="display:inline-flex;align-items:center;gap:6px">
+                      ${s.label}
+                      ${s.isOnHold ? `<span class="badge" style="background:rgba(245,158,11,.15);color:#d97706;border:1px solid rgba(245,158,11,.35);font-size:10px;padding:2px 8px;font-weight:700">On Hold</span>` : ''}
+                      ${s.isOverdue ? `<span class="badge badge-danger" style="font-size:10px;padding:2px 8px;font-weight:700">Overdue</span>` : (s.isDue ? `<span class="badge badge-warn" style="font-size:10px;padding:2px 8px;font-weight:700">Due</span>` : '')}
+                      ${s.isPendingApproval ? ` <span class="badge" style="font-size:10px;padding:2px 8px;vertical-align:middle;margin-left:6px;background:rgba(245,158,11,.15);color:#d97706;border:1px solid rgba(245,158,11,.35);font-weight:600"><span class="sh-pending-dot" style="width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block;margin-right:4px"></span>Awaiting Sales Head Approval</span>` : ''}
+                      ${s.label === 'In Progress' && p.status === 'In Progress' && canManageStatus ? ` <button class="btn btn-primary btn-xs" style="margin-left:10px;padding:4px 8px;font-size:11px;background:var(--primary);color:#fff;border:none" onclick="event.stopPropagation();editInProgressStage()">Add Stage</button>` : ''}
+                    </span>
+                    ${isClickable ? `<span class="tl-click-hint" style="font-size:11px;color:var(--primary);opacity:0;transition:opacity .15s;font-weight:600;display:inline-flex;align-items:center;gap:3px">Manage Stage ➔</span>` : ''}
                   </div>
-                `;
-          }).join('')}</div>` : ''}</div>`).join('')}
+                  <div class="tl-meta" style="${s.isOnHold ? 'color:#d97706;font-weight:700' : (s.isOverdue ? 'color:#ef4444;font-weight:700' : (s.isDue ? 'color:#d97706;font-weight:700' : (s.isCancelled ? 'color:#ef4444;font-weight:600' : '')))}">
+                    ${s.meta}
+                  </div>
+                  ${s.notes ? `<div style="font-size:11px;color:var(--text-soft);margin-top:2px;font-style:italic">Note: ${PDMS.esc(s.notes)}</div>` : ''}
+                  ${s.label === 'In Progress' && subStatuses.length ? `<div class="tl-sub" style="margin-top:8px;margin-left:14px;padding-left:12px;border-left:2px solid var(--border);display:flex;flex-direction:column;gap:6px">${subStatuses.map((ss, idx) => {
+                    const isLast = idx === subStatuses.length - 1;
+                    const isOngoing = isLast && (s.state === 'active' || p.status === 'In Progress');
+                    return `
+                      <div style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:2px">
+                        <span style="color:${isOngoing ? '#f59e0b' : '#10b981'};font-size:14px;font-weight:bold">${isOngoing ? '●' : '✓'}</span>
+                        <span style="color:var(--text);font-weight:600">${PDMS.esc(ss)}</span>
+                        <span style="font-size:11px;color:var(--text-muted);font-weight:500;margin-left:6px">(${isOngoing ? 'Ongoing' : 'Completed'})</span>
+                      </div>
+                    `;
+                  }).join('')}</div>` : ''}
+                </div>`;
+              }).join('')}
             </div>
           </div>
         </div>
@@ -2205,8 +2321,12 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         const btn = this;
         PDMS.setButtonLoading(btn, true, 'Updating...');
         const patch = { status: newStatus };
+        if (newStatus === 'On Hold') {
+          patch.previousStatus = p.status !== 'On Hold' ? p.status : (p.previousStatus || 'Lead');
+          patch.heldAtStatus = patch.previousStatus;
+        }
         PDMS.api.update('projects', p.id, patch).then(saved => {
-          Object.assign(p, saved);
+          Object.assign(p, saved, patch);
           modal.remove();
           PDMS.toast('Status updated', 'Project status has been updated', 'success');
           const statusUser = PDMS.getUser();
@@ -2275,7 +2395,322 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         });
       };
     }
-    window.postProjectReview = postProjectReview; window.submitInlineIssue = submitInlineIssue; window.assignTeam = assignTeam; window.uploadDoc = uploadDoc; window.changeStatus = changeStatus; window.startDelivery = startDelivery;
+
+    function selectTimelineStage(stageLabel) {
+      if (!stageLabel) return;
+      const user = PDMS.getUser();
+      if (!user) { PDMS.toast('Error', 'Please log in to update status', 'error'); return; }
+
+      if (p.status === stageLabel || (p.deliveryStatus === stageLabel && isDeliveryStage)) {
+        return;
+      }
+
+      if (!PDMS.canChangeStatus(p, stageLabel)) {
+        PDMS.toast('Not allowed', "You don't have permission to update to this stage", 'error');
+        return;
+      }
+
+      // If user selects Award/SLA, invoke the dedicated Award Value modal
+      if (stageLabel === 'Award/SLA') {
+        changeStatus();
+        return;
+      }
+
+      const modal = PDMS.modal('Update Project Timeline', `
+        <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">
+          Are you sure you want to update <strong>${PDMS.esc(p.name)}</strong> to stage <strong style="color:var(--primary);font-size:15px">${PDMS.esc(stageLabel)}</strong>?
+        </p>
+      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmTimelineStageBtn">Update Stage</button>`);
+
+      modal.querySelector('#confirmTimelineStageBtn').onclick = function () {
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Updating...');
+        const patch = { status: stageLabel };
+        if (stageLabel === 'On Hold') {
+          patch.previousStatus = p.status !== 'On Hold' ? p.status : (p.previousStatus || 'Lead');
+          patch.heldAtStatus = patch.previousStatus;
+        }
+        if (PDMS.stageOf(p) === 'Delivery') {
+          patch.deliveryStatus = stageLabel;
+        }
+        PDMS.api.update('projects', p.id, patch).then(saved => {
+          Object.assign(p, saved, patch);
+          modal.remove();
+          PDMS.toast('Timeline Updated', `Project stage updated to "${stageLabel}"`, 'success');
+          const statusUser = PDMS.getUser();
+          if (statusUser) {
+            PDMS.notify('Status Changed', `${statusUser.name} (${statusUser.role}) updated "${p.name}" stage to "${stageLabel}"`, 'refresh', 'project-details.html#id=' + p.id, '', '', p.id);
+          }
+          render();
+        }).catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not update stage', 'error');
+        });
+      };
+    }
+
+    function customizeTimelineStages() {
+      const type = p.type || p.projectType || 'Management System';
+      const allDefaultStages = (window.PDMS_DATA && window.PDMS_DATA.deliveryStagesByType && (window.PDMS_DATA.deliveryStagesByType[type] || window.PDMS_DATA.deliveryStagesByType['Management System'])) || [];
+      const currentSequence = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(p) : allDefaultStages;
+      const hasTraining = p.hasTraining !== false && !p.noTraining;
+      const hasTrainingInType = allDefaultStages.includes('Training');
+
+      const modal = PDMS.modal('Customize Timeline Stages', `
+        <p style="color:var(--text-soft);margin:0 0 16px;font-size:13px">
+          Select active stages for <strong>${PDMS.esc(p.name)}</strong> (${PDMS.esc(type)}). Uncheck stages (like Training) that are not part of this project's scope.
+        </p>
+
+        ${hasTrainingInType ? `
+        <div style="margin-bottom:16px;padding:12px 14px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px">
+          <label style="display:flex;align-items:center;gap:10px;font-weight:700;cursor:pointer;font-size:13px;color:var(--text);margin:0">
+            <input type="checkbox" id="tlIncludeTrainingToggle" ${hasTraining ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer" />
+            Include Training Stage in Project Scope
+          </label>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;margin-left:26px">
+            If unchecked, Training is removed from this project's timeline and progression skips straight to the next milestone.
+          </div>
+        </div>
+        ` : ''}
+
+        <div style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-soft);margin-bottom:8px">Milestone Sequence</div>
+        <div id="tlStageList" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;padding-right:4px">
+          ${allDefaultStages.map(stg => {
+            const isChecked = currentSequence.includes(stg);
+            return `
+            <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+              <input type="checkbox" class="tl-stg-chk" value="${PDMS.esc(stg)}" ${isChecked ? 'checked' : ''} style="width:15px;height:15px;cursor:pointer" />
+              <span style="font-weight:600;color:var(--text)">${PDMS.esc(stg)}</span>
+              ${stg === 'Training' ? '<span class="badge badge-primary" style="font-size:10px;margin-left:auto">Training</span>' : ''}
+            </label>`;
+          }).join('')}
+        </div>
+      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveTlStagesBtn">Save Timeline</button>`);
+
+      const trainToggle = modal.querySelector('#tlIncludeTrainingToggle');
+      if (trainToggle) {
+        trainToggle.onchange = () => {
+          const trainChk = modal.querySelector('.tl-stg-chk[value="Training"]');
+          if (trainChk) trainChk.checked = trainToggle.checked;
+        };
+      }
+
+      modal.querySelector('#saveTlStagesBtn').onclick = function () {
+        const selected = Array.from(modal.querySelectorAll('.tl-stg-chk:checked')).map(el => el.value);
+        if (selected.length < 2) {
+          PDMS.toast('Error', 'A project timeline must have at least 2 stages', 'error');
+          return;
+        }
+        const includeTraining = selected.includes('Training');
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Saving...');
+
+        const patch = {
+          hasTraining: includeTraining,
+          noTraining: !includeTraining,
+          timelineStages: selected
+        };
+
+        if (!includeTraining && p.status === 'Training') {
+          const nextIdx = allDefaultStages.indexOf('Training') + 1;
+          const nextStatus = allDefaultStages[nextIdx] || selected[0];
+          patch.status = nextStatus;
+          if (p.deliveryStatus) patch.deliveryStatus = nextStatus;
+        }
+
+        PDMS.api.update('projects', p.id, patch).then(saved => {
+          Object.assign(p, saved, patch);
+          modal.remove();
+          PDMS.toast('Timeline Saved', 'Project timeline stages updated', 'success');
+          render();
+        }).catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not save timeline stages', 'error');
+        });
+      };
+    }
+
+    function openMilestoneScheduleModal(stageLabel) {
+      if (!stageLabel) return;
+      const user = PDMS.getUser();
+      if (!user) { PDMS.toast('Error', 'Please log in to update status', 'error'); return; }
+
+      if (!PDMS.canChangeStatus(p, stageLabel)) {
+        PDMS.toast('Not allowed', "You don't have permission to update to this stage", 'error');
+        return;
+      }
+
+      if (stageLabel === 'Award/SLA') {
+        changeStatus();
+        return;
+      }
+
+      const mDataMap = getMilestonesMap(p);
+      const mInfo = mDataMap[stageLabel] || {};
+      const currentDueDate = mInfo.dueDate || '';
+      const currentNotes = mInfo.notes || '';
+
+      const modal = PDMS.modal(`Update Stage: ${PDMS.esc(stageLabel)}`, `
+        <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">
+          Update <strong>${PDMS.esc(p.name)}</strong> timeline stage to <strong style="color:var(--primary);font-size:15px">${PDMS.esc(stageLabel)}</strong>.
+        </p>
+
+        <div class="form-row">
+          <label>Stage Target Due Date</label>
+          <input type="date" id="mStageDueDate" value="${PDMS.esc(currentDueDate)}" style="width:100%" />
+        </div>
+
+        <div class="form-row" style="margin-top:12px">
+          <label>Milestone Notes / Deliverables (Optional)</label>
+          <textarea id="mStageNotes" rows="3" placeholder="Enter deliverables or notes for this stage...">${PDMS.esc(currentNotes)}</textarea>
+        </div>
+      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveMilestoneBtn">Update Stage</button>`);
+
+      modal.querySelector('#saveMilestoneBtn').onclick = function () {
+        const dueDate = modal.querySelector('#mStageDueDate').value;
+        const notes = modal.querySelector('#mStageNotes').value.trim();
+
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Updating...');
+
+        const updatedMap = Object.assign({}, mDataMap);
+        updatedMap[stageLabel] = {
+          stage: stageLabel,
+          dueDate: dueDate || '',
+          notes: notes,
+          updatedAt: new Date().toISOString()
+        };
+
+        const patch = {
+          status: stageLabel,
+          milestones: updatedMap
+        };
+
+        if (stageLabel === 'On Hold') {
+          patch.previousStatus = p.status !== 'On Hold' ? p.status : (p.previousStatus || 'Lead');
+          patch.heldAtStatus = patch.previousStatus;
+        }
+
+        if (PDMS.stageOf(p) === 'Delivery') {
+          patch.deliveryStatus = stageLabel;
+        }
+
+        PDMS.api.update('projects', p.id, patch).then(saved => {
+          Object.assign(p, saved, patch);
+          modal.remove();
+          PDMS.toast('Stage Updated', `Project updated to "${stageLabel}"`, 'success');
+          const statusUser = PDMS.getUser();
+          if (statusUser) {
+            PDMS.notify('Status Changed', `${statusUser.name} (${statusUser.role}) updated "${p.name}" stage to "${stageLabel}"`, 'refresh', 'project-details.html#id=' + p.id, '', '', p.id);
+          }
+          render();
+        }).catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not update stage', 'error');
+        });
+      };
+    }
+
+    function toggleProjectOnHold(putOnHold) {
+      const user = PDMS.getUser();
+      if (!user) { PDMS.toast('Error', 'Please log in to manage project status', 'error'); return; }
+
+      if (putOnHold) {
+        const currentStage = (PDMS.stageOf(p) === 'Delivery' ? (p.deliveryStatus || p.status) : p.status);
+        const modal = PDMS.modal('Put Project On Hold', `
+          <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">
+            Are you sure you want to put <strong>${PDMS.esc(p.name)}</strong> on hold?
+          </p>
+          <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--text)">
+            The timeline will pause at current stage: <strong style="color:#d97706">${PDMS.esc(currentStage)}</strong> with an <strong>On Hold</strong> indicator.
+          </div>
+          <div class="form-row">
+            <label>Reason / Remarks (Optional)</label>
+            <textarea id="onHoldReason" rows="3" placeholder="Enter reason for placing project on hold (e.g. Client requested delay, awaiting external input)..."></textarea>
+          </div>
+        `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmPutOnHoldBtn" style="background:#d97706;border-color:#d97706">⏸ Put On Hold</button>`);
+
+        modal.querySelector('#confirmPutOnHoldBtn').onclick = function() {
+          const reason = modal.querySelector('#onHoldReason').value.trim();
+          const btn = this;
+          PDMS.setButtonLoading(btn, true, 'Updating...');
+
+          const prev = (p.status !== 'On Hold' ? p.status : (p.previousStatus || (PDMS.stageOf(p) === 'Sales' ? 'Lead' : 'In Progress')));
+          const patch = {
+            status: 'On Hold',
+            previousStatus: prev,
+            heldAtStatus: prev,
+            onHoldReason: reason || p.onHoldReason || '',
+            onHoldAt: new Date().toISOString()
+          };
+          if (PDMS.stageOf(p) === 'Delivery') {
+            patch.deliveryStatus = 'On Hold';
+          }
+
+          PDMS.api.update('projects', p.id, patch).then(saved => {
+            Object.assign(p, saved, patch);
+            if (reason) {
+              const record = { id: 'tmp-' + Date.now(), author: user.name, authorRole: user.role, projectId: p.id, projectName: p.name, message: `[Project Placed On Hold at "${prev}"] ${reason}`, time: new Date().toISOString() };
+              pushIssueOptimistic(record);
+            }
+            modal.remove();
+            PDMS.toast('Project On Hold', `"${p.name}" is now on hold at stage "${prev}"`, 'warning');
+            PDMS.notify('Project On Hold', `${user.name} (${user.role}) placed "${p.name}" on hold at stage "${prev}"`, 'alert-triangle', 'project-details.html#id=' + p.id, '', '', p.id);
+            render();
+          }).catch(err => {
+            PDMS.setButtonLoading(btn, false);
+            PDMS.toast('Error', err.message || 'Could not put project on hold', 'error');
+          });
+        };
+      } else {
+        // Resume Project
+        const resumeStage = p.previousStatus || p.heldAtStatus || (PDMS.stageOf(p) === 'Sales' ? 'Lead' : 'In Progress');
+        const modal = PDMS.modal('Resume Project', `
+          <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">
+            Resume <strong>${PDMS.esc(p.name)}</strong> and continue workflow?
+          </p>
+          <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--text)">
+            The project will resume active progress at stage: <strong style="color:#10b981">${PDMS.esc(resumeStage)}</strong>.
+          </div>
+          <div class="form-row">
+            <label>Resume At Stage</label>
+            <select id="resumeStageSelect">
+              ${(PDMS.statusOptionsFor ? PDMS.statusOptionsFor(user, p) : []).filter(s => s !== 'On Hold' && s !== 'Cancelled').map(s => `
+                <option value="${PDMS.esc(s)}" ${s === resumeStage ? 'selected' : ''}>${PDMS.esc(s)}</option>
+              `).join('')}
+            </select>
+          </div>
+        `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmResumeBtn" style="background:#10b981;border-color:#10b981">▶ Resume Project</button>`);
+
+        modal.querySelector('#confirmResumeBtn').onclick = function() {
+          const selectedStage = modal.querySelector('#resumeStageSelect').value || resumeStage;
+          const btn = this;
+          PDMS.setButtonLoading(btn, true, 'Resuming...');
+
+          const patch = {
+            status: selectedStage,
+            onHoldReason: '',
+            resumedAt: new Date().toISOString()
+          };
+          if (PDMS.stageOf(p) === 'Delivery') {
+            patch.deliveryStatus = selectedStage;
+          }
+
+          PDMS.api.update('projects', p.id, patch).then(saved => {
+            Object.assign(p, saved, patch);
+            modal.remove();
+            PDMS.toast('Project Resumed', `"${p.name}" resumed at stage "${selectedStage}"`, 'success');
+            PDMS.notify('Project Resumed', `${user.name} (${user.role}) resumed "${p.name}" at stage "${selectedStage}"`, 'refresh', 'project-details.html#id=' + p.id, '', '', p.id);
+            render();
+          }).catch(err => {
+            PDMS.setButtonLoading(btn, false);
+            PDMS.toast('Error', err.message || 'Could not resume project', 'error');
+          });
+        };
+      }
+    }
+
+    window.postProjectReview = postProjectReview; window.submitInlineIssue = submitInlineIssue; window.assignTeam = assignTeam; window.uploadDoc = uploadDoc; window.changeStatus = changeStatus; window.startDelivery = startDelivery; window.selectTimelineStage = selectTimelineStage; window.customizeTimelineStages = customizeTimelineStages; window.openMilestoneScheduleModal = openMilestoneScheduleModal; window.toggleProjectOnHold = toggleProjectOnHold;
 
     function approveProjectInline() {
       const modal = PDMS.modal('Approve Project (Accounts)', `

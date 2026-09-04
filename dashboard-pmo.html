@@ -7,7 +7,7 @@
   <title>PMO Dashboard — PSE PDMS</title>
   
   
-  <link rel="stylesheet" href="css/style.css?v=1788459159"/>
+  <link rel="stylesheet" href="css/style.css?v=1788481808"/>
   <style>
     .pmo-hero {
       display: grid;
@@ -62,7 +62,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788459159"></script>
+  <script src="js/bundle.js?v=1788481808"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -153,13 +153,13 @@
         <div><div class="card-title">Project Status Breakdown</div><div class="card-sub">How your assigned projects are distributed across statuses</div></div>
         <span class="badge badge-primary">${projects.length} total</span>
       </div>
-      <div class="card-body" style="padding:12px 20px">
         ${(() => {
-          const sc = { 'Not Started':'#94a3b8','In Progress':'#f59e0b','On Hold':'#64748b','Awaiting Review':'#eab308','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Testing / Quality Assurance':'#8b5cf6','Completed':'#10b981','Approved':'#4f46e5','Rejected':'#ef4444' };
+          const sc = { 'Completed':'#10b981','Closure':'#10b981','On Hold':'#64748b','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Training':'#6366f1','Testing':'#8b5cf6','Gap Assessment':'#0ea5e9','Implementation':'#8b5cf6','Recommendation':'#f59e0b','Certificate Reception':'#10b981','Internal Testing':'#0ea5e9','Penetration Testing':'#8b5cf6','Report Submission':'#6366f1','Review':'#f59e0b','Requirements Gathering':'#0ea5e9','Configuration & Design':'#6366f1','Data Preparation & Migration':'#8b5cf6','Integration':'#6366f1','User Acceptance Testing (UAT)':'#f59e0b','Go-Live':'#10b981','Surveillance':'#0ea5e9','Remediation':'#f59e0b','Surveillance Audit':'#8b5cf6','Cancelled':'#ef4444' };
+          const getDeliveryStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
           const statuses = D.deliveryStatuses;
-          const max = Math.max(...statuses.map(s => projects.filter(p => p.status === s).length), 1);
+          const max = Math.max(...statuses.map(s => projects.filter(p => getDeliveryStatus(p) === s).length), 1);
           return statuses.map(s => {
-            const count = projects.filter(p => p.status === s).length;
+            const count = projects.filter(p => getDeliveryStatus(p) === s).length;
             const pct = Math.round((count / max) * 100);
             const color = sc[s] || '#94a3b8';
             return `

@@ -7,7 +7,7 @@
   <title>HR Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788459159"/>
+<link rel="stylesheet" href="css/style.css?v=1788481808"/>
   <style>
     .hr-hero {
       display: grid;
@@ -75,7 +75,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788459159"></script>
+  <script src="js/bundle.js?v=1788481808"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -92,11 +92,12 @@
       const allDeliveryStageProjects = deliveryProjects;
 
       // Delivery project status distribution
-      const statusColorHex = {'Not Started':'#94a3b8','In Progress':'#f59e0b','On Hold':'#94a3b8','Awaiting Review':'#eab308','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Testing / Quality Assurance':'#8b5cf6',Completed:'#10b981',Approved:'#4f46e5',Rejected:'#ef4444'};
+      const statusColorHex = { 'Completed':'#10b981','Closure':'#10b981','On Hold':'#64748b','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Training':'#6366f1','Testing':'#8b5cf6','Gap Assessment':'#0ea5e9','Implementation':'#8b5cf6','Recommendation':'#f59e0b','Certificate Reception':'#10b981','Internal Testing':'#0ea5e9','Penetration Testing':'#8b5cf6','Report Submission':'#6366f1','Review':'#f59e0b','Requirements Gathering':'#0ea5e9','Configuration & Design':'#6366f1','Data Preparation & Migration':'#8b5cf6','Integration':'#6366f1','User Acceptance Testing (UAT)':'#f59e0b','Go-Live':'#10b981','Surveillance':'#0ea5e9','Remediation':'#f59e0b','Surveillance Audit':'#8b5cf6','Cancelled':'#ef4444' };
+      const getDelivStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
       const totalProjects = allDeliveryStageProjects.length;
       const statusCounts = D.deliveryStatuses.map(s => ({
         status: s,
-        count: allDeliveryStageProjects.filter(p => p.status === s).length,
+        count: allDeliveryStageProjects.filter(p => getDelivStatus(p) === s).length,
         color: statusColorHex[s] || '#94a3b8'
       })).filter(s => s.count > 0);
 

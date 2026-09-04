@@ -199,7 +199,7 @@
    ============================================ */
 (function (global) {
   const roles = ['System Administrator', 'HR', 'COO', 'HTD', 'PM Head', 'PMO', 'Accounts', 'Sales', 'Sales Head', 'Consultant'];
-  const types = ['ERP', 'SAPT', 'Surveillance/ recertification', 'Software development', 'Management System', 'Artificial Intelligence'];
+  const types = ['Management System', 'VAPT', 'Software Development & Artificial Intelligence (AI)', 'ERP', 'Surveillance / Recertification'];
   const priorities = ['Critical', 'High', 'Medium', 'Low'];
   const workstreams = ['Cloud Engineering', 'Cybersecurity', 'Data Analytics', 'Digital Transformation', 'ERP Implementation', 'Infrastructure', 'Mobile Development', 'Software Development', 'Web Platform', 'Business Consulting', 'General'];
   const salesJourney = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'];
@@ -215,85 +215,158 @@
   };
   const salesStatuses = [...salesJourney, 'On Hold', 'Cancelled'];
 
+  const managementSystemStages = [
+    'Gap Assessment',
+    'Training',
+    'Implementation',
+    'Internal Audit',
+    'Recommendation',
+    'External Audit',
+    'Certificate Reception',
+    'Completed',
+    'Closure'
+  ];
+
+  const vaptStages = [
+    'Gap Assessment',
+    'Internal Testing',
+    'Penetration Testing',
+    'Report Submission',
+    'Review',
+    'Completed',
+    'Closure'
+  ];
+
+  const softwareAndAiStages = [
+    'Project Initiation & Business Case',
+    'Requirements & Use-Case Definition',
+    'Architecture & Solution Design',
+    'Data Readiness & Preparation',
+    'PoC / Prototype',
+    'Software Development & AI Model Build',
+    'System Integration',
+    'Testing & AI Validation',
+    'UAT & Business Acceptance',
+    'Production Deployment & Go-Live',
+    'Hypercare & Operational Handover',
+    'Completed',
+    'Closure'
+  ];
+
+  const erpStages = [
+    'Requirements Gathering',
+    'Configuration & Design',
+    'Data Preparation & Migration',
+    'Integration',
+    'Testing',
+    'User Acceptance Testing (UAT)',
+    'Training',
+    'Go-Live',
+    'Completed',
+    'Closure'
+  ];
+
+  const surveillanceStages = [
+    'Surveillance',
+    'Internal Audit',
+    'Remediation',
+    'Training',
+    'Surveillance Audit',
+    'Completed',
+    'Closure'
+  ];
+
   const deliveryStagesByType = {
-    'Management System': [
-      'Gap Assessment',
-      'Training',
-      'Implementation',
-      'Internal Audit',
-      'Recommendation',
-      'External Audit',
-      'Certificate Reception',
-      'Closure'
-    ],
-    'SAPT': [
-      'Gap Assessment',
-      'Internal Testing',
-      'Penetration Testing',
-      'Report Submission',
-      'Review',
-      'Closure'
-    ],
-    'ERP': [
-      'Requirements Gathering',
-      'Configuration',
-      'Design',
-      'Data Preparation',
-      'Migration',
-      'Integration',
-      'Testing',
-      'User Acceptance Testing (UAT)',
-      'Training',
-      'Go-Live',
-      'Closure'
-    ]
+    'Management System': managementSystemStages,
+    'VAPT': vaptStages,
+    'SAPT': vaptStages,
+    'Software Development & Artificial Intelligence (AI)': softwareAndAiStages,
+    'Software Development & AI': softwareAndAiStages,
+    'Software Development': softwareAndAiStages,
+    'Software development': softwareAndAiStages,
+    'Artificial Intelligence': softwareAndAiStages,
+    'Artificial intelligence': softwareAndAiStages,
+    'AI': softwareAndAiStages,
+    'ERP': erpStages,
+    'Surveillance / Recertification': surveillanceStages,
+    'Surveillance/ recertification': surveillanceStages,
+    'Surveillance / recertification': surveillanceStages,
+    'Surveillance': surveillanceStages
   };
 
-  const defaultDeliverySequence = ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
+  const defaultDeliverySequence = managementSystemStages.slice();
 
   const allTypeDeliveryStatuses = [
-    ...defaultDeliverySequence,
-    ...deliveryStagesByType['Management System'],
-    ...deliveryStagesByType['SAPT'],
-    ...deliveryStagesByType['ERP'],
-    'On Hold', 'Closed', 'Cancelled'
+    ...managementSystemStages,
+    ...vaptStages,
+    ...softwareAndAiStages,
+    ...erpStages,
+    ...surveillanceStages,
+    'On Hold', 'Cancelled'
   ];
   const deliveryStatuses = [...new Set(allTypeDeliveryStatuses)];
   const inProgressSubStatuses = ['Design', 'Development', 'Testing / QA / Internal Testing', 'Deployment', 'UAT', 'Release'];
   const statuses = [...salesStatuses, ...deliveryStatuses.filter(s => !salesStatuses.includes(s))];
   const statusColors = {
-    'Initial Proposal': 'primary', 'Lead': 'info', 'Opportunity': 'purple',
-    'Negotiation': 'warn', 'Invoicing': 'warn', 'Award/SLA': 'success', 'Award/SLA Signed': 'warn',
-    'Awaiting Sales Head Approval': 'warn', 'Awaiting Account Approval': 'purple',
-    'Closed': 'primary', 'Cancelled': 'danger', 'On Hold': 'muted',
-    'Not Started': 'muted', 'In Progress': 'warn', 'Awaiting Review': 'warn',
-    'Testing / Quality Assurance': 'purple', 'Completed': 'success',
-    'Internal Audit': 'info', 'External Audit': 'warn',
+    // Sales Journey
+    'Lead': 'info',
+    'Opportunity': 'purple',
+    'Initial Proposal': 'primary',
+    'Negotiation': 'warn',
+    'Invoicing': 'warn',
+    'Award/SLA': 'success',
+    'Award/SLA Signed': 'warn',
+    'Awaiting Sales Head Approval': 'warn',
+    'Awaiting Account Approval': 'purple',
+    'Closed': 'primary',
+    'Cancelled': 'danger',
+    'On Hold': 'muted',
 
-    // Management System
-    'Gap Assessment': 'info',
+    // Shared Milestones
+    'Completed': 'success',
+    'Closure': 'success',
     'Training': 'primary',
+    'Internal Audit': 'info',
+    'Testing': 'purple',
+
+    // 1. Management System
+    'Gap Assessment': 'info',
     'Implementation': 'purple',
     'Recommendation': 'warn',
+    'External Audit': 'warn',
     'Certificate Reception': 'success',
-    'Closure': 'success',
 
-    // SAPT
+    // 2. VAPT
     'Internal Testing': 'info',
     'Penetration Testing': 'purple',
     'Report Submission': 'primary',
     'Review': 'warn',
 
-    // ERP
+    // 3. Software Development & Artificial Intelligence (AI)
+    'Project Initiation & Business Case': 'info',
+    'Requirements & Use-Case Definition': 'info',
+    'Architecture & Solution Design': 'primary',
+    'Data Readiness & Preparation': 'info',
+    'PoC / Prototype': 'purple',
+    'Software Development & AI Model Build': 'purple',
+    'System Integration': 'primary',
+    'Testing & AI Validation': 'purple',
+    'UAT & Business Acceptance': 'warn',
+    'Production Deployment & Go-Live': 'success',
+    'Hypercare & Operational Handover': 'success',
+
+    // 4. ERP
     'Requirements Gathering': 'info',
-    'Configuration': 'purple',
-    'Design': 'primary',
-    'Data Preparation': 'info',
-    'Migration': 'purple',
+    'Configuration & Design': 'primary',
+    'Data Preparation & Migration': 'purple',
     'Integration': 'primary',
-    'Testing': 'purple',
     'User Acceptance Testing (UAT)': 'warn',
-    'Go-Live': 'success'
+    'Go-Live': 'success',
+
+    // 5. Surveillance / Recertification
+    'Surveillance': 'info',
+    'Remediation': 'warn',
+    'Surveillance Audit': 'purple'
   };
   Object.assign(statusColors, {
     'Incoming': 'info', 'Initial Contact': 'info', 'Requirement Gathering': 'purple',
@@ -307,6 +380,19 @@
   }
 
   function deliverySequenceFor(projectOrType) {
+    if (typeof projectOrType === 'object' && projectOrType) {
+      if (Array.isArray(projectOrType.timelineStages) && projectOrType.timelineStages.length > 0) {
+        return projectOrType.timelineStages.slice();
+      }
+      let type = projectOrType.type || projectOrType.projectType;
+      if (type && deliveryStagesByType[type]) {
+        let seq = deliveryStagesByType[type].slice();
+        if (projectOrType.hasTraining === false || projectOrType.includeTraining === false || projectOrType.noTraining === true) {
+          seq = seq.filter(s => s !== 'Training');
+        }
+        return seq;
+      }
+    }
     let type = typeof projectOrType === 'string' ? projectOrType : (projectOrType && (projectOrType.type || projectOrType.projectType));
     if (type && deliveryStagesByType[type]) {
       return deliveryStagesByType[type].slice();
@@ -1753,7 +1839,7 @@
         const clientName = (wizardState.selectedClient && wizardState.selectedClient.name) || '';
         const clientIndustry = (wizardState.selectedClient && wizardState.selectedClient.industry) || '';
         const isPrior = !!(wizardState.selectedClient && wizardState.selectedClient.workedBefore);
-        const statusOptions = (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(wizardState.projForm.type) : (D.deliveryStatuses || ['Not Started', 'In Progress', 'On Hold', 'Awaiting Review', 'Completed', 'Closed']));
+        const statusOptions = (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(wizardState.projForm.type) : (D.deliveryStatuses || []));
         bodyHtml = `
           <div style="background:linear-gradient(135deg,#090d16 0%,#1d3c88 45%,#8b5cf6 85%,#ec4899 100%);border-radius:14px;padding:18px 22px;color:#fff;margin-bottom:16px">
             <div style="font-size:17px;font-weight:800;line-height:1.2;margin-bottom:4px">Delivery Project Scope &amp; Timeline</div>
@@ -2002,7 +2088,7 @@
             const opts = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(newType) : (D.deliveryStatuses || []);
             statusInput.innerHTML = opts.map(s => `<option value="${PDMS.esc(s)}">${PDMS.esc(s)}</option>`).join('');
             wizardState.projForm.type = newType;
-            wizardState.projForm.status = opts[0] || 'Not Started';
+            wizardState.projForm.status = opts[0] || 'Gap Assessment';
           };
         }
 
@@ -2548,7 +2634,7 @@
     }
 
     const D = window.PDMS_DATA;
-    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
+    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Gap Assessment', 'Training', 'Implementation', 'Internal Audit', 'Recommendation', 'External Audit', 'Certificate Reception', 'Completed', 'Closure'];
     if (allDelivery.includes(normalized) || allDelivery.includes(project.status)) return 'Delivery';
 
     if (project.status === 'Closed') return 'Delivery';
@@ -2636,20 +2722,20 @@
     return ((window.PDMS_DATA && window.PDMS_DATA.deliveryStatuses) || []).includes(status);
   };
   PDMS.deliveryStatusOf = function (project) {
-    if (!project) return 'Not Started';
+    if (!project) return null;
     const preAwardSales = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Awaiting Sales Head Approval', 'Awaiting Account Approval'];
     if (preAwardSales.includes(project.status) || (project.status === 'Cancelled' && project.stage === 'Sales' && !project.deliveryStatus)) {
       return null;
     }
-    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : ['Not Started', 'In Progress', 'Awaiting Review', 'Internal Audit', 'External Audit', 'Testing / Quality Assurance', 'Completed'];
+    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Gap Assessment', 'Training', 'Implementation', 'Internal Audit', 'Recommendation', 'External Audit', 'Certificate Reception', 'Completed', 'Closure']);
     
     // 1. Check explicit deliveryStatus field
     const delivRaw = String(project.deliveryStatus || '').trim();
     if (delivRaw) {
       const matchInSeq = seq.find(s => s.toLowerCase() === delivRaw.toLowerCase());
       if (matchInSeq) return matchInSeq;
-      if (delivRaw.toLowerCase() === 'completed' && seq.includes('Closure')) return 'Closure';
-      if (delivRaw.toLowerCase() === 'closure' && seq.includes('Completed')) return 'Completed';
+      if (delivRaw.toLowerCase() === 'completed' && !seq.includes('Completed') && seq.includes('Closure')) return 'Closure';
+      if (delivRaw.toLowerCase() === 'closure' && !seq.includes('Closure') && seq.includes('Completed')) return 'Completed';
       if (delivRaw.toLowerCase() === 'on hold') return 'On Hold';
       if (delivRaw.toLowerCase() === 'cancelled') return 'Cancelled';
     }
@@ -2659,23 +2745,30 @@
     const matchStatusInSeq = seq.find(s => s.toLowerCase() === st.toLowerCase());
     if (matchStatusInSeq) return matchStatusInSeq;
 
-    if (st.toLowerCase() === 'completed' && seq.includes('Closure')) return 'Closure';
-    if (st.toLowerCase() === 'closure' && seq.includes('Completed')) return 'Completed';
+    if (st.toLowerCase() === 'completed' && !seq.includes('Completed') && seq.includes('Closure')) return 'Closure';
+    if (st.toLowerCase() === 'closure' && !seq.includes('Closure') && seq.includes('Completed')) return 'Completed';
     if (st.toLowerCase() === 'on hold') return 'On Hold';
     if (st.toLowerCase() === 'cancelled') return 'Cancelled';
 
     // 3. For projects with legacy generic statuses (e.g. 'In Progress', 'Awaiting Review', 'Not Started', 'Closed'),
     // map them cleanly into this project type's pipeline sequence:
     const type = String(project.type || project.projectType || '').trim();
-    if (type === 'SAPT') {
+    if (type === 'VAPT' || type === 'SAPT') {
       if (st.toLowerCase() === 'awaiting review' || st.toLowerCase() === 'testing / quality assurance') return 'Review';
       if (st.toLowerCase() === 'in progress') return 'Internal Testing';
     } else if (type === 'ERP') {
       if (st.toLowerCase() === 'awaiting review') return 'Testing';
-      if (st.toLowerCase() === 'in progress') return 'Configuration';
+      if (st.toLowerCase() === 'in progress') return 'Configuration & Design';
     } else if (type === 'Management System') {
       if (st.toLowerCase() === 'awaiting review') return 'Internal Audit';
       if (st.toLowerCase() === 'in progress') return 'Implementation';
+    } else if (type.toLowerCase().includes('surveillance') || type.toLowerCase().includes('recertification')) {
+      if (st.toLowerCase() === 'awaiting review') return 'Surveillance Audit';
+      if (st.toLowerCase() === 'in progress') return 'Internal Audit';
+      if (st.toLowerCase() === 'internal audit remediation') return 'Remediation';
+    } else if (type.toLowerCase().includes('software') || type.toLowerCase().includes('artificial') || type.toLowerCase().includes('ai')) {
+      if (st.toLowerCase() === 'awaiting review' || st.toLowerCase() === 'testing / quality assurance') return 'Testing & AI Validation';
+      if (st.toLowerCase() === 'in progress') return 'Software Development & AI Model Build';
     }
 
     // If progress % is recorded and > 0, map to corresponding step
@@ -2685,7 +2778,7 @@
     }
 
     // Default to the first stage of this project type's sequence
-    return seq[0] || 'Not Started';
+    return seq[0] || 'Gap Assessment';
   };
   PDMS.projectBucket = function (project) {
     if (project.status === 'Awaiting Account Approval' || project.status === 'Awaiting Sales Head Approval') return 'Sales';

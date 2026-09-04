@@ -1386,7 +1386,7 @@
         const clientName = (wizardState.selectedClient && wizardState.selectedClient.name) || '';
         const clientIndustry = (wizardState.selectedClient && wizardState.selectedClient.industry) || '';
         const isPrior = !!(wizardState.selectedClient && wizardState.selectedClient.workedBefore);
-        const statusOptions = (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(wizardState.projForm.type) : (D.deliveryStatuses || ['Not Started', 'In Progress', 'On Hold', 'Awaiting Review', 'Completed', 'Closed']));
+        const statusOptions = (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(wizardState.projForm.type) : (D.deliveryStatuses || []));
         bodyHtml = `
           <div style="background:linear-gradient(135deg,#090d16 0%,#1d3c88 45%,#8b5cf6 85%,#ec4899 100%);border-radius:14px;padding:18px 22px;color:#fff;margin-bottom:16px">
             <div style="font-size:17px;font-weight:800;line-height:1.2;margin-bottom:4px">Delivery Project Scope &amp; Timeline</div>
@@ -1635,7 +1635,7 @@
             const opts = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(newType) : (D.deliveryStatuses || []);
             statusInput.innerHTML = opts.map(s => `<option value="${PDMS.esc(s)}">${PDMS.esc(s)}</option>`).join('');
             wizardState.projForm.type = newType;
-            wizardState.projForm.status = opts[0] || 'Not Started';
+            wizardState.projForm.status = opts[0] || 'Gap Assessment';
           };
         }
 

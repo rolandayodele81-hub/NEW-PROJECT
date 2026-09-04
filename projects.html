@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788459159"/>
+<link rel="stylesheet" href="css/style.css?v=1788481808"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788459159"></script>
+<script src="js/bundle.js?v=1788481808"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -66,7 +66,7 @@ function scopedProjects(){
 }
 // Each bucket is filtered/kanban'd using its own status vocabulary.
 const bucketStatuses = (viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : D.statuses).filter(s => s !== 'Awaiting Sales Head Approval' && s !== 'Awaiting Account Approval' && (viewParam !== 'sales' || s !== 'Cancelled'));
-const kanbanStatuses = (viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : ['Incoming','In Progress','Awaiting Review','Completed']).filter(s => s !== 'Awaiting Sales Head Approval' && s !== 'Awaiting Account Approval' && (viewParam !== 'sales' || s !== 'Cancelled'));
+const kanbanStatuses = (viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : D.statuses).filter(s => s !== 'Awaiting Sales Head Approval' && s !== 'Awaiting Account Approval' && (viewParam !== 'sales' || s !== 'Cancelled'));
 const isSalesUserOwner = viewParam==='sales' && currentUser && currentUser.role === 'Sales';
 const statTiles = viewParam==='sales'
   ? (isSalesUserOwner
@@ -214,11 +214,14 @@ function renderProjects(){
     };
     const colRows = rows.filter(matchCol);
     return `
-    <div class="kb-col"><div class="kb-head"><span class="kb-title">${s}</span><span class="badge badge-muted">${colRows.length}</span></div>
-      ${colRows.slice(0,8).map(p=>{
+    <div class="kb-col" data-status="${PDMS.esc(s)}" ondragover="handleKbDragOver(event)" ondragleave="handleKbDragLeave(event)" ondrop="handleKbDrop(event, '${PDMS.esc(s)}')">
+      <div class="kb-head"><span class="kb-title">${PDMS.esc(s)}</span><span class="badge badge-muted">${colRows.length}</span></div>
+      ${colRows.length === 0 ? `
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-soft);font-size:12px;padding:24px 8px;opacity:0.65;border:1px dashed var(--border);border-radius:8px;text-align:center">No projects in this stage</div>
+      ` : colRows.map(p=>{
         let badgeHtml = '';
         if (viewParam === 'delivery') {
-          const dStatus = PDMS.deliveryStatusOf(p) || 'Not Started';
+          const dStatus = PDMS.deliveryStatusOf(p) || s;
           badgeHtml = `<span class="badge badge-${D.statusColors[dStatus]||'muted'}">${PDMS.esc(dStatus)}</span>`;
         } else if (viewParam === 'sales') {
           if (p.status === 'Awaiting Sales Head Approval') {
@@ -239,7 +242,7 @@ function renderProjects(){
         } else {
           badgeHtml = `<span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status)}</span>`;
         }
-        return `<div class="kb-card" onclick="location.href='project-details.html#id=${p.id}${viewParam==='sales'?'&from=sales':viewParam==='delivery'?'&from=delivery':''}'">
+        return `<div class="kb-card" draggable="true" data-id="${p.id}" ondragstart="handleKbDragStart(event, '${p.id}')" ondragend="handleKbDragEnd(event)" onclick="handleKbCardClick(event, '${p.id}')" title="Drag to change status, or click to view details">
         <div class="t">${PDMS.esc(p.client||p.name||'—')}</div>
         <div class="m"><span class="text-muted" style="font-size:11px">${PDMS.esc(p.type||'—')}</span><span>${p.due||'—'}</span></div>
         <div class="mt-2">${badgeHtml}</div>
@@ -248,6 +251,173 @@ function renderProjects(){
     </div>`;
   }).join('')}</div>`;
 }
+
+let isKbDragging = false;
+let draggedKbProjectId = null;
+
+function handleKbDragStart(e, id) {
+  isKbDragging = true;
+  draggedKbProjectId = id;
+  e.dataTransfer.setData('text/plain', id);
+  e.dataTransfer.effectAllowed = 'move';
+  const card = e.currentTarget;
+  setTimeout(() => card.classList.add('dragging'), 0);
+}
+
+function handleKbDragEnd(e) {
+  draggedKbProjectId = null;
+  const card = e.currentTarget;
+  card.classList.remove('dragging');
+  document.querySelectorAll('.kb-col').forEach(col => col.classList.remove('drag-over'));
+  setTimeout(() => { isKbDragging = false; }, 100);
+}
+
+function handleKbDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const col = e.currentTarget;
+  if (!col.classList.contains('drag-over')) {
+    col.classList.add('drag-over');
+  }
+}
+
+function handleKbDragLeave(e) {
+  const col = e.currentTarget;
+  if (!col.contains(e.relatedTarget)) {
+    col.classList.remove('drag-over');
+  }
+}
+
+function getMilestonesMap(project) {
+  if (!project) return {};
+  if (project.milestones && typeof project.milestones === 'object' && !Array.isArray(project.milestones)) {
+    return project.milestones;
+  }
+  if (Array.isArray(project.milestones)) {
+    const map = {};
+    project.milestones.forEach(m => {
+      if (m && m.stage) map[m.stage] = m;
+    });
+    return map;
+  }
+  if (typeof project.milestones === 'string' && project.milestones.trim()) {
+    try {
+      const parsed = JSON.parse(project.milestones);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        const map = {};
+        parsed.forEach(m => { if (m && m.stage) map[m.stage] = m; });
+        return map;
+      }
+    } catch (e) { }
+  }
+  return {};
+}
+
+function handleKbDrop(e, targetStatus) {
+  e.preventDefault();
+  const col = e.currentTarget;
+  col.classList.remove('drag-over');
+
+  const id = e.dataTransfer.getData('text/plain') || draggedKbProjectId;
+  if (!id) return;
+
+  const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+  const p = liveProjects.find(x => x.id === id);
+  if (!p) return;
+
+  const currentStatus = viewParam === 'delivery' ? (PDMS.deliveryStatusOf(p) || p.status) : p.status;
+  if (currentStatus === targetStatus) return;
+
+  if (!PDMS.canChangeStatus(p, targetStatus)) {
+    PDMS.toast('Not allowed', `You don't have permission to move to "${targetStatus}"`, 'error');
+    return;
+  }
+
+  // Handle special status Award/SLA
+  if (targetStatus === 'Award/SLA') {
+    window.editProject(p.id);
+    return;
+  }
+
+  const mDataMap = getMilestonesMap(p);
+  const mInfo = mDataMap[targetStatus] || {};
+  const currentDueDate = mInfo.dueDate || '';
+  const currentNotes = mInfo.notes || '';
+
+  const modal = PDMS.modal(`Update Status: ${PDMS.esc(targetStatus)}`, `
+    <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">
+      Move <strong>${PDMS.esc(p.name || p.client)}</strong> to <strong style="color:var(--primary);font-size:15px">${PDMS.esc(targetStatus)}</strong>.
+    </p>
+
+    <div class="form-row">
+      <label>Stage Target Due Date</label>
+      <input type="date" id="kbStageDueDate" value="${PDMS.esc(currentDueDate)}" style="width:100%" />
+    </div>
+
+    <div class="form-row" style="margin-top:12px">
+      <label>Milestone Notes / Deliverables (Optional)</label>
+      <textarea id="kbStageNotes" rows="3" placeholder="Enter deliverables or notes for this stage...">${PDMS.esc(currentNotes)}</textarea>
+    </div>
+  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmKbDropBtn">Update Status</button>`);
+
+  modal.querySelector('#confirmKbDropBtn').onclick = function () {
+    const dueDate = modal.querySelector('#kbStageDueDate').value;
+    const notes = modal.querySelector('#kbStageNotes').value.trim();
+
+    const btn = this;
+    PDMS.setButtonLoading(btn, true, 'Updating...');
+
+    const updatedMap = Object.assign({}, mDataMap);
+    updatedMap[targetStatus] = {
+      stage: targetStatus,
+      dueDate: dueDate || '',
+      notes: notes,
+      updatedAt: new Date().toISOString()
+    };
+
+    const patch = {
+      status: targetStatus,
+      milestones: updatedMap
+    };
+
+    if (targetStatus === 'On Hold') {
+      patch.previousStatus = currentStatus !== 'On Hold' ? currentStatus : (p.previousStatus || 'Lead');
+      patch.heldAtStatus = patch.previousStatus;
+    }
+
+    if (viewParam === 'delivery' || (PDMS.stageOf && PDMS.stageOf(p) === 'Delivery')) {
+      patch.deliveryStatus = targetStatus;
+    }
+
+    PDMS.api.update('projects', p.id, patch).then(saved => {
+      Object.assign(p, saved, patch);
+      modal.remove();
+      PDMS.toast('Status Updated', `Moved "${p.name || p.client}" to "${targetStatus}"`, 'success');
+      const u = PDMS.getUser();
+      if (u) {
+        PDMS.notify('Status Changed', `${u.name} (${u.role}) moved "${p.name || p.client}" to "${targetStatus}"`, 'refresh', 'project-details.html#id=' + p.id, '', '', p.id);
+      }
+      renderProjects();
+    }).catch(err => {
+      PDMS.setButtonLoading(btn, false);
+      PDMS.toast('Error', err.message || 'Could not update project status', 'error');
+    });
+  };
+}
+
+function handleKbCardClick(e, id) {
+  if (isKbDragging) return;
+  location.href = `project-details.html#id=${id}${viewParam==='sales'?'&from=sales':viewParam==='delivery'?'&from=delivery':''}`;
+}
+
+window.handleKbDragStart = handleKbDragStart;
+window.handleKbDragEnd = handleKbDragEnd;
+window.handleKbDragOver = handleKbDragOver;
+window.handleKbDragLeave = handleKbDragLeave;
+window.handleKbDrop = handleKbDrop;
+window.handleKbCardClick = handleKbCardClick;
+
 PDMS.onRefresh(renderProjects);
 document.getElementById('viewToggle').onclick = ()=>{
   const lv=document.getElementById('listView'),kv=document.getElementById('kanbanView');

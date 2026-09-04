@@ -4,10 +4,10 @@
 <title>Dashboard — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788459159"/>
+<link rel="stylesheet" href="css/style.css?v=1788481808"/>
 </head>
 <body>
-<script src="js/bundle.js?v=1788459159"></script>
+<script src="js/bundle.js?v=1788481808"></script>
 <script>
 PDMS.mountShell('dashboard');
 
@@ -111,8 +111,7 @@ requestAnimationFrame(() => {
       }
 
       const row1 = document.getElementById('row1');
-      if(row1) {
-        const statusColorHex2 = {'Not Started':'#94a3b8','In Progress':'#f59e0b','Awaiting Review':'#eab308','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Testing / Quality Assurance':'#8b5cf6','Completed':'#10b981','On Hold':'#64748b','Initial Proposal':'#3b82f6','Lead':'#06b6d4','Opportunity':'#8b5cf6','Negotiation':'#f59e0b','Invoicing':'#f97316','Award/SLA':'#10b981','Closed':'#4f46e5','Cancelled':'#ef4444','Incoming':'#3b82f6','Proposal Sent':'#f97316','SLA Signed':'#10b981'};
+        const statusColorHex2 = { 'Completed':'#10b981','Closure':'#10b981','On Hold':'#64748b','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Training':'#6366f1','Testing':'#8b5cf6','Gap Assessment':'#0ea5e9','Implementation':'#8b5cf6','Recommendation':'#f59e0b','Certificate Reception':'#10b981','Internal Testing':'#0ea5e9','Penetration Testing':'#8b5cf6','Report Submission':'#6366f1','Review':'#f59e0b','Requirements Gathering':'#0ea5e9','Configuration & Design':'#6366f1','Data Preparation & Migration':'#8b5cf6','Integration':'#6366f1','User Acceptance Testing (UAT)':'#f59e0b','Go-Live':'#10b981','Surveillance':'#0ea5e9','Remediation':'#f59e0b','Surveillance Audit':'#8b5cf6','Initial Proposal':'#3b82f6','Lead':'#06b6d4','Opportunity':'#8b5cf6','Negotiation':'#f59e0b','Invoicing':'#f97316','Award/SLA':'#10b981','Closed':'#4f46e5','Cancelled':'#ef4444','Incoming':'#3b82f6','Proposal Sent':'#f97316','SLA Signed':'#10b981' };
         row1.innerHTML = isConsultant ? `
   <div class="card">
     <div class="card-head"><div><div class="card-title">Assigned Projects</div><div class="card-sub">${consultantProjects.length} project${consultantProjects.length!==1?'s':''}</div></div><a href="consultants.html" style="font-size:12px;font-weight:600;color:var(--primary)">View all</a></div>
@@ -198,7 +197,7 @@ requestAnimationFrame(() => {
         const projectsForChart = D.projects;
         const statusCounts = {};
         D.statuses.forEach(s=>statusCounts[s]=projectsForChart.filter(p=>p.status===s).length);
-        const statusColorHex = {Incoming:'#3b82f6',Approved:'#4f46e5',Assigned:'#8b5cf6',Planning:'#06b6d4','In Progress':'#f59e0b','Awaiting Review':'#eab308',Revision:'#ef4444',Completed:'#10b981',Closed:'#94a3b8',Cancelled:'#dc2626'};
+        const statusColorHex = statusColorHex2;
         const donutCCanvas = document.getElementById('donutC');
         if(donutCCanvas){
           PDMS.charts.donut(donutCCanvas,Object.values(statusCounts),Object.keys(statusCounts).map(k=>statusColorHex[k]));
