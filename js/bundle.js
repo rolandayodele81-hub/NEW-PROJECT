@@ -199,7 +199,7 @@
    ============================================ */
 (function (global) {
   const roles = ['System Administrator', 'HR', 'COO', 'HTD', 'PM Head', 'PMO', 'Accounts', 'Sales', 'Sales Head', 'Consultant'];
-  const types = ['Management System', 'VAPT', 'Software Development & Artificial Intelligence (AI)', 'ERP', 'Surveillance / Recertification'];
+  const types = ['Management System', 'VAPT', 'Software Development', 'Artificial Intelligence', 'ERP', 'Surveillance / Recertification'];
   const priorities = ['Critical', 'High', 'Medium', 'Low'];
   const workstreams = ['Cloud Engineering', 'Cybersecurity', 'Data Analytics', 'Digital Transformation', 'ERP Implementation', 'Infrastructure', 'Mobile Development', 'Software Development', 'Web Platform', 'Business Consulting', 'General'];
   const salesJourney = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'];
@@ -1718,7 +1718,7 @@
       clientMode: null, // 'new' or 'existing'
       selectedClient: null, // { name, industry, email, phone, address, workedBefore }
       newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
-      projForm: { type: (D.types && D.types[0]) || 'ERP', workstream: '', status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'ERP')) || ['Not Started'])[0] || 'Not Started', start: '', due: '', actualCompletion: '', desc: '' }
+      projForm: { type: (D.types && D.types[0]) || 'Management System', workstream: '', status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'Management System')) || ['Gap Assessment'])[0] || 'Gap Assessment', start: '', due: '', actualCompletion: '', desc: '' }
     };
 
     function renderModal() {

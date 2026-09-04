@@ -3,7 +3,7 @@
    ============================================ */
 (function (global) {
   const roles = ['System Administrator', 'HR', 'COO', 'HTD', 'PM Head', 'PMO', 'Accounts', 'Sales', 'Sales Head', 'Consultant'];
-  const types = ['Management System', 'VAPT', 'Software Development & Artificial Intelligence (AI)', 'ERP', 'Surveillance / Recertification'];
+  const types = ['Management System', 'VAPT', 'Software Development', 'Artificial Intelligence', 'ERP', 'Surveillance / Recertification'];
   const priorities = ['Critical', 'High', 'Medium', 'Low'];
   const workstreams = ['Cloud Engineering', 'Cybersecurity', 'Data Analytics', 'Digital Transformation', 'ERP Implementation', 'Infrastructure', 'Mobile Development', 'Software Development', 'Web Platform', 'Business Consulting', 'General'];
   const salesJourney = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'];
