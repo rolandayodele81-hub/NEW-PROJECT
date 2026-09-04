@@ -111,6 +111,7 @@ requestAnimationFrame(() => {
       }
 
       const row1 = document.getElementById('row1');
+      if(row1) {
         const statusColorHex2 = { 'Completed':'#10b981','Closure':'#10b981','On Hold':'#64748b','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Training':'#6366f1','Testing':'#8b5cf6','Gap Assessment':'#0ea5e9','Implementation':'#8b5cf6','Recommendation':'#f59e0b','Certificate Reception':'#10b981','Internal Testing':'#0ea5e9','Penetration Testing':'#8b5cf6','Report Submission':'#6366f1','Review':'#f59e0b','Requirements Gathering':'#0ea5e9','Configuration & Design':'#6366f1','Data Preparation & Migration':'#8b5cf6','Integration':'#6366f1','User Acceptance Testing (UAT)':'#f59e0b','Go-Live':'#10b981','Surveillance':'#0ea5e9','Remediation':'#f59e0b','Surveillance Audit':'#8b5cf6','Initial Proposal':'#3b82f6','Lead':'#06b6d4','Opportunity':'#8b5cf6','Negotiation':'#f59e0b','Invoicing':'#f97316','Award/SLA':'#10b981','Closed':'#4f46e5','Cancelled':'#ef4444','Incoming':'#3b82f6','Proposal Sent':'#f97316','SLA Signed':'#10b981' };
         row1.innerHTML = isConsultant ? `
   <div class="card">
