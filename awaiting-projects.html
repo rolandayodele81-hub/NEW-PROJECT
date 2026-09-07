@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Awaiting Approval — PSE PDMS</title>
-  <link rel="stylesheet" href="css/style.css?v=1788776415"/>
+  <link rel="stylesheet" href="css/style.css?v=1788819344"/>
   <style>
     .approve-btn {
       padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
@@ -22,7 +22,7 @@
   </style>
 </head>
 <body>
-<script src="js/bundle.js?v=1788776415"></script>
+<script src="js/bundle.js?v=1788819344"></script>
 <script>
   PDMS.mountShell('awaiting-approval');
   const D = PDMS_DATA; const I = PDMS.icon;
@@ -30,7 +30,7 @@
   const currentUser = PDMS.getUser();
   const isSalesHead = currentUser && currentUser.role === 'Sales Head';
   const isAccounts = currentUser && currentUser.role === 'Accounts';
-  const isDeliveryApprover = currentUser && ['PM Head', 'COO', 'HTD'].includes(currentUser.role);
+  const isDeliveryApprover = currentUser && ['PM Head', 'COO', 'HTD', 'PMO'].includes(currentUser.role);
   // Sales Head sees 'Awaiting Sales Head Approval'; Accounts and Delivery Leadership see 'Awaiting Account Approval'
   const pendingStatus = isSalesHead ? 'Awaiting Sales Head Approval' : 'Awaiting Account Approval';
   const pageTitle = isSalesHead ? 'Projects Awaiting Sales Head Approval' : (isAccounts ? 'Projects Awaiting Approval' : 'Projects Awaiting Account Approval');
@@ -60,7 +60,7 @@
     document.getElementById('content').innerHTML = `
     <div class="page-head">
       <div>
-        <div class="breadcrumbs"><span>Home</span><span>Awaiting Projects</span></div>
+        <div class="breadcrumbs"><span>Home</span><span>Awaiting Approval</span></div>
         <h1 class="page-title">${pageTitle}</h1>
         <div class="page-sub">${pageSub}</div>
       </div>

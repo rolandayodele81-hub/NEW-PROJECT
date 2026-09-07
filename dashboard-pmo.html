@@ -7,7 +7,7 @@
   <title>PMO Dashboard — PSE PDMS</title>
   
   
-  <link rel="stylesheet" href="css/style.css?v=1788776415"/>
+  <link rel="stylesheet" href="css/style.css?v=1788819344"/>
   <style>
     .pmo-hero {
       display: grid;
@@ -62,7 +62,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788776415"></script>
+  <script src="js/bundle.js?v=1788819344"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -147,41 +147,48 @@
     </div>
   </div>
 
-  <div class="grid" style="grid-template-columns:2fr 1fr;gap:20px;margin-bottom:24px">
-    <div class="card">
+  <div class="grid" style="grid-template-columns:1.6fr 1fr;gap:20px;margin-bottom:24px;align-items:stretch">
+    <div class="card" style="display:flex;flex-direction:column">
       <div class="card-head">
         <div><div class="card-title">Project Status Breakdown</div><div class="card-sub">How your assigned projects are distributed across statuses</div></div>
         <span class="badge badge-primary">${projects.length} total</span>
       </div>
+      <div class="card-body" style="padding:12px 20px 20px;flex:1">
         ${(() => {
-          const sc = { 'Completed':'#10b981','Closure':'#10b981','On Hold':'#64748b','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Training':'#6366f1','Testing':'#8b5cf6','Gap Assessment':'#0ea5e9','Implementation':'#8b5cf6','Post Engagement':'#6366f1','Internal Testing':'#0ea5e9','Penetration Testing':'#8b5cf6','Report Submission':'#6366f1','Review':'#f59e0b','Requirements Gathering':'#0ea5e9','Configuration & Design':'#6366f1','Data Preparation & Migration':'#8b5cf6','Integration':'#6366f1','User Acceptance Testing (UAT)':'#f59e0b','Go-Live':'#10b981','Surveillance':'#0ea5e9','Remediation':'#f59e0b','Surveillance Audit':'#8b5cf6','Cancelled':'#ef4444' };
+          const sc = { 'Completed':'#10b981','Closure':'#10b981','Project Closure':'#10b981','On Hold':'#64748b','Gap Assessment':'#0ea5e9','Risk Assessment':'#f59e0b','Management System Design & Documentation/Implementation':'#8b5cf6','VAPT':'#8b5cf6','Training & Awareness':'#6366f1','Internal Audit & Management Review':'#06b6d4','Remediation & Certification Readiness':'#f59e0b','Certification Audit':'#8b5cf6','Certification & Post Engagement':'#6366f1','Certification & Post engagement':'#6366f1','Post Engagement':'#6366f1','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Training':'#6366f1','Awareness & VAPT':'#8b5cf6','Testing':'#8b5cf6','Implementation':'#8b5cf6','Internal Testing':'#0ea5e9','Penetration Testing':'#8b5cf6','Report Submission':'#6366f1','Review':'#f59e0b','Requirements Gathering':'#0ea5e9','Configuration & Design':'#6366f1','Data Preparation & Migration':'#8b5cf6','Integration':'#6366f1','User Acceptance Testing (UAT)':'#f59e0b','Go-Live':'#10b981','Previous Findings Closure':'#0ea5e9','Management Review':'#8b5cf6','Readiness Assessment':'#0ea5e9','Remediation':'#f59e0b','Surveillance Audit':'#8b5cf6','Cancelled':'#ef4444' };
           const getDeliveryStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
-          const statuses = D.deliveryStatuses;
-          const max = Math.max(...statuses.map(s => projects.filter(p => getDeliveryStatus(p) === s).length), 1);
-          return statuses.map(s => {
+          const allStatuses = D.deliveryStatuses || [];
+          const activeList = allStatuses.map(s => {
             const count = projects.filter(p => getDeliveryStatus(p) === s).length;
-            const pct = Math.round((count / max) * 100);
-            const color = sc[s] || '#94a3b8';
+            return { status: s, count, color: sc[s] || '#94a3b8' };
+          }).filter(item => item.count > 0);
+
+          const listToDisplay = activeList.length > 0 ? activeList : allStatuses.slice(0, 6).map(s => ({ status: s, count: 0, color: sc[s] || '#94a3b8' }));
+          const max = Math.max(...listToDisplay.map(s => s.count), 1);
+
+          return listToDisplay.map(item => {
+            const pct = Math.round((item.count / max) * 100);
             return `
-            <div style="display:grid;grid-template-columns:160px 1fr 36px;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
-              <div class="text-sm" style="display:flex;align-items:center;gap:6px;min-width:0">
-                <span style="width:8px;height:8px;border-radius:2px;background:${color};flex-shrink:0;display:inline-block"></span>
-                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s}</span>
+            <div style="display:grid;grid-template-columns:minmax(180px, 240px) 1fr 40px;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid var(--border)">
+              <div class="text-sm font-medium" style="display:flex;align-items:center;gap:8px;min-width:0" title="${PDMS.esc(item.status)}">
+                <span style="width:9px;height:9px;border-radius:3px;background:${item.color};flex-shrink:0;display:inline-block"></span>
+                <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)">${PDMS.esc(item.status)}</span>
               </div>
-              <div style="background:var(--surface-2);border-radius:6px;height:14px;overflow:hidden">
-                <div style="width:${pct}%;height:100%;background:${color};border-radius:6px;transition:width .4s ease;opacity:${count === 0 ? '0.25' : '1'}"></div>
+              <div style="background:var(--surface-2);border-radius:6px;height:12px;overflow:hidden">
+                <div style="width:${pct}%;height:100%;background:${item.color};border-radius:6px;transition:width .4s ease;opacity:${item.count === 0 ? '0.25' : '1'}"></div>
               </div>
-              <div class="text-sm font-semi" style="text-align:right;color:${count === 0 ? 'var(--text-muted)' : 'var(--text)'}">${count}</div>
+              <div class="text-sm font-bold" style="text-align:right;color:${item.count === 0 ? 'var(--text-muted)' : 'var(--text)'}">${item.count}</div>
             </div>`;
-          }).join('') + (projects.length === 0 ? `<div class="text-muted text-sm text-center" style="padding:16px 0">${PDMS.emptyOrLoading('No assigned projects yet')}</div>` : '');
+          }).join('');
         })()}
+        ${projects.length === 0 ? `<div class="text-muted text-sm text-center" style="padding:20px 0">${PDMS.emptyOrLoading('No assigned projects yet')}</div>` : ''}
       </div>
     </div>
-    <div class="card">
+    <div class="card" style="display:flex;flex-direction:column">
       <div class="card-head"><div><div class="card-title">Project Progress</div><div class="card-sub">Ongoing vs completed</div></div></div>
-      <div class="card-body" style="padding:8px 16px 20px">
-        <div class="chart-wrap" style="height:180px"><canvas id="pmoDonut"></canvas></div>
-        <div id="pmoDonutLegend" style="margin-top:12px;display:flex;flex-direction:column;gap:8px"></div>
+      <div class="card-body" style="padding:16px 20px 24px;flex:1;display:flex;flex-direction:column;justify-content:center">
+        <div class="chart-wrap" style="height:210px;width:100%;margin:0 auto"><canvas id="pmoDonut"></canvas></div>
+        <div id="pmoDonutLegend" style="margin-top:16px;display:flex;flex-direction:column;gap:10px;padding:0 8px"></div>
       </div>
     </div>
   </div>

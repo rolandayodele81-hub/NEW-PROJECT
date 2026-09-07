@@ -72,6 +72,7 @@
 
   PDMS.stageOf = function (project) {
     if (!project) return 'Sales';
+    if (project.createdByRole && DELIVERY_ROLES.includes(project.createdByRole)) return 'Delivery';
     if (project.status === 'Awaiting Account Approval' || project.status === 'Awaiting Sales Head Approval') return 'Sales';
 
     const normalized = PDMS.normalizeStatus ? PDMS.normalizeStatus(project.status) : project.status;
@@ -83,7 +84,7 @@
     }
 
     const D = window.PDMS_DATA;
-    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Gap Assessment', 'Training', 'Implementation', 'Internal Audit', 'Remediation', 'External Audit', 'Completed', 'Post Engagement', 'Closure'];
+    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Gap Assessment', 'Risk Assessment', 'Management System Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure'];
     if (allDelivery.includes(normalized) || allDelivery.includes(project.status)) return 'Delivery';
 
     if (project.status === 'Closed') return 'Delivery';
@@ -91,8 +92,14 @@
     if (project.deliveryStatus) return 'Delivery';
 
     if (project.stage === 'Sales') return 'Sales';
-    if (project.createdByRole && DELIVERY_ROLES.includes(project.createdByRole)) return 'Delivery';
     return 'Sales';
+  };
+
+  PDMS.isSalesOrigin = function (project) {
+    if (!project) return false;
+    const role = String(project.createdByRole || '').trim();
+    if (DELIVERY_ROLES.includes(role) || ['Consultant', 'PMO', 'HTD', 'COO', 'PM Head'].includes(role)) return false;
+    return true;
   };
 
   PDMS.statusOptionsFor = function (user, project) {
@@ -176,7 +183,7 @@
     if (preAwardSales.includes(project.status) || (project.status === 'Cancelled' && project.stage === 'Sales' && !project.deliveryStatus)) {
       return null;
     }
-    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Gap Assessment', 'Training', 'Implementation', 'Internal Audit', 'Remediation', 'External Audit', 'Completed', 'Post Engagement', 'Closure']);
+    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Gap Assessment', 'Risk Assessment', 'Management System Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure']);
     
     // 1. Check explicit deliveryStatus field
     const delivRaw = String(project.deliveryStatus || '').trim();
@@ -209,8 +216,8 @@
       if (st.toLowerCase() === 'awaiting review') return 'Testing';
       if (st.toLowerCase() === 'in progress') return 'Configuration & Design';
     } else if (type === 'Management System') {
-      if (st.toLowerCase() === 'awaiting review') return 'Internal Audit';
-      if (st.toLowerCase() === 'in progress') return 'Implementation';
+      if (st.toLowerCase() === 'awaiting review') return 'Certification Audit';
+      if (st.toLowerCase() === 'in progress') return 'Management System Design & Documentation/Implementation';
     } else if (type.toLowerCase().includes('surveillance') || type.toLowerCase().includes('recertification')) {
       if (st.toLowerCase() === 'awaiting review') return 'Surveillance Audit';
       if (st.toLowerCase() === 'in progress') return 'Internal Audit';

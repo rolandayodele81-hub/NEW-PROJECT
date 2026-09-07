@@ -7,7 +7,7 @@
   <title>Sales Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788776415"/>
+<link rel="stylesheet" href="css/style.css?v=1788819344"/>
   <style>
     .sales-hero {
       display: grid;
@@ -94,7 +94,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788776415"></script>
+  <script src="js/bundle.js?v=1788819344"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -113,9 +113,10 @@
 
     function isSalesProject(p) {
       if (!p) return false;
-      if (p.stage === 'Sales') return true;
-      const role = String(p.createdByRole || '').toLowerCase();
+      const role = String(p.createdByRole || '').trim().toLowerCase();
+      if (['htd', 'coo', 'pm head', 'pmo', 'consultant', 'general admin'].includes(role)) return false;
       if (role === 'sales' || role === 'sales head') return true;
+      if (p.stage === 'Sales') return true;
       if (p.status === 'Awaiting Sales Head Approval' || p.status === 'Awaiting Account Approval') return true;
       if (PDMS.isSalesStatus && PDMS.isSalesStatus(p.status)) return true;
       if (p.sales && p.sales !== 'TBD' && p.sales !== 'PM Team' && p.sales !== 'None') return true;

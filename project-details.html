@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788776415" />
+  <link rel="stylesheet" href="css/style.css?v=1788819344" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788776415"></script>
+  <script src="js/bundle.js?v=1788819344"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -240,7 +240,7 @@
         // Accounts rejected this — show locked rejection page for EVERYONE including lead owner
         // Lead owner gets inline Update Details & Resend to Accounts + Documents
         const fromVal = new URLSearchParams(location.hash.replace(/^#/, '')).get('from');
-        const breadcrumbText = fromVal === 'accounts' ? 'Awaiting Projects' : fromVal === 'sales' ? 'Sales Pipeline' : 'Projects';
+        const breadcrumbText = fromVal === 'accounts' ? 'Awaiting Approval' : fromVal === 'sales' ? 'Sales Pipeline' : 'Projects';
         const reviews = projectIssues(p);
         const canUpdate = PDMS.can('Add Remarks');
         const user = PDMS.getUser();
@@ -662,7 +662,7 @@
       } else if (p.status !== 'Cancelled' && p.status !== 'Awaiting Account Approval' && p.status !== 'Awaiting Sales Head Approval' && (p.status === 'Closed' || p.stage === 'Delivery' || (PDMS.stageOf(p) === 'Delivery')) && (['sales', 'accounts'].includes(new URLSearchParams(location.hash.replace(/^#/, '')).get('from')))) {
         // Anyone opened this from Sales Pipeline or Awaiting Projects (Accounts) — show read-only locked view (can still chat and click to view from delivery)
         const fromVal = new URLSearchParams(location.hash.replace(/^#/, '')).get('from');
-        const breadcrumbText = fromVal === 'accounts' ? 'Awaiting Projects' : 'Sales Pipeline';
+        const breadcrumbText = fromVal === 'accounts' ? 'Awaiting Approval' : 'Sales Pipeline';
         const reviews = projectIssues(p);
         const canUpdate = PDMS.can('Add Remarks');
         const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';

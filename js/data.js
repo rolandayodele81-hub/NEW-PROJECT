@@ -21,14 +21,16 @@
 
   const managementSystemStages = [
     'Gap Assessment',
-    'Training',
-    'Implementation',
-    'Internal Audit',
-    'Remediation',
-    'External Audit',
+    'Risk Assessment',
+    'Management System Design & Documentation/Implementation',
+    'VAPT',
+    'Training & Awareness',
+    'Internal Audit & Management Review',
+    'Remediation & Certification Readiness',
+    'Certification Audit',
     'Completed',
-    'Post Engagement',
-    'Closure'
+    'Certification & Post Engagement',
+    'Project Closure'
   ];
 
   const vaptStages = [
@@ -71,12 +73,16 @@
   ];
 
   const surveillanceStages = [
-    'Surveillance',
-    'Internal Audit',
-    'Remediation',
+    'Previous Findings Closure',
     'Training',
+    'Awareness & VAPT',
+    'Internal Audit',
+    'Management Review',
+    'Readiness Assessment',
+    'Remediation',
     'Surveillance Audit',
     'Completed',
+    'Post Engagement',
     'Closure'
   ];
 
@@ -135,9 +141,16 @@
 
     // 1. Management System
     'Gap Assessment': 'info',
-    'Implementation': 'purple',
-    'External Audit': 'warn',
-    'Post Engagement': 'primary',
+    'Risk Assessment': 'warn',
+    'Management System Design & Documentation/Implementation': 'purple',
+    'VAPT': 'purple',
+    'Training & Awareness': 'primary',
+    'Internal Audit & Management Review': 'info',
+    'Remediation & Certification Readiness': 'warn',
+    'Certification Audit': 'purple',
+    'Certification & Post Engagement': 'primary',
+    'Certification & Post engagement': 'primary',
+    'Project Closure': 'success',
 
     // 2. VAPT
     'Internal Testing': 'info',
@@ -167,7 +180,9 @@
     'Go-Live': 'success',
 
     // 5. Surveillance / Recertification
-    'Surveillance': 'info',
+    'Previous Findings Closure': 'info',
+    'Management Review': 'purple',
+    'Readiness Assessment': 'info',
     'Remediation': 'warn',
     'Surveillance Audit': 'purple'
   };

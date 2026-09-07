@@ -217,14 +217,16 @@
 
   const managementSystemStages = [
     'Gap Assessment',
-    'Training',
-    'Implementation',
-    'Internal Audit',
-    'Remediation',
-    'External Audit',
+    'Risk Assessment',
+    'Management System Design & Documentation/Implementation',
+    'VAPT',
+    'Training & Awareness',
+    'Internal Audit & Management Review',
+    'Remediation & Certification Readiness',
+    'Certification Audit',
     'Completed',
-    'Post Engagement',
-    'Closure'
+    'Certification & Post Engagement',
+    'Project Closure'
   ];
 
   const vaptStages = [
@@ -267,12 +269,16 @@
   ];
 
   const surveillanceStages = [
-    'Surveillance',
-    'Internal Audit',
-    'Remediation',
+    'Previous Findings Closure',
     'Training',
+    'Awareness & VAPT',
+    'Internal Audit',
+    'Management Review',
+    'Readiness Assessment',
+    'Remediation',
     'Surveillance Audit',
     'Completed',
+    'Post Engagement',
     'Closure'
   ];
 
@@ -331,9 +337,16 @@
 
     // 1. Management System
     'Gap Assessment': 'info',
-    'Implementation': 'purple',
-    'External Audit': 'warn',
-    'Post Engagement': 'primary',
+    'Risk Assessment': 'warn',
+    'Management System Design & Documentation/Implementation': 'purple',
+    'VAPT': 'purple',
+    'Training & Awareness': 'primary',
+    'Internal Audit & Management Review': 'info',
+    'Remediation & Certification Readiness': 'warn',
+    'Certification Audit': 'purple',
+    'Certification & Post Engagement': 'primary',
+    'Certification & Post engagement': 'primary',
+    'Project Closure': 'success',
 
     // 2. VAPT
     'Internal Testing': 'info',
@@ -363,7 +376,9 @@
     'Go-Live': 'success',
 
     // 5. Surveillance / Recertification
-    'Surveillance': 'info',
+    'Previous Findings Closure': 'info',
+    'Management Review': 'purple',
+    'Readiness Assessment': 'info',
     'Remediation': 'warn',
     'Surveillance Audit': 'purple'
   };
@@ -2184,13 +2199,27 @@
   };
 
   // ===== Chart primitives (canvas) =====
+  function setupCanvas(canvas, defaultW, defaultH) {
+    const parent = canvas.parentElement;
+    const pW = parent ? parent.clientWidth : 0;
+    const pH = parent ? parent.clientHeight : 0;
+    const W = Math.floor(pW || defaultW || 200);
+    const H = Math.floor(pH || defaultH || 180);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
+    return { ctx, W, H, dpr };
+  }
+
   PDMS.charts = {
     line(canvas, series, labels, colors){
-      const ctx=canvas.getContext('2d');
-      const dpr = window.devicePixelRatio||1;
-      const W = canvas.clientWidth, H = canvas.clientHeight;
-      canvas.width=W*dpr; canvas.height=H*dpr; ctx.scale(dpr,dpr);
-      ctx.clearRect(0,0,W,H);
+      const { ctx, W, H } = setupCanvas(canvas, 300, 200);
       const pad = {l:36,r:12,t:12,b:24};
       const all = series.flat();
       const max = Math.max(...all)*1.1||1, min = 0;
@@ -2238,11 +2267,7 @@
       });
     },
     bar(canvas, values, labels, color){
-      const ctx=canvas.getContext('2d');
-      const dpr = window.devicePixelRatio||1;
-      const W = canvas.clientWidth, H = canvas.clientHeight;
-      canvas.width=W*dpr; canvas.height=H*dpr; ctx.scale(dpr,dpr);
-      ctx.clearRect(0,0,W,H);
+      const { ctx, W, H } = setupCanvas(canvas, 300, 200);
       const rotate = values.length > 5;
       const pad = {l:36, r:12, t:18, b: rotate ? 80 : 28};
       const max = Math.max(...values)*1.15||1;
@@ -2282,31 +2307,27 @@
       ctx.textAlign='left';
     },
     donut(canvas, values, colors, labels){
-      const ctx=canvas.getContext('2d');
-      const dpr = window.devicePixelRatio||1;
-      const W = canvas.clientWidth, H = canvas.clientHeight;
-      canvas.width=W*dpr; canvas.height=H*dpr; ctx.scale(dpr,dpr);
-      ctx.clearRect(0,0,W,H);
-      const cx=W/2, cy=H/2, r=Math.min(W,H)/2-10, ir=r*0.62;
-      const realTotal = values.reduce((a,b)=>a+b,0);
-      const total = realTotal||1;
-      let start=-Math.PI/2;
-      values.forEach((v,i)=>{
-        const ang = (v/total)*Math.PI*2;
+      const { ctx, W, H } = setupCanvas(canvas, 180, 180);
+      const cx = W / 2, cy = H / 2, r = Math.max(Math.min(W, H) / 2 - 8, 10), ir = r * 0.62;
+      const realTotal = values.reduce((a, b) => a + b, 0);
+      const total = realTotal || 1;
+      let start = -Math.PI / 2;
+      values.forEach((v, i) => {
+        const ang = (v / total) * Math.PI * 2;
         ctx.beginPath();
-        ctx.moveTo(cx,cy);
-        ctx.arc(cx,cy,r,start,start+ang);
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, start, start + ang);
         ctx.closePath();
-        ctx.fillStyle = colors[i];
+        ctx.fillStyle = colors[i] || '#94a3b8';
         ctx.fill();
         start += ang;
       });
-      ctx.beginPath();ctx.arc(cx,cy,ir,0,Math.PI*2);
-      ctx.fillStyle=getCss('--surface');ctx.fill();
-      ctx.fillStyle=getCss('--text');ctx.font='700 20px Inter';ctx.textAlign='center';
-      ctx.fillText(realTotal,cx,cy);
-      ctx.fillStyle=getCss('--text-muted');ctx.font='11px Inter';
-      ctx.fillText('Total',cx,cy+16);
+      ctx.beginPath(); ctx.arc(cx, cy, ir, 0, Math.PI * 2);
+      ctx.fillStyle = getCss('--surface'); ctx.fill();
+      ctx.fillStyle = getCss('--text'); ctx.font = '700 18px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(realTotal, cx, cy - 7);
+      ctx.fillStyle = getCss('--text-muted'); ctx.font = '11px Inter, sans-serif'; ctx.textBaseline = 'middle';
+      ctx.fillText('Total', cx, cy + 11);
     }
   };
   function roundRect(ctx,x,y,w,h,r){
@@ -2634,6 +2655,7 @@
 
   PDMS.stageOf = function (project) {
     if (!project) return 'Sales';
+    if (project.createdByRole && DELIVERY_ROLES.includes(project.createdByRole)) return 'Delivery';
     if (project.status === 'Awaiting Account Approval' || project.status === 'Awaiting Sales Head Approval') return 'Sales';
 
     const normalized = PDMS.normalizeStatus ? PDMS.normalizeStatus(project.status) : project.status;
@@ -2645,7 +2667,7 @@
     }
 
     const D = window.PDMS_DATA;
-    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Gap Assessment', 'Training', 'Implementation', 'Internal Audit', 'Remediation', 'External Audit', 'Completed', 'Post Engagement', 'Closure'];
+    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Gap Assessment', 'Risk Assessment', 'Management System Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure'];
     if (allDelivery.includes(normalized) || allDelivery.includes(project.status)) return 'Delivery';
 
     if (project.status === 'Closed') return 'Delivery';
@@ -2653,8 +2675,14 @@
     if (project.deliveryStatus) return 'Delivery';
 
     if (project.stage === 'Sales') return 'Sales';
-    if (project.createdByRole && DELIVERY_ROLES.includes(project.createdByRole)) return 'Delivery';
     return 'Sales';
+  };
+
+  PDMS.isSalesOrigin = function (project) {
+    if (!project) return false;
+    const role = String(project.createdByRole || '').trim();
+    if (DELIVERY_ROLES.includes(role) || ['Consultant', 'PMO', 'HTD', 'COO', 'PM Head'].includes(role)) return false;
+    return true;
   };
 
   PDMS.statusOptionsFor = function (user, project) {
@@ -2738,7 +2766,7 @@
     if (preAwardSales.includes(project.status) || (project.status === 'Cancelled' && project.stage === 'Sales' && !project.deliveryStatus)) {
       return null;
     }
-    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Gap Assessment', 'Training', 'Implementation', 'Internal Audit', 'Remediation', 'External Audit', 'Completed', 'Post Engagement', 'Closure']);
+    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Gap Assessment', 'Risk Assessment', 'Management System Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure']);
     
     // 1. Check explicit deliveryStatus field
     const delivRaw = String(project.deliveryStatus || '').trim();
@@ -2771,8 +2799,8 @@
       if (st.toLowerCase() === 'awaiting review') return 'Testing';
       if (st.toLowerCase() === 'in progress') return 'Configuration & Design';
     } else if (type === 'Management System') {
-      if (st.toLowerCase() === 'awaiting review') return 'Internal Audit';
-      if (st.toLowerCase() === 'in progress') return 'Implementation';
+      if (st.toLowerCase() === 'awaiting review') return 'Certification Audit';
+      if (st.toLowerCase() === 'in progress') return 'Management System Design & Documentation/Implementation';
     } else if (type.toLowerCase().includes('surveillance') || type.toLowerCase().includes('recertification')) {
       if (st.toLowerCase() === 'awaiting review') return 'Surveillance Audit';
       if (st.toLowerCase() === 'in progress') return 'Internal Audit';
@@ -2863,8 +2891,7 @@
       {id:'projects',label:'Projects',icon:'folder',href:'projects.html',roles:['COO','Consultant']},
       {id:'clients',label:'Clients',icon:'globe',href:'clients.html',roles:['Sales','Sales Head']},
       {id:'sales-pipeline',label:'Sales Pipeline',icon:'zap',href:'projects.html#view=sales',roles:['Sales','Sales Head','HR','HTD','COO','PM Head','Project Manager','Accounts']},
-      {id:'awaiting-approval',label:'Awaiting Projects',icon:'clock',href:'awaiting-projects.html',roles:['Accounts','PM Head','COO','HTD']},
-      {id:'awaiting-sales-approval',label:'Awaiting Approval',icon:'clock',href:'awaiting-projects.html',roles:['Sales Head']},
+      {id:'awaiting-approval',label:'Awaiting Approval',icon:'clock',href:'awaiting-projects.html',roles:['Accounts','PM Head','COO','HTD','PMO','Sales Head']},
       {id:'delivery-projects',label:'Projects in Delivery',icon:'folder',href:'projects.html#view=delivery',roles:['Sales','Sales Head','HR','HTD','COO','PM Head','PMO','Project Manager','Accounts']},
     ]},
     {section:'Management',items:[

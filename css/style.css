@@ -573,7 +573,8 @@ table.data tbody tr:last-child td{border-bottom:none}
 .tl-meta{font-size:12px;color:var(--text-muted);margin-top:2px}
 
 /* Chart */
-.chart-wrap{position:relative;width:100%}
+.chart-wrap{position:relative;width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.chart-wrap canvas, canvas.chart-canvas{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;display:block;box-sizing:border-box}
 canvas{max-width:100%;display:block}
 
 /* Skeleton */

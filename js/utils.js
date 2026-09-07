@@ -1732,13 +1732,27 @@
   };
 
   // ===== Chart primitives (canvas) =====
+  function setupCanvas(canvas, defaultW, defaultH) {
+    const parent = canvas.parentElement;
+    const pW = parent ? parent.clientWidth : 0;
+    const pH = parent ? parent.clientHeight : 0;
+    const W = Math.floor(pW || defaultW || 200);
+    const H = Math.floor(pH || defaultH || 180);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
+    return { ctx, W, H, dpr };
+  }
+
   PDMS.charts = {
     line(canvas, series, labels, colors){
-      const ctx=canvas.getContext('2d');
-      const dpr = window.devicePixelRatio||1;
-      const W = canvas.clientWidth, H = canvas.clientHeight;
-      canvas.width=W*dpr; canvas.height=H*dpr; ctx.scale(dpr,dpr);
-      ctx.clearRect(0,0,W,H);
+      const { ctx, W, H } = setupCanvas(canvas, 300, 200);
       const pad = {l:36,r:12,t:12,b:24};
       const all = series.flat();
       const max = Math.max(...all)*1.1||1, min = 0;
@@ -1786,11 +1800,7 @@
       });
     },
     bar(canvas, values, labels, color){
-      const ctx=canvas.getContext('2d');
-      const dpr = window.devicePixelRatio||1;
-      const W = canvas.clientWidth, H = canvas.clientHeight;
-      canvas.width=W*dpr; canvas.height=H*dpr; ctx.scale(dpr,dpr);
-      ctx.clearRect(0,0,W,H);
+      const { ctx, W, H } = setupCanvas(canvas, 300, 200);
       const rotate = values.length > 5;
       const pad = {l:36, r:12, t:18, b: rotate ? 80 : 28};
       const max = Math.max(...values)*1.15||1;
@@ -1830,31 +1840,27 @@
       ctx.textAlign='left';
     },
     donut(canvas, values, colors, labels){
-      const ctx=canvas.getContext('2d');
-      const dpr = window.devicePixelRatio||1;
-      const W = canvas.clientWidth, H = canvas.clientHeight;
-      canvas.width=W*dpr; canvas.height=H*dpr; ctx.scale(dpr,dpr);
-      ctx.clearRect(0,0,W,H);
-      const cx=W/2, cy=H/2, r=Math.min(W,H)/2-10, ir=r*0.62;
-      const realTotal = values.reduce((a,b)=>a+b,0);
-      const total = realTotal||1;
-      let start=-Math.PI/2;
-      values.forEach((v,i)=>{
-        const ang = (v/total)*Math.PI*2;
+      const { ctx, W, H } = setupCanvas(canvas, 180, 180);
+      const cx = W / 2, cy = H / 2, r = Math.max(Math.min(W, H) / 2 - 8, 10), ir = r * 0.62;
+      const realTotal = values.reduce((a, b) => a + b, 0);
+      const total = realTotal || 1;
+      let start = -Math.PI / 2;
+      values.forEach((v, i) => {
+        const ang = (v / total) * Math.PI * 2;
         ctx.beginPath();
-        ctx.moveTo(cx,cy);
-        ctx.arc(cx,cy,r,start,start+ang);
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, start, start + ang);
         ctx.closePath();
-        ctx.fillStyle = colors[i];
+        ctx.fillStyle = colors[i] || '#94a3b8';
         ctx.fill();
         start += ang;
       });
-      ctx.beginPath();ctx.arc(cx,cy,ir,0,Math.PI*2);
-      ctx.fillStyle=getCss('--surface');ctx.fill();
-      ctx.fillStyle=getCss('--text');ctx.font='700 20px Inter';ctx.textAlign='center';
-      ctx.fillText(realTotal,cx,cy);
-      ctx.fillStyle=getCss('--text-muted');ctx.font='11px Inter';
-      ctx.fillText('Total',cx,cy+16);
+      ctx.beginPath(); ctx.arc(cx, cy, ir, 0, Math.PI * 2);
+      ctx.fillStyle = getCss('--surface'); ctx.fill();
+      ctx.fillStyle = getCss('--text'); ctx.font = '700 18px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(realTotal, cx, cy - 7);
+      ctx.fillStyle = getCss('--text-muted'); ctx.font = '11px Inter, sans-serif'; ctx.textBaseline = 'middle';
+      ctx.fillText('Total', cx, cy + 11);
     }
   };
   function roundRect(ctx,x,y,w,h,r){
