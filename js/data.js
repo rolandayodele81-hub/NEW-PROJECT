@@ -26,8 +26,8 @@
     'Internal Audit',
     'Remediation',
     'External Audit',
-    'Certificate Reception',
     'Completed',
+    'Post Engagement',
     'Closure'
   ];
 
@@ -136,9 +136,8 @@
     // 1. Management System
     'Gap Assessment': 'info',
     'Implementation': 'purple',
-    'Recommendation': 'warn',
     'External Audit': 'warn',
-    'Certificate Reception': 'success',
+    'Post Engagement': 'primary',
 
     // 2. VAPT
     'Internal Testing': 'info',
