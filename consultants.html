@@ -142,7 +142,9 @@
         const taskDate = task.date ? new Date(task.date) : null;
         if(taskDate) taskDate.setHours(0,0,0,0);
         let statusLabel='Upcoming', statusClass='badge-muted';
-        if(taskDate){
+        if(task.done || task.status === 'Completed' || task.status === 'Done'){
+          statusLabel='Done'; statusClass='badge-success';
+        } else if(taskDate){
           if(taskDate < today){ statusLabel='Overdue'; statusClass='badge-danger'; }
           else if(taskDate.getTime()===today.getTime()){ statusLabel='Today'; statusClass='badge-warn'; }
         }

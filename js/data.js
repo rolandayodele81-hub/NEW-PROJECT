@@ -24,7 +24,7 @@
     'Training',
     'Implementation',
     'Internal Audit',
-    'Recommendation',
+    'Remediation',
     'External Audit',
     'Certificate Reception',
     'Completed',

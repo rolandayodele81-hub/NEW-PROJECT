@@ -220,7 +220,7 @@
     'Training',
     'Implementation',
     'Internal Audit',
-    'Recommendation',
+    'Remediation',
     'External Audit',
     'Certificate Reception',
     'Completed',
@@ -2646,7 +2646,7 @@
     }
 
     const D = window.PDMS_DATA;
-    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Gap Assessment', 'Training', 'Implementation', 'Internal Audit', 'Recommendation', 'External Audit', 'Certificate Reception', 'Completed', 'Closure'];
+    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Gap Assessment', 'Training', 'Implementation', 'Internal Audit', 'Remediation', 'External Audit', 'Certificate Reception', 'Completed', 'Closure'];
     if (allDelivery.includes(normalized) || allDelivery.includes(project.status)) return 'Delivery';
 
     if (project.status === 'Closed') return 'Delivery';
@@ -2739,7 +2739,7 @@
     if (preAwardSales.includes(project.status) || (project.status === 'Cancelled' && project.stage === 'Sales' && !project.deliveryStatus)) {
       return null;
     }
-    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Gap Assessment', 'Training', 'Implementation', 'Internal Audit', 'Recommendation', 'External Audit', 'Certificate Reception', 'Completed', 'Closure']);
+    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Gap Assessment', 'Training', 'Implementation', 'Internal Audit', 'Remediation', 'External Audit', 'Certificate Reception', 'Completed', 'Closure']);
     
     // 1. Check explicit deliveryStatus field
     const delivRaw = String(project.deliveryStatus || '').trim();

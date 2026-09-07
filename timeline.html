@@ -59,9 +59,9 @@ function render() {
   // ── Section A: Project Health Board ──────────────────────────────────
   const healthCards = deliveryProjects.length
     ? deliveryProjects.map(p => {
-        const du = daysUntil(p.due);
-        const duLabel = du === null ? '—' : du < 0 ? `${Math.abs(du)}d overdue` : du === 0 ? 'Due today' : `${du}d left`;
-        const duColor = du !== null && du < 0 ? 'var(--danger)' : du !== null && du <= 7 ? '#f97316' : 'var(--text-muted)';
+        const isCompleted = ['Completed', 'Closure', 'Closed'].includes(p.status);
+        const duLabel = isCompleted ? 'Completed' : (du === null ? '—' : du < 0 ? `${Math.abs(du)}d overdue` : du === 0 ? 'Due today' : `${du}d left`);
+        const duColor = isCompleted ? 'var(--success)' : (du !== null && du < 0 ? 'var(--danger)' : du !== null && du <= 7 ? '#f97316' : 'var(--text-muted)');
         return `<div class="card" style="display:flex;flex-direction:column;gap:12px;padding:20px">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
             <div style="flex:1;min-width:0">
@@ -158,8 +158,9 @@ function render() {
           <div style="display:flex;flex-direction:column;gap:8px">
             ${projects.map(p => {
               const du = p._du;
-              const duLabel = du < 0 ? `${Math.abs(du)}d overdue` : du === 0 ? 'Due today' : `${du}d`;
-              const duColor = du < 0 ? 'var(--danger)' : du <= 7 ? '#f97316' : 'var(--success)';
+              const isCompleted = ['Completed', 'Closure', 'Closed'].includes(p.status);
+              const duLabel = isCompleted ? 'Completed' : (du < 0 ? `${Math.abs(du)}d overdue` : du === 0 ? 'Due today' : `${du}d`);
+              const duColor = isCompleted ? 'var(--success)' : (du < 0 ? 'var(--danger)' : du <= 7 ? '#f97316' : 'var(--success)');
               return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface-2);border-radius:10px;border-left:3px solid ${priorityColor(p.priority)}">
                 <div style="flex:1;min-width:0">
                   <div class="font-semi text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(p.name)}</div>
