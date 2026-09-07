@@ -2480,7 +2480,12 @@
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids a CORS preflight against Apps Script
       body: JSON.stringify(Object.assign({ action }, payload))
     })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Remote server responded with HTTP ' + res.status);
+        }
+        return res.json();
+      })
       .then(json => {
         if (!json.ok) throw new Error(json.error || 'Request failed');
         try {
@@ -2529,6 +2534,13 @@
           }
         } catch (_) {}
         return json.data;
+      })
+      .catch(err => {
+        if (isLocalMode) {
+          console.warn('Remote Apps Script endpoint returned error (' + (err.message || err) + '). Falling back to local storage.');
+          return localPost(action, payload);
+        }
+        throw err;
       });
   }
 
