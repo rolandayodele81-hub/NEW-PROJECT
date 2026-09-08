@@ -26,9 +26,18 @@ function doPost(e) {
       case 'create':
         return jsonOutput_({ ok: true, data: Repository.insert(body.resource, body.record) });
       case 'update':
-        if (body.resource === 'users' && body.patch && body.patch.password) {
-          body.patch.passwordHash = hashPassword_(body.patch.password);
-          delete body.patch.password;
+        if (body.resource === 'users') {
+          var plainPassword = body.patch && body.patch.password;
+          if (plainPassword) {
+            body.patch.passwordHash = hashPassword_(plainPassword);
+            delete body.patch.password;
+          }
+          var originalUser = Repository.find('users', body.id);
+          var updatedUser = Repository.update(body.resource, body.id, body.patch);
+          if (body.notifyUser !== false) {
+            Auth.notifyProfileUpdated(originalUser, updatedUser, plainPassword, body.editorName, body.appUrl);
+          }
+          return jsonOutput_({ ok: true, data: stripExcluded_(updatedUser, ['passwordHash']) });
         }
         return jsonOutput_({ ok: true, data: Repository.update(body.resource, body.id, body.patch) });
       case 'remove':
@@ -41,6 +50,8 @@ function doPost(e) {
       }
       case 'register':
         return jsonOutput_({ ok: true, data: Auth.register(body.account, body.appUrl) });
+      case 'forgotpassword':
+        return jsonOutput_({ ok: true, data: Auth.forgotPassword(body.email, body.appUrl) });
       case 'uploaddoc': {
         var folder = DriveApp.getFolderById(getDocFolderId_());
         var bytes = Utilities.base64Decode(body.base64);

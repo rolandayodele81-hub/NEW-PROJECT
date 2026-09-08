@@ -105,6 +105,20 @@
         delete copy._localPassword;
         return resolve(copy);
       }
+      if (action === 'forgotpassword') {
+        const targetEmail = String(payload.email || '').trim().toLowerCase();
+        const users = getLocalResource('users');
+        const user = users.find(u => String(u.email || '').trim().toLowerCase() === targetEmail);
+        if (!user) return reject(new Error('No registered account found with this email address.'));
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let newPass = '';
+        for (let i = 0; i < 8; i++) {
+          newPass += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        user._localPassword = newPass;
+        persistLocalData();
+        return resolve({ email: user.email, name: user.name, tempPassword: newPass, sent: true });
+      }
       if (action === 'create') {
         const record = Object.assign({}, payload.record);
         if (!record.id) record.id = generateId(resource);
@@ -117,14 +131,19 @@
         const collection = getLocalResource(resource);
         const item = collection.find(item => String(item.id) === String(payload.id));
         if (!item) return reject(new Error('Record not found: ' + resource + '/' + payload.id));
+        const originalCopy = Object.assign({}, item);
         const patch = Object.assign({}, payload.patch);
+        let plainPassword = null;
         if (resource === 'users' && patch.password) {
-          patch._localPassword = String(patch.password);
+          plainPassword = String(patch.password);
+          patch._localPassword = plainPassword;
           delete patch.password;
         }
         Object.assign(item, patch);
         persistLocalData();
-        return resolve(item);
+        const returnCopy = Object.assign({}, item);
+        if (returnCopy._localPassword) delete returnCopy._localPassword;
+        return resolve(returnCopy);
       }
       if (action === 'remove') {
         const collection = getLocalResource(resource);
@@ -226,10 +245,16 @@
 
   PDMS.api = {
     create: (resource, record) => post('create', { resource, record }),
-    update: (resource, id, patch) => post('update', { resource, id, patch }),
+    update: (resource, id, patch, meta) => {
+      const currentUser = (typeof PDMS !== 'undefined' && typeof PDMS.getUser === 'function') ? PDMS.getUser() : null;
+      const editorName = (currentUser && currentUser.name) ? (currentUser.name + (currentUser.role ? ' (' + currentUser.role + ')' : '')) : 'HR / Administrator';
+      const appUrl = location.href.replace(/\/[^\/]*$/, '/index.html');
+      return post('update', Object.assign({ resource, id, patch, editorName, appUrl }, meta || {}));
+    },
     remove: (resource, id) => post('remove', { resource, id }),
     login: (email, password) => post('login', { email, password }),
-    register: (account) => post('register', { resource: 'users', account, appUrl: location.href.replace(/\/[^\/]*$/, '/') })
+    register: (account) => post('register', { resource: 'users', account, appUrl: location.href.replace(/\/[^\/]*$/, '/') }),
+    forgotPassword: (email) => post('forgotpassword', { email, appUrl: location.href.replace(/\/[^\/]*$/, '/index.html') })
   };
 
   if (hasRemoteBackend) {

@@ -3,8 +3,8 @@
 <title>User Details — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788859714"/></head><body>
-<script src="js/bundle.js?v=1788859714"></script>
+<link rel="stylesheet" href="css/style.css?v=1788867580"/></head><body>
+<script src="js/bundle.js?v=1788867580"></script>
 <script>
 // A hash survives any host's clean-URL rewriting untouched, since it's never
 // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -323,7 +323,7 @@ window.editUser = function() {
     PDMS.api.update('users', u.id, patch).then(saved => {
       Object.assign(u, saved);
       modal.remove();
-      PDMS.toast('Success', 'User updated', 'success');
+      PDMS.toast('Success', 'User profile updated & notification email sent', 'success');
       render();
       if(typeof PDMS_REFRESH==='function') PDMS_REFRESH();
     }).catch(err => {
