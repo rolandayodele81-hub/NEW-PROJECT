@@ -3,18 +3,24 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788826254"/>
+<link rel="stylesheet" href="css/style.css?v=1788832948"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788826254"></script>
+<script src="js/bundle.js?v=1788832948"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
-const viewParam = new URLSearchParams(location.hash.replace(/^#/,'')).get('view');
+const hashParams = new URLSearchParams(location.hash.replace(/^#/,''));
+const searchParams = new URLSearchParams(location.search);
+const viewParam = hashParams.get('view') || searchParams.get('view');
+let initialStatusParam = hashParams.get('status') || searchParams.get('status') || '';
+let initialFilterParam = hashParams.get('filter') || searchParams.get('filter') || '';
+let initialTaskFilterParam = hashParams.get('taskFilter') || searchParams.get('taskFilter') || '';
+
 window.addEventListener('hashchange', ()=>location.reload());
 
 const activeNavId = viewParam==='sales' ? 'sales-pipeline' : viewParam==='delivery' ? 'delivery-projects' : 'projects';
@@ -58,8 +64,8 @@ function scopedProjects(){
     } else {
       list = liveProjects.filter(p => {
         if (!isSalesOriginProject(p)) return false;
-        if (p.status === 'Awaiting Sales Head Approval' || p.status === 'Cancelled') return false;
-        return PDMS.isSalesStatus(p.status) || p.status==='Awaiting Account Approval' || p.stage==='Delivery' || p.status==='Closed' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status));
+        if (p.status === 'Awaiting Sales Head Approval') return false;
+        return PDMS.isSalesStatus(p.status) || p.status==='Cancelled' || p.status==='Awaiting Account Approval' || p.stage==='Delivery' || p.status==='Closed' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status));
       });
     }
   } else if(viewParam==='delivery') {
@@ -73,56 +79,109 @@ function scopedProjects(){
   }
   return PDMS.sortNewestFirst ? PDMS.sortNewestFirst(list.slice()) : list;
 }
+
 // Each bucket is filtered/kanban'd using its own status vocabulary.
-const bucketStatuses = (viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : D.statuses).filter(s => s !== 'Awaiting Sales Head Approval' && s !== 'Awaiting Account Approval' && (viewParam !== 'sales' || s !== 'Cancelled'));
-const kanbanStatuses = (viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : D.statuses).filter(s => s !== 'Awaiting Sales Head Approval' && s !== 'Awaiting Account Approval' && (viewParam !== 'sales' || s !== 'Cancelled'));
+const bucketStatuses = (viewParam==='sales' ? ['Active Pipeline', ...D.salesStatuses] : viewParam==='delivery' ? ['Ongoing', ...D.deliveryStatuses] : D.statuses).filter(s => s !== 'Awaiting Sales Head Approval' && s !== 'Awaiting Account Approval');
+const kanbanStatuses = (viewParam==='sales' ? D.salesStatuses : viewParam==='delivery' ? D.deliveryStatuses : D.statuses).filter(s => s !== 'Awaiting Sales Head Approval' && s !== 'Awaiting Account Approval');
 const isSalesUserOwner = viewParam==='sales' && currentUser && currentUser.role === 'Sales';
+
+// "In Pipeline" / "Active Pipeline" represents all leads/deals that have been approved by Sales Head but not yet awarded SLA
+const matchInPipeline = p => {
+  const norm = PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status;
+  const isPipelineStage = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing'].includes(norm);
+  const isApprovedBySalesHead = p.status !== 'Awaiting Sales Head Approval' && !(p.status === 'Cancelled' && p.salesHeadRejectionNote);
+  const notAwarded = p.status !== 'Award/SLA' && p.status !== 'Awaiting Account Approval' && p.status !== 'Closed' && p.stage !== 'Delivery' && p.status !== 'Cancelled' && p.status !== 'On Hold';
+  return isPipelineStage && isApprovedBySalesHead && notAwarded;
+};
+
 const statTiles = viewParam==='sales'
   ? (isSalesUserOwner
       ? [
-          {label:'Total Deals', match:()=>true, color:'primary', icon:'folder'},
-          {label:'In Pipeline', match:p=>['Lead','Opportunity','Initial Proposal','Negotiation','Invoicing'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status) && p.status!=='Awaiting Sales Head Approval' && p.status!=='Awaiting Account Approval' && p.status!=='Cancelled' && p.status!=='On Hold' && p.status!=='Closed' && p.stage!=='Delivery', color:'info', icon:'activity'},
-          {label:'Pending Approval', match:p=>p.status==='Awaiting Sales Head Approval', color:'warn', icon:'clock'},
-          {label:'Award/SLA', match:p=>(p.status==='Award/SLA' || p.status==='Awaiting Account Approval') && p.status!=='Cancelled' && p.status!=='On Hold', color:'purple', icon:'check'},
-          {label:'Closed Deals', match:p=>(p.status==='Closed'||((p.stage==='Delivery'||(PDMS.stageOf&&PDMS.stageOf(p)==='Delivery'))&&p.status!=='Cancelled'&&p.status!=='On Hold'&&p.status!=='Awaiting Account Approval'&&p.status!=='Awaiting Sales Head Approval')), color:'success', icon:'briefcase'},
-          {label:'On Hold', match:p=>p.status==='On Hold', color:'warn', icon:'clock'},
-          {label:'Cancelled', match:p=>p.status==='Cancelled', color:'danger', icon:'close'}
+          {label:'Total Deals', match:()=>true, filterStatus:null, color:'primary', icon:'folder'},
+          {label:'In Pipeline', filterStatus:'Active Pipeline', match:matchInPipeline, color:'info', icon:'activity'},
+          {label:'Pending Approval', filterStatus:'Awaiting Sales Head Approval', match:p=>p.status==='Awaiting Sales Head Approval', color:'warn', icon:'clock'},
+          {label:'Award/SLA', filterStatus:'Award/SLA', match:p=>(p.status==='Award/SLA' || p.status==='Awaiting Account Approval') && p.status!=='Cancelled' && p.status!=='On Hold', color:'purple', icon:'check'},
+          {label:'Closed Deals', filterStatus:'Closed', match:p=>(p.status==='Closed'||((p.stage==='Delivery'||(PDMS.stageOf&&PDMS.stageOf(p)==='Delivery'))&&p.status!=='Cancelled'&&p.status!=='On Hold'&&p.status!=='Awaiting Account Approval'&&p.status!=='Awaiting Sales Head Approval')), color:'success', icon:'briefcase'},
+          {label:'On Hold', filterStatus:'On Hold', match:p=>p.status==='On Hold', color:'warn', icon:'clock'},
+          {label:'Cancelled', filterStatus:'Cancelled', match:p=>p.status==='Cancelled', color:'danger', icon:'close'}
         ]
       : [
-          {label:'Total Deals', match:()=>true, color:'primary', icon:'folder'},
-          {label:'In Pipeline', match:p=>['Lead','Opportunity','Initial Proposal','Negotiation','Invoicing'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status) && p.status!=='Awaiting Account Approval' && p.status!=='Cancelled' && p.status!=='On Hold' && p.status!=='Closed' && p.stage!=='Delivery', color:'info', icon:'activity'},
-          {label:'Award/SLA', match:p=>(p.status==='Award/SLA' || p.status==='Awaiting Account Approval') && p.status!=='Cancelled' && p.status!=='On Hold', color:'purple', icon:'check'},
-          {label:'Closed Deals', match:p=>(p.status==='Closed'||((p.stage==='Delivery'||(PDMS.stageOf&&PDMS.stageOf(p)==='Delivery'))&&p.status!=='Cancelled'&&p.status!=='On Hold'&&p.status!=='Awaiting Account Approval')), color:'success', icon:'briefcase'},
-          {label:'On Hold', match:p=>p.status==='On Hold', color:'warn', icon:'clock'},
-          {label:'Cancelled', match:p=>p.status==='Cancelled', color:'danger', icon:'close'}
+          {label:'Total Deals', match:()=>true, filterStatus:null, color:'primary', icon:'folder'},
+          {label:'In Pipeline', filterStatus:'Active Pipeline', match:matchInPipeline, color:'info', icon:'activity'},
+          {label:'Award/SLA', filterStatus:'Award/SLA', match:p=>(p.status==='Award/SLA' || p.status==='Awaiting Account Approval') && p.status!=='Cancelled' && p.status!=='On Hold', color:'purple', icon:'check'},
+          {label:'Closed Deals', filterStatus:'Closed', match:p=>(p.status==='Closed'||((p.stage==='Delivery'||(PDMS.stageOf&&PDMS.stageOf(p)==='Delivery'))&&p.status!=='Cancelled'&&p.status!=='On Hold'&&p.status!=='Awaiting Account Approval')), color:'success', icon:'briefcase'},
+          {label:'On Hold', filterStatus:'On Hold', match:p=>p.status==='On Hold', color:'warn', icon:'clock'},
+          {label:'Cancelled', filterStatus:'Cancelled', match:p=>p.status==='Cancelled', color:'danger', icon:'close'}
         ])
   : viewParam==='delivery'
   ? [
-      {label:'Total', match:()=>true, color:'primary', icon:'folder'},
-      {label:'Ongoing', match:p=>{
-        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus;
+      {label:'Total', match:()=>true, filterStatus:null, color:'primary', icon:'folder'},
+      {label:'Ongoing', filterStatus:'Ongoing', match:p=>{
+        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
         return !!s && !['Not Started','Completed','Closure','Project Closure','Closed','On Hold','Cancelled'].includes(s);
       }, color:'warn', icon:'activity'},
-      {label:'On Hold', match:p=>{
-        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus;
+      {label:'On Hold', filterStatus:'On Hold', match:p=>{
+        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
         return s==='On Hold' || p.status==='On Hold';
       }, color:'warn', icon:'clock'},
-      {label:'Completed', match:p=>{
-        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus;
-        return s==='Completed' || s==='Closure' || s==='Project Closure';
+      {label:'Completed', filterStatus:'Completed', match:p=>{
+        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
+        return s === 'Completed';
       }, color:'success', icon:'check'},
-      {label:'Closed', match:p=>{
-        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus;
-        return s==='Closed';
+      {label:'Closed', filterStatus:'Closure', match:p=>{
+        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
+        return ['Closure','Project Closure'].includes(s);
       }, color:'info', icon:'zap'},
-      {label:'Cancelled', match:p=>{
-        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus;
+      {label:'Cancelled', filterStatus:'Cancelled', match:p=>{
+        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
         return s==='Cancelled' || p.status==='Cancelled';
       }, color:'danger', icon:'close'}
     ]
   : (currentUser && currentUser.role==='Consultant')
-  ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'With Active Tasks', match:p=>(p.privateTasks||[]).some(t=>!t.done), color:'warn', icon:'activity', sub:'projects'}, {label:'Tasks Completed', match:p=>(p.privateTasks||[]).length>0&&(p.privateTasks||[]).every(t=>t.done), color:'success', icon:'check', sub:'projects'}]
-  : [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'In Progress', match:p=>p.status==='In Progress', color:'warn', icon:'activity'}, {label:'Completed', match:p=>p.status==='Completed', color:'success', icon:'check'}];
+  ? [
+      {label:'Total', match:()=>true, filterStatus:null, color:'primary', icon:'folder'},
+      {label:'With Active Tasks', filterKey:'activeTasks', filterFn:p=>(p.privateTasks||[]).some(t=>!t.done), match:p=>(p.privateTasks||[]).some(t=>!t.done), color:'warn', icon:'activity', sub:'projects'},
+      {label:'Tasks Completed', filterKey:'tasksCompleted', filterFn:p=>(p.privateTasks||[]).length>0&&(p.privateTasks||[]).every(t=>t.done), match:p=>(p.privateTasks||[]).length>0&&(p.privateTasks||[]).every(t=>t.done), color:'success', icon:'check', sub:'projects'}
+    ]
+  : [
+      {label:'Total', match:()=>true, filterStatus:null, color:'primary', icon:'folder'},
+      {label:'In Progress', filterStatus:'In Progress', match:p=>p.status==='In Progress', color:'warn', icon:'activity'},
+      {label:'Completed', filterStatus:'Completed', match:p=>p.status==='Completed', color:'success', icon:'check'}
+    ];
+
+let selectedTileIndex = null;
+let currentCustomFilter = null;
+let currentStatusFilter = initialStatusParam || '';
+
+if (initialFilterParam === 'pipeline' || initialStatusParam === 'In Pipeline' || initialStatusParam === 'Active Pipeline' || initialStatusParam === 'pipeline') {
+  currentStatusFilter = 'Active Pipeline';
+  selectedTileIndex = statTiles.findIndex(t => t.label === 'In Pipeline');
+} else if (initialFilterParam === 'dueSoon') {
+  const today = new Date().toISOString().slice(0,10);
+  const future = new Date(Date.now() + 30 * 86400000).toISOString().slice(0,10);
+  currentCustomFilter = r => r.due && r.due >= today && r.due <= future && !['Completed','Closed','Cancelled'].includes(PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : r.status);
+} else if (initialFilterParam === 'delayed') {
+  const today = new Date().toISOString().slice(0,10);
+  currentCustomFilter = r => r.due && r.due < today && !['Completed','Closed','Cancelled'].includes(PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : r.status);
+} else if (initialFilterParam === 'dueToday') {
+  const today = new Date().toISOString().slice(0,10);
+  currentCustomFilter = r => r.due === today && !['Completed','Closed','Cancelled'].includes(PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : r.status);
+} else if (initialFilterParam === 'activeTasks' || initialTaskFilterParam === 'active') {
+  currentCustomFilter = p => (p.privateTasks||[]).some(t=>!t.done);
+  selectedTileIndex = statTiles.findIndex(t => t.filterKey === 'activeTasks');
+} else if (initialFilterParam === 'tasksCompleted' || initialTaskFilterParam === 'completed') {
+  currentCustomFilter = p => (p.privateTasks||[]).length>0 && (p.privateTasks||[]).every(t=>t.done);
+  selectedTileIndex = statTiles.findIndex(t => t.filterKey === 'tasksCompleted');
+}
+
+if (currentStatusFilter) {
+  const isClosedF = f => f && (f.toLowerCase() === 'closed' || f.toLowerCase() === 'closure' || f.toLowerCase() === 'project closure');
+  const sIdx = statTiles.findIndex(t => t.filterStatus && (
+    t.filterStatus.toLowerCase() === currentStatusFilter.toLowerCase() ||
+    (isClosedF(t.filterStatus) && isClosedF(currentStatusFilter))
+  ));
+  if (sIdx !== -1) selectedTileIndex = sIdx;
+}
 
 // Sales can view the delivery bucket but never create there — only a delivery
 // role creates projects that belong in Projects in Delivery.
@@ -142,7 +201,13 @@ content.innerHTML = `
     <div class="flex gap-2"><button class="btn btn-secondary" id="viewToggle">${defaultToTable ? I('folder')+' Kanban View' : I('folder')+' Table View'}</button>${canCreateHere?`<button class="btn btn-primary" id="newProj">${I('plus')} ${viewParam==='sales'||(PDMS.isSalesRole&&PDMS.isSalesRole(currentUser))?'Create New Leads':'New Project'}</button>`:''}</div>
   </div>
   <div class="grid mb-4" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:16px">
-    ${statTiles.map((t,i)=>`<div class="stat i-${t.color}"><div class="label">${t.label}</div><div class="value" id="stat-${i}">0</div>${t.sub?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${t.sub}</div>`:''}<div class="icon-wrap">${I(t.icon)}</div></div>`).join('')}
+    ${statTiles.map((t,i)=>`
+      <div class="stat i-${t.color} ${selectedTileIndex===i?'active-filter':''}" id="stat-tile-${i}" onclick="selectStatTile(${i})" title="Click to filter by ${t.label}">
+        <div class="label">${t.label}</div>
+        <div class="value" id="stat-${i}">0</div>
+        ${t.sub?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${t.sub}</div>`:''}
+        <div class="icon-wrap">${I(t.icon)}</div>
+      </div>`).join('')}
   </div>
   <div id="listView" class="table-wrap ${defaultToTable ? '' : 'hidden'}"></div>
   <div id="kanbanView" class="${defaultToTable ? 'hidden' : ''}"></div>
@@ -205,16 +270,67 @@ const columns = viewParam === 'sales' ? [
   }},
   {key:'due',label:'Due'}
 ];
-function renderStats(rows){
-  statTiles.forEach((t,i)=>{ document.getElementById('stat-'+i).textContent = rows.filter(t.match).length; });
+
+function selectStatTile(i) {
+  if (selectedTileIndex === i || i === 0) {
+    selectedTileIndex = null;
+    currentStatusFilter = '';
+    currentCustomFilter = null;
+  } else {
+    selectedTileIndex = i;
+    const tile = statTiles[i];
+    if (tile.filterStatus) {
+      currentStatusFilter = tile.filterStatus;
+      currentCustomFilter = null;
+    } else if (tile.filterFn) {
+      currentStatusFilter = '';
+      currentCustomFilter = tile.filterFn;
+    } else if (tile.match) {
+      currentStatusFilter = '';
+      currentCustomFilter = tile.match;
+    }
+  }
+  renderProjects();
 }
+window.selectStatTile = selectStatTile;
+
+function renderStats(rows){
+  statTiles.forEach((t,i)=>{
+    const el = document.getElementById('stat-'+i);
+    if (el) el.textContent = rows.filter(t.match).length;
+    const tileCard = document.getElementById('stat-tile-'+i);
+    if (tileCard) {
+      if (selectedTileIndex === i) {
+        tileCard.classList.add('active-filter');
+      } else {
+        tileCard.classList.remove('active-filter');
+      }
+    }
+  });
+}
+
 function renderProjects(){
   const liveAll = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
   const rows = scopedProjects();
   renderStats(rows);
+
   PDMS.renderTable(document.getElementById('listView'),{
     columns, rows, pageSize:20,
+    isDeliveryTable: viewParam === 'delivery',
     searchKeys:['id','client','pm','status','type'],
+    filters: currentStatusFilter ? { status: currentStatusFilter } : {},
+    customFilter: currentCustomFilter,
+    onFilterChange: (newFilters) => {
+      currentStatusFilter = newFilters.status || '';
+      currentCustomFilter = null;
+      const isClosedF = f => f && (f.toLowerCase() === 'closed' || f.toLowerCase() === 'closure' || f.toLowerCase() === 'project closure');
+      const matchedIdx = statTiles.findIndex((t, idx) => idx > 0 && t.filterStatus && (
+        t.filterStatus.toLowerCase() === currentStatusFilter.toLowerCase() ||
+        (isClosedF(t.filterStatus) && isClosedF(currentStatusFilter))
+      ));
+      selectedTileIndex = matchedIdx !== -1 ? matchedIdx : (currentStatusFilter ? -1 : null);
+      renderStats(rows);
+    },
     rowHref:r=>'project-details.html#id='+r.id+(viewParam==='sales'?'&from=sales':viewParam==='delivery'?'&from=delivery':''),
     filterOptions:[
       {key:'status',label:'Status',options:bucketStatuses},
@@ -222,8 +338,28 @@ function renderProjects(){
     ],
     dateFilter: (viewParam==='sales' || viewParam==='delivery') ? { key:'start', label:'Start date' } : null
   });
+
   document.getElementById('kanbanView').innerHTML = `<div class="kanban">${kanbanStatuses.map(s=>{
     const matchCol = p => {
+      if (currentCustomFilter && !currentCustomFilter(p)) return false;
+      if (currentStatusFilter) {
+        if (currentStatusFilter === 'In Pipeline' || currentStatusFilter === 'Active Pipeline') {
+          const norm = PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status;
+          if (!['Lead','Opportunity','Initial Proposal','Negotiation','Invoicing'].includes(norm)) return false;
+          if (p.status === 'Awaiting Sales Head Approval' || p.status === 'Awaiting Account Approval' || p.status === 'Closed' || p.stage === 'Delivery' || p.status === 'Cancelled' || p.status === 'On Hold') return false;
+        } else if (currentStatusFilter === 'Ongoing') {
+          const dS = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
+          if (!dS || ['Not Started','Completed','Closure','Project Closure','Closed','On Hold','Cancelled'].includes(dS)) return false;
+        } else if (currentStatusFilter === 'Completed') {
+          const dS = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
+          if (dS !== 'Completed') return false;
+        } else if (currentStatusFilter === 'Closed' || currentStatusFilter === 'Closure' || currentStatusFilter === 'Project Closure') {
+          const dS = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
+          if (!['Closure','Project Closure'].includes(dS)) return false;
+        } else if (currentStatusFilter !== s && p.status !== currentStatusFilter) {
+          return false;
+        }
+      }
       if (viewParam === 'sales') {
         if (s === 'Award/SLA') return (p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval');
         const isAccountsRejected = p.status === 'Award/SLA' && (p.accountsRejectionNote || p.rejectionNote);

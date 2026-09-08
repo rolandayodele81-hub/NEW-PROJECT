@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Awaiting Approval — PSE PDMS</title>
-  <link rel="stylesheet" href="css/style.css?v=1788826254"/>
+  <link rel="stylesheet" href="css/style.css?v=1788832948"/>
   <style>
     .approve-btn {
       padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
@@ -22,7 +22,7 @@
   </style>
 </head>
 <body>
-<script src="js/bundle.js?v=1788826254"></script>
+<script src="js/bundle.js?v=1788832948"></script>
 <script>
   PDMS.mountShell('awaiting-approval');
   const D = PDMS_DATA; const I = PDMS.icon;
@@ -52,10 +52,22 @@
     const liveClients  = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients)  || D.clients;
     const rawPending = liveProjects.filter(p => p.status === pendingStatus);
     const pending = PDMS.sortNewestFirst ? PDMS.sortNewestFirst(rawPending.slice()) : rawPending;
-    const rawCancelled = isSalesHead ? liveProjects.filter(p => p.status === 'Cancelled' && (p.stage === 'Sales' || (!p.stage && p.sales))) : [];
-    const cancelled = PDMS.sortNewestFirst ? PDMS.sortNewestFirst(rawCancelled.slice()) : rawCancelled;
+    
+    // For Sales Head: cancelled leads / rejected by sales head
+    // For Accounts / others: projects returned / rejected by accounts
+    const rawRejected = isSalesHead
+      ? liveProjects.filter(p => p.status === 'Cancelled' && (p.stage === 'Sales' || (!p.stage && p.sales) || p.salesHeadRejectionNote))
+      : liveProjects.filter(p => (p.accountsRejectionNote || p.rejectionNote) && p.status !== 'Cancelled' && !p.salesHeadRejectionNote);
+    const rejected = PDMS.sortNewestFirst ? PDMS.sortNewestFirst(rawRejected.slice()) : rawRejected;
 
-    const displayList = (isSalesHead && activeTab === 'cancelled') ? cancelled : pending;
+    const isShowingRejected = activeTab === 'rejected' || activeTab === 'cancelled';
+    const displayList = isShowingRejected ? rejected : pending;
+
+    const rejectedLabel = isSalesHead ? 'Cancelled Leads' : 'Rejected / Returned';
+    const rejectedDelta = isSalesHead ? 'Rejected by Sales Head' : 'Returned by Accounts';
+    const tabRejectedText = isSalesHead ? `✕ Cancelled Leads (${rejected.length})` : `✕ Returned by Accounts (${rejected.length})`;
+    const rejectedCardTitle = isSalesHead ? 'Cancelled / Rejected Leads' : 'Returned / Rejected by Accounts';
+    const rejectedCardSub = isSalesHead ? 'Leads that were cancelled or rejected by the Sales Head.' : 'Projects returned to the sales team with feedback before financial sign-off.';
 
     document.getElementById('content').innerHTML = `
     <div class="page-head">
@@ -69,36 +81,34 @@
       </span>
     </div>
 
-    <div class="grid ${isSalesHead ? 'grid-2' : 'grid-1'} mb-4">
-      <div class="stat" style="border:1.5px solid rgba(${accentRgba},.25);cursor:${isSalesHead ? 'pointer' : 'default'};${isSalesHead && activeTab==='pending' ? 'box-shadow:0 0 0 2px '+accentColor : ''}" onclick="${isSalesHead ? "setAwaitingTab('pending')" : ''}">
+    <div class="grid grid-2 mb-4">
+      <div class="stat" style="border:1.5px solid rgba(${accentRgba},.25);cursor:pointer;${!isShowingRejected ? 'box-shadow:0 0 0 2px '+accentColor : ''}" onclick="setAwaitingTab('pending')">
         <div class="label">Awaiting Review</div>
         <div class="value" style="color:${accentColor}">${pending.length}</div>
         <div class="delta">Pending approval</div>
         <div class="icon-wrap" style="color:${accentColor}">${I('clock')}</div>
       </div>
-      ${isSalesHead ? `
-      <div class="stat" style="border:1.5px solid rgba(239,68,68,.25);cursor:pointer;${activeTab==='cancelled' ? 'box-shadow:0 0 0 2px #ef4444' : ''}" onclick="setAwaitingTab('cancelled')">
-        <div class="label">Cancelled Leads</div>
-        <div class="value" style="color:#ef4444">${cancelled.length}</div>
-        <div class="delta" style="color:#ef4444">Rejected / Cancelled</div>
+      <div class="stat" style="border:1.5px solid rgba(239,68,68,.25);cursor:pointer;${isShowingRejected ? 'box-shadow:0 0 0 2px #ef4444' : ''}" onclick="setAwaitingTab('rejected')">
+        <div class="label">${rejectedLabel}</div>
+        <div class="value" style="color:#ef4444">${rejected.length}</div>
+        <div class="delta" style="color:#ef4444">${rejectedDelta}</div>
         <div class="icon-wrap" style="color:#ef4444">${I('alert')}</div>
-      </div>` : ''}
+      </div>
     </div>
 
-    ${isSalesHead ? `
     <div style="display:flex;gap:10px;margin-bottom:16px">
-      <button class="btn btn-sm ${activeTab === 'pending' ? 'btn-primary' : 'btn-secondary'}" onclick="setAwaitingTab('pending')">${I('clock')} Pending Review (${pending.length})</button>
-      <button class="btn btn-sm ${activeTab === 'cancelled' ? 'btn-primary' : 'btn-secondary'}" style="${activeTab === 'cancelled' ? 'background:#ef4444;border-color:#ef4444;color:#fff' : ''}" onclick="setAwaitingTab('cancelled')">✕ Cancelled Leads (${cancelled.length})</button>
-    </div>` : ''}
+      <button class="btn btn-sm ${!isShowingRejected ? 'btn-primary' : 'btn-secondary'}" onclick="setAwaitingTab('pending')">${I('clock')} Pending Review (${pending.length})</button>
+      <button class="btn btn-sm ${isShowingRejected ? 'btn-primary' : 'btn-secondary'}" style="${isShowingRejected ? 'background:#ef4444;border-color:#ef4444;color:#fff' : ''}" onclick="setAwaitingTab('rejected')">${tabRejectedText}</button>
+    </div>
 
-    <div class="card" style="border:1.5px solid ${isSalesHead && activeTab==='cancelled' ? 'rgba(239,68,68,.25)' : `rgba(${accentRgba},.25)`};box-shadow:0 4px 32px rgba(${accentRgba},.08)">
+    <div class="card" style="border:1.5px solid ${isShowingRejected ? 'rgba(239,68,68,.25)' : `rgba(${accentRgba},.25)`};box-shadow:0 4px 32px rgba(${accentRgba},.08)">
       <div class="card-head">
         <div>
           <div class="card-title" style="display:flex;align-items:center;gap:8px">
-            <span class="pending-dot" style="background:${isSalesHead && activeTab==='cancelled' ? '#ef4444' : accentColor}"></span>
-            ${isSalesHead && activeTab === 'cancelled' ? 'Cancelled / Rejected Leads' : cardTitle}
+            <span class="pending-dot" style="background:${isShowingRejected ? '#ef4444' : accentColor}"></span>
+            ${isShowingRejected ? rejectedCardTitle : cardTitle}
           </div>
-          <div class="card-sub">${isSalesHead && activeTab === 'cancelled' ? 'Leads that were cancelled or rejected by the Sales Head.' : 'Click a row to open and review project details.'}</div>
+          <div class="card-sub">${isShowingRejected ? rejectedCardSub : 'Click a row to open and review project details.'}</div>
         </div>
       </div>
       <div class="card-body" style="padding:0">
@@ -106,7 +116,7 @@
           <div style="text-align:center;padding:64px 24px;color:var(--text-soft)">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 16px;display:block;opacity:.35"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <div style="font-size:16px;font-weight:700;margin-bottom:6px">All clear!</div>
-            <div style="font-size:13px">${activeTab === 'cancelled' ? 'No cancelled leads found.' : emptyMsg}</div>
+            <div style="font-size:13px">${isShowingRejected ? (isSalesHead ? 'No cancelled leads found.' : 'No rejected or returned projects found.') : emptyMsg}</div>
           </div>
         ` : `
         <div style="overflow-x:auto">
@@ -119,7 +129,7 @@
                 <th>Award Value (excl. VAT)</th>
                 <th>Project Type</th>
                 <th>Status</th>
-                ${activeTab === 'cancelled' ? '<th>Rejection Reason</th>' : ''}
+                ${isShowingRejected ? '<th>Rejection Reason / Feedback</th>' : ''}
               </tr>
             </thead>
             <tbody>
@@ -128,14 +138,22 @@
                 const clientName = (clientObj && clientObj.name) || p.client || p.name || '—';
                 const creator = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
                 const isItemCancelled = p.status === 'Cancelled';
+                const isItemAccountsRejected = (p.accountsRejectionNote || p.rejectionNote) && !p.salesHeadRejectionNote && p.status !== 'Cancelled';
+                const statusBadge = isItemCancelled
+                  ? '<span class="badge badge-danger" style="font-weight:600">Cancelled</span>'
+                  : isItemAccountsRejected
+                  ? '<span class="badge" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">Returned by Accounts</span>'
+                  : `<span class="badge" style="background:rgba(${accentRgba},.12);color:${accentColor};font-weight:600">Awaiting Approval</span>`;
+                const reasonText = p.salesHeadRejectionNote || p.accountsRejectionNote || p.rejectionNote || '—';
+
                 return `<tr style="cursor:pointer" onclick="location.href='project-details.html#id=${p.id}&from=awaiting'">
                   <td class="font-bold" style="color:var(--primary)">${PDMS.esc(clientName)}</td>
                   <td class="font-semi" style="color:var(--text)">${PDMS.esc(creator)}</td>
                   <td class="font-semi">${p.requestedNegotiatedPrice ? `<span style="color:#d97706;font-weight:700">${PDMS.currency(p.requestedNegotiatedPrice)}</span> <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(245,158,11,.15);color:#d97706;margin-left:4px">Requested</span>` : (Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—')}</td>
                   <td class="font-semi">${Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice) : '—'}</td>
                   <td class="text-muted">${PDMS.esc(p.type||'—')}</td>
-                  <td><span class="badge ${isItemCancelled ? 'badge-danger' : ''}" style="${!isItemCancelled ? `background:rgba(${accentRgba},.12);color:${accentColor}` : ''}">${isItemCancelled ? 'Cancelled' : 'Awaiting Approval'}</span></td>
-                  ${activeTab === 'cancelled' ? `<td class="text-sm" style="color:var(--danger);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(p.salesHeadRejectionNote || '—')}</td>` : ''}
+                  <td>${statusBadge}</td>
+                  ${isShowingRejected ? `<td class="text-sm" style="color:var(--danger);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${PDMS.esc(reasonText)}">${PDMS.esc(reasonText)}</td>` : ''}
                 </tr>`;
               }).join('')}
             </tbody>

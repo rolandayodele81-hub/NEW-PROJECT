@@ -393,6 +393,15 @@
     return salesStatusAliases[status] || status;
   }
 
+  function salesSequenceFor(projectOrType) {
+    if (typeof projectOrType === 'object' && projectOrType) {
+      if (Array.isArray(projectOrType.timelineStages) && projectOrType.timelineStages.length > 0) {
+        return projectOrType.timelineStages.slice();
+      }
+    }
+    return salesJourney.slice();
+  }
+
   function deliverySequenceFor(projectOrType) {
     if (typeof projectOrType === 'object' && projectOrType) {
       if (Array.isArray(projectOrType.timelineStages) && projectOrType.timelineStages.length > 0) {
@@ -975,30 +984,117 @@
     return list;
   };
 
-  // Count of unread notifications addressed to this user specifically (by id,
-  // name, role, or project ownership) — drives the login popup shown by the
-  // shell when the user reaches their dashboard. Legacy untargeted broadcasts
-  // are excluded so a historical backlog doesn't trigger the popup on every
-  // login; they still show in the Notification Center and on the header bell.
+  PDMS.isNotificationUnread = function(n, user){
+    if (!n) return false;
+    user = user || PDMS.getUser();
+    if (!user) return n.unread !== false;
+    const uid = String(user.id || '').trim().toLowerCase();
+    const uEmail = String(user.email || '').trim().toLowerCase();
+    const uName = String(user.name || '').trim().toLowerCase();
+
+    // Check notification's readBy list (user IDs / emails / names)
+    const readBy = Array.isArray(n.readBy) ? n.readBy.map(x => String(x).trim().toLowerCase()) : [];
+    if (uid && readBy.includes(uid)) return false;
+    if (uEmail && readBy.includes(uEmail)) return false;
+    if (uName && readBy.includes(uName)) return false;
+
+    // Check user-specific local storage cache
+    const userKey = uid || uEmail || uName;
+    if (userKey) {
+      try {
+        const userReadSet = JSON.parse(localStorage.getItem('pdms_user_read_notifs_' + userKey) || '[]');
+        if (Array.isArray(userReadSet) && userReadSet.includes(String(n.id))) {
+          return false;
+        }
+      } catch(_) {}
+    }
+
+    if (n.unread === false && (!n.readBy || !n.readBy.length)) {
+      return false;
+    }
+
+    return true;
+  };
+
+  // Count of unread notifications addressed to this user specifically
   PDMS.unreadCountFor = function(user){
     user = user || PDMS.getUser();
     if(!user) return 0;
     return PDMS.notificationsFor(user).filter(n =>
-      n.unread && (n.recipientId || n.recipientName || n.recipientRole || n.recipientOwner)
+      PDMS.isNotificationUnread(n, user) && (n.recipientId || n.recipientName || n.recipientRole || n.recipientOwner)
     ).length;
   };
 
   PDMS.markNotificationAsRead = function(id, link){
+    const user = PDMS.getUser();
+    const userKey = user ? String(user.id || user.email || user.name || '').trim() : '';
     const liveNotifs = liveList('notifications');
     const target = liveNotifs.find(n => String(n.id) === String(id));
-    if (target && target.unread) {
-      target.unread = false;
-      PDMS.api.update('notifications', id, { unread: false }).catch(() => {});
+
+    if (target) {
+      target.readBy = Array.isArray(target.readBy) ? target.readBy : [];
+      if (userKey && !target.readBy.includes(userKey)) {
+        target.readBy.push(userKey);
+      }
+      if (userKey) {
+        try {
+          const storageKey = 'pdms_user_read_notifs_' + userKey.toLowerCase();
+          const userReadSet = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          if (!userReadSet.includes(String(id))) {
+            userReadSet.push(String(id));
+            localStorage.setItem(storageKey, JSON.stringify(userReadSet));
+          }
+        } catch(_) {}
+      }
+      if (!target.recipientRole && (target.recipientId || target.recipientOwner)) {
+        target.unread = false;
+      }
+      PDMS.api.update('notifications', id, { readBy: target.readBy, unread: target.unread }).catch(() => {});
       document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
     }
     if (link) {
       location.href = link;
     }
+  };
+
+  PDMS.markAllNotificationsRead = function(user){
+    user = user || PDMS.getUser();
+    const userKey = user ? String(user.id || user.email || user.name || '').trim() : '';
+    const liveNotifs = liveList('notifications');
+    const visible = PDMS.notificationsFor ? PDMS.notificationsFor(user) : liveNotifs;
+    const unread = visible.filter(n => PDMS.isNotificationUnread(n, user));
+    if (!unread.length) return Promise.resolve([]);
+
+    if (userKey) {
+      try {
+        const storageKey = 'pdms_user_read_notifs_' + userKey.toLowerCase();
+        const userReadSet = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        unread.forEach(n => {
+          if (!userReadSet.includes(String(n.id))) userReadSet.push(String(n.id));
+        });
+        localStorage.setItem(storageKey, JSON.stringify(userReadSet));
+      } catch(_) {}
+    }
+
+    unread.forEach(n => {
+      n.readBy = Array.isArray(n.readBy) ? n.readBy : [];
+      if (userKey && !n.readBy.includes(userKey)) {
+        n.readBy.push(userKey);
+      }
+      const match = liveNotifs.find(item => String(item.id) === String(n.id));
+      if (match) {
+        match.readBy = n.readBy;
+        if (!match.recipientRole && (match.recipientId || match.recipientOwner)) {
+          match.unread = false;
+        }
+      }
+    });
+
+    const updates = unread.map(n => PDMS.api.update('notifications', n.id, { readBy: n.readBy, unread: n.unread }).catch(() => {}));
+    return Promise.all(updates).then(() => {
+      document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
+      return unread;
+    });
   };
 
   // Money & date fmt
@@ -1085,21 +1181,44 @@
           return true;
         });
       }
+      if (typeof opts.customFilter === 'function') {
+        arr = arr.filter(opts.customFilter);
+      }
       Object.keys(state.filters).forEach(k=>{
         if(state.filters[k]) {
+          const filterVal = String(state.filters[k]).trim();
           arr = arr.filter(r => {
-            const v = String(r[k] || '');
+            const v = String(r[k] || '').trim();
             if (k === 'status') {
-              if (state.filters[k] === 'Award/SLA') {
+              const isDelivery = (PDMS.stageOf ? PDMS.stageOf(r) === 'Delivery' : r.stage === 'Delivery') || (opts && opts.isDeliveryTable);
+              const isSalesTable = !isDelivery && (PDMS.stageOf ? PDMS.stageOf(r) === 'Sales' : r.stage === 'Sales');
+              const dStat = isDelivery ? (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : (r.deliveryStatus || 'Gap Assessment')) : (r.deliveryStatus || v);
+
+              if (filterVal === 'In Pipeline' || filterVal === 'Active Pipeline' || filterVal === 'pipeline') {
+                const norm = PDMS.normalizeStatus ? PDMS.normalizeStatus(v) : v;
+                return ['Lead','Opportunity','Initial Proposal','Negotiation','Invoicing'].includes(norm) && r.status!=='Awaiting Sales Head Approval' && r.status!=='Awaiting Account Approval' && r.status!=='Cancelled' && r.status!=='On Hold' && r.status!=='Closed' && !isDelivery;
+              }
+              if (filterVal === 'Ongoing') {
+                return !!dStat && !['Not Started','Completed','Closure','Project Closure','Closed','On Hold','Cancelled'].includes(dStat);
+              }
+              if (filterVal === 'Award/SLA') {
                 return v === 'Award/SLA' || v === 'Awaiting Account Approval';
               }
-              if (state.filters[k] === 'Closed') {
-                return v === 'Closed' || r.stage === 'Delivery' || (window.D && window.D.deliveryStatuses && window.D.deliveryStatuses.includes(v) && v !== 'Awaiting Account Approval');
+              if (filterVal === 'Completed') {
+                return isDelivery ? dStat === 'Completed' : (isSalesTable && v === 'Completed');
               }
-              const dStat = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : v;
-              return v === state.filters[k] || dStat === state.filters[k];
+              if (filterVal === 'Closed' || filterVal === 'Closure' || filterVal === 'Project Closure') {
+                return isDelivery ? ['Closure', 'Project Closure'].includes(dStat) : (isSalesTable && (v === 'Closed' || v === 'Closure' || v === 'Project Closure'));
+              }
+              if (filterVal === 'On Hold') {
+                return dStat === 'On Hold' || v === 'On Hold';
+              }
+              if (filterVal === 'Cancelled') {
+                return dStat === 'Cancelled' || v === 'Cancelled';
+              }
+              return isDelivery ? dStat === filterVal : (dStat === filterVal || v === filterVal);
             }
-            return v === state.filters[k];
+            return v === filterVal;
           });
         }
       });
@@ -1120,34 +1239,49 @@
       const slice = arr.slice((state.page-1)*pageSize, state.page*pageSize);
       const filterHtml = (opts.filterOptions||[]).map(f=>{
         const opts2 = ['<option value="">All '+f.label+'</option>'].concat(f.options.map(o=>'<option value="'+PDMS.esc(o)+'"'+(state.filters[f.key]===o?' selected':'')+'>'+PDMS.esc(o)+'</option>'));
-        return '<div class="form-group"><label>'+PDMS.esc(f.label)+'</label><select class="select" data-filter="'+f.key+'">'+opts2.join('')+'</select></div>';
+        return '<div class="form-group tt-filter-group"><label>'+PDMS.esc(f.label)+'</label><select class="select tt-select" data-filter="'+f.key+'">'+opts2.join('')+'</select></div>';
       }).join('');
       const dateHtml = opts.dateFilter ? (
-        '<div class="form-group"><label>'+PDMS.esc(opts.dateFilter.label||'Date')+' from</label><input type="date" class="tt-date-from" value="'+PDMS.esc(state.dateFrom)+'"></div>'+
-        '<div class="form-group"><label>to</label><input type="date" class="tt-date-to" value="'+PDMS.esc(state.dateTo)+'"></div>'
+        '<div class="form-group tt-date-group">'+
+          '<label>'+PDMS.esc(opts.dateFilter.label||'Start Date')+' Range</label>'+
+          '<div class="tt-date-range">'+
+            '<svg class="tt-cal-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'+
+            '<input type="date" class="tt-date-from" value="'+PDMS.esc(state.dateFrom)+'" title="Start date from" aria-label="From date">'+
+            '<span class="tt-date-arrow">➔</span>'+
+            '<input type="date" class="tt-date-to" value="'+PDMS.esc(state.dateTo)+'" title="End date to" aria-label="To date">'+
+          '</div>'+
+        '</div>'
       ) : '';
       const hasActiveFilter = state.filter || state.dateFrom || state.dateTo || Object.keys(state.filters).some(k=>state.filters[k]);
       container.innerHTML =
         '<div class="table-tools">'+
-          '<div class="form-group tt-search"><label>Search</label>'+
-            '<div class="tt-search-box">'+ICONS.search+'<input class="tt-search-input" placeholder="Search…" value="'+PDMS.esc(state.filter)+'"></div>'+
+          '<div class="tt-left">'+
+            '<div class="form-group tt-search"><label>Search</label>'+
+              '<div class="tt-search-box">'+
+                '<svg class="tt-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'+
+                '<input class="tt-search-input" placeholder="Search projects, clients…" value="'+PDMS.esc(state.filter)+'">'+
+                (state.filter ? '<button class="tt-search-clear" data-act="clear-search" title="Clear search">✕</button>' : '')+
+              '</div>'+
+            '</div>'+
+            filterHtml+
+            dateHtml+
           '</div>'+
-          filterHtml+
-          dateHtml+
           '<div class="tt-actions">'+
-            (hasActiveFilter ? '<button class="btn btn-ghost btn-sm" data-act="clear">Clear</button>' : '')+
-            '<button class="btn btn-secondary btn-sm" data-act="export">'+ICONS.download+' Export CSV</button>'+
-            '<button class="btn btn-secondary btn-sm" data-act="print">Print</button>'+
+            (hasActiveFilter ? '<button class="btn btn-clear-filters" data-act="clear" title="Reset all active filters"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Reset Filters</button>' : '')+
+            '<div class="tt-btn-group">'+
+              '<button class="btn btn-action" data-act="export" title="Export as CSV"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV</button>'+
+              '<button class="btn btn-action" data-act="print" title="Print table"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print</button>'+
+            '</div>'+
           '</div>'+
         '</div>'+
         '<div style="overflow-x:auto"><table class="data"><thead><tr>'+
-        opts.columns.map(c=>'<th data-key="'+c.key+'">'+c.label+(state.sortKey===c.key?(state.sortDir>0?' ↑':' ↓'):'')+'</th>').join('')+
+        opts.columns.map(c=>'<th data-key="'+c.key+'">'+c.label+(state.sortKey===c.key?(state.sortDir>0?' ▲':' ▼'):'')+'</th>').join('')+
         '</tr></thead><tbody>'+
         (slice.length?slice.map(r=>{
           const rowAttr = opts.rowHref ? ' style="cursor:pointer" onclick="location.href=\''+opts.rowHref(r)+'\'"' : '';
           return '<tr'+rowAttr+'>'+opts.columns.map(c=>'<td>'+(c.render?c.render(r):PDMS.esc(r[c.key]??''))+'</td>').join('')+'</tr>';
         }).join('')
-          :'<tr><td colspan="'+opts.columns.length+'">'+(g.PDMS_REMOTE?'<div style="text-align:center;padding:32px;color:var(--text-muted)">No data available</div>':'<div class="pdms-loading-inline"><span class="pdms-spinner"></span>Loading...</div>')+'</td></tr>')+
+          :'<tr><td colspan="'+opts.columns.length+'" class="text-muted" style="text-align:center;padding:28px">'+PDMS.emptyOrLoading('No results found')+'</td></tr>')+
         '</tbody></table></div>'+
         '<div class="pagination"><div>Showing '+((state.page-1)*pageSize+1)+'-'+Math.min(state.page*pageSize,arr.length)+' of '+arr.length+'</div><div class="pages">'+
         '<button class="page-btn" data-p="prev">‹</button>'+
@@ -1157,13 +1291,17 @@
 
       const searchInput = container.querySelector('.tt-search-input');
       if(searchInput) searchInput.addEventListener('input',e=>{state.filter=e.target.value;state.page=1;render('.tt-search-input');});
+      const searchClearBtn = container.querySelector('[data-act="clear-search"]');
+      if(searchClearBtn) searchClearBtn.addEventListener('click',()=>{state.filter='';state.page=1;render();});
       const dFrom = container.querySelector('.tt-date-from');
       if(dFrom) dFrom.addEventListener('change',e=>{state.dateFrom=e.target.value;state.page=1;render();});
       const dTo = container.querySelector('.tt-date-to');
       if(dTo) dTo.addEventListener('change',e=>{state.dateTo=e.target.value;state.page=1;render();});
       const clearBtn = container.querySelector('[data-act="clear"]');
       if(clearBtn) clearBtn.addEventListener('click',()=>{
-        state.filter=''; state.dateFrom=''; state.dateTo=''; state.filters={}; state.page=1; render();
+        state.filter=''; state.dateFrom=''; state.dateTo=''; state.filters={}; state.page=1;
+        if(typeof opts.onFilterChange === 'function') opts.onFilterChange(state.filters);
+        render();
       });
       container.querySelectorAll('th').forEach(th=>th.addEventListener('click',()=>{
         const k=th.dataset.key;
@@ -1171,7 +1309,9 @@
         render();
       }));
       container.querySelectorAll('[data-filter]').forEach(sel=>sel.addEventListener('change',e=>{
-        state.filters[e.target.dataset.filter]=e.target.value; state.page=1; render();
+        state.filters[e.target.dataset.filter]=e.target.value; state.page=1;
+        if(typeof opts.onFilterChange === 'function') opts.onFilterChange(state.filters);
+        render();
       }));
       container.querySelectorAll('.page-btn').forEach(b=>b.addEventListener('click',()=>{
         const p=b.dataset.p;
@@ -3074,11 +3214,16 @@
     const mine = (PDMS.notificationsFor ? PDMS.notificationsFor() : (PDMS_DATA.notifications || []));
     const sorted = mine.slice().sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
     const list = sorted.slice(0, 10);
-    const unread = mine.filter(n=>n.unread).length;
+    const unread = mine.filter(n => PDMS.isNotificationUnread ? PDMS.isNotificationUnread(n) : n.unread).length;
     const dot = document.querySelector('#notifBtn .dot');
     if(dot) dot.style.display = unread ? 'block' : 'none';
-    p.innerHTML = '<div class="panel-head"><h3>Notifications</h3><a href="notifications.html" class="text-sm" style="color:var(--primary)">View all</a></div><div class="panel-body">'+
-      (list.length ? list.map(n=>'<div class="notif '+(n.unread?'unread':'')+'" style="cursor:pointer" onclick="PDMS.markNotificationAsRead(\''+PDMS.esc(n.id)+'\',\''+PDMS.esc(n.link||'')+'\')"><div class="n-icon">'+I(n.icon)+'</div><div><div class="n-title">'+PDMS.esc(n.title)+'</div><div class="n-msg">'+PDMS.esc(n.msg)+'</div><div class="n-time">'+PDMS.timeAgo(n.time)+'</div></div></div>').join('')
+    p.innerHTML = '<div class="panel-head"><h3>Notifications</h3><div style="display:flex;align-items:center;gap:10px">'+
+      (unread ? '<button onclick="PDMS.markAllNotificationsRead && PDMS.markAllNotificationsRead().then(()=>{PDMS.toast(\'Done\',\'All notifications marked as read\',\'success\');})" style="background:none;border:none;padding:0;color:var(--primary);font-size:12px;font-weight:600;cursor:pointer">Mark all as read</button>' : '')+
+      '<a href="notifications.html" class="text-sm" style="color:var(--primary);font-weight:600">View all</a></div></div><div class="panel-body">'+
+      (list.length ? list.map(n=>{
+        const isUnread = PDMS.isNotificationUnread ? PDMS.isNotificationUnread(n) : n.unread;
+        return '<div class="notif '+(isUnread?'unread':'')+'" style="cursor:pointer" onclick="PDMS.markNotificationAsRead(\''+PDMS.esc(n.id)+'\',\''+PDMS.esc(n.link||'')+'\')"><div class="n-icon">'+I(n.icon)+'</div><div><div class="n-title">'+PDMS.esc(n.title)+'</div><div class="n-msg">'+PDMS.esc(n.msg)+'</div><div class="n-time">'+PDMS.timeAgo(n.time)+'</div></div></div>';
+      }).join('')
         : '<div style="padding:24px 16px;text-align:center;color:var(--text-muted);font-size:13px">No notifications</div>')+
     '</div>';
   }

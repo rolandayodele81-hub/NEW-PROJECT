@@ -7,7 +7,7 @@
   <title>Sales Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788826254"/>
+<link rel="stylesheet" href="css/style.css?v=1788832948"/>
   <style>
     .sales-hero {
       display: grid;
@@ -94,7 +94,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788826254"></script>
+  <script src="js/bundle.js?v=1788832948"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -192,53 +192,53 @@
     </div>
 
     <div class="grid mb-4" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:16px">
-      <div class="stat i-primary">
+      <a class="stat i-primary" href="projects.html#view=sales" title="View all sales deals">
         <div class="label">Total in Sales</div>
         <div class="value">${totalInSales}</div>
         <div class="delta up">All pipeline deals</div>
         <div class="icon-wrap">${I('folder')}</div>
-      </div>
-      <div class="stat i-info">
+      </a>
+      <a class="stat i-info" href="projects.html#view=sales&filter=pipeline" title="Filter approved leads in pipeline (pre-SLA)">
         <div class="label">In Pipeline</div>
         <div class="value">${inPipeline}</div>
-        <div class="delta up">Active prospecting</div>
+        <div class="delta up">Approved leads (pre-SLA)</div>
         <div class="icon-wrap">${I('activity')}</div>
-      </div>
+      </a>
       ${isSalesUser ? `
-      <div class="stat i-warn">
+      <a class="stat i-warn" href="awaiting-projects.html" title="View projects awaiting approval">
         <div class="label">Pending Approval</div>
         <div class="value">${pendingApprovalCount}</div>
         <div class="delta up">Sales Head review</div>
         <div class="icon-wrap">${I('clock')}</div>
-      </div>` : ''}
-      <div class="stat i-purple">
+      </a>` : ''}
+      <a class="stat i-purple" href="projects.html#view=sales&status=Award/SLA" title="Filter Award/SLA deals">
         <div class="label">Award/SLA</div>
         <div class="value">${awardSla}</div>
         <div class="delta up">Awards &amp; SLA handoffs</div>
         <div class="icon-wrap">${I('check')}</div>
-      </div>
-      <div class="stat i-success">
+      </a>
+      <a class="stat i-success" href="projects.html#view=sales&status=Closed" title="Filter closed / won deals">
         <div class="label">Closed / Won</div>
         <div class="value">${closedDeals}</div>
         <div class="delta up">Handed to delivery</div>
         <div class="icon-wrap">${I('briefcase')}</div>
-      </div>
-      <div class="stat i-warn" style="background:var(--surface)">
+      </a>
+      <a class="stat i-warn" href="projects.html#view=sales&status=On Hold" style="background:var(--surface)" title="Filter deals on hold">
         <div class="label">On Hold</div>
         <div class="value" style="color:#d97706">${offRampCounts['On Hold'] || 0}</div>
         <div class="delta" style="color:#d97706">Paused deals</div>
         <div class="icon-wrap" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
         </div>
-      </div>
-      <div class="stat i-danger">
+      </a>
+      <a class="stat i-danger" href="projects.html#view=sales&status=Cancelled" title="Filter cancelled deals">
         <div class="label">Cancelled</div>
         <div class="value">${offRampCounts.Cancelled || 0}</div>
         <div class="delta down">Rejected / dropped</div>
         <div class="icon-wrap" style="background:linear-gradient(135deg,#ef4444,#dc2626)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </div>
-      </div>
+      </a>
     </div>
 
     <div class="grid grid-2 mb-4">
@@ -317,44 +317,52 @@
               </tr>
             </thead>
             <tbody>
-              ${salesProjects.map(p => {
-                const isPendingSH = p.status === 'Awaiting Sales Head Approval';
-                const isPendingAcct = p.status === 'Awaiting Account Approval';
-                const isAccountsRejected = (p.accountsRejectionNote || p.rejectionNote) && p.status !== 'Cancelled' && !p.salesHeadRejectionNote;
-                const isClosedWon = !isPendingAcct && !isAccountsRejected && (p.status === 'Closed' || (p.stage === 'Delivery' && p.status !== 'Cancelled' && p.status !== 'On Hold') || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)));
-                const displayStatus = isClosedWon ? 'Closed' : p.status;
-                let statusDisplay = '';
-                if (isPendingSH) {
-                  const stageName = p.requestedStatus || p.targetStatus || 'Lead';
-                  statusDisplay = `<span class="badge" style="background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25);font-weight:600">${PDMS.esc(stageName)} (Pending Approval)</span>`;
-                } else if (p.status === 'Cancelled' && p.salesHeadRejectionNote) {
-                  const stageName = p.requestedStatus || p.targetStatus || 'Lead';
-                  statusDisplay = `<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">${PDMS.esc(stageName)} (Rejected)</span>`;
-                } else if (isPendingAcct) {
-                  statusDisplay = `<span class="badge" style="background:rgba(124,58,237,.12);color:#7c3aed;border:1px solid rgba(124,58,237,.25);font-weight:600">Award/SLA (Pending Accounts)</span>`;
-                } else if (isAccountsRejected) {
-                  statusDisplay = `<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">Award/SLA (Returned)</span>`;
-                } else {
-                  statusDisplay = `<span class="badge badge-${D.statusColors[displayStatus] || D.statusColors[p.status] || 'muted'}">${PDMS.esc(displayStatus)}</span>`;
-                }
-                const isDelivery = isClosedWon;
-                const actionBtn = isPendingSH && isSalesUser
-                  ? '<span class="text-muted text-sm">Awaiting Sales Head</span>'
-                  : `<a href="project-details.html#id=${p.id}&from=sales" class="btn btn-secondary btn-sm">Manage</a>`;
-                return `
-                <tr>
-                  <td><a href="project-details.html#id=${p.id}&from=sales" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
-                  <td class="font-bold">${PDMS.esc(p.client||p.name||'\u2014')}</td>
-                  <td class="font-semi">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '\u2014'}</td>
-                  <td class="font-semi">${Number.isFinite(Number(p.awardValue || (isDelivery ? p.negotiatedPrice : ''))) && Number(p.awardValue || (isDelivery ? p.negotiatedPrice : '')) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice) : '\u2014'}</td>
-                  <td>${PDMS.esc(p.type||'\u2014')}</td>
-                  <td>${statusDisplay}</td>
-                  <td>${actionBtn}</td>
-                </tr>`;
-              }).join('') || `<tr><td colspan="7" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects yet')}</td></tr>`}
+              ${(() => {
+                const displaySales = salesProjects.slice(0, 5);
+                return displaySales.map(p => {
+                  const isPendingSH = p.status === 'Awaiting Sales Head Approval';
+                  const isPendingAcct = p.status === 'Awaiting Account Approval';
+                  const isAccountsRejected = (p.accountsRejectionNote || p.rejectionNote) && p.status !== 'Cancelled' && !p.salesHeadRejectionNote;
+                  const isClosedWon = !isPendingAcct && !isAccountsRejected && (p.status === 'Closed' || (p.stage === 'Delivery' && p.status !== 'Cancelled' && p.status !== 'On Hold') || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status)));
+                  const displayStatus = isClosedWon ? 'Closed' : p.status;
+                  let statusDisplay = '';
+                  if (isPendingSH) {
+                    const stageName = p.requestedStatus || p.targetStatus || 'Lead';
+                    statusDisplay = `<span class="badge" style="background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25);font-weight:600">${PDMS.esc(stageName)} (Pending Approval)</span>`;
+                  } else if (p.status === 'Cancelled' && p.salesHeadRejectionNote) {
+                    const stageName = p.requestedStatus || p.targetStatus || 'Lead';
+                    statusDisplay = `<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">${PDMS.esc(stageName)} (Rejected)</span>`;
+                  } else if (isPendingAcct) {
+                    statusDisplay = `<span class="badge" style="background:rgba(124,58,237,.12);color:#7c3aed;border:1px solid rgba(124,58,237,.25);font-weight:600">Award/SLA (Pending Accounts)</span>`;
+                  } else if (isAccountsRejected) {
+                    statusDisplay = `<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">Award/SLA (Returned)</span>`;
+                  } else {
+                    statusDisplay = `<span class="badge badge-${D.statusColors[displayStatus] || D.statusColors[p.status] || 'muted'}">${PDMS.esc(displayStatus)}</span>`;
+                  }
+                  const isDelivery = isClosedWon;
+                  const actionBtn = isPendingSH && isSalesUser
+                    ? '<span class="text-muted text-sm">Awaiting Sales Head</span>'
+                    : `<a href="project-details.html#id=${p.id}&from=sales" class="btn btn-secondary btn-sm">Manage</a>`;
+                  return `
+                  <tr>
+                    <td><a href="project-details.html#id=${p.id}&from=sales" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
+                    <td class="font-bold">${PDMS.esc(p.client||p.name||'\u2014')}</td>
+                    <td class="font-semi">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '\u2014'}</td>
+                    <td class="font-semi">${Number.isFinite(Number(p.awardValue || (isDelivery ? p.negotiatedPrice : ''))) && Number(p.awardValue || (isDelivery ? p.negotiatedPrice : '')) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice) : '\u2014'}</td>
+                    <td>${PDMS.esc(p.type||'\u2014')}</td>
+                    <td>${statusDisplay}</td>
+                    <td>${actionBtn}</td>
+                  </tr>`;
+                }).join('') || `<tr><td colspan="7" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects yet')}</td></tr>`;
+              })()}
             </tbody>
           </table>
         </div>
+        ${salesProjects.length > 5 ? `
+        <div style="padding:12px 16px;border-top:1px solid var(--border);background:var(--surface-2);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:var(--text-muted)">Showing 5 of ${salesProjects.length} pipeline projects</span>
+          <a href="projects.html#view=sales" style="font-size:12px;font-weight:700;color:var(--primary);text-decoration:none;display:inline-flex;align-items:center;gap:4px">View all pipeline projects →</a>
+        </div>` : ''}
       </div>
     </div>
 
@@ -381,20 +389,29 @@
                 <th>Status</th>
               </tr>
             </thead>
-              ${deliveryProjects.map(p => {
-                const delivStatus = PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Not Started') : (p.deliveryStatus || 'Not Started');
-                return `
-                <tr>
-                  <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
-                  <td class="font-bold">${PDMS.esc(p.client||p.name||'—')}</td>
-                  <td>${PDMS.esc(p.type||'—')}</td>
-                  <td>${PDMS.esc(p.pm || 'TBD')}</td>
-                  <td><span class="badge badge-${D.statusColors[delivStatus] || 'muted'}">${PDMS.esc(delivStatus)}</span></td>
-                </tr>`;
-              }).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No projects in delivery yet')}</td></tr>`}
+            <tbody>
+              ${(() => {
+                const displayDelivery = deliveryProjects.slice(0, 5);
+                return displayDelivery.map(p => {
+                  const delivStatus = PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Not Started') : (p.deliveryStatus || 'Not Started');
+                  return `
+                  <tr>
+                    <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
+                    <td class="font-bold">${PDMS.esc(p.client||p.name||'—')}</td>
+                    <td>${PDMS.esc(p.type||'—')}</td>
+                    <td>${PDMS.esc(p.pm || 'TBD')}</td>
+                    <td><span class="badge badge-${D.statusColors[delivStatus] || 'muted'}">${PDMS.esc(delivStatus)}</span></td>
+                  </tr>`;
+                }).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No projects in delivery yet')}</td></tr>`;
+              })()}
             </tbody>
           </table>
         </div>
+        ${deliveryProjects.length > 5 ? `
+        <div style="padding:12px 16px;border-top:1px solid var(--border);background:var(--surface-2);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:var(--text-muted)">Showing 5 of ${deliveryProjects.length} projects in delivery</span>
+          <a href="projects.html#view=delivery" style="font-size:12px;font-weight:700;color:var(--primary);text-decoration:none;display:inline-flex;align-items:center;gap:4px">View all delivery projects →</a>
+        </div>` : ''}
       </div>
     </div>
   `;

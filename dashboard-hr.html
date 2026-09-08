@@ -7,7 +7,7 @@
   <title>HR Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788826254"/>
+<link rel="stylesheet" href="css/style.css?v=1788832948"/>
   <style>
     .hr-hero {
       display: grid;
@@ -75,7 +75,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788826254"></script>
+  <script src="js/bundle.js?v=1788832948"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -122,18 +122,18 @@
     </div>
 
     <div class="grid grid-2 mb-4">
-      <div class="stat i-primary">
+      <a class="stat i-primary" href="users.html" title="View staff directory">
         <div class="label">Total Staff</div>
         <div class="value">${totalStaff}</div>
         <div class="delta up">Global directory</div>
         <div class="icon-wrap">${I('users')}</div>
-      </div>
-      <div class="stat i-info">
+      </a>
+      <a class="stat i-info" href="consultants.html" title="View consultants and bench">
         <div class="label">Consultants</div>
         <div class="value">${totalConsultants}</div>
         <div class="delta up">On bench, all available</div>
         <div class="icon-wrap">${I('briefcase')}</div>
-      </div>
+      </a>
     </div>
 
     <div class="grid grid-2 mb-4">

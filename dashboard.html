@@ -4,10 +4,10 @@
 <title>Dashboard — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788826254"/>
+<link rel="stylesheet" href="css/style.css?v=1788832948"/>
 </head>
 <body>
-<script src="js/bundle.js?v=1788826254"></script>
+<script src="js/bundle.js?v=1788832948"></script>
 <script>
 PDMS.mountShell('dashboard');
 
@@ -51,9 +51,9 @@ requestAnimationFrame(() => {
       const _cInProg = consultantProjects.filter(p=>{ const t=_getMyTasks(p); return t.length>0 && t.some(t=>!t.done); }).length;
       const _cDone = consultantProjects.filter(p=>{ const t=_getMyTasks(p); return t.length>0 && t.every(t=>t.done); }).length;
       const consultantStatsHtml = '<div class="grid grid-3 mb-4">'
-        + '<div class="stat i-primary"><div class="label">Current Projects</div><div class="value">'+_cCurrent+'</div><div class="icon-wrap">'+I('folder')+'</div></div>'
-        + '<div class="stat i-warn"><div class="label">With Active Tasks</div><div class="value">'+_cInProg+'</div><div class="sub" style="font-size:11px;color:var(--text-muted);margin-top:2px">projects</div><div class="icon-wrap">'+I('activity')+'</div></div>'
-        + '<div class="stat i-success"><div class="label">Tasks Completed</div><div class="value">'+_cDone+'</div><div class="sub" style="font-size:11px;color:var(--text-muted);margin-top:2px">projects</div><div class="icon-wrap">'+I('check')+'</div></div>'
+        + '<a class="stat i-primary" href="projects.html" title="View all current projects"><div class="label">Current Projects</div><div class="value">'+_cCurrent+'</div><div class="icon-wrap">'+I('folder')+'</div></a>'
+        + '<a class="stat i-warn" href="projects.html#taskFilter=active" title="Filter projects with active tasks"><div class="label">With Active Tasks</div><div class="value">'+_cInProg+'</div><div class="sub" style="font-size:11px;color:var(--text-muted);margin-top:2px">projects</div><div class="icon-wrap">'+I('activity')+'</div></a>'
+        + '<a class="stat i-success" href="projects.html#taskFilter=completed" title="Filter projects with tasks completed"><div class="label">Tasks Completed</div><div class="value">'+_cDone+'</div><div class="sub" style="font-size:11px;color:var(--text-muted);margin-top:2px">projects</div><div class="icon-wrap">'+I('check')+'</div></a>'
         + '</div>';
 
       const content = document.getElementById('content');
@@ -82,17 +82,17 @@ requestAnimationFrame(() => {
 
   ${isConsultant ? consultantStatsHtml : `
   <div class="grid grid-4 mb-4">
-    <div class="stat i-primary"><div class="label">Total Projects</div><div class="value">${total}</div><div class="delta up">${I('trending')} +12% this month</div><div class="icon-wrap">${I('folder')}</div></div>
-    <div class="stat i-success"><div class="label">Completed</div><div class="value">${completed}</div><div class="delta up">${I('trending')} +8 this week</div><div class="icon-wrap">${I('check')}</div></div>
-    <div class="stat i-warn"><div class="label">In Progress</div><div class="value">${inProgress}</div><div class="delta up">${I('activity')} On track</div><div class="icon-wrap">${I('activity')}</div></div>
-    <div class="stat i-info"><div class="label">Delayed</div><div class="value">${delayed}</div><div class="delta down">Needs attention</div><div class="icon-wrap">${I('clock')}</div></div>
+    <a class="stat i-primary" href="projects.html" title="View all projects"><div class="label">Total Projects</div><div class="value">${total}</div><div class="delta up">${I('trending')} +12% this month</div><div class="icon-wrap">${I('folder')}</div></a>
+    <a class="stat i-success" href="projects.html#status=Completed" title="Filter completed projects"><div class="label">Completed</div><div class="value">${completed}</div><div class="delta up">${I('trending')} +8 this week</div><div class="icon-wrap">${I('check')}</div></a>
+    <a class="stat i-warn" href="projects.html#status=In Progress" title="Filter in-progress projects"><div class="label">In Progress</div><div class="value">${inProgress}</div><div class="delta up">${I('activity')} On track</div><div class="icon-wrap">${I('activity')}</div></a>
+    <a class="stat i-info" href="projects.html#filter=delayed" title="Filter delayed projects"><div class="label">Delayed</div><div class="value">${delayed}</div><div class="delta down">Needs attention</div><div class="icon-wrap">${I('clock')}</div></a>
   </div>
 
   <div class="grid grid-4 mb-4">
-    <div class="stat i-purple"><div class="label">Today's Deliveries</div><div class="value">${dueToday}</div><div class="delta">Due within 24h</div><div class="icon-wrap">${I('calendar')}</div></div>
-    <div class="stat i-pink"><div class="label">This Week</div><div class="value">${dueWeek}</div><div class="delta">Upcoming deadlines</div><div class="icon-wrap">${I('calendar')}</div></div>
-    <div class="stat i-success"><div class="label">Available Consultants</div><div class="value">${avail}</div><div class="delta up">Ready to deploy</div><div class="icon-wrap">${I('users')}</div></div>
-    <div class="stat i-warn"><div class="label">Busy Consultants</div><div class="value">${busy}</div><div class="delta">On active engagements</div><div class="icon-wrap">${I('briefcase')}</div></div>
+    <a class="stat i-purple" href="projects.html#filter=dueToday" title="Filter projects due today"><div class="label">Today's Deliveries</div><div class="value">${dueToday}</div><div class="delta">Due within 24h</div><div class="icon-wrap">${I('calendar')}</div></a>
+    <a class="stat i-pink" href="projects.html#filter=dueSoon" title="Filter projects due this week"><div class="label">This Week</div><div class="value">${dueWeek}</div><div class="delta">Upcoming deadlines</div><div class="icon-wrap">${I('calendar')}</div></a>
+    <a class="stat i-success" href="consultants.html" title="View available consultants"><div class="label">Available Consultants</div><div class="value">${avail}</div><div class="delta up">Ready to deploy</div><div class="icon-wrap">${I('users')}</div></a>
+    <a class="stat i-warn" href="consultants.html" title="View busy consultants"><div class="label">Busy Consultants</div><div class="value">${busy}</div><div class="delta">On active engagements</div><div class="icon-wrap">${I('briefcase')}</div></a>
   </div>
   `}
 

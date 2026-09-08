@@ -157,11 +157,16 @@
     const mine = (PDMS.notificationsFor ? PDMS.notificationsFor() : (PDMS_DATA.notifications || []));
     const sorted = mine.slice().sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
     const list = sorted.slice(0, 10);
-    const unread = mine.filter(n=>n.unread).length;
+    const unread = mine.filter(n => PDMS.isNotificationUnread ? PDMS.isNotificationUnread(n) : n.unread).length;
     const dot = document.querySelector('#notifBtn .dot');
     if(dot) dot.style.display = unread ? 'block' : 'none';
-    p.innerHTML = '<div class="panel-head"><h3>Notifications</h3><a href="notifications.html" class="text-sm" style="color:var(--primary)">View all</a></div><div class="panel-body">'+
-      (list.length ? list.map(n=>'<div class="notif '+(n.unread?'unread':'')+'" style="cursor:pointer" onclick="PDMS.markNotificationAsRead(\''+PDMS.esc(n.id)+'\',\''+PDMS.esc(n.link||'')+'\')"><div class="n-icon">'+I(n.icon)+'</div><div><div class="n-title">'+PDMS.esc(n.title)+'</div><div class="n-msg">'+PDMS.esc(n.msg)+'</div><div class="n-time">'+PDMS.timeAgo(n.time)+'</div></div></div>').join('')
+    p.innerHTML = '<div class="panel-head"><h3>Notifications</h3><div style="display:flex;align-items:center;gap:10px">'+
+      (unread ? '<button onclick="PDMS.markAllNotificationsRead && PDMS.markAllNotificationsRead().then(()=>{PDMS.toast(\'Done\',\'All notifications marked as read\',\'success\');})" style="background:none;border:none;padding:0;color:var(--primary);font-size:12px;font-weight:600;cursor:pointer">Mark all as read</button>' : '')+
+      '<a href="notifications.html" class="text-sm" style="color:var(--primary);font-weight:600">View all</a></div></div><div class="panel-body">'+
+      (list.length ? list.map(n=>{
+        const isUnread = PDMS.isNotificationUnread ? PDMS.isNotificationUnread(n) : n.unread;
+        return '<div class="notif '+(isUnread?'unread':'')+'" style="cursor:pointer" onclick="PDMS.markNotificationAsRead(\''+PDMS.esc(n.id)+'\',\''+PDMS.esc(n.link||'')+'\')"><div class="n-icon">'+I(n.icon)+'</div><div><div class="n-title">'+PDMS.esc(n.title)+'</div><div class="n-msg">'+PDMS.esc(n.msg)+'</div><div class="n-time">'+PDMS.timeAgo(n.time)+'</div></div></div>';
+      }).join('')
         : '<div style="padding:24px 16px;text-align:center;color:var(--text-muted);font-size:13px">No notifications</div>')+
     '</div>';
   }

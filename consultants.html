@@ -7,11 +7,11 @@
   <title>Consultants — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788826254"/>
+<link rel="stylesheet" href="css/style.css?v=1788832948"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788826254"></script>
+  <script src="js/bundle.js?v=1788832948"></script>
   <script>
     PDMS.mountShell('consultants');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -170,15 +170,42 @@
       </div>`;
     }
 
+    let selectedConsultantFilter = '';
+
+    function selectConsultantFilter(filterType) {
+      if (selectedConsultantFilter === filterType) {
+        selectedConsultantFilter = '';
+      } else {
+        selectedConsultantFilter = filterType;
+      }
+      render();
+    }
+    window.selectConsultantFilter = selectConsultantFilter;
+
     function renderConsultantWorkspace(user) {
       const projects = consultantProjects(user);
       document.getElementById('content').innerHTML = `
         <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Consultants</span></div>
           <h1 class="page-title">My Projects</h1><div class="page-sub">Assigned projects, delivery plans, private tasks, and project-specific remarks.</div></div></div>
         <div class="grid grid-3 mb-4">
-          <div class="stat i-primary"><div class="label">Current Projects</div><div class="value">${projects.filter(p=>p.status!=='Completed'&&p.status!=='Closed'&&p.status!=='Cancelled').length}</div><div class="icon-wrap">${I('folder')}</div></div>
-          <div class="stat i-warn"><div class="label">In Progress</div><div class="value">${projects.filter(p=>p.status==='In Progress').length}</div><div class="icon-wrap">${I('activity')}</div></div>
-          <div class="stat i-success"><div class="label">Completed</div><div class="value">${projects.filter(p=>p.status==='Completed').length}</div><div class="icon-wrap">${I('check')}</div></div>
+          <a class="stat i-primary" href="projects.html" title="View all your assigned projects">
+            <div class="label">Current Projects</div>
+            <div class="value">${projects.filter(p=>p.status!=='Completed'&&p.status!=='Closed'&&p.status!=='Cancelled').length}</div>
+            <div class="delta">All active projects</div>
+            <div class="icon-wrap">${I('folder')}</div>
+          </a>
+          <a class="stat i-warn" href="projects.html#status=In Progress" title="Filter in-progress projects">
+            <div class="label">In Progress</div>
+            <div class="value">${projects.filter(p=>p.status==='In Progress').length}</div>
+            <div class="delta">Active delivery</div>
+            <div class="icon-wrap">${I('activity')}</div>
+          </a>
+          <a class="stat i-success" href="projects.html#status=Completed" title="Filter completed projects">
+            <div class="label">Completed</div>
+            <div class="value">${projects.filter(p=>p.status==='Completed').length}</div>
+            <div class="delta">Delivered</div>
+            <div class="icon-wrap">${I('check')}</div>
+          </a>
         </div>
         ${renderMyTasks(user)}
         ${projects.length ? projects.map(project => renderProjectCard(project, user)).join('') : '<div class="card"><div class="card-body"><div class="text-muted">You are not assigned to any projects yet.</div></div></div>'}`;
@@ -225,16 +252,43 @@
         });
       }
 
-      const withProj = consultants.filter(c => scopedProjects.some(p => (p.pm || '').toLowerCase() === (c.name || '').toLowerCase() || (p.lead || '').toLowerCase() === (c.name || '').toLowerCase() || (Array.isArray(p.consultants) && p.consultants.some(n => String(n).toLowerCase() === (c.name || '').toLowerCase())))).length;
+      const hasProjectsFn = c => {
+        const rName = (c.name || '').toLowerCase();
+        const n = scopedProjects.filter(p => (p.pm || '').toLowerCase() === rName || (p.lead || '').toLowerCase() === rName || (Array.isArray(p.consultants) && p.consultants.some(x => String(x).toLowerCase() === rName))).length;
+        return n > 0;
+      };
+
+      const withProj = consultants.filter(c => hasProjectsFn(c)).length;
       const withoutProj = consultants.length - withProj;
+
+      const customFilter = selectedConsultantFilter === 'withProj'
+        ? (c => hasProjectsFn(c))
+        : (selectedConsultantFilter === 'withoutProj'
+          ? (c => !hasProjectsFn(c))
+          : null);
 
       document.getElementById('content').innerHTML = `
         <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Consultants</span></div>
           <h1 class="page-title">Consultants</h1><div class="page-sub">${isPMO ? 'Consultants assigned to your active project engagements' : 'Resource pool availability and specialties'}</div></div></div>
         <div class="grid grid-3 mb-4">
-          <div class="stat i-primary"><div class="label">Total Consultants</div><div class="value">${consultants.length}</div><div class="icon-wrap">${I('users')}</div></div>
-          <div class="stat i-success"><div class="label">With Projects</div><div class="value">${withProj}</div><div class="icon-wrap">${I('folder')}</div></div>
-          <div class="stat i-warn"><div class="label">Without Projects</div><div class="value">${withoutProj}</div><div class="icon-wrap">${I('activity')}</div></div>
+          <div class="stat i-primary ${!selectedConsultantFilter ? 'active-filter' : ''}" onclick="selectConsultantFilter('')" title="Click to show all consultants" style="cursor:pointer">
+            <div class="label">Total Consultants</div>
+            <div class="value">${consultants.length}</div>
+            <div class="delta">All specialists</div>
+            <div class="icon-wrap">${I('users')}</div>
+          </div>
+          <div class="stat i-success ${selectedConsultantFilter === 'withProj' ? 'active-filter' : ''}" onclick="selectConsultantFilter('withProj')" title="Click to filter consultants with assigned projects" style="cursor:pointer">
+            <div class="label">With Projects</div>
+            <div class="value">${withProj}</div>
+            <div class="delta">Active on engagements</div>
+            <div class="icon-wrap">${I('folder')}</div>
+          </div>
+          <div class="stat i-warn ${selectedConsultantFilter === 'withoutProj' ? 'active-filter' : ''}" onclick="selectConsultantFilter('withoutProj')" title="Click to filter unassigned consultants on bench" style="cursor:pointer">
+            <div class="label">Without Projects</div>
+            <div class="value">${withoutProj}</div>
+            <div class="delta">Bench / Available</div>
+            <div class="icon-wrap">${I('activity')}</div>
+          </div>
         </div>
         <div id="tbl" class="table-wrap"></div>`;
       PDMS.renderTable(document.getElementById('tbl'), {
@@ -248,6 +302,7 @@
           }},
           { key: 'dateOfEntry', label: 'Date of Entry', render: r => PDMS.esc(r.dateOfEntry || '—') }
         ], rows: consultants, pageSize: 20, searchKeys: ['name', 'dept', 'email'],
+        customFilter: customFilter,
         rowHref: r => 'user-details.html#id=' + encodeURIComponent(r.id || '') + (r.email ? '&email=' + encodeURIComponent(r.email) : ''),
         filterOptions: []
       });

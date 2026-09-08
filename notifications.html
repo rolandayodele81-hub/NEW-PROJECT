@@ -3,7 +3,7 @@
 <title>Notifications — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788826254"/>
+<link rel="stylesheet" href="css/style.css?v=1788832948"/>
 <style>
   .notif-card{
     display:flex;align-items:flex-start;gap:14px;padding:16px 20px;
@@ -32,7 +32,7 @@
   .notif-link:hover{text-decoration:underline}
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788826254"></script>
+<script src="js/bundle.js?v=1788832948"></script>
 <script>
 PDMS.mountShell('notifications');
 const D = PDMS_DATA; const I = PDMS.icon;
@@ -53,17 +53,28 @@ function iconClass(icon){
 }
 
 function markAllRead(){
-  const liveNotifs = (window.PDMS_REMOTE && window.PDMS_REMOTE.notifications) || D.notifications || [];
-  const user = PDMS.getUser();
-  const visible = PDMS.notificationsFor ? PDMS.notificationsFor(user) : liveNotifs;
-  const unread = visible.filter(n=>n.unread);
-  if(!unread.length) return;
-  unread.forEach(n => { n.unread = false; });
-  Promise.all(unread.map(n => PDMS.api.update('notifications', n.id, {unread: false}).catch(()=>{}))).then(()=>{
-    PDMS.toast('Done','All notifications marked as read','success');
-    document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
-    render();
-  }).catch(()=>render());
+  const btn = document.querySelector('.page-head button');
+  if(btn) btn.disabled = true;
+  if(PDMS.markAllNotificationsRead){
+    PDMS.markAllNotificationsRead().then(()=>{
+      PDMS.toast('Done','All notifications marked as read','success');
+      render();
+    }).catch(()=>{
+      render();
+    });
+  } else {
+    const liveNotifs = (window.PDMS_REMOTE && window.PDMS_REMOTE.notifications) || D.notifications || [];
+    const user = PDMS.getUser();
+    const visible = PDMS.notificationsFor ? PDMS.notificationsFor(user) : liveNotifs;
+    const unread = visible.filter(n=>n.unread);
+    if(!unread.length) return;
+    unread.forEach(n => { n.unread = false; });
+    Promise.all(unread.map(n => PDMS.api.update('notifications', n.id, {unread: false}).catch(()=>{}))).then(()=>{
+      PDMS.toast('Done','All notifications marked as read','success');
+      document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
+      render();
+    }).catch(()=>render());
+  }
 }
 
 function render(){
@@ -74,7 +85,7 @@ function render(){
   let visibleNotifs = PDMS.notificationsFor ? PDMS.notificationsFor(user) : liveNotifs;
 
   const total = visibleNotifs.length;
-  const unreadCount = visibleNotifs.filter(n=>n.unread).length;
+  const unreadCount = visibleNotifs.filter(n => PDMS.isNotificationUnread ? PDMS.isNotificationUnread(n, user) : n.unread).length;
   const sorted = visibleNotifs.slice().sort((a,b)=>new Date(b.time)-new Date(a.time));
 
   document.getElementById('content').innerHTML = `
@@ -92,8 +103,9 @@ function render(){
   <div class="card" style="padding:0;overflow:hidden">
     ${sorted.length ? sorted.map(n => {
       const ic = n.icon || 'bell';
+      const isUnread = PDMS.isNotificationUnread ? PDMS.isNotificationUnread(n, user) : n.unread;
       return `
-      <div class="notif-card ${n.unread?'unread':''}" style="cursor:pointer" onclick="PDMS.markNotificationAsRead('${PDMS.esc(n.id)}', '${PDMS.esc(n.link||'')}')">
+      <div class="notif-card ${isUnread ? 'unread' : ''}" style="cursor:pointer" onclick="PDMS.markNotificationAsRead('${PDMS.esc(n.id)}', '${PDMS.esc(n.link||'')}')">
         <div class="notif-icon-wrap ${iconClass(ic)}">${I(ic)}</div>
         <div style="flex:1;min-width:0">
           <div class="notif-title">${PDMS.esc(n.title||'')}</div>
@@ -103,7 +115,7 @@ function render(){
             ${n.link ? `<span class="notif-link">View →</span>` : ''}
           </div>
         </div>
-        <div class="notif-dot ${n.unread?'':'read'}" title="${n.unread?'Unread':'Read'}"></div>
+        <div class="notif-dot ${isUnread ? '' : 'read'}" title="${isUnread ? 'Unread' : 'Read'}"></div>
       </div>`;
     }).join('') : `
     <div style="text-align:center;padding:48px 24px;color:var(--text-muted)">

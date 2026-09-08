@@ -197,6 +197,15 @@
     return salesStatusAliases[status] || status;
   }
 
+  function salesSequenceFor(projectOrType) {
+    if (typeof projectOrType === 'object' && projectOrType) {
+      if (Array.isArray(projectOrType.timelineStages) && projectOrType.timelineStages.length > 0) {
+        return projectOrType.timelineStages.slice();
+      }
+    }
+    return salesJourney.slice();
+  }
+
   function deliverySequenceFor(projectOrType) {
     if (typeof projectOrType === 'object' && projectOrType) {
       if (Array.isArray(projectOrType.timelineStages) && projectOrType.timelineStages.length > 0) {

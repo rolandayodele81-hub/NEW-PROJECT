@@ -7,29 +7,56 @@
   <title>Users — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788826254"/>
+<link rel="stylesheet" href="css/style.css?v=1788832948"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788826254"></script>
+  <script src="js/bundle.js?v=1788832948"></script>
   <script>
     PDMS.mountShell('users');
     const D = PDMS_DATA; const I = PDMS.icon;
 
+    let selectedUserRoleFilter = '';
+
+    function selectUserRoleFilter(role) {
+      if (selectedUserRoleFilter === role) {
+        selectedUserRoleFilter = '';
+      } else {
+        selectedUserRoleFilter = role;
+      }
+      render();
+    }
+    window.selectUserRoleFilter = selectUserRoleFilter;
+
     function render() {
+      const liveUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users;
+      const totalUsers = liveUsers.length;
+      const totalConsultants = liveUsers.filter(u => u.role === 'Consultant').length;
+
       document.getElementById('content').innerHTML = `
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Users</span></div>
     <h1 class="page-title">Users & Staff</h1><div class="page-sub">Manage employees, roles and access</div></div>
     <div class="flex gap-2">${PDMS.can('Onboard User') ? `<button class="btn btn-primary" onclick="newUser()">${I('user-plus')} Add User</button>` : ''}</div></div>
   <div class="grid grid-2 mb-4">
-    <div class="stat i-primary"><div class="label">Total Users</div><div class="value">${D.users.length}</div><div class="icon-wrap">${I('users')}</div></div>
-    <div class="stat i-info"><div class="label">Total Consultants</div><div class="value">${D.users.filter(u => u.role === 'Consultant').length}</div><div class="icon-wrap">${I('briefcase')}</div></div>
+    <div class="stat i-primary ${!selectedUserRoleFilter ? 'active-filter' : ''}" onclick="selectUserRoleFilter('')" title="Click to show all users" style="cursor:pointer">
+      <div class="label">Total Users</div>
+      <div class="value">${totalUsers}</div>
+      <div class="delta">All system accounts</div>
+      <div class="icon-wrap">${I('users')}</div>
+    </div>
+    <div class="stat i-info ${selectedUserRoleFilter === 'Consultant' ? 'active-filter' : ''}" onclick="selectUserRoleFilter('Consultant')" title="Click to filter consultants" style="cursor:pointer">
+      <div class="label">Total Consultants</div>
+      <div class="value">${totalConsultants}</div>
+      <div class="delta">Delivery specialists</div>
+      <div class="icon-wrap">${I('briefcase')}</div>
+    </div>
   </div>
   <div id="tbl" class="table-wrap"></div>
 `;
       renderUsers();
     }
     function renderUsers() {
+      const liveUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users;
       document.getElementById('tbl').innerHTML = '';
       PDMS.renderTable(document.getElementById('tbl'), {
         columns: [
@@ -37,7 +64,12 @@
           { key: 'role', label: 'Role', render: r => `<span class="badge badge-primary">${r.role}</span>` },
           { key: 'dept', label: 'Designation' }
         ],
-        rows: D.users, pageSize: 20, searchKeys: ['name', 'email', 'role', 'dept'],
+        rows: liveUsers, pageSize: 20, searchKeys: ['name', 'email', 'role', 'dept'],
+        filters: selectedUserRoleFilter ? { role: selectedUserRoleFilter } : {},
+        onFilterChange: (filters) => {
+          selectedUserRoleFilter = filters.role || '';
+          render();
+        },
         rowHref: r => 'user-details.html#id=' + encodeURIComponent(r.id || '') + (r.email ? '&email=' + encodeURIComponent(r.email) : ''),
         filterOptions: [{ key: 'role', label: 'Role', options: D.roles }]
       });

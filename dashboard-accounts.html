@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Accounts Dashboard — PSE PDMS</title>
-  <link rel="stylesheet" href="css/style.css?v=1788826254"/>
+  <link rel="stylesheet" href="css/style.css?v=1788832948"/>
   <style>
     .accounts-hero {
       display: grid;
@@ -59,7 +59,7 @@
   </style>
 </head>
 <body>
-<script src="js/bundle.js?v=1788826254"></script>
+<script src="js/bundle.js?v=1788832948"></script>
 <script>
   PDMS.mountShell('dashboard');
   const D = PDMS_DATA; const I = PDMS.icon;
@@ -98,30 +98,30 @@
     </div>
 
     <div class="grid grid-4 mb-4">
-      <div class="stat" style="border:1.5px solid rgba(124,58,237,.25)">
+      <a class="stat" href="awaiting-projects.html" style="border:1.5px solid rgba(124,58,237,.25)" title="View projects awaiting approval">
         <div class="label">Pending Approval</div>
         <div class="value" style="color:#7c3aed">${pending.length}</div>
         <div class="delta">Awaiting review</div>
         <div class="icon-wrap" style="color:#7c3aed">${I('clock')}</div>
-      </div>
-      <div class="stat i-success">
+      </a>
+      <a class="stat i-success" href="projects.html#view=delivery" title="View all delivery projects">
         <div class="label">Total in Delivery</div>
         <div class="value">${allDelivery.length}</div>
         <div class="delta up">Across all delivery</div>
         <div class="icon-wrap">${I('folder')}</div>
-      </div>
-      <div class="stat i-warn">
+      </a>
+      <a class="stat i-warn" href="projects.html#view=sales" title="View all sales pipeline projects">
         <div class="label">Total in Sales</div>
         <div class="value">${liveProjects.filter(p=>PDMS.isSalesStatus(p.status)||p.status==='Awaiting Account Approval').length}</div>
         <div class="delta up">Active sales pipeline</div>
         <div class="icon-wrap">${I('chart')}</div>
-      </div>
-      <div class="stat i-primary">
+      </a>
+      <a class="stat i-primary" href="projects.html#view=delivery&status=Completed" title="Filter completed projects">
         <div class="label">Completed</div>
         <div class="value">${liveProjects.filter(p=>p.status==='Completed').length}</div>
         <div class="delta">Delivered</div>
         <div class="icon-wrap">${I('check')}</div>
-      </div>
+      </a>
     </div>
 
     <!-- Pending approval queue -->

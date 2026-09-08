@@ -7,11 +7,11 @@
   <title>Admin Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788826254"/>
+<link rel="stylesheet" href="css/style.css?v=1788832948"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788826254"></script>
+  <script src="js/bundle.js?v=1788832948"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -23,10 +23,10 @@
 
     function render() {
       const metrics = [
-        { label: 'Users', value: D.users.length, icon: 'users', color: 'primary' },
-        { label: 'Projects', value: D.projects.length, icon: 'folder', color: 'success' },
-        { label: 'Skill Set', value: D.departments.length, icon: 'building', color: 'info' },
-        { label: 'Audit Events', value: D.activities.length, icon: 'activity', color: 'purple' }
+        { label: 'Users', value: D.users.length, icon: 'users', color: 'primary', href: 'users.html' },
+        { label: 'Projects', value: D.projects.length, icon: 'folder', color: 'success', href: 'projects.html' },
+        { label: 'Skill Set', value: D.departments.length, icon: 'building', color: 'info', href: 'departments.html' },
+        { label: 'Audit Events', value: D.activities.length, icon: 'activity', color: 'purple', href: 'activity.html' }
       ];
       const consultants = D.users.filter(u => u.role === 'Consultant');
       const availableConsultants = consultants.filter(c => c.availability === 'Available').length;
@@ -58,12 +58,12 @@
 
     <div class="grid grid-4 mb-4">
       ${metrics.map(m => `
-        <div class="stat admin-stat i-${m.color}">
+        <a class="stat admin-stat i-${m.color}" href="${m.href}" title="Open ${m.label}">
           <div class="label">${m.label}</div>
           <div class="value">${m.value}</div>
           <div class="delta up">Realtime visibility</div>
           <div class="icon-wrap">${I(m.icon)}</div>
-        </div>`).join('')}
+        </a>`).join('')}
     </div>
 
     <div class="grid grid-2 mb-4">
