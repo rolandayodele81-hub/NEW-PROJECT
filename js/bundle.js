@@ -2869,18 +2869,25 @@
     if (!project || !user) return false;
     const userId = String(user.id || '').trim().toLowerCase();
     const userName = String(user.name || '').trim().toLowerCase();
+    const userEmail = String(user.email || '').trim().toLowerCase();
     const ownerValues = [
       String(project.projectOwnerId || '').trim().toLowerCase(),
       String(project.projectOwnerName || '').trim().toLowerCase(),
+      String(project.projectOwnerEmail || '').trim().toLowerCase(),
       String(project.onboardedById || '').trim().toLowerCase(),
       String(project.onboardedByName || '').trim().toLowerCase(),
+      String(project.onboardedByEmail || '').trim().toLowerCase(),
       String(project.salesOwnerId || '').trim().toLowerCase(),
       String(project.salesOwnerName || '').trim().toLowerCase(),
+      String(project.salesOwnerEmail || '').trim().toLowerCase(),
       String(project.createdByUserId || '').trim().toLowerCase(),
       String(project.createdByUserName || '').trim().toLowerCase(),
+      String(project.createdByEmail || '').trim().toLowerCase(),
       String(project.sales || '').trim().toLowerCase()
     ].filter(Boolean);
-    return (userId && ownerValues.includes(userId)) || (userName && ownerValues.includes(userName));
+    return (userId && ownerValues.includes(userId)) ||
+           (userName && ownerValues.includes(userName)) ||
+           (userEmail && ownerValues.includes(userEmail));
   };
 
   // Client visibility/editing: Sales Head sees & edits every client; a Sales
