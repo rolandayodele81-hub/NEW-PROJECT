@@ -2474,10 +2474,23 @@
     ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
     ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
   }
-  function getCss(v){
-    return getComputedStyle(document.documentElement).getPropertyValue(v).trim()||'#4f46e5';
-  }
+  PDMS.togglePasswordVisibility = function (inputId, btnEl) {
+    const input = typeof inputId === 'string' ? document.getElementById(inputId) : inputId;
+    if (!input) return;
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    if (btnEl) {
+      const eyeIcon = btnEl.querySelector('.eye-icon-show') || btnEl.querySelector('#eyeIcon');
+      const eyeOffIcon = btnEl.querySelector('.eye-icon-hide') || btnEl.querySelector('#eyeOffIcon');
+      if (eyeIcon && eyeOffIcon) {
+        eyeIcon.style.display = isPassword ? 'none' : 'block';
+        eyeOffIcon.style.display = isPassword ? 'block' : 'none';
+      }
+      btnEl.setAttribute('title', isPassword ? 'Hide password' : 'Show password');
+    }
+  };
 })(window);
+
 /* PDMS API adapter — the only file that knows the backend is Apps Script + Sheets.
    Reads arrive already-loaded via the bootstrap <script> tag in js/config.js;
    this module only needs to handle writes and auth. */

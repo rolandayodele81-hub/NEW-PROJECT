@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788832948" />
+  <link rel="stylesheet" href="css/style.css?v=1788858873" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788832948"></script>
+  <script src="js/bundle.js?v=1788858873"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -795,7 +795,8 @@
         const isAssignedPMO = isPMO && (
           (p.pm || '').toLowerCase() === myName ||
           (p.lead || '').toLowerCase() === myName ||
-          (Array.isArray(p.consultants) && p.consultants.map(n => n.toLowerCase()).includes(myName))
+          (Array.isArray(p.consultants) && p.consultants.map(n => n.toLowerCase()).includes(myName)) ||
+          (PDMS.projectOwnedByUser && PDMS.projectOwnedByUser(p, user))
         );
         const isDeliveryTeam = ['HTD', 'COO', 'PM Head', 'General Admin', 'System Administrator'].includes(user?.role) ||
           (p.pm && p.pm.toLowerCase() === myName) ||

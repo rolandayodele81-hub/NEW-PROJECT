@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788832948"/>
+<link rel="stylesheet" href="css/style.css?v=1788858873"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788832948"></script>
+<script src="js/bundle.js?v=1788858873"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -41,12 +41,16 @@ function scopedProjects(){
   let list = liveProjects;
   if(user && (user.role === 'Consultant' || user.role === 'PMO')){
     const myName = (user.name||'').toLowerCase();
-    const myId = (user.id||'').toLowerCase();
+    const myEmail = (user.email||'').toLowerCase();
+    const myId = String(user.id||'').toLowerCase();
     list = liveProjects.filter(p=>{
       const consultants = Array.isArray(p.consultants) ? p.consultants.map(String).map(n=>n.toLowerCase()) : [];
-      return consultants.includes(myName) || consultants.includes(myId)
+      return consultants.includes(myName) || consultants.includes(myEmail) || consultants.includes(myId)
         || (p.pm||'').toLowerCase()===myName
-        || (p.lead||'').toLowerCase()===myName;
+        || (p.pm||'').toLowerCase()===myEmail
+        || (p.lead||'').toLowerCase()===myName
+        || (p.lead||'').toLowerCase()===myEmail
+        || (PDMS.projectOwnedByUser && PDMS.projectOwnedByUser(p, user));
     });
   } else if(viewParam==='sales' || (!viewParam && user && String(user.role).trim().toLowerCase() === 'sales')) {
     const isSalesOnly = user && String(user.role).trim().toLowerCase() === 'sales';
