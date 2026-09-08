@@ -7,7 +7,7 @@
   <title>Delivery Dashboard — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788819344" />
+  <link rel="stylesheet" href="css/style.css?v=1788826254" />
   <style>
     .htd-hero {
       display: grid;
@@ -149,7 +149,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788819344"></script>
+  <script src="js/bundle.js?v=1788826254"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -180,16 +180,17 @@
       const getDeliveryStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status) ? p.status : 'Not Started'));
 
       const activeProjects = deliveryProjects.length;
-      const notStartedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Not Started').length;
-      const isOngoingStatus = st => st !== 'Not Started' && st !== 'Completed' && st !== 'Closed';
+      const isOngoingStatus = st => st && st !== 'Not Started' && st !== 'Completed' && st !== 'Closure' && st !== 'Project Closure' && st !== 'Closed' && st !== 'On Hold' && st !== 'Cancelled';
       const ongoingProjects = deliveryProjects.filter(p => isOngoingStatus(getDeliveryStatus(p))).length;
-      const completedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Completed').length;
+      const onHoldProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'On Hold' || p.status === 'On Hold').length;
+      const completedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Completed' || getDeliveryStatus(p) === 'Closure' || getDeliveryStatus(p) === 'Project Closure').length;
       const closedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Closed').length;
+      const cancelledProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Cancelled' || p.status === 'Cancelled').length;
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const in28 = new Date(today); in28.setDate(in28.getDate() + 28);
       const dueForCompletion = deliveryProjects.filter(p => {
         const st = getDeliveryStatus(p);
-        if (!p.due || st === 'Completed' || st === 'Closed') return false;
+        if (!p.due || st === 'Completed' || st === 'Closure' || st === 'Project Closure' || st === 'Closed' || st === 'On Hold' || st === 'Cancelled') return false;
         const d = new Date(p.due);
         return d >= today && d <= in28;
       }).length;
@@ -218,24 +219,26 @@
     </div>
   </div>
 
-  <div class="grid mb-4" style="grid-template-columns:repeat(6,1fr);gap:16px">
+  <div class="grid mb-4" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:16px">
     <div class="stat i-primary">
       <div class="label">Total In Delivery</div>
       <div class="value">${activeProjects}</div>
       <div class="delta up">All delivery projects</div>
       <div class="icon-wrap">${I('folder')}</div>
     </div>
-    <div class="stat i-muted">
-      <div class="label">Not Started</div>
-      <div class="value">${notStartedProjects}</div>
-      <div class="delta">Pending kick-off</div>
-      <div class="icon-wrap">${I('clock')}</div>
-    </div>
     <div class="stat i-warn">
       <div class="label">Ongoing</div>
       <div class="value">${ongoingProjects}</div>
       <div class="delta up">Currently in progress</div>
       <div class="icon-wrap">${I('activity')}</div>
+    </div>
+    <div class="stat i-warn" style="background:var(--surface)">
+      <div class="label">On Hold</div>
+      <div class="value" style="color:#d97706">${onHoldProjects}</div>
+      <div class="delta" style="color:#d97706">Paused / on hold</div>
+      <div class="icon-wrap" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      </div>
     </div>
     <div class="stat i-success">
       <div class="label">Completed</div>
@@ -248,6 +251,14 @@
       <div class="value">${closedProjects}</div>
       <div class="delta">Formally closed out</div>
       <div class="icon-wrap">${I('zap')}</div>
+    </div>
+    <div class="stat i-danger">
+      <div class="label">Cancelled</div>
+      <div class="value">${cancelledProjects}</div>
+      <div class="delta down">Terminated / cancelled</div>
+      <div class="icon-wrap" style="background:linear-gradient(135deg,#ef4444,#dc2626)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
     </div>
     <div class="stat i-danger">
       <div class="label">Due for Completion</div>
@@ -267,7 +278,7 @@
         ${(() => {
           const sc = { 'Completed':'#10b981','Closure':'#10b981','Project Closure':'#10b981','On Hold':'#64748b','Gap Assessment':'#0ea5e9','Risk Assessment':'#f59e0b','Management System Design & Documentation/Implementation':'#8b5cf6','VAPT':'#8b5cf6','Training & Awareness':'#6366f1','Internal Audit & Management Review':'#06b6d4','Remediation & Certification Readiness':'#f59e0b','Certification Audit':'#8b5cf6','Certification & Post Engagement':'#6366f1','Certification & Post engagement':'#6366f1','Post Engagement':'#6366f1','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Training':'#6366f1','Awareness & VAPT':'#8b5cf6','Testing':'#8b5cf6','Implementation':'#8b5cf6','Internal Testing':'#0ea5e9','Penetration Testing':'#8b5cf6','Report Submission':'#6366f1','Review':'#f59e0b','Requirements Gathering':'#0ea5e9','Configuration & Design':'#6366f1','Data Preparation & Migration':'#8b5cf6','Integration':'#6366f1','User Acceptance Testing (UAT)':'#f59e0b','Go-Live':'#10b981','Previous Findings Closure':'#0ea5e9','Management Review':'#8b5cf6','Readiness Assessment':'#0ea5e9','Remediation':'#f59e0b','Surveillance Audit':'#8b5cf6','Cancelled':'#ef4444' };
           const getDeliveryStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
-          const allStatuses = D.deliveryStatuses || [];
+          const allStatuses = [...new Set([...(D.deliveryStatuses || []), ...deliveryProjects.map(p => getDeliveryStatus(p)).filter(Boolean)])];
           const activeList = allStatuses.map(s => {
             const count = deliveryProjects.filter(p => getDeliveryStatus(p) === s).length;
             return { status: s, count, color: sc[s] || '#94a3b8' };
@@ -307,6 +318,8 @@
   ${(() => {
           const pendingApproval = liveProjects.filter(p => p.status === 'Awaiting Account Approval');
           if (!pendingApproval.length) return '';
+          const displayList = pendingApproval.slice(0, 5);
+          const hasMore = pendingApproval.length > 5;
           return `<div class="card mb-4" style="border:1.5px solid rgba(124,58,237,.35);box-shadow:0 4px 24px rgba(124,58,237,.1)">
       <div class="card-head">
         <div>
@@ -316,14 +329,17 @@
           </div>
           <div class="card-sub">These projects are awaiting financial review by Accounts before delivery can begin</div>
         </div>
-        <span class="badge" style="background:rgba(124,58,237,.12);color:#7c3aed;border:1px solid rgba(124,58,237,.25)">${pendingApproval.length} pending</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="badge" style="background:rgba(124,58,237,.12);color:#7c3aed;border:1px solid rgba(124,58,237,.25)">${pendingApproval.length} pending</span>
+          <a href="awaiting-projects.html" class="btn btn-secondary btn-sm" style="font-size:12px;padding:4px 12px;display:inline-flex;align-items:center;gap:4px">View all →</a>
+        </div>
       </div>
       <div class="card-body" style="padding:0">
         <div style="overflow-x:auto">
           <table class="data">
             <thead><tr><th>Project</th><th>Client</th><th>Type</th><th>Priority</th><th>Status</th></tr></thead>
             <tbody>
-              ${pendingApproval.map(p => `
+              ${displayList.map(p => `
                 <tr style="opacity:.8;cursor:pointer" title="Locked until Accounts approves" onclick="location.href='project-details.html#id=${p.id}'">
                   <td>
                     <div style="display:flex;align-items:center;gap:8px">
@@ -342,6 +358,11 @@
             </tbody>
           </table>
         </div>
+        ${hasMore ? `
+        <div style="padding:12px 16px;border-top:1px solid var(--border);background:var(--surface-2);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:var(--text-muted)">Showing 5 of ${pendingApproval.length} pending projects</span>
+          <a href="awaiting-projects.html" style="font-size:12px;font-weight:700;color:var(--primary);text-decoration:none;display:inline-flex;align-items:center;gap:4px">View all pending projects →</a>
+        </div>` : ''}
       </div>
     </div>`;
         })()}
@@ -354,7 +375,10 @@
         <div class="card-title">Projects Due for Completion</div>
         <div class="card-sub">Delivery projects due within the next 4 weeks (28 days)</div>
       </div>
-      <span class="badge badge-danger">${dueForCompletion} due soon</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="badge badge-danger">${dueForCompletion} due soon</span>
+        <a href="projects.html#view=delivery" class="btn btn-secondary btn-sm" style="font-size:12px;padding:4px 12px;display:inline-flex;align-items:center;gap:4px">View all →</a>
+      </div>
     </div>
     <div class="card-body" style="padding:0">
       <div style="overflow-x:auto">
@@ -365,8 +389,9 @@
           const lp = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
           const t = new Date(); t.setHours(0, 0, 0, 0);
           const i28 = new Date(t); i28.setDate(i28.getDate() + 28);
-          const due = lp.filter(p => { if (!p.due || p.status === 'Completed' || p.status === 'Closed') return false; const d = new Date(p.due); return d >= t && d <= i28; }).sort((a, b) => new Date(a.due) - new Date(b.due));
-          return due.length ? due.map(p => {
+          const due = lp.filter(p => { if (!p.due || p.status === 'Completed' || p.status === 'Closed' || p.status === 'On Hold' || p.status === 'Cancelled') return false; const d = new Date(p.due); return d >= t && d <= i28; }).sort((a, b) => new Date(a.due) - new Date(b.due));
+          const displayList = due.slice(0, 5);
+          return due.length ? displayList.map(p => {
             const daysLeft = Math.ceil((new Date(p.due) - t) / 86400000);
             const urgency = daysLeft <= 3 ? 'badge-danger' : daysLeft <= 7 ? 'badge-warn' : 'badge-muted';
             const dStat = PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Not Started') : (p.deliveryStatus || p.status);
@@ -382,6 +407,17 @@
           </tbody>
         </table>
       </div>
+      ${(() => {
+        const lp = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+        const t = new Date(); t.setHours(0, 0, 0, 0);
+        const i28 = new Date(t); i28.setDate(i28.getDate() + 28);
+        const due = lp.filter(p => { if (!p.due || p.status === 'Completed' || p.status === 'Closed' || p.status === 'On Hold' || p.status === 'Cancelled') return false; const d = new Date(p.due); return d >= t && d <= i28; });
+        return due.length > 5 ? `
+        <div style="padding:12px 16px;border-top:1px solid var(--border);background:var(--surface-2);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:var(--text-muted)">Showing 5 of ${due.length} projects due soon</span>
+          <a href="projects.html#view=delivery" style="font-size:12px;font-weight:700;color:var(--primary);text-decoration:none;display:inline-flex;align-items:center;gap:4px">View all delivery projects →</a>
+        </div>` : '';
+      })()}
     </div>
   </div>
   `;
@@ -571,17 +607,19 @@
       const lp = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
       const dp = lp.filter(isDeliveryProject);
       const getDeliveryStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || 'Not Started');
-      const isOngoingStatus = st => st !== 'Not Started' && st !== 'Completed' && st !== 'Closed';
+      const isOngoingStatus = st => st && st !== 'Not Started' && st !== 'Completed' && st !== 'Closure' && st !== 'Project Closure' && st !== 'Closed' && st !== 'On Hold' && st !== 'Cancelled';
       const ongoing = dp.filter(p => isOngoingStatus(getDeliveryStatus(p))).length;
-      const completed = dp.filter(p => getDeliveryStatus(p) === 'Completed').length;
-      const notStarted = dp.filter(p => getDeliveryStatus(p) === 'Not Started').length;
-      const other = Math.max(dp.length - ongoing - completed - notStarted, 0);
-      PDMS.charts.donut(canvas, [ongoing, completed, notStarted, other], ['#f59e0b', '#10b981', '#94a3b8', '#8b5cf6']);
+      const completed = dp.filter(p => getDeliveryStatus(p) === 'Completed' || getDeliveryStatus(p) === 'Closure' || getDeliveryStatus(p) === 'Project Closure').length;
+      const closed = dp.filter(p => getDeliveryStatus(p) === 'Closed').length;
+      const onHold = dp.filter(p => getDeliveryStatus(p) === 'On Hold' || p.status === 'On Hold').length;
+      const cancelled = dp.filter(p => getDeliveryStatus(p) === 'Cancelled' || p.status === 'Cancelled').length;
+      PDMS.charts.donut(canvas, [ongoing, completed, closed, onHold, cancelled], ['#f59e0b', '#10b981', '#64748b', '#d97706', '#ef4444']);
       legend.innerHTML = [
         ['#f59e0b', 'Ongoing', ongoing],
         ['#10b981', 'Completed', completed],
-        ['#94a3b8', 'Not Started', notStarted],
-        ...(other > 0 ? [['#8b5cf6', 'Other', other]] : [])
+        ['#64748b', 'Closed', closed],
+        ['#d97706', 'On Hold', onHold],
+        ['#ef4444', 'Cancelled', cancelled]
       ].map(([c, l, v]) => `<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px">
         <div style="display:flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:${c};flex-shrink:0"></span><span style="color:var(--text-muted)">${l}</span></div>
         <span style="font-weight:700;color:var(--text)">${v}</span>

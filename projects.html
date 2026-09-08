@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788819344"/>
+<link rel="stylesheet" href="css/style.css?v=1788826254"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788819344"></script>
+<script src="js/bundle.js?v=1788826254"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -83,27 +83,42 @@ const statTiles = viewParam==='sales'
           {label:'Total Deals', match:()=>true, color:'primary', icon:'folder'},
           {label:'In Pipeline', match:p=>['Lead','Opportunity','Initial Proposal','Negotiation','Invoicing'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status) && p.status!=='Awaiting Sales Head Approval' && p.status!=='Awaiting Account Approval' && p.status!=='Cancelled' && p.status!=='On Hold' && p.status!=='Closed' && p.stage!=='Delivery', color:'info', icon:'activity'},
           {label:'Pending Approval', match:p=>p.status==='Awaiting Sales Head Approval', color:'warn', icon:'clock'},
-          {label:'Award/SLA', match:p=>p.status==='Award/SLA' || p.status==='Awaiting Account Approval', color:'purple', icon:'check'},
-          {label:'Closed Deals', match:p=>(p.status==='Closed'||((p.stage==='Delivery'||(PDMS.stageOf&&PDMS.stageOf(p)==='Delivery'))&&p.status!=='Cancelled'&&p.status!=='On Hold'&&p.status!=='Awaiting Account Approval'&&p.status!=='Awaiting Sales Head Approval')), color:'success', icon:'briefcase'}
+          {label:'Award/SLA', match:p=>(p.status==='Award/SLA' || p.status==='Awaiting Account Approval') && p.status!=='Cancelled' && p.status!=='On Hold', color:'purple', icon:'check'},
+          {label:'Closed Deals', match:p=>(p.status==='Closed'||((p.stage==='Delivery'||(PDMS.stageOf&&PDMS.stageOf(p)==='Delivery'))&&p.status!=='Cancelled'&&p.status!=='On Hold'&&p.status!=='Awaiting Account Approval'&&p.status!=='Awaiting Sales Head Approval')), color:'success', icon:'briefcase'},
+          {label:'On Hold', match:p=>p.status==='On Hold', color:'warn', icon:'clock'},
+          {label:'Cancelled', match:p=>p.status==='Cancelled', color:'danger', icon:'close'}
         ]
       : [
           {label:'Total Deals', match:()=>true, color:'primary', icon:'folder'},
           {label:'In Pipeline', match:p=>['Lead','Opportunity','Initial Proposal','Negotiation','Invoicing'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status) && p.status!=='Awaiting Account Approval' && p.status!=='Cancelled' && p.status!=='On Hold' && p.status!=='Closed' && p.stage!=='Delivery', color:'info', icon:'activity'},
-          {label:'Award/SLA', match:p=>p.status==='Award/SLA' || p.status==='Awaiting Account Approval', color:'warn', icon:'clock'},
-          {label:'Closed Deals', match:p=>(p.status==='Closed'||((p.stage==='Delivery'||(PDMS.stageOf&&PDMS.stageOf(p)==='Delivery'))&&p.status!=='Cancelled'&&p.status!=='On Hold'&&p.status!=='Awaiting Account Approval')), color:'success', icon:'check'}
+          {label:'Award/SLA', match:p=>(p.status==='Award/SLA' || p.status==='Awaiting Account Approval') && p.status!=='Cancelled' && p.status!=='On Hold', color:'purple', icon:'check'},
+          {label:'Closed Deals', match:p=>(p.status==='Closed'||((p.stage==='Delivery'||(PDMS.stageOf&&PDMS.stageOf(p)==='Delivery'))&&p.status!=='Cancelled'&&p.status!=='On Hold'&&p.status!=='Awaiting Account Approval')), color:'success', icon:'briefcase'},
+          {label:'On Hold', match:p=>p.status==='On Hold', color:'warn', icon:'clock'},
+          {label:'Cancelled', match:p=>p.status==='Cancelled', color:'danger', icon:'close'}
         ])
   : viewParam==='delivery'
   ? [
       {label:'Total', match:()=>true, color:'primary', icon:'folder'},
-      {label:'Not Started', match:p=>PDMS.deliveryStatusOf(p)==='Not Started', color:'muted', icon:'clock'},
-      // Ongoing = any delivery project that has started (past "Not Started")
-      // and is not yet finished (Completed / Closed / Cancelled). This rolls up
-      // On Hold, Awaiting Review, Internal/External Audit, Testing/QA, etc.
       {label:'Ongoing', match:p=>{
-        const s = PDMS.deliveryStatusOf(p);
-        return !!s && !['Not Started','Completed','Closed','Cancelled'].includes(s);
+        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus;
+        return !!s && !['Not Started','Completed','Closure','Project Closure','Closed','On Hold','Cancelled'].includes(s);
       }, color:'warn', icon:'activity'},
-      {label:'Completed', match:p=>PDMS.deliveryStatusOf(p)==='Completed', color:'success', icon:'check'}
+      {label:'On Hold', match:p=>{
+        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus;
+        return s==='On Hold' || p.status==='On Hold';
+      }, color:'warn', icon:'clock'},
+      {label:'Completed', match:p=>{
+        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus;
+        return s==='Completed' || s==='Closure' || s==='Project Closure';
+      }, color:'success', icon:'check'},
+      {label:'Closed', match:p=>{
+        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus;
+        return s==='Closed';
+      }, color:'info', icon:'zap'},
+      {label:'Cancelled', match:p=>{
+        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus;
+        return s==='Cancelled' || p.status==='Cancelled';
+      }, color:'danger', icon:'close'}
     ]
   : (currentUser && currentUser.role==='Consultant')
   ? [{label:'Total', match:()=>true, color:'primary', icon:'folder'}, {label:'With Active Tasks', match:p=>(p.privateTasks||[]).some(t=>!t.done), color:'warn', icon:'activity', sub:'projects'}, {label:'Tasks Completed', match:p=>(p.privateTasks||[]).length>0&&(p.privateTasks||[]).every(t=>t.done), color:'success', icon:'check', sub:'projects'}]
@@ -126,7 +141,7 @@ content.innerHTML = `
       <h1 class="page-title">${pageInfo.title}</h1><div class="page-sub">${pageInfo.sub}</div></div>
     <div class="flex gap-2"><button class="btn btn-secondary" id="viewToggle">${defaultToTable ? I('folder')+' Kanban View' : I('folder')+' Table View'}</button>${canCreateHere?`<button class="btn btn-primary" id="newProj">${I('plus')} ${viewParam==='sales'||(PDMS.isSalesRole&&PDMS.isSalesRole(currentUser))?'Create New Leads':'New Project'}</button>`:''}</div>
   </div>
-  <div class="grid ${(viewParam==='sales' && isSalesUserOwner)?'grid-5':(viewParam==='sales'||viewParam==='delivery')?'grid-4':'grid-3'} mb-4">
+  <div class="grid mb-4" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:16px">
     ${statTiles.map((t,i)=>`<div class="stat i-${t.color}"><div class="label">${t.label}</div><div class="value" id="stat-${i}">0</div>${t.sub?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${t.sub}</div>`:''}<div class="icon-wrap">${I(t.icon)}</div></div>`).join('')}
   </div>
   <div id="listView" class="table-wrap ${defaultToTable ? '' : 'hidden'}"></div>

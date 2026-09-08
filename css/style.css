@@ -212,19 +212,23 @@ img{max-width:100%;display:block}
 /* Stat card */
 .stat{
   background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;
-  transition:transform .25s;
+  border-radius:var(--radius);padding:14px 14px 12px;position:relative;overflow:hidden;
+  transition:transform .25s, box-shadow .25s;
 }
 .stat:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
-.stat .label{font-size:12px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.5px;padding-right:52px}
-.stat .value{font-size:28px;font-weight:700;margin-top:6px;letter-spacing:-.5px}
-.stat .delta{font-size:12px;margin-top:8px;display:inline-flex;align-items:center;gap:4px;font-weight:600}
+.stat .label{font-size:10.5px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding-right:34px;line-height:1.2;min-height:24px;display:flex;align-items:center;word-break:normal}
+.stat .value{font-size:24px;font-weight:800;margin-top:4px;letter-spacing:-.5px;line-height:1.1}
+.stat .delta{font-size:11px;margin-top:6px;display:inline-flex;align-items:center;gap:4px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .stat .delta.up{color:var(--success)}
 .stat .delta.down{color:var(--danger)}
 .stat .icon-wrap{
-  position:absolute;top:16px;right:16px;
-  width:44px;height:44px;border-radius:12px;
+  position:absolute;top:12px;right:12px;
+  width:30px;height:30px;border-radius:8px;
   display:grid;place-items:center;color:#fff;
+  box-shadow:0 2px 6px rgba(0,0,0,.1);
+}
+.stat .icon-wrap svg{
+  width:14px;height:14px;
 }
 .stat.i-primary .icon-wrap{background:var(--gradient)}
 .stat.i-success .icon-wrap{background:var(--gradient-3)}

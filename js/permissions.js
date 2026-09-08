@@ -168,6 +168,10 @@
     user = user || PDMS.getUser();
     return PDMS.canManageAllClients(user) || PDMS.clientOwnedByUser(client, user);
   };
+  PDMS.canDeleteClient = function (client, user) {
+    user = user || PDMS.getUser();
+    return !!user && ['Sales Head', 'System Administrator'].includes(user.role);
+  };
 
   // Shared status/bucket helpers used across all dashboard pages.
   PDMS.isSalesStatus = function (status) {
@@ -296,5 +300,35 @@
     user = user || PDMS.getUser();
     if (!user) return false;
     return ['Sales', 'Sales Head', 'Accounts', 'COO', 'System Administrator'].includes(user.role);
+  };
+  PDMS.canDeleteProject = function (project, user) {
+    user = user || PDMS.getUser();
+    if (!project || !user) return false;
+    const role = user.role;
+    // Executives and System Admins can delete any project
+    if (['System Administrator', 'COO'].includes(role)) return true;
+
+    const pStage = PDMS.stageOf(project);
+    const isDeliveryStage = pStage === 'Delivery';
+    const isSalesStage = pStage === 'Sales';
+
+    // In Delivery stage: HTD and PM Head can delete
+    if (isDeliveryStage) {
+      return ['HTD', 'PM Head'].includes(role);
+    }
+
+    // In Sales Pipeline stage:
+    if (isSalesStage) {
+      // Sales Head can delete any project lead in the general sales pipeline (approved or pending)
+      if (role === 'Sales Head') return true;
+
+      // Normal Sales users can ONLY delete sales leads they created WHILE in 'Awaiting Sales Head Approval'
+      if (PDMS.isSalesRole(user)) {
+        const isAwaitingSalesHeadApproval = project.status === 'Awaiting Sales Head Approval';
+        return PDMS.projectOwnedByUser(project, user) && isAwaitingSalesHeadApproval;
+      }
+    }
+
+    return false;
   };
 })(window);

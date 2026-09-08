@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788819344" />
+  <link rel="stylesheet" href="css/style.css?v=1788826254" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788819344"></script>
+  <script src="js/bundle.js?v=1788826254"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -244,6 +244,7 @@
         const reviews = projectIssues(p);
         const canUpdate = PDMS.can('Add Remarks');
         const user = PDMS.getUser();
+        const canDeleteProject = PDMS.canDeleteProject(p, user);
         const isLeadOwner = user && PDMS.isSalesRole(user) && PDMS.projectOwnedByUser(p, user);
         const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
         const rejNote = p.accountsRejectionNote || p.rejectionNote;
@@ -278,14 +279,19 @@
           <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(p.description || 'No description provided.')}</div>
         </div>
       </div>
-      ${isLeadOwner ? `
-      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap">
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        ${isLeadOwner ? `
         <button onclick="resendToAccountsInline()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(99,102,241,.25)">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           Update Details &amp; Resend to Accounts
-        </button>
+        </button>` : ''}
+        ${canDeleteProject ? `
+        <button onclick="deleteProjectModal()" style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:var(--danger);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          Delete Lead
+        </button>` : ''}
         <a href="projects.html#view=sales" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none">← Back to Pipeline</a>
-      </div>` : ''}
+      </div>
     </div>
 
     ${isLeadOwner ? `
@@ -351,6 +357,7 @@
         const reviews = projectIssues(p);
         const canUpdate = PDMS.can('Add Remarks');
         const user = PDMS.getUser();
+        const canDeleteProject = PDMS.canDeleteProject(p, user);
         const isLeadOwner = user && PDMS.isSalesRole(user) && PDMS.projectOwnedByUser(p, user);
         const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
         const targetStage = p.requestedStatus || p.targetStatus || 'Lead';
@@ -385,14 +392,19 @@
           <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(p.description || 'No description provided.')}</div>
         </div>
       </div>
-      ${isLeadOwner ? `
-      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap">
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        ${isLeadOwner ? `
         <button onclick="resendRequestModal()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#f59e0b;border:1px solid #d97706;color:#fff;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(245,158,11,.25)">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           Edit &amp; Resend Request
-        </button>
+        </button>` : ''}
+        ${canDeleteProject ? `
+        <button onclick="deleteProjectModal()" style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:var(--danger);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          Delete Lead
+        </button>` : ''}
         <a href="projects.html#view=sales" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none">← Back to Pipeline</a>
-      </div>` : ''}
+      </div>
     </div>
 
     ${isLeadOwner ? `
@@ -457,6 +469,7 @@
         const reviews = projectIssues(p);
         const canUpdate = PDMS.can('Add Remarks');
         const user = PDMS.getUser();
+        const canDeleteProject = PDMS.canDeleteProject(p, user);
         const isLeadOwner = user && PDMS.isSalesRole(user) && PDMS.projectOwnedByUser(p, user);
         const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
         const targetStage = p.requestedStatus || p.targetStatus || 'Lead';
@@ -491,14 +504,19 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Awaiting review &amp; approval by the Sales Head
       </div>
-      ${isLeadOwner ? `
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        ${isLeadOwner ? `
         <button onclick="resendRequestModal()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#f59e0b;border:1px solid #d97706;color:#fff;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(245,158,11,.25)">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           Edit &amp; Resend Request
-        </button>
+        </button>` : ''}
+        ${canDeleteProject ? `
+        <button onclick="deleteProjectModal()" style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:var(--danger);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          Delete Lead
+        </button>` : ''}
         <a href="projects.html#view=sales" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none">← Back to Pipeline</a>
-      </div>` : ''}
+      </div>
     </div>
 
     ${isLeadOwner ? `
@@ -665,6 +683,8 @@
         const breadcrumbText = fromVal === 'accounts' ? 'Awaiting Approval' : 'Sales Pipeline';
         const reviews = projectIssues(p);
         const canUpdate = PDMS.can('Add Remarks');
+        const user = PDMS.getUser();
+        const canDeleteProject = PDMS.canDeleteProject(p, user);
         const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
         document.getElementById('content').innerHTML = `
   <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>${breadcrumbText}</span><span>${PDMS.esc(p.client || p.name)}</span></div>
@@ -687,9 +707,15 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         Click to View from Delivery
       </a>
+      ${canDeleteProject ? `
+      <button onclick="deleteProjectModal()" class="btn btn-secondary" style="display:inline-flex;align-items:center;gap:6px;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;color:var(--danger);border-color:rgba(239,68,68,0.35);background:rgba(239,68,68,0.08);cursor:pointer">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+        ${pStage === 'Sales' ? 'Delete Lead' : 'Delete Project'}
+      </button>` : ''}
       <a href="projects.html#view=sales" class="btn btn-secondary" style="display:inline-flex;align-items:center;gap:6px;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;text-decoration:none">
         ← Back to Sales
       </a>
+    </div>
     </div>
   </div>
 
@@ -781,6 +807,7 @@
         const isSalesStage = pStage === 'Sales';
         const canAssign = PDMS.can('Assign Consultant') && isDeliveryStage && (!isPMO || isAssignedPMO);
         const isSalesHead = user && user.role === 'Sales Head';
+        const canDeleteProject = PDMS.canDeleteProject(p, user);
         const canManageStatus = user && (
           (isSalesHead && isSalesStage && p.status !== 'Awaiting Sales Head Approval') ||
           (PDMS.isSalesRole(user) && isSalesStage && p.status !== 'Awaiting Sales Head Approval' && PDMS.projectOwnedByUser(p, user)) ||
@@ -858,6 +885,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           ${canApproveReject ? `<button id="rejectBtn" onclick="rejectProjectInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.35)">✕ Reject</button>` : ''}
           ${canSalesHeadApproveReject ? `<button id="shApproveBtn" onclick="approveSalesHeadInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:#10b981;color:#fff;border:none">✓ Approve</button>` : ''}
           ${canSalesHeadApproveReject ? `<button id="shRejectBtn" onclick="rejectSalesHeadInline()" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.35)">✕ Reject</button>` : ''}
+          ${canDeleteProject ? `<button class="btn btn-danger" onclick="deleteProjectModal()" style="background:rgba(239,68,68,0.22);border:1px solid rgba(239,68,68,0.5);color:#fff;display:inline-flex;align-items:center;gap:6px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.15);cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg> ${pStage === 'Sales' ? 'Delete Lead' : 'Delete Project'}</button>` : ''}
         </div>
       </div>
     </div>
@@ -2872,8 +2900,75 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       };
     }
 
+    function deleteProjectModal() {
+      const user = PDMS.getUser();
+      const canDelete = PDMS.canDeleteProject(p, user);
+      const isLead = (PDMS.stageOf ? PDMS.stageOf(p) : p.stage) === 'Sales';
+      const entityName = isLead ? 'Lead' : 'Project';
+      const entityLower = isLead ? 'lead' : 'project';
+
+      if (!canDelete) {
+        PDMS.toast('Permission Denied', `You are not authorized to delete this ${entityLower}.`, 'error');
+        return;
+      }
+
+      const modal = PDMS.modal(`Delete ${entityName}`, `
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.28);border-radius:14px;padding:16px 18px;display:flex;align-items:flex-start;gap:14px">
+            <div style="width:38px;height:38px;border-radius:10px;background:rgba(239,68,68,0.18);color:#ef4444;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0">⚠️</div>
+            <div style="flex:1">
+              <div style="font-weight:800;font-size:14px;color:var(--danger);margin-bottom:4px">Permanent ${entityName} Deletion</div>
+              <div style="font-size:13px;color:var(--text);line-height:1.5">Are you sure you want to permanently delete this ${entityLower}? This will permanently remove this ${entityLower} record, all associated tasks, timeline stages, and documents from the platform.</div>
+            </div>
+          </div>
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-soft);margin-bottom:4px">${entityName} Details</div>
+            <div style="font-size:15px;font-weight:800;color:var(--text)">${PDMS.esc(p.name)}</div>
+            <div style="font-size:12px;color:var(--text-soft);margin-top:3px">ID: <code style="font-size:11px;padding:2px 6px;background:var(--surface);border-radius:4px;border:1px solid var(--border)">${p.id}</code> &nbsp;·&nbsp; Client: <strong>${PDMS.esc(p.client || '—')}</strong> &nbsp;·&nbsp; Stage: <strong>${PDMS.esc(p.stage || '—')}</strong></div>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);line-height:1.5">
+            <strong>Note:</strong> This action cannot be undone. If this is a duplicate entry or test record, confirm below to delete.
+          </div>
+        </div>
+      `, `
+        <button class="btn btn-ghost" data-close>Cancel</button>
+        <button class="btn btn-primary" id="confirmDeleteProjectBtn" style="background:#ef4444;border-color:#ef4444;color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          Permanently Delete ${entityName}
+        </button>
+      `);
+
+      modal.querySelector('#confirmDeleteProjectBtn').onclick = function () {
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, `Deleting ${entityName}...`);
+        const projectId = p.id;
+        const projectName = p.name;
+
+        PDMS.api.remove('projects', projectId).then(() => {
+          if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
+            const rIdx = window.PDMS_REMOTE.projects.findIndex(x => x.id === projectId);
+            if (rIdx > -1) window.PDMS_REMOTE.projects.splice(rIdx, 1);
+          }
+          if (window.D && Array.isArray(window.D.projects)) {
+            const dIdx = window.D.projects.findIndex(x => x.id === projectId);
+            if (dIdx > -1) window.D.projects.splice(dIdx, 1);
+          }
+          modal.remove();
+          PDMS.toast(`${entityName} Deleted`, `"${projectName}" was permanently removed.`, 'success');
+          if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+          setTimeout(() => {
+            location.href = isLead ? 'projects.html#view=sales' : 'projects.html';
+          }, 350);
+        }).catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || `Could not delete ${entityLower}`, 'error');
+        });
+      };
+    }
+
     window.approveProjectInline = approveProjectInline; window.rejectProjectInline = rejectProjectInline;
     window.approveSalesHeadInline = approveSalesHeadInline; window.rejectSalesHeadInline = rejectSalesHeadInline;
+    window.deleteProjectModal = deleteProjectModal;
   </script>
 </body>
 

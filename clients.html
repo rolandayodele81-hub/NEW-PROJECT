@@ -3,7 +3,7 @@
 <title>Clients — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788819344"/>
+<link rel="stylesheet" href="css/style.css?v=1788826254"/>
 <style>
   .cl-tools{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px}
   .cl-tools .form-group{display:flex;flex-direction:column;gap:5px;min-width:0}
@@ -30,7 +30,7 @@
   .cl-total-copy{position:relative;z-index:1}
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788819344"></script>
+<script src="js/bundle.js?v=1788826254"></script>
 <script>
 PDMS.mountShell('clients');
 const D = PDMS_DATA; const I = PDMS.icon;
@@ -157,6 +157,7 @@ function renderList(){
   if(clr) clr.hidden = !active;
   grid.innerHTML = rows.map(c => {
     const canEdit = canEditClientRow(c);
+    const canDel = PDMS.canDeleteClient && PDMS.canDeleteClient(c, currentUser);
     return `
     <div class="card"><div class="card-body">
       <div class="flex items-center gap-3 mb-3">
@@ -175,7 +176,11 @@ function renderList(){
         <div class="flex items-center gap-2 text-sm"><span class="text-muted" style="width:20px">${I('globe')}</span><span>${PDMS.esc(c.address||'—')}</span></div>
       </div>
       ${seeAll && c.createdByName ? `<div class="text-sm text-muted" style="margin-top:8px;font-size:11px">Added by ${PDMS.esc(c.createdByName)}</div>` : ''}
-      ${canEdit ? `<button class="btn btn-secondary btn-sm cl-edit-btn" onclick='openClientModal(${JSON.stringify(String(c.id))})'>${I('settings')} Edit details</button>` : ''}
+      ${canEdit || canDel ? `
+      <div style="display:flex;gap:8px;margin-top:12px">
+        ${canEdit ? `<button class="btn btn-secondary btn-sm" style="flex:1;justify-content:center" onclick='openClientModal(${JSON.stringify(String(c.id))})'>${I('settings')} Edit details</button>` : ''}
+        ${canDel ? `<button class="btn btn-secondary btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.06);padding:0 12px;cursor:pointer" title="Delete Client" onclick='deleteClientModal(${JSON.stringify(String(c.id))})'><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
+      </div>` : ''}
     </div></div>`;
   }).join('') || `<div class="text-muted" style="padding:24px;text-align:center;grid-column:1/-1">${
     searchTerm ? 'No clients match your search.' : PDMS.emptyOrLoading(seeAll ? 'No clients yet' : 'No clients yet. Clients you add here or on your leads will show up.')
@@ -220,8 +225,26 @@ function openClientModal(clientId){
   if(clientId && !editing){ PDMS.toast('Not found','That client could not be found','error'); return; }
   if(editing && !canEditClientRow(editing)){ PDMS.toast('Not allowed','You can only edit your own clients','error'); return; }
 
-  const modal = PDMS.modal(editing ? 'Edit Client' : 'New Client', clientFormFields(editing),
-    `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveClientBtn">${editing ? 'Save Changes' : 'Create Client'}</button>`);
+  const canDel = editing && PDMS.canDeleteClient && PDMS.canDeleteClient(editing, currentUser);
+  const modal = PDMS.modal(
+    editing ? 'Edit Client' : 'New Client',
+    clientFormFields(editing),
+    `<div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+      ${canDel ? `<button class="btn btn-ghost" style="color:var(--danger);font-weight:600;padding-left:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px" id="modalDelClientBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg> Delete Client</button>` : '<div></div>'}
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" data-close>Cancel</button>
+        <button class="btn btn-primary" id="saveClientBtn">${editing ? 'Save Changes' : 'Create Client'}</button>
+      </div>
+    </div>`
+  );
+
+  const modalDelBtn = modal.querySelector('#modalDelClientBtn');
+  if (modalDelBtn) {
+    modalDelBtn.onclick = function() {
+      modal.remove();
+      deleteClientModal(editing.id);
+    };
+  }
 
   modal.querySelector('#saveClientBtn').onclick = function(){
     const data = readClientForm(modal);
@@ -252,6 +275,74 @@ function openClientModal(clientId){
   };
 }
 window.openClientModal = openClientModal;
+
+function deleteClientModal(clientId) {
+  const client = allClients().find(c => String(c.id) === String(clientId));
+  if (!client) { PDMS.toast('Not found', 'Client record could not be found', 'error'); return; }
+  if (!PDMS.canDeleteClient(client, currentUser)) {
+    PDMS.toast('Permission Denied', 'Only the Sales Head is authorized to delete clients.', 'error');
+    return;
+  }
+
+  const projects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects || [];
+  const linkedProjects = projects.filter(p => (p.client && p.client.toLowerCase() === (client.name || '').toLowerCase()) || String(p.clientId) === String(client.id));
+
+  const modal = PDMS.modal('Delete Client', `
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.28);border-radius:14px;padding:16px 18px;display:flex;align-items:flex-start;gap:14px">
+        <div style="width:38px;height:38px;border-radius:10px;background:rgba(239,68,68,0.18);color:#ef4444;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0">⚠️</div>
+        <div style="flex:1">
+          <div style="font-weight:800;font-size:14px;color:var(--danger);margin-bottom:4px">Permanent Client Deletion</div>
+          <div style="font-size:13px;color:var(--text);line-height:1.5">Are you sure you want to permanently delete this client? This will permanently remove the client profile and associated contact details from the platform.</div>
+        </div>
+      </div>
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-soft);margin-bottom:4px">Client Details</div>
+        <div style="font-size:15px;font-weight:800;color:var(--text)">${PDMS.esc(client.name)}</div>
+        <div style="font-size:12px;color:var(--text-soft);margin-top:3px">Industry: <strong>${PDMS.esc(client.industry || '—')}</strong> &nbsp;·&nbsp; Email: <strong>${PDMS.esc(client.email || '—')}</strong></div>
+        ${linkedProjects.length > 0 ? `
+        <div style="margin-top:10px;padding:8px 12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;font-size:12px;color:#d97706;font-weight:600">
+          ⚠️ Note: There ${linkedProjects.length === 1 ? 'is 1 active project/lead' : `are ${linkedProjects.length} active projects/leads`} associated with this client.
+        </div>` : ''}
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.5">
+        <strong>Note:</strong> This action cannot be undone. If this is a duplicate entry or test client, confirm below to delete.
+      </div>
+    </div>
+  `, `
+    <button class="btn btn-ghost" data-close>Cancel</button>
+    <button class="btn btn-primary" id="confirmDeleteClientBtn" style="background:#ef4444;border-color:#ef4444;color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+      Permanently Delete Client
+    </button>
+  `);
+
+  modal.querySelector('#confirmDeleteClientBtn').onclick = function(){
+    const btn = this;
+    PDMS.setButtonLoading(btn, true, 'Deleting Client...');
+    const cId = client.id;
+    const cName = client.name;
+
+    PDMS.api.remove('clients', cId).then(() => {
+      if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.clients)) {
+        const rIdx = window.PDMS_REMOTE.clients.findIndex(x => String(x.id) === String(cId));
+        if (rIdx > -1) window.PDMS_REMOTE.clients.splice(rIdx, 1);
+      }
+      if (window.D && Array.isArray(window.D.clients)) {
+        const dIdx = window.D.clients.findIndex(x => String(x.id) === String(cId));
+        if (dIdx > -1) window.D.clients.splice(dIdx, 1);
+      }
+      modal.remove();
+      PDMS.toast('Client Deleted', `"${cName}" was permanently removed.`, 'success');
+      if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+      render();
+    }).catch(err => {
+      PDMS.setButtonLoading(btn, false);
+      PDMS.toast('Error', err.message || 'Could not delete client', 'error');
+    });
+  };
+}
+window.deleteClientModal = deleteClientModal;
 
 function exportClientsPdf(){
   const rows = filteredClients();

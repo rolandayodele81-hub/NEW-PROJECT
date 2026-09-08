@@ -7,7 +7,7 @@
   <title>Sales Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788819344"/>
+<link rel="stylesheet" href="css/style.css?v=1788826254"/>
   <style>
     .sales-hero {
       display: grid;
@@ -94,7 +94,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788819344"></script>
+  <script src="js/bundle.js?v=1788826254"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -191,7 +191,7 @@
       </div>
     </div>
 
-    <div class="grid ${isSalesUser ? 'grid-6' : 'grid-4'} mb-4">
+    <div class="grid mb-4" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:16px">
       <div class="stat i-primary">
         <div class="label">Total in Sales</div>
         <div class="value">${totalInSales}</div>
@@ -211,7 +211,7 @@
         <div class="delta up">Sales Head review</div>
         <div class="icon-wrap">${I('clock')}</div>
       </div>` : ''}
-      <div class="stat i-${isSalesUser ? 'purple' : 'warn'}">
+      <div class="stat i-purple">
         <div class="label">Award/SLA</div>
         <div class="value">${awardSla}</div>
         <div class="delta up">Awards &amp; SLA handoffs</div>
@@ -223,13 +223,22 @@
         <div class="delta up">Handed to delivery</div>
         <div class="icon-wrap">${I('briefcase')}</div>
       </div>
-      ${isSalesUser ? `
+      <div class="stat i-warn" style="background:var(--surface)">
+        <div class="label">On Hold</div>
+        <div class="value" style="color:#d97706">${offRampCounts['On Hold'] || 0}</div>
+        <div class="delta" style="color:#d97706">Paused deals</div>
+        <div class="icon-wrap" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        </div>
+      </div>
       <div class="stat i-danger">
         <div class="label">Cancelled</div>
-        <div class="value">${offRampCounts.Cancelled}</div>
+        <div class="value">${offRampCounts.Cancelled || 0}</div>
         <div class="delta down">Rejected / dropped</div>
-        <div class="icon-wrap">${I('close')}</div>
-      </div>` : ''}
+        <div class="icon-wrap" style="background:linear-gradient(135deg,#ef4444,#dc2626)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </div>
+      </div>
     </div>
 
     <div class="grid grid-2 mb-4">
