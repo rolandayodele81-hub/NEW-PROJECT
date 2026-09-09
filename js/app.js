@@ -12,7 +12,8 @@
       {id:'delivery-projects',label:'Projects in Delivery',icon:'folder',href:'projects.html#view=delivery',roles:['Sales','Sales Head','HR','HTD','COO','PM Head','PMO','Project Manager','Accounts']},
     ]},
     {section:'Management',items:[
-      {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR']},
+      {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR','HTD','PM Head','COO','System Administrator','General Admin']},
+      {id:'project-managers',label:'Project Managers',icon:'user-check',href:'project-managers.html',roles:['HTD','PM Head','COO','HR','System Administrator','General Admin']},
       {id:'consultants',label:'Consultants',icon:'briefcase',href:'consultants.html',roles:['HR','COO','HTD','PM Head','PMO','Project Manager']},
     ]},
     {section:'Community',items:[
@@ -37,6 +38,8 @@
     const role = user.role;
     const theme = localStorage.getItem('pdms-theme')||'light';
 
+    const isSidebarCollapsed = localStorage.getItem('pdms-sidebar-collapsed') === 'true';
+
     const navHtml = NAV.map(s=>{
       const items = s.items.filter(it=>canSee(it,role));
       if(!items.length) return '';
@@ -44,13 +47,13 @@
         items.map(it=>{
           const href = it.id==='dashboard' ? PDMS.dashboardFor(user) : it.href;
           const label = (it.id==='projects' && role==='Consultant') ? 'My Projects' : it.label;
-          return '<a class="nav-item '+(activeId===it.id?'active':'')+'" href="'+href+'">'+I(it.icon)+'<span>'+label+'</span>'+(it.badge?'<span class="badge">'+it.badge+'</span>':'')+'</a>';
+          return '<a class="nav-item '+(activeId===it.id?'active':'')+'" href="'+href+'" title="'+PDMS.esc(label)+'">'+I(it.icon)+'<span>'+label+'</span>'+(it.badge?'<span class="badge">'+it.badge+'</span>':'')+'</a>';
         }).join('')+
       '</div>';
     }).join('');
 
     document.body.innerHTML =
-    '<div class="app">'+
+    '<div class="app'+(isSidebarCollapsed ? ' sidebar-collapsed' : '')+'">'+
       '<aside class="sidebar" id="sidebar">'+
         '<div class="sidebar-header">'+
           '<div class="brand"><div class="brand-logo"><img src="images/pse-logo.png" alt="PSE PDMS Logo"/></div></div>'+
@@ -62,9 +65,10 @@
           '<button class="icon-btn" title="Logout" id="logoutBtn">'+I('logout')+'</button>'+
         '</div>'+
       '</aside>'+
+      '<div class="sidebar-overlay" id="sidebarOverlay"></div>'+
       '<div class="main">'+
         '<header class="header">'+
-          '<button class="hamburger" id="hamburger">'+I('menu')+'</button>'+
+          '<button class="hamburger" id="hamburger" title="Toggle sidebar">'+I('menu')+'</button>'+
           '<div class="header-actions">'+
             '<button class="icon-btn" id="themeToggle" title="Toggle theme">'+I(theme==='light'?'moon':'sun')+'</button>'+
             '<button class="icon-btn" id="notifBtn" title="Notifications">'+I('bell')+'<span class="dot"></span></button>'+
@@ -118,7 +122,32 @@
       }
     } catch (e) {}
 
-    document.getElementById('hamburger').onclick = ()=>document.getElementById('sidebar').classList.toggle('open');
+    const hamburger = document.getElementById('hamburger');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const appEl = document.querySelector('.app');
+
+    if (hamburger) {
+      hamburger.onclick = () => {
+        if (window.innerWidth <= 960) {
+          const isOpen = sidebar.classList.toggle('open');
+          if (overlay) overlay.classList.toggle('open', isOpen);
+        } else {
+          const isCollapsed = appEl ? appEl.classList.toggle('sidebar-collapsed') : false;
+          try {
+            localStorage.setItem('pdms-sidebar-collapsed', isCollapsed ? 'true' : 'false');
+          } catch(e) {}
+        }
+      };
+    }
+
+    if (overlay) {
+      overlay.onclick = () => {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('open');
+      };
+    }
+
     document.getElementById('themeToggle').onclick = PDMS.toggleTheme;
     document.getElementById('logoutBtn').onclick = confirmLogout;
     document.getElementById('notifBtn').onclick = ()=>togglePanel('notif');

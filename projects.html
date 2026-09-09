@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788942892"/>
+<link rel="stylesheet" href="css/style.css?v=1788956664"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788942892"></script>
+<script src="js/bundle.js?v=1788956664"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -120,10 +120,14 @@ const statTiles = viewParam==='sales'
   : viewParam==='delivery'
   ? [
       {label:'Total', match:()=>true, filterStatus:null, color:'primary', icon:'folder'},
+      {label:'New Projects', filterStatus:'Not Started', match:p=>{
+        const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
+        return s === 'Not Started' || p.status === 'Not Started';
+      }, color:'info', icon:'clock'},
       {label:'Ongoing', filterStatus:'Ongoing', match:p=>{
         const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
         return !!s && !['Not Started','Completed','Closure','Project Closure','Closed','On Hold','Cancelled'].includes(s);
-      }, color:'warn', icon:'activity'},
+      }, color:'success', icon:'activity'},
       {label:'On Hold', filterStatus:'On Hold', match:p=>{
         const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
         return s==='On Hold' || p.status==='On Hold';
@@ -131,7 +135,7 @@ const statTiles = viewParam==='sales'
       {label:'Completed', filterStatus:'Completed', match:p=>{
         const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
         return s === 'Completed';
-      }, color:'success', icon:'check'},
+      }, color:'info', icon:'check'},
       {label:'Closed', filterStatus:'Closure', match:p=>{
         const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
         return ['Closure','Project Closure'].includes(s);
@@ -145,12 +149,12 @@ const statTiles = viewParam==='sales'
   ? [
       {label:'Total', match:()=>true, filterStatus:null, color:'primary', icon:'folder'},
       {label:'With Active Tasks', filterKey:'activeTasks', filterFn:p=>(p.privateTasks||[]).some(t=>!t.done), match:p=>(p.privateTasks||[]).some(t=>!t.done), color:'warn', icon:'activity', sub:'projects'},
-      {label:'Tasks Completed', filterKey:'tasksCompleted', filterFn:p=>(p.privateTasks||[]).length>0&&(p.privateTasks||[]).every(t=>t.done), match:p=>(p.privateTasks||[]).length>0&&(p.privateTasks||[]).every(t=>t.done), color:'success', icon:'check', sub:'projects'}
+      {label:'Tasks Completed', filterKey:'tasksCompleted', filterFn:p=>(p.privateTasks||[]).length>0&&(p.privateTasks||[]).every(t=>t.done), match:p=>(p.privateTasks||[]).length>0&&(p.privateTasks||[]).every(t=>t.done), color:'info', icon:'check', sub:'projects'}
     ]
   : [
       {label:'Total', match:()=>true, filterStatus:null, color:'primary', icon:'folder'},
-      {label:'In Progress', filterStatus:'In Progress', match:p=>p.status==='In Progress', color:'warn', icon:'activity'},
-      {label:'Completed', filterStatus:'Completed', match:p=>p.status==='Completed', color:'success', icon:'check'}
+      {label:'In Progress', filterStatus:'In Progress', match:p=>p.status==='In Progress', color:'success', icon:'activity'},
+      {label:'Completed', filterStatus:'Completed', match:p=>p.status==='Completed', color:'info', icon:'check'}
     ];
 
 let selectedTileIndex = null;
@@ -272,6 +276,7 @@ const columns = viewParam === 'sales' ? [
     const dStatus = viewParam === 'delivery' ? PDMS.deliveryStatusOf(r) : r.status;
     return `<span class="badge badge-${D.statusColors[dStatus]||'muted'}">${dStatus}</span>`;
   }},
+  {key:'start',label:'Start Date',render:r=>`<span class="text-sm">${PDMS.esc(r.start||r.startDate||'\u2014')}</span>`},
   {key:'due',label:'Due'}
 ];
 

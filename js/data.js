@@ -20,9 +20,10 @@
   const salesStatuses = [...salesJourney, 'On Hold', 'Cancelled'];
 
   const managementSystemStages = [
+    'Not Started',
     'Gap Assessment',
     'Risk Assessment',
-    'Management System Design & Documentation/Implementation',
+    'Design & Documentation/Implementation',
     'VAPT',
     'Training & Awareness',
     'Internal Audit & Management Review',
@@ -34,6 +35,7 @@
   ];
 
   const vaptStages = [
+    'Not Started',
     'Gap Assessment',
     'Internal Testing',
     'Penetration Testing',
@@ -44,6 +46,7 @@
   ];
 
   const softwareAndAiStages = [
+    'Not Started',
     'Project Initiation & Business Case',
     'Requirements & Use-Case Definition',
     'Architecture & Solution Design',
@@ -60,6 +63,7 @@
   ];
 
   const erpStages = [
+    'Not Started',
     'Requirements Gathering',
     'Configuration & Design',
     'Data Preparation & Migration',
@@ -73,9 +77,11 @@
   ];
 
   const surveillanceStages = [
+    'Not Started',
     'Previous Findings Closure',
     'Training',
-    'Awareness & VAPT',
+    'Awareness',
+    'VAPT',
     'Internal Audit',
     'Management Review',
     'Readiness Assessment',
@@ -130,11 +136,14 @@
     'Awaiting Account Approval': 'purple',
     'Closed': 'primary',
     'Cancelled': 'danger',
-    'On Hold': 'muted',
+    'On Hold': 'warn',
+    'Ongoing': 'success',
+    'In Progress': 'success',
 
-    // Shared Milestones
-    'Completed': 'success',
-    'Closure': 'success',
+    // Delivery
+    'Not Started': 'info',
+    'Completed': 'info',
+    'Closure': 'info',
     'Training': 'primary',
     'Internal Audit': 'info',
     'Testing': 'purple',
@@ -142,6 +151,10 @@
     // 1. Management System
     'Gap Assessment': 'info',
     'Risk Assessment': 'warn',
+    'Design & Documentation/Implementation': 'purple',
+    'Design & Documentation/Implement': 'purple',
+    'Design and Documentation/Implementation': 'purple',
+    'Design and Documentation/Implement': 'purple',
     'Management System Design & Documentation/Implementation': 'purple',
     'VAPT': 'purple',
     'Training & Awareness': 'primary',
@@ -150,7 +163,7 @@
     'Certification Audit': 'purple',
     'Certification & Post Engagement': 'primary',
     'Certification & Post engagement': 'primary',
-    'Project Closure': 'success',
+    'Project Closure': 'info',
 
     // 2. VAPT
     'Internal Testing': 'info',
@@ -181,10 +194,12 @@
 
     // 5. Surveillance / Recertification
     'Previous Findings Closure': 'info',
+    'Awareness': 'primary',
     'Management Review': 'purple',
     'Readiness Assessment': 'info',
     'Remediation': 'warn',
-    'Surveillance Audit': 'purple'
+    'Surveillance Audit': 'purple',
+    'Post Engagement': 'primary'
   };
   Object.assign(statusColors, {
     'Incoming': 'info', 'Initial Contact': 'info', 'Requirement Gathering': 'purple',

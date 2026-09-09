@@ -7,16 +7,26 @@
   <title>Users — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788942892"/>
+<link rel="stylesheet" href="css/style.css?v=1788956664"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788942892"></script>
+  <script src="js/bundle.js?v=1788956664"></script>
   <script>
     PDMS.mountShell('users');
     const D = PDMS_DATA; const I = PDMS.icon;
 
     let selectedUserRoleFilter = '';
+
+    function initFilterFromUrl() {
+      const hashParams = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+      const searchParams = new URLSearchParams(location.search || '');
+      const role = hashParams.get('role') || searchParams.get('role') || '';
+      if (role) {
+        selectedUserRoleFilter = role;
+      }
+    }
+    initFilterFromUrl();
 
     function selectUserRoleFilter(role) {
       if (selectedUserRoleFilter === role) {
@@ -31,18 +41,29 @@
     function render() {
       const liveUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users;
       const totalUsers = liveUsers.length;
+      const totalPMs = liveUsers.filter(u => u.role === 'PMO' || u.role === 'PM Head' || u.role === 'Project Manager').length;
       const totalConsultants = liveUsers.filter(u => u.role === 'Consultant').length;
 
       document.getElementById('content').innerHTML = `
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Users</span></div>
     <h1 class="page-title">Users & Staff</h1><div class="page-sub">Manage employees, roles and access</div></div>
-    <div class="flex gap-2">${PDMS.can('Onboard User') ? `<button class="btn btn-primary" onclick="newUser()">${I('user-plus')} Add User</button>` : ''}</div></div>
-  <div class="grid grid-2 mb-4">
+    <div class="flex gap-2">
+      <a class="btn btn-secondary" href="project-managers.html">${I('user-check')} Project Managers</a>
+      <a class="btn btn-secondary" href="consultants.html">${I('briefcase')} Consultants</a>
+      ${PDMS.can('Onboard User') ? `<button class="btn btn-primary" onclick="newUser()">${I('user-plus')} Add User</button>` : ''}
+    </div></div>
+  <div class="grid grid-3 mb-4">
     <div class="stat i-primary ${!selectedUserRoleFilter ? 'active-filter' : ''}" onclick="selectUserRoleFilter('')" title="Click to show all users" style="cursor:pointer">
       <div class="label">Total Users</div>
       <div class="value">${totalUsers}</div>
       <div class="delta">All system accounts</div>
       <div class="icon-wrap">${I('users')}</div>
+    </div>
+    <div class="stat i-purple ${selectedUserRoleFilter === 'PMO' || selectedUserRoleFilter === 'PM Head' ? 'active-filter' : ''}" onclick="selectUserRoleFilter('PMO')" title="Click to filter Project Managers (PMO)" style="cursor:pointer">
+      <div class="label">Project Managers</div>
+      <div class="value">${totalPMs}</div>
+      <div class="delta">PMO & delivery leads</div>
+      <div class="icon-wrap">${I('user-check')}</div>
     </div>
     <div class="stat i-info ${selectedUserRoleFilter === 'Consultant' ? 'active-filter' : ''}" onclick="selectUserRoleFilter('Consultant')" title="Click to filter consultants" style="cursor:pointer">
       <div class="label">Total Consultants</div>
@@ -56,7 +77,8 @@
       renderUsers();
     }
     function renderUsers() {
-      const liveUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users;
+      const rawUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users || [];
+      const liveUsers = rawUsers.slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true }));
       document.getElementById('tbl').innerHTML = '';
       PDMS.renderTable(document.getElementById('tbl'), {
         columns: [
@@ -65,6 +87,8 @@
           { key: 'dept', label: 'Designation' }
         ],
         rows: liveUsers, pageSize: 20, searchKeys: ['name', 'email', 'role', 'dept'],
+        defaultSortKey: 'name',
+        defaultSortDir: 1,
         filters: selectedUserRoleFilter ? { role: selectedUserRoleFilter } : {},
         onFilterChange: (filters) => {
           selectedUserRoleFilter = filters.role || '';

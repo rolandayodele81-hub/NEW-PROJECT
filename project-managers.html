@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Project Managers — PSE PDMS</title>
+  
+  <link rel="stylesheet" href="css/style.css?v=1788956664"/>
+</head>
+
+<body>
+  <script src="js/bundle.js?v=1788956664"></script>
+  <script>
+    PDMS.mountShell('project-managers');
+    const D = PDMS_DATA; const I = PDMS.icon;
+
+    let selectedPmFilter = '';
+
+    function isPmUser(u, allProjects) {
+      if (!u) return false;
+      const role = String(u.role || '').trim();
+      if (['PMO', 'PM Head', 'Project Manager'].includes(role)) return true;
+      const dept = String(u.dept || '').toLowerCase();
+      if (dept.includes('project manager') || dept.includes('pmo') || dept.includes('delivery lead')) return true;
+      const uName = String(u.name || '').trim().toLowerCase();
+      const uEmail = String(u.email || '').trim().toLowerCase();
+      return (allProjects || []).some(p => {
+        const pm = String(p.pm || '').trim().toLowerCase();
+        return pm === uName || pm === uEmail;
+      });
+    }
+
+    function isProjectActive(p) {
+      if (!p) return false;
+      const s = String(p.status || '').trim();
+      const dStat = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus) || '').trim();
+      const historyStatuses = ['Completed', 'Closure', 'Project Closure', 'Certification & Post Engagement', 'Closed', 'Cancelled', 'Rejected'];
+      if (historyStatuses.some(h => h.toLowerCase() === s.toLowerCase())) return false;
+      if (dStat && historyStatuses.some(h => h.toLowerCase() === dStat.toLowerCase())) return false;
+      return true;
+    }
+
+    function getPmProjects(u, allProjects) {
+      if (!u) return [];
+      const uName = String(u.name || '').trim().toLowerCase();
+      const uEmail = String(u.email || '').trim().toLowerCase();
+      const uId = String(u.id || '').trim().toLowerCase();
+      return (allProjects || []).filter(p => {
+        const pm = String(p.pm || '').trim().toLowerCase();
+        const ownerId = String(p.projectOwnerId || p.onboardedById || p.createdByUserId || '').trim().toLowerCase();
+        const ownerName = String(p.projectOwnerName || p.onboardedByName || p.createdByUserName || '').trim().toLowerCase();
+        return pm === uName || pm === uEmail || (uId && ownerId === uId) || (uName && ownerName === uName);
+      });
+    }
+
+    function selectPmFilter(filterType) {
+      if (selectedPmFilter === filterType) {
+        selectedPmFilter = '';
+      } else {
+        selectedPmFilter = filterType;
+      }
+      render();
+    }
+    window.selectPmFilter = selectPmFilter;
+
+    function render() {
+      const liveUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users || [];
+      const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects || [];
+
+      const pmList = liveUsers.filter(u => isPmUser(u, liveProjects));
+      const totalPMs = pmList.length;
+
+      const activePMs = pmList.filter(u => {
+        const projs = getPmProjects(u, liveProjects);
+        return projs.some(isProjectActive);
+      }).length;
+
+      const availablePMs = pmList.filter(u => {
+        const projs = getPmProjects(u, liveProjects);
+        return !projs.some(isProjectActive);
+      }).length;
+
+      const activeManagedProjects = liveProjects.filter(p => isProjectActive(p) && p.pm).length;
+
+      document.getElementById('content').innerHTML = `
+  <div class="page-head">
+    <div>
+      <div class="breadcrumbs"><span>Home</span><span>Management</span><span>Project Managers</span></div>
+      <h1 class="page-title">Project Managers</h1>
+      <div class="page-sub">Directory of Project Managers, active project allocations, workload and delivery status</div>
+    </div>
+    <div class="flex gap-2">
+      <a class="btn btn-secondary" href="users.html">${I('users')} All Users</a>
+      <a class="btn btn-secondary" href="consultants.html">${I('briefcase')} Consultants</a>
+      ${PDMS.can('Onboard User') ? `<button class="btn btn-primary" onclick="newProjectManager()">${I('user-plus')} Add Project Manager</button>` : ''}
+    </div>
+  </div>
+
+  <div class="grid grid-3 mb-4">
+    <div class="stat i-primary ${!selectedPmFilter ? 'active-filter' : ''}" onclick="selectPmFilter('')" title="Click to show all project managers" style="cursor:pointer">
+      <div class="label">Total PMs</div>
+      <div class="value">${totalPMs}</div>
+      <div class="delta">All delivery leads & PMOs</div>
+      <div class="icon-wrap">${I('user-check')}</div>
+    </div>
+    <div class="stat i-purple ${selectedPmFilter === 'active' ? 'active-filter' : ''}" onclick="selectPmFilter('active')" title="Click to filter PMs with active projects" style="cursor:pointer">
+      <div class="label">Active on Projects</div>
+      <div class="value">${activePMs}</div>
+      <div class="delta">Managing active delivery</div>
+      <div class="icon-wrap">${I('activity')}</div>
+    </div>
+    <div class="stat i-success ${selectedPmFilter === 'available' ? 'active-filter' : ''}" onclick="selectPmFilter('available')" title="Click to filter available PMs" style="cursor:pointer">
+      <div class="label">Available / Standby</div>
+      <div class="value">${availablePMs}</div>
+      <div class="delta">Ready for assignment</div>
+      <div class="icon-wrap">${I('check')}</div>
+    </div>
+  </div>
+
+  <div id="tbl" class="table-wrap"></div>
+`;
+      renderTableData(pmList, liveProjects);
+    }
+
+    function renderTableData(pmList, liveProjects) {
+      let filtered = pmList.slice();
+      if (selectedPmFilter === 'active') {
+        filtered = filtered.filter(u => {
+          const projs = getPmProjects(u, liveProjects);
+          return projs.some(isProjectActive);
+        });
+      } else if (selectedPmFilter === 'available') {
+        filtered = filtered.filter(u => {
+          const projs = getPmProjects(u, liveProjects);
+          return !projs.some(isProjectActive);
+        });
+      }
+
+      // Add computed metadata to each PM row and sort alphabetically
+      const rows = filtered.map(u => {
+        const projs = getPmProjects(u, liveProjects);
+        const activeList = projs.filter(isProjectActive);
+        const completedList = projs.filter(p => !isProjectActive(p) && p.status !== 'Cancelled' && p.status !== 'Rejected');
+        return Object.assign({}, u, {
+          _allProjects: projs,
+          _activeProjects: activeList,
+          _activeCount: activeList.length,
+          _completedCount: completedList.length,
+        });
+      }).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true }));
+
+      document.getElementById('tbl').innerHTML = '';
+      PDMS.renderTable(document.getElementById('tbl'), {
+        columns: [
+          {
+            key: 'name',
+            label: 'Project Manager',
+            render: r => `<div class="flex items-center gap-2">
+              <div class="avatar avatar-sm">${PDMS.initials(r.name)}</div>
+              <div>
+                <div class="font-semi">${PDMS.esc(r.name)}</div>
+                <div class="text-sm text-muted">${PDMS.esc(r.email)}</div>
+              </div>
+            </div>`
+          },
+          {
+            key: '_activeCount',
+            label: 'Active Projects',
+            render: r => `<span class="badge badge-purple" style="font-weight:700;font-size:13px;padding:4px 10px">${r._activeCount || 0}</span>`
+          },
+          {
+            key: '_completedCount',
+            label: 'Closed Projects',
+            render: r => `<span class="badge badge-success" style="font-weight:700;font-size:13px;padding:4px 10px">${r._completedCount || 0}</span>`
+          }
+        ],
+        rows: rows,
+        pageSize: 15,
+        defaultSortKey: 'name',
+        defaultSortDir: 1,
+        searchKeys: ['name', 'email', 'role', 'dept', 'phone'],
+        rowHref: r => 'user-details.html#id=' + encodeURIComponent(r.id || '') + (r.email ? '&email=' + encodeURIComponent(r.email) : '')
+      });
+    }
+
+    function newProjectManager() {
+      const modal = PDMS.modal('Add Project Manager', `
+        <div class="form-grid">
+          <div class="form-row"><label>Full Name</label><input id="newPmName" placeholder="e.g. Alex Morgan"/></div>
+          <div class="form-row"><label>Email</label><input id="newPmEmail" type="email" placeholder="alex@pse.com"/></div>
+          <div class="form-row"><label>Password</label><input id="newPmPassword" type="password" placeholder="Create initial password"/></div>
+          <div class="form-row"><label>Role</label>
+            <select id="newPmRole">
+              <option value="PMO" selected>PMO</option>
+              <option value="PM Head">PM Head</option>
+              <option value="HTD">HTD</option>
+            </select>
+          </div>
+          <div class="form-row"><label>Designation</label><input id="newPmDept" type="text" placeholder="e.g. Senior Project Manager, PMO Lead..."/></div>
+          <div class="form-row"><label>Phone</label><input id="newPmPhone" type="text" placeholder="e.g. +1 555 123 4567"/></div>
+          <div class="form-row"><label>Date of Birth</label><input id="newPmBirthday" type="text" placeholder="MM/DD"/></div>
+          <div class="form-row"><label>Date of Entry</label><input id="newPmEntry" type="date"/></div>
+        </div>
+      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createPmBtn">Create PM</button>`);
+
+      modal.querySelector('#createPmBtn').onclick = function () {
+        const btn = this;
+        const name = modal.querySelector('#newPmName').value.trim();
+        const email = modal.querySelector('#newPmEmail').value.trim().toLowerCase();
+        const password = modal.querySelector('#newPmPassword').value;
+        const role = modal.querySelector('#newPmRole').value;
+        const dept = modal.querySelector('#newPmDept').value.trim();
+        const phone = modal.querySelector('#newPmPhone').value.trim();
+        const birthday = modal.querySelector('#newPmBirthday').value;
+        const dateOfEntry = modal.querySelector('#newPmEntry').value;
+
+        if (!name || !email || !password) {
+          PDMS.toast('Missing PM info', 'Name, email, and password are required', 'error');
+          return;
+        }
+
+        PDMS.setButtonLoading(btn, true, 'Onboarding...');
+        const record = { name, email, password, role, dept: dept || 'Project Management', birthday: birthday || '', dateOfEntry: dateOfEntry || '', workload: 0, phone, joined: new Date().toISOString().slice(0, 10) };
+        PDMS.api.register(record).then(saved => {
+          D.users.unshift(saved);
+          modal.remove();
+          showNewPmPasswordNote(saved, password);
+          const creator = PDMS.getUser();
+          PDMS.notify('Project Manager Onboarded', `${creator ? creator.name : 'Delivery Team'} onboarded ${saved.name} as ${saved.role}`, 'user-check', 'user-details.html#id='+saved.id, 'COO,HTD,PM Head,HR,System Administrator');
+          render();
+          if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+        }).catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not create project manager', 'error');
+        });
+      };
+    }
+
+    function showNewPmPasswordNote(user, password) {
+      const modal = PDMS.modal('Project Manager created', `
+        <p class="text-sm text-muted" style="margin-bottom:16px">${PDMS.esc(user.name)}'s account was created with the password below. Share it securely and ask them to change it when they sign in.</p>
+        <div style="text-align:center;padding:18px;background:var(--surface-2);border:1px dashed var(--border);border-radius:10px;font-size:20px;font-weight:800;letter-spacing:1px;color:var(--primary)">${PDMS.esc(password)}</div>
+      `, `<button class="btn btn-primary w-full" data-close>Got it</button>`);
+      modal.querySelector('.modal').classList.add('modal-sm');
+    }
+
+    window.newProjectManager = newProjectManager;
+    PDMS.onRefresh(render);
+  </script>
+</body>
+
+</html>

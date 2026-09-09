@@ -29,6 +29,7 @@
     download:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
     refresh:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
     'user-plus':'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>',
+    'user-check':'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>',
     calendar:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
     filter:'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>',
     file:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
@@ -755,7 +756,7 @@
   PDMS.renderTable = function(container, opts){
     // opts: {columns, rows, pageSize, searchKeys, filterOptions,
     //        dateFilter:{key,label}  ← adds a From/To date range on that row field}
-    const state = { page:1, sortKey:null, sortDir:1, filter:'', filters:opts.filters||{}, dateFrom:'', dateTo:'' };
+    const state = { page:1, sortKey:opts.defaultSortKey||opts.sortKey||null, sortDir:opts.defaultSortDir||1, filter:'', filters:opts.filters||{}, dateFrom:'', dateTo:'' };
     const pageSize = opts.pageSize || 20;
 
     function filtered(){
@@ -788,7 +789,7 @@
             if (k === 'status') {
               const isDelivery = (PDMS.stageOf ? PDMS.stageOf(r) === 'Delivery' : r.stage === 'Delivery') || (opts && opts.isDeliveryTable);
               const isSalesTable = !isDelivery && (PDMS.stageOf ? PDMS.stageOf(r) === 'Sales' : r.stage === 'Sales');
-              const dStat = isDelivery ? (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : (r.deliveryStatus || 'Gap Assessment')) : (r.deliveryStatus || v);
+              const dStat = isDelivery ? (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : (r.deliveryStatus || 'Not Started')) : (r.deliveryStatus || v);
 
               if (filterVal === 'In Pipeline' || filterVal === 'Active Pipeline' || filterVal === 'pipeline') {
                 const norm = PDMS.normalizeStatus ? PDMS.normalizeStatus(v) : v;
@@ -821,6 +822,9 @@
       if(state.sortKey){
         arr.sort((a,b)=>{
           const va=a[state.sortKey],vb=b[state.sortKey];
+          if (typeof va === 'string' || typeof vb === 'string') {
+            return String(va||'').localeCompare(String(vb||''), undefined, { sensitivity: 'base', numeric: true }) * state.sortDir;
+          }
           if(va<vb)return -1*state.sortDir; if(va>vb)return 1*state.sortDir; return 0;
         });
       }
@@ -1491,7 +1495,7 @@
       clientMode: null, // 'new' or 'existing'
       selectedClient: null, // { name, industry, email, phone, address, workedBefore }
       newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
-      projForm: { type: (D.types && D.types[0]) || 'Management System', workstream: '', status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'Management System')) || ['Gap Assessment'])[0] || 'Gap Assessment', start: '', due: '', actualCompletion: '', desc: '' }
+      projForm: { type: (D.types && D.types[0]) || 'Management System', workstream: '', status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'Management System')) || ['Not Started'])[0] || 'Not Started', start: '', due: '', actualCompletion: '', desc: '' }
     };
 
     function renderModal() {
@@ -1861,7 +1865,7 @@
             const opts = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(newType) : (D.deliveryStatuses || []);
             statusInput.innerHTML = opts.map(s => `<option value="${PDMS.esc(s)}">${PDMS.esc(s)}</option>`).join('');
             wizardState.projForm.type = newType;
-            wizardState.projForm.status = opts[0] || 'Gap Assessment';
+            wizardState.projForm.status = opts[0] || 'Not Started';
           };
         }
 
@@ -1974,6 +1978,22 @@
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, W, H);
     return { ctx, W, H, dpr };
+  }
+
+  function getCss(varName) {
+    if (typeof document !== 'undefined' && document.documentElement) {
+      const val = getComputedStyle(document.documentElement).getPropertyValue(varName);
+      if (val && val.trim()) return val.trim();
+    }
+    const fallbacks = {
+      '--primary': '#4f46e5',
+      '--border': '#e2e8f0',
+      '--text': '#0f172a',
+      '--text-soft': '#64748b',
+      '--text-muted': '#94a3b8',
+      '--surface': '#ffffff'
+    };
+    return fallbacks[varName] || '#0f172a';
   }
 
   PDMS.charts = {

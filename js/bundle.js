@@ -216,9 +216,10 @@
   const salesStatuses = [...salesJourney, 'On Hold', 'Cancelled'];
 
   const managementSystemStages = [
+    'Not Started',
     'Gap Assessment',
     'Risk Assessment',
-    'Management System Design & Documentation/Implementation',
+    'Design & Documentation/Implementation',
     'VAPT',
     'Training & Awareness',
     'Internal Audit & Management Review',
@@ -230,6 +231,7 @@
   ];
 
   const vaptStages = [
+    'Not Started',
     'Gap Assessment',
     'Internal Testing',
     'Penetration Testing',
@@ -240,6 +242,7 @@
   ];
 
   const softwareAndAiStages = [
+    'Not Started',
     'Project Initiation & Business Case',
     'Requirements & Use-Case Definition',
     'Architecture & Solution Design',
@@ -256,6 +259,7 @@
   ];
 
   const erpStages = [
+    'Not Started',
     'Requirements Gathering',
     'Configuration & Design',
     'Data Preparation & Migration',
@@ -269,9 +273,11 @@
   ];
 
   const surveillanceStages = [
+    'Not Started',
     'Previous Findings Closure',
     'Training',
-    'Awareness & VAPT',
+    'Awareness',
+    'VAPT',
     'Internal Audit',
     'Management Review',
     'Readiness Assessment',
@@ -326,11 +332,14 @@
     'Awaiting Account Approval': 'purple',
     'Closed': 'primary',
     'Cancelled': 'danger',
-    'On Hold': 'muted',
+    'On Hold': 'warn',
+    'Ongoing': 'success',
+    'In Progress': 'success',
 
-    // Shared Milestones
-    'Completed': 'success',
-    'Closure': 'success',
+    // Delivery
+    'Not Started': 'info',
+    'Completed': 'info',
+    'Closure': 'info',
     'Training': 'primary',
     'Internal Audit': 'info',
     'Testing': 'purple',
@@ -338,6 +347,10 @@
     // 1. Management System
     'Gap Assessment': 'info',
     'Risk Assessment': 'warn',
+    'Design & Documentation/Implementation': 'purple',
+    'Design & Documentation/Implement': 'purple',
+    'Design and Documentation/Implementation': 'purple',
+    'Design and Documentation/Implement': 'purple',
     'Management System Design & Documentation/Implementation': 'purple',
     'VAPT': 'purple',
     'Training & Awareness': 'primary',
@@ -346,7 +359,7 @@
     'Certification Audit': 'purple',
     'Certification & Post Engagement': 'primary',
     'Certification & Post engagement': 'primary',
-    'Project Closure': 'success',
+    'Project Closure': 'info',
 
     // 2. VAPT
     'Internal Testing': 'info',
@@ -377,10 +390,12 @@
 
     // 5. Surveillance / Recertification
     'Previous Findings Closure': 'info',
+    'Awareness': 'primary',
     'Management Review': 'purple',
     'Readiness Assessment': 'info',
     'Remediation': 'warn',
-    'Surveillance Audit': 'purple'
+    'Surveillance Audit': 'purple',
+    'Post Engagement': 'primary'
   };
   Object.assign(statusColors, {
     'Incoming': 'info', 'Initial Contact': 'info', 'Requirement Gathering': 'purple',
@@ -505,6 +520,7 @@
     download:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
     refresh:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
     'user-plus':'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>',
+    'user-check':'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>',
     calendar:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
     filter:'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>',
     file:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
@@ -1231,7 +1247,7 @@
   PDMS.renderTable = function(container, opts){
     // opts: {columns, rows, pageSize, searchKeys, filterOptions,
     //        dateFilter:{key,label}  ← adds a From/To date range on that row field}
-    const state = { page:1, sortKey:null, sortDir:1, filter:'', filters:opts.filters||{}, dateFrom:'', dateTo:'' };
+    const state = { page:1, sortKey:opts.defaultSortKey||opts.sortKey||null, sortDir:opts.defaultSortDir||1, filter:'', filters:opts.filters||{}, dateFrom:'', dateTo:'' };
     const pageSize = opts.pageSize || 20;
 
     function filtered(){
@@ -1264,7 +1280,7 @@
             if (k === 'status') {
               const isDelivery = (PDMS.stageOf ? PDMS.stageOf(r) === 'Delivery' : r.stage === 'Delivery') || (opts && opts.isDeliveryTable);
               const isSalesTable = !isDelivery && (PDMS.stageOf ? PDMS.stageOf(r) === 'Sales' : r.stage === 'Sales');
-              const dStat = isDelivery ? (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : (r.deliveryStatus || 'Gap Assessment')) : (r.deliveryStatus || v);
+              const dStat = isDelivery ? (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : (r.deliveryStatus || 'Not Started')) : (r.deliveryStatus || v);
 
               if (filterVal === 'In Pipeline' || filterVal === 'Active Pipeline' || filterVal === 'pipeline') {
                 const norm = PDMS.normalizeStatus ? PDMS.normalizeStatus(v) : v;
@@ -1297,6 +1313,9 @@
       if(state.sortKey){
         arr.sort((a,b)=>{
           const va=a[state.sortKey],vb=b[state.sortKey];
+          if (typeof va === 'string' || typeof vb === 'string') {
+            return String(va||'').localeCompare(String(vb||''), undefined, { sensitivity: 'base', numeric: true }) * state.sortDir;
+          }
           if(va<vb)return -1*state.sortDir; if(va>vb)return 1*state.sortDir; return 0;
         });
       }
@@ -1967,7 +1986,7 @@
       clientMode: null, // 'new' or 'existing'
       selectedClient: null, // { name, industry, email, phone, address, workedBefore }
       newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
-      projForm: { type: (D.types && D.types[0]) || 'Management System', workstream: '', status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'Management System')) || ['Gap Assessment'])[0] || 'Gap Assessment', start: '', due: '', actualCompletion: '', desc: '' }
+      projForm: { type: (D.types && D.types[0]) || 'Management System', workstream: '', status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'Management System')) || ['Not Started'])[0] || 'Not Started', start: '', due: '', actualCompletion: '', desc: '' }
     };
 
     function renderModal() {
@@ -2337,7 +2356,7 @@
             const opts = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(newType) : (D.deliveryStatuses || []);
             statusInput.innerHTML = opts.map(s => `<option value="${PDMS.esc(s)}">${PDMS.esc(s)}</option>`).join('');
             wizardState.projForm.type = newType;
-            wizardState.projForm.status = opts[0] || 'Gap Assessment';
+            wizardState.projForm.status = opts[0] || 'Not Started';
           };
         }
 
@@ -2450,6 +2469,22 @@
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, W, H);
     return { ctx, W, H, dpr };
+  }
+
+  function getCss(varName) {
+    if (typeof document !== 'undefined' && document.documentElement) {
+      const val = getComputedStyle(document.documentElement).getPropertyValue(varName);
+      if (val && val.trim()) return val.trim();
+    }
+    const fallbacks = {
+      '--primary': '#4f46e5',
+      '--border': '#e2e8f0',
+      '--text': '#0f172a',
+      '--text-soft': '#64748b',
+      '--text-muted': '#94a3b8',
+      '--surface': '#ffffff'
+    };
+    return fallbacks[varName] || '#0f172a';
   }
 
   PDMS.charts = {
@@ -2940,7 +2975,7 @@
     }
 
     const D = window.PDMS_DATA;
-    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Gap Assessment', 'Risk Assessment', 'Management System Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure'];
+    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure'];
     if (allDelivery.includes(normalized) || allDelivery.includes(project.status)) return 'Delivery';
 
     if (project.status === 'Closed') return 'Delivery';
@@ -3050,13 +3085,17 @@
     if (preAwardSales.includes(project.status) || (project.status === 'Cancelled' && project.stage === 'Sales' && !project.deliveryStatus)) {
       return null;
     }
-    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Gap Assessment', 'Risk Assessment', 'Management System Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure']);
+    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure']);
     
     // 1. Check explicit deliveryStatus field
     const delivRaw = String(project.deliveryStatus || '').trim();
     if (delivRaw) {
       const matchInSeq = seq.find(s => s.toLowerCase() === delivRaw.toLowerCase());
       if (matchInSeq) return matchInSeq;
+      if (delivRaw.toLowerCase() === 'management system design & documentation/implementation' || delivRaw.toLowerCase() === 'management system design and documentation/implementation' || delivRaw.toLowerCase() === 'design and documentation/implement' || delivRaw.toLowerCase() === 'design & documentation/implement') {
+        const found = seq.find(s => s.toLowerCase().includes('design') && s.toLowerCase().includes('documentation'));
+        if (found) return found;
+      }
       if (delivRaw.toLowerCase() === 'completed' && !seq.includes('Completed') && seq.includes('Closure')) return 'Closure';
       if (delivRaw.toLowerCase() === 'closure' && !seq.includes('Closure') && seq.includes('Completed')) return 'Completed';
       if (delivRaw.toLowerCase() === 'on hold') return 'On Hold';
@@ -3068,6 +3107,10 @@
     const matchStatusInSeq = seq.find(s => s.toLowerCase() === st.toLowerCase());
     if (matchStatusInSeq) return matchStatusInSeq;
 
+    if (st.toLowerCase() === 'management system design & documentation/implementation' || st.toLowerCase() === 'management system design and documentation/implementation' || st.toLowerCase() === 'design and documentation/implement' || st.toLowerCase() === 'design & documentation/implement') {
+      const found = seq.find(s => s.toLowerCase().includes('design') && s.toLowerCase().includes('documentation'));
+      if (found) return found;
+    }
     if (st.toLowerCase() === 'completed' && !seq.includes('Completed') && seq.includes('Closure')) return 'Closure';
     if (st.toLowerCase() === 'closure' && !seq.includes('Closure') && seq.includes('Completed')) return 'Completed';
     if (st.toLowerCase() === 'on hold') return 'On Hold';
@@ -3084,7 +3127,7 @@
       if (st.toLowerCase() === 'in progress') return 'Configuration & Design';
     } else if (type === 'Management System') {
       if (st.toLowerCase() === 'awaiting review') return 'Certification Audit';
-      if (st.toLowerCase() === 'in progress') return 'Management System Design & Documentation/Implementation';
+      if (st.toLowerCase() === 'in progress') return 'Design & Documentation/Implementation';
     } else if (type.toLowerCase().includes('surveillance') || type.toLowerCase().includes('recertification')) {
       if (st.toLowerCase() === 'awaiting review') return 'Surveillance Audit';
       if (st.toLowerCase() === 'in progress') return 'Internal Audit';
@@ -3171,6 +3214,11 @@
     // Executives and System Admins can delete any project
     if (['System Administrator', 'COO'].includes(role)) return true;
 
+    // PMOs / Project Managers can delete ONLY projects created/onboarded by them (not assigned projects)
+    if (['PMO', 'Project Manager'].includes(role)) {
+      return PDMS.projectOwnedByUser(project, user);
+    }
+
     const pStage = PDMS.stageOf(project);
     const isDeliveryStage = pStage === 'Delivery';
     const isSalesStage = pStage === 'Sales';
@@ -3209,7 +3257,8 @@
       {id:'delivery-projects',label:'Projects in Delivery',icon:'folder',href:'projects.html#view=delivery',roles:['Sales','Sales Head','HR','HTD','COO','PM Head','PMO','Project Manager','Accounts']},
     ]},
     {section:'Management',items:[
-      {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR']},
+      {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR','HTD','PM Head','COO','System Administrator','General Admin']},
+      {id:'project-managers',label:'Project Managers',icon:'user-check',href:'project-managers.html',roles:['HTD','PM Head','COO','HR','System Administrator','General Admin']},
       {id:'consultants',label:'Consultants',icon:'briefcase',href:'consultants.html',roles:['HR','COO','HTD','PM Head','PMO','Project Manager']},
     ]},
     {section:'Community',items:[
@@ -3234,6 +3283,8 @@
     const role = user.role;
     const theme = localStorage.getItem('pdms-theme')||'light';
 
+    const isSidebarCollapsed = localStorage.getItem('pdms-sidebar-collapsed') === 'true';
+
     const navHtml = NAV.map(s=>{
       const items = s.items.filter(it=>canSee(it,role));
       if(!items.length) return '';
@@ -3241,13 +3292,13 @@
         items.map(it=>{
           const href = it.id==='dashboard' ? PDMS.dashboardFor(user) : it.href;
           const label = (it.id==='projects' && role==='Consultant') ? 'My Projects' : it.label;
-          return '<a class="nav-item '+(activeId===it.id?'active':'')+'" href="'+href+'">'+I(it.icon)+'<span>'+label+'</span>'+(it.badge?'<span class="badge">'+it.badge+'</span>':'')+'</a>';
+          return '<a class="nav-item '+(activeId===it.id?'active':'')+'" href="'+href+'" title="'+PDMS.esc(label)+'">'+I(it.icon)+'<span>'+label+'</span>'+(it.badge?'<span class="badge">'+it.badge+'</span>':'')+'</a>';
         }).join('')+
       '</div>';
     }).join('');
 
     document.body.innerHTML =
-    '<div class="app">'+
+    '<div class="app'+(isSidebarCollapsed ? ' sidebar-collapsed' : '')+'">'+
       '<aside class="sidebar" id="sidebar">'+
         '<div class="sidebar-header">'+
           '<div class="brand"><div class="brand-logo"><img src="images/pse-logo.png" alt="PSE PDMS Logo"/></div></div>'+
@@ -3259,9 +3310,10 @@
           '<button class="icon-btn" title="Logout" id="logoutBtn">'+I('logout')+'</button>'+
         '</div>'+
       '</aside>'+
+      '<div class="sidebar-overlay" id="sidebarOverlay"></div>'+
       '<div class="main">'+
         '<header class="header">'+
-          '<button class="hamburger" id="hamburger">'+I('menu')+'</button>'+
+          '<button class="hamburger" id="hamburger" title="Toggle sidebar">'+I('menu')+'</button>'+
           '<div class="header-actions">'+
             '<button class="icon-btn" id="themeToggle" title="Toggle theme">'+I(theme==='light'?'moon':'sun')+'</button>'+
             '<button class="icon-btn" id="notifBtn" title="Notifications">'+I('bell')+'<span class="dot"></span></button>'+
@@ -3315,7 +3367,32 @@
       }
     } catch (e) {}
 
-    document.getElementById('hamburger').onclick = ()=>document.getElementById('sidebar').classList.toggle('open');
+    const hamburger = document.getElementById('hamburger');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const appEl = document.querySelector('.app');
+
+    if (hamburger) {
+      hamburger.onclick = () => {
+        if (window.innerWidth <= 960) {
+          const isOpen = sidebar.classList.toggle('open');
+          if (overlay) overlay.classList.toggle('open', isOpen);
+        } else {
+          const isCollapsed = appEl ? appEl.classList.toggle('sidebar-collapsed') : false;
+          try {
+            localStorage.setItem('pdms-sidebar-collapsed', isCollapsed ? 'true' : 'false');
+          } catch(e) {}
+        }
+      };
+    }
+
+    if (overlay) {
+      overlay.onclick = () => {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('open');
+      };
+    }
+
     document.getElementById('themeToggle').onclick = PDMS.toggleTheme;
     document.getElementById('logoutBtn').onclick = confirmLogout;
     document.getElementById('notifBtn').onclick = ()=>togglePanel('notif');

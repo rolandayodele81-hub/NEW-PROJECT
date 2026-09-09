@@ -7,7 +7,7 @@
   <title>PMO Dashboard — PSE PDMS</title>
   
   
-  <link rel="stylesheet" href="css/style.css?v=1788942892"/>
+  <link rel="stylesheet" href="css/style.css?v=1788956664"/>
   <style>
     .pmo-hero {
       display: grid;
@@ -62,7 +62,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788942892"></script>
+  <script src="js/bundle.js?v=1788956664"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -95,6 +95,7 @@
       const isClosedStatus = st => ['Closure', 'Project Closure'].includes(st);
       const isOngoingStatus = st => st && st !== 'Not Started' && st !== 'Completed' && !isClosedStatus(st) && st !== 'On Hold' && st !== 'Cancelled';
 
+      const notStarted = projects.filter(p => getDeliveryStatus(p) === 'Not Started' || p.status === 'Not Started').length;
       const ongoing = projects.filter(p => isOngoingStatus(getDeliveryStatus(p))).length;
       const onHold = projects.filter(p => getDeliveryStatus(p) === 'On Hold' || p.status === 'On Hold').length;
       const completed = projects.filter(p => getDeliveryStatus(p) === 'Completed').length;
@@ -127,14 +128,22 @@
     </div>
   </div>
 
-  <div class="grid mb-4" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:16px">
+  <div class="grid grid-4 mb-4" style="gap:16px">
     <a class="stat i-primary" href="projects.html" title="View all assigned projects">
       <div class="label">Total Assigned</div>
       <div class="value">${projects.length}</div>
       <div class="delta up">My projects</div>
       <div class="icon-wrap">${I('folder')}</div>
     </a>
-    <a class="stat i-warn" href="projects.html#status=Ongoing" title="Filter ongoing assigned projects">
+    <a class="stat i-info" href="projects.html#status=Not Started" style="background:var(--surface)" title="Filter new / not started assigned projects">
+      <div class="label">New Projects</div>
+      <div class="value" style="color:#0284c7">${notStarted}</div>
+      <div class="delta" style="color:#0284c7">Awaiting kickoff</div>
+      <div class="icon-wrap" style="background:linear-gradient(135deg,#0ea5e9,#0284c7)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+    </a>
+    <a class="stat i-success" href="projects.html#status=Ongoing" title="Filter ongoing assigned projects">
       <div class="label">Ongoing</div>
       <div class="value">${ongoing}</div>
       <div class="delta up">Currently in progress</div>
@@ -148,7 +157,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
       </div>
     </a>
-    <a class="stat i-success" href="projects.html#status=Completed" title="Filter completed assigned projects">
+    <a class="stat i-info" href="projects.html#status=Completed" title="Filter completed assigned projects">
       <div class="label">Completed</div>
       <div class="value">${completed}</div>
       <div class="delta up">Delivered</div>
@@ -184,7 +193,7 @@
       </div>
       <div class="card-body" style="padding:12px 20px 20px;flex:1">
         ${(() => {
-          const sc = { 'Completed':'#10b981','Closure':'#10b981','Project Closure':'#10b981','On Hold':'#64748b','Gap Assessment':'#0ea5e9','Risk Assessment':'#f59e0b','Management System Design & Documentation/Implementation':'#8b5cf6','VAPT':'#8b5cf6','Training & Awareness':'#6366f1','Internal Audit & Management Review':'#06b6d4','Remediation & Certification Readiness':'#f59e0b','Certification Audit':'#8b5cf6','Certification & Post Engagement':'#6366f1','Certification & Post engagement':'#6366f1','Post Engagement':'#6366f1','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Training':'#6366f1','Awareness & VAPT':'#8b5cf6','Testing':'#8b5cf6','Implementation':'#8b5cf6','Internal Testing':'#0ea5e9','Penetration Testing':'#8b5cf6','Report Submission':'#6366f1','Review':'#f59e0b','Requirements Gathering':'#0ea5e9','Configuration & Design':'#6366f1','Data Preparation & Migration':'#8b5cf6','Integration':'#6366f1','User Acceptance Testing (UAT)':'#f59e0b','Go-Live':'#10b981','Previous Findings Closure':'#0ea5e9','Management Review':'#8b5cf6','Readiness Assessment':'#0ea5e9','Remediation':'#f59e0b','Surveillance Audit':'#8b5cf6','Cancelled':'#ef4444' };
+          const sc = { 'Not Started':'#0ea5e9','Completed':'#10b981','Closure':'#10b981','Project Closure':'#10b981','On Hold':'#64748b','Gap Assessment':'#0ea5e9','Risk Assessment':'#f59e0b','Design & Documentation/Implementation':'#8b5cf6','Management System Design & Documentation/Implementation':'#8b5cf6','VAPT':'#8b5cf6','Training & Awareness':'#6366f1','Internal Audit & Management Review':'#06b6d4','Remediation & Certification Readiness':'#f59e0b','Certification Audit':'#8b5cf6','Certification & Post Engagement':'#6366f1','Certification & Post engagement':'#6366f1','Post Engagement':'#6366f1','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Training':'#6366f1','Awareness':'#6366f1','Awareness & VAPT':'#8b5cf6','Testing':'#8b5cf6','Implementation':'#8b5cf6','Internal Testing':'#0ea5e9','Penetration Testing':'#8b5cf6','Report Submission':'#6366f1','Review':'#f59e0b','Requirements Gathering':'#0ea5e9','Configuration & Design':'#6366f1','Data Preparation & Migration':'#8b5cf6','Integration':'#6366f1','User Acceptance Testing (UAT)':'#f59e0b','Go-Live':'#10b981','Previous Findings Closure':'#0ea5e9','Management Review':'#8b5cf6','Readiness Assessment':'#0ea5e9','Remediation':'#f59e0b','Surveillance Audit':'#8b5cf6','Cancelled':'#ef4444' };
           const getDeliveryStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
           const allStatuses = [...new Set([...(D.deliveryStatuses || []), ...projects.map(p => getDeliveryStatus(p)).filter(Boolean)])];
           const activeList = allStatuses.map(s => {
@@ -237,7 +246,7 @@
     <div class="card-body" style="padding:0">
       <div style="overflow-x:auto">
         <table class="data">
-          <thead><tr><th>Project</th><th>Client</th><th>Project Type</th><th>Due Date</th><th>Status</th></tr></thead>
+          <thead><tr><th>Client</th><th>Project Type</th><th>Status</th><th>Start Date</th><th>Due Date</th></tr></thead>
           <tbody>
             ${(() => {
               const due = projects.filter(p => {
@@ -250,11 +259,11 @@
                 const urgency = daysLeft <= 3 ? 'badge-danger' : daysLeft <= 7 ? 'badge-warn' : 'badge-muted';
                 const dStat = PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Not Started') : (p.deliveryStatus || p.status);
                 return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer">
-                  <td><div style="font-weight:600;color:var(--primary)">${PDMS.esc(p.name)}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(p.id)}</div></td>
-                  <td class="text-muted">${PDMS.esc(p.client || '—')}</td>
+                  <td><div class="font-semi" style="color:var(--primary)">${PDMS.esc(p.client || p.name || '—')}</div></td>
                   <td class="text-muted">${PDMS.esc(p.type || '—')}</td>
-                  <td><span class="badge ${urgency}">${PDMS.esc(p.due)} · ${daysLeft}d left</span></td>
                   <td><span class="badge badge-${D.statusColors[dStat] || 'muted'}">${PDMS.esc(dStat)}</span></td>
+                  <td class="text-muted">${PDMS.esc(p.start || p.startDate || '—')}</td>
+                  <td><span class="badge ${urgency}">${PDMS.esc(p.due)} · ${daysLeft}d left</span></td>
                 </tr>`;
               }).join('') : `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:32px">${PDMS.emptyOrLoading('No projects due in the next 14 days')}</td></tr>`;
             })()}
@@ -285,13 +294,15 @@
       const getDeliveryStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status || 'Not Started');
       const isClosedStatus = st => ['Closure', 'Project Closure'].includes(st);
       const isOngoingStatus = st => st && st !== 'Not Started' && st !== 'Completed' && !isClosedStatus(st) && st !== 'On Hold' && st !== 'Cancelled';
+      const notStarted = projects.filter(p => getDeliveryStatus(p) === 'Not Started' || p.status === 'Not Started').length;
       const ongoing = projects.filter(p => isOngoingStatus(getDeliveryStatus(p))).length;
       const completed = projects.filter(p => getDeliveryStatus(p) === 'Completed').length;
       const closed = projects.filter(p => isClosedStatus(getDeliveryStatus(p))).length;
       const onHold = projects.filter(p => getDeliveryStatus(p) === 'On Hold' || p.status === 'On Hold').length;
       const cancelled = projects.filter(p => getDeliveryStatus(p) === 'Cancelled' || p.status === 'Cancelled').length;
-      PDMS.charts.donut(canvas, [ongoing, completed, closed, onHold, cancelled], ['#f59e0b', '#10b981', '#64748b', '#d97706', '#ef4444']);
+      PDMS.charts.donut(canvas, [notStarted, ongoing, completed, closed, onHold, cancelled], ['#0ea5e9', '#f59e0b', '#10b981', '#64748b', '#d97706', '#ef4444']);
       legend.innerHTML = [
+        ['#0ea5e9', 'Not Started', notStarted],
         ['#f59e0b', 'Ongoing', ongoing],
         ['#10b981', 'Completed', completed],
         ['#64748b', 'Closed', closed],

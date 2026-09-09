@@ -3,8 +3,8 @@
 <title>User Details — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788942892"/></head><body>
-<script src="js/bundle.js?v=1788942892"></script>
+<link rel="stylesheet" href="css/style.css?v=1788956664"/></head><body>
+<script src="js/bundle.js?v=1788956664"></script>
 <script>
 // A hash survives any host's clean-URL rewriting untouched, since it's never
 // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -113,13 +113,19 @@ function render(){
     return;
   }
 
+  const isHistoryProject = (p) => {
+    if (!p) return false;
+    const s = String(p.status || '').trim();
+    const dStat = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus) || '').trim();
+    const historyStatuses = ['Completed', 'Closure', 'Project Closure', 'Certification & Post Engagement', 'Closed', 'Rejected', 'Cancelled'];
+    if (historyStatuses.some(h => h.toLowerCase() === s.toLowerCase())) return true;
+    if (dStat && historyStatuses.some(h => h.toLowerCase() === dStat.toLowerCase())) return true;
+    return false;
+  };
+
   const userProjects = projectsFor(u);
-  const currentProjects = u && u.role === 'Sales'
-    ? userProjects.filter(isSalesCurrentProject)
-    : userProjects.filter(p => p.status !== 'Completed' && p.status !== 'Rejected');
-  const previousProjects = u && u.role === 'Sales'
-    ? userProjects.filter(p => !isSalesCurrentProject(p))
-    : userProjects.filter(p => p.status === 'Completed' || p.status === 'Rejected');
+  const currentProjects = userProjects.filter(p => !isHistoryProject(p));
+  const previousProjects = userProjects.filter(p => isHistoryProject(p));
 
   const statusColor = u.status==='Active'?'#22c55e':u.status==='On Leave'?'#f59e0b':'#ef4444';
 
@@ -156,11 +162,17 @@ function render(){
     </div>
 
     <!-- Actions -->
-    ${(PDMS.can('Edit User') || PDMS.can('Delete User')) ? `
-    <div style="display:flex;gap:10px;padding:12px 18px;background:var(--surface);border-left:1px solid var(--border);border-right:1px solid var(--border)">
-      ${PDMS.can('Edit User') ? `<button class="btn btn-secondary btn-sm" onclick="editUser()">${I('settings')} Edit User</button>` : ''}
-      ${PDMS.can('Delete User') ? `<button class="btn btn-secondary btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="deleteUser()">${I('close')} Delete User</button>` : ''}
-    </div>` : ''}
+    ${(() => {
+      const isSelf = currentLoggedIn && u && (String(currentLoggedIn.id) === String(u.id) || (currentLoggedIn.email && String(currentLoggedIn.email).toLowerCase() === String(u.email || '').toLowerCase()));
+      const canEdit = PDMS.can('Edit User') || (isSelf && ['HR', 'PMO', 'Project Manager', 'PM Head', 'HTD', 'COO', 'System Administrator', 'General Admin'].includes(currentLoggedIn.role));
+      const canDelete = PDMS.can('Delete User');
+      if (!canEdit && !canDelete) return '';
+      return `
+      <div style="display:flex;gap:10px;padding:12px 18px;background:var(--surface);border-left:1px solid var(--border);border-right:1px solid var(--border)">
+        ${canEdit ? `<button class="btn btn-secondary btn-sm" onclick="editUser()">${I('settings')} Edit User</button>` : ''}
+        ${canDelete ? `<button class="btn btn-secondary btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="deleteUser()">${I('close')} Delete User</button>` : ''}
+      </div>`;
+    })()}
 
       <!-- Detail fields -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0;border:1px solid var(--border);border-radius:14px;overflow:hidden">
@@ -203,6 +215,7 @@ function render(){
               const role = p.pm===u.name?'Project Manager':p.lead===u.name?'Project Lead':'Consultant';
               const roleColor = p.pm===u.name?'#4f46e5':p.lead===u.name?'#7c3aed':'#059669';
               const roleBg = p.pm===u.name?'rgba(79,70,229,.08)':p.lead===u.name?'rgba(124,58,237,.08)':'rgba(5,150,105,.08)';
+              const dispStatus = (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status)) || p.status;
               return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s" onmouseenter="this.style.background='var(--surface-2)'" onmouseleave="this.style.background='transparent'">
                 <td style="padding:14px 20px">
                   <div style="display:flex;align-items:center;gap:10px">
@@ -216,7 +229,7 @@ function render(){
                 <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.client||'—')}</td>
                 <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.type||'—')}</td>
                 <td style="padding:14px 16px"><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${role}</span></td>
-                <td style="padding:14px 20px"><span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status)}</span></td>
+                <td style="padding:14px 20px"><span class="badge badge-${D.statusColors[dispStatus]||D.statusColors[p.status]||'muted'}">${PDMS.esc(dispStatus)}</span></td>
               </tr>`;
             }).join('') : `<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No current projects')}</td></tr>`}
           </tbody>
@@ -246,6 +259,7 @@ function render(){
               const role = p.pm===u.name?'Project Manager':p.lead===u.name?'Project Lead':'Consultant';
               const roleColor = p.pm===u.name?'#4f46e5':p.lead===u.name?'#7c3aed':'#059669';
               const roleBg = p.pm===u.name?'rgba(79,70,229,.08)':p.lead===u.name?'rgba(124,58,237,.08)':'rgba(5,150,105,.08)';
+              const dispStatus = (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status)) || p.status;
               return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s" onmouseenter="this.style.background='var(--surface-2)'" onmouseleave="this.style.background='transparent'">
                 <td style="padding:14px 20px">
                   <div style="display:flex;align-items:center;gap:10px">
@@ -259,7 +273,7 @@ function render(){
                 <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.client||'—')}</td>
                 <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.type||'—')}</td>
                 <td style="padding:14px 16px"><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${role}</span></td>
-                <td style="padding:14px 20px"><span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status)}</span></td>
+                <td style="padding:14px 20px"><span class="badge badge-${D.statusColors[dispStatus]||D.statusColors[p.status]||'muted'}">${PDMS.esc(dispStatus)}</span></td>
               </tr>`;
             }).join('') : `<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No project history')}</td></tr>`}
           </tbody>
@@ -276,7 +290,7 @@ window.editUser = function() {
     <div class="form-grid">
       <div class="form-row"><label>Full Name</label><input id="editUserName" value="${PDMS.esc(u.name)}"/></div>
       <div class="form-row"><label>Email</label><input id="editUserEmail" type="email" value="${PDMS.esc(u.email)}"/></div>
-      <div class="form-row"><label>Role</label><select id="editUserRole">${D.roles.map(r => `<option ${r===u.role?'selected':''}>${r}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Role</label><select id="editUserRole" ${!PDMS.can('Edit User') ? 'disabled title="Only HR or System Admin can change roles" style="background:var(--surface-2);opacity:.8;cursor:not-allowed"' : ''}>${D.roles.map(r => `<option ${r===u.role?'selected':''}>${r}</option>`).join('')}</select></div>
       <div class="form-row"><label>Designation</label><input id="editUserDept" value="${PDMS.esc(u.dept||'')}"/></div>
       <div class="form-row"><label>Phone</label><input id="editUserPhone" value="${PDMS.esc(u.phone||'')}"/></div>
       <div class="form-row"><label>Date of Birth</label><input id="editUserBirthday" value="${PDMS.esc(u.birthday||'')}"/></div>
@@ -309,7 +323,7 @@ window.editUser = function() {
     const patch = {
       name: modal.querySelector('#editUserName').value.trim(),
       email: modal.querySelector('#editUserEmail').value.trim().toLowerCase(),
-      role: modal.querySelector('#editUserRole').value,
+      role: (modal.querySelector('#editUserRole') && !modal.querySelector('#editUserRole').disabled) ? modal.querySelector('#editUserRole').value : u.role,
       dept: modal.querySelector('#editUserDept').value.trim(),
       phone: modal.querySelector('#editUserPhone').value.trim(),
       birthday: modal.querySelector('#editUserBirthday').value.trim(),

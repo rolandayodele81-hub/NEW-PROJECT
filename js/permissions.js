@@ -84,7 +84,7 @@
     }
 
     const D = window.PDMS_DATA;
-    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Gap Assessment', 'Risk Assessment', 'Management System Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure'];
+    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure'];
     if (allDelivery.includes(normalized) || allDelivery.includes(project.status)) return 'Delivery';
 
     if (project.status === 'Closed') return 'Delivery';
@@ -194,13 +194,17 @@
     if (preAwardSales.includes(project.status) || (project.status === 'Cancelled' && project.stage === 'Sales' && !project.deliveryStatus)) {
       return null;
     }
-    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Gap Assessment', 'Risk Assessment', 'Management System Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure']);
+    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure']);
     
     // 1. Check explicit deliveryStatus field
     const delivRaw = String(project.deliveryStatus || '').trim();
     if (delivRaw) {
       const matchInSeq = seq.find(s => s.toLowerCase() === delivRaw.toLowerCase());
       if (matchInSeq) return matchInSeq;
+      if (delivRaw.toLowerCase() === 'management system design & documentation/implementation' || delivRaw.toLowerCase() === 'management system design and documentation/implementation' || delivRaw.toLowerCase() === 'design and documentation/implement' || delivRaw.toLowerCase() === 'design & documentation/implement') {
+        const found = seq.find(s => s.toLowerCase().includes('design') && s.toLowerCase().includes('documentation'));
+        if (found) return found;
+      }
       if (delivRaw.toLowerCase() === 'completed' && !seq.includes('Completed') && seq.includes('Closure')) return 'Closure';
       if (delivRaw.toLowerCase() === 'closure' && !seq.includes('Closure') && seq.includes('Completed')) return 'Completed';
       if (delivRaw.toLowerCase() === 'on hold') return 'On Hold';
@@ -212,6 +216,10 @@
     const matchStatusInSeq = seq.find(s => s.toLowerCase() === st.toLowerCase());
     if (matchStatusInSeq) return matchStatusInSeq;
 
+    if (st.toLowerCase() === 'management system design & documentation/implementation' || st.toLowerCase() === 'management system design and documentation/implementation' || st.toLowerCase() === 'design and documentation/implement' || st.toLowerCase() === 'design & documentation/implement') {
+      const found = seq.find(s => s.toLowerCase().includes('design') && s.toLowerCase().includes('documentation'));
+      if (found) return found;
+    }
     if (st.toLowerCase() === 'completed' && !seq.includes('Completed') && seq.includes('Closure')) return 'Closure';
     if (st.toLowerCase() === 'closure' && !seq.includes('Closure') && seq.includes('Completed')) return 'Completed';
     if (st.toLowerCase() === 'on hold') return 'On Hold';
@@ -228,7 +236,7 @@
       if (st.toLowerCase() === 'in progress') return 'Configuration & Design';
     } else if (type === 'Management System') {
       if (st.toLowerCase() === 'awaiting review') return 'Certification Audit';
-      if (st.toLowerCase() === 'in progress') return 'Management System Design & Documentation/Implementation';
+      if (st.toLowerCase() === 'in progress') return 'Design & Documentation/Implementation';
     } else if (type.toLowerCase().includes('surveillance') || type.toLowerCase().includes('recertification')) {
       if (st.toLowerCase() === 'awaiting review') return 'Surveillance Audit';
       if (st.toLowerCase() === 'in progress') return 'Internal Audit';
@@ -314,6 +322,11 @@
     const role = user.role;
     // Executives and System Admins can delete any project
     if (['System Administrator', 'COO'].includes(role)) return true;
+
+    // PMOs / Project Managers can delete ONLY projects created/onboarded by them (not assigned projects)
+    if (['PMO', 'Project Manager'].includes(role)) {
+      return PDMS.projectOwnedByUser(project, user);
+    }
 
     const pStage = PDMS.stageOf(project);
     const isDeliveryStage = pStage === 'Delivery';

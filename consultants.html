@@ -7,11 +7,11 @@
   <title>Consultants — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788942892"/>
+<link rel="stylesheet" href="css/style.css?v=1788956664"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788942892"></script>
+  <script src="js/bundle.js?v=1788956664"></script>
   <script>
     PDMS.mountShell('consultants');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -194,13 +194,13 @@
             <div class="delta">All active projects</div>
             <div class="icon-wrap">${I('folder')}</div>
           </a>
-          <a class="stat i-warn" href="projects.html#status=In Progress" title="Filter in-progress projects">
+          <a class="stat i-success" href="projects.html#status=In Progress" title="Filter in-progress projects">
             <div class="label">In Progress</div>
             <div class="value">${projects.filter(p=>p.status==='In Progress').length}</div>
             <div class="delta">Active delivery</div>
             <div class="icon-wrap">${I('activity')}</div>
           </a>
-          <a class="stat i-success" href="projects.html#status=Completed" title="Filter completed projects">
+          <a class="stat i-info" href="projects.html#status=Completed" title="Filter completed projects">
             <div class="label">Completed</div>
             <div class="value">${projects.filter(p=>p.status==='Completed').length}</div>
             <div class="delta">Delivered</div>
@@ -217,75 +217,84 @@
       const liveUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users;
       const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
 
-      let consultants = liveUsers.filter(u => u.role === 'Consultant');
-      let scopedProjects = liveProjects;
+      const allConsultants = liveUsers.filter(u => u.role === 'Consultant').slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true }));
 
-      if (isPMO) {
-        const myName = (currentUser.name || '').trim().toLowerCase();
-        const myEmail = (currentUser.email || '').trim().toLowerCase();
-        const myId = String(currentUser.id || '').trim().toLowerCase();
+      const myName = (currentUser?.name || '').trim().toLowerCase();
+      const myEmail = (currentUser?.email || '').trim().toLowerCase();
+      const myId = String(currentUser?.id || '').trim().toLowerCase();
 
-        scopedProjects = liveProjects.filter(p => {
-          const pm = (p.pm || '').trim().toLowerCase();
-          const lead = (p.lead || '').trim().toLowerCase();
-          const consultantsList = Array.isArray(p.consultants) ? p.consultants.map(n => String(n).trim().toLowerCase()) : [];
-          const ownerId = String(p.projectOwnerId || p.onboardedById || p.createdByUserId || '').trim().toLowerCase();
-          const ownerName = String(p.projectOwnerName || p.onboardedByName || p.createdByUserName || '').trim().toLowerCase();
-          return pm === myName || pm === myEmail || lead === myName || lead === myEmail ||
-                 consultantsList.includes(myName) || consultantsList.includes(myEmail) ||
-                 (myId && ownerId === myId) || (myName && ownerName === myName);
-        });
+      const myProjects = liveProjects.filter(p => {
+        const pm = (p.pm || '').trim().toLowerCase();
+        const lead = (p.lead || '').trim().toLowerCase();
+        const consultantsList = Array.isArray(p.consultants) ? p.consultants.map(n => String(n).trim().toLowerCase()) : [];
+        const ownerId = String(p.projectOwnerId || p.onboardedById || p.createdByUserId || '').trim().toLowerCase();
+        const ownerName = String(p.projectOwnerName || p.onboardedByName || p.createdByUserName || '').trim().toLowerCase();
+        return pm === myName || pm === myEmail || lead === myName || lead === myEmail ||
+               consultantsList.includes(myName) || consultantsList.includes(myEmail) ||
+               (myId && ownerId === myId) || (myName && ownerName === myName);
+      });
 
-        const assignedConsultantSet = new Set();
-        scopedProjects.forEach(p => {
-          if (Array.isArray(p.consultants)) {
-            p.consultants.forEach(c => {
-              if (c) assignedConsultantSet.add(String(c).trim().toLowerCase());
-            });
-          }
-        });
+      const myConsultantSet = new Set();
+      myProjects.forEach(p => {
+        if (Array.isArray(p.consultants)) {
+          p.consultants.forEach(c => {
+            if (c) myConsultantSet.add(String(c).trim().toLowerCase());
+          });
+        }
+        if (p.lead) myConsultantSet.add(String(p.lead).trim().toLowerCase());
+        if (p.pm) myConsultantSet.add(String(p.pm).trim().toLowerCase());
+      });
 
-        consultants = consultants.filter(c => {
-          const cName = (c.name || '').trim().toLowerCase();
-          const cEmail = (c.email || '').trim().toLowerCase();
-          return assignedConsultantSet.has(cName) || assignedConsultantSet.has(cEmail);
-        });
-      }
+      const isMyConsultantFn = c => {
+        const cName = (c.name || '').trim().toLowerCase();
+        const cEmail = (c.email || '').trim().toLowerCase();
+        return myConsultantSet.has(cName) || myConsultantSet.has(cEmail);
+      };
 
       const hasProjectsFn = c => {
         const rName = (c.name || '').toLowerCase();
-        const n = scopedProjects.filter(p => (p.pm || '').toLowerCase() === rName || (p.lead || '').toLowerCase() === rName || (Array.isArray(p.consultants) && p.consultants.some(x => String(x).toLowerCase() === rName))).length;
+        const rEmail = (c.email || '').toLowerCase();
+        const n = liveProjects.filter(p => (p.pm || '').toLowerCase() === rName || (p.lead || '').toLowerCase() === rName || (Array.isArray(p.consultants) && p.consultants.some(x => { const val = String(x).toLowerCase(); return val === rName || val === rEmail; }))).length;
         return n > 0;
       };
 
-      const withProj = consultants.filter(c => hasProjectsFn(c)).length;
-      const withoutProj = consultants.length - withProj;
+      const myConsultantsCount = allConsultants.filter(c => isMyConsultantFn(c)).length;
+      const withProjCount = allConsultants.filter(c => hasProjectsFn(c)).length;
+      const withoutProjCount = allConsultants.length - withProjCount;
 
-      const customFilter = selectedConsultantFilter === 'withProj'
-        ? (c => hasProjectsFn(c))
-        : (selectedConsultantFilter === 'withoutProj'
-          ? (c => !hasProjectsFn(c))
-          : null);
+      const customFilter = selectedConsultantFilter === 'myConsultants'
+        ? (c => isMyConsultantFn(c))
+        : (selectedConsultantFilter === 'withProj'
+          ? (c => hasProjectsFn(c))
+          : (selectedConsultantFilter === 'withoutProj'
+            ? (c => !hasProjectsFn(c))
+            : null));
 
       document.getElementById('content').innerHTML = `
         <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Consultants</span></div>
-          <h1 class="page-title">Consultants</h1><div class="page-sub">${isPMO ? 'Consultants assigned to your active project engagements' : 'Resource pool availability and specialties'}</div></div></div>
-        <div class="grid grid-3 mb-4">
+          <h1 class="page-title">Consultants</h1><div class="page-sub">${isPMO ? 'Consultant resource directory and engagement tracking' : 'Resource pool availability and specialties'}</div></div></div>
+        <div class="grid grid-4 mb-4">
           <div class="stat i-primary ${!selectedConsultantFilter ? 'active-filter' : ''}" onclick="selectConsultantFilter('')" title="Click to show all consultants" style="cursor:pointer">
             <div class="label">Total Consultants</div>
-            <div class="value">${consultants.length}</div>
+            <div class="value">${allConsultants.length}</div>
             <div class="delta">All specialists</div>
             <div class="icon-wrap">${I('users')}</div>
           </div>
+          <div class="stat i-purple ${selectedConsultantFilter === 'myConsultants' ? 'active-filter' : ''}" onclick="selectConsultantFilter('myConsultants')" title="Click to filter consultants on your projects" style="cursor:pointer">
+            <div class="label">My Consultants</div>
+            <div class="value" style="color:#7c3aed">${myConsultantsCount}</div>
+            <div class="delta" style="color:#7c3aed">On my engagements</div>
+            <div class="icon-wrap" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">${I('briefcase')}</div>
+          </div>
           <div class="stat i-success ${selectedConsultantFilter === 'withProj' ? 'active-filter' : ''}" onclick="selectConsultantFilter('withProj')" title="Click to filter consultants with assigned projects" style="cursor:pointer">
             <div class="label">With Projects</div>
-            <div class="value">${withProj}</div>
+            <div class="value">${withProjCount}</div>
             <div class="delta">Active on engagements</div>
             <div class="icon-wrap">${I('folder')}</div>
           </div>
           <div class="stat i-warn ${selectedConsultantFilter === 'withoutProj' ? 'active-filter' : ''}" onclick="selectConsultantFilter('withoutProj')" title="Click to filter unassigned consultants on bench" style="cursor:pointer">
             <div class="label">Without Projects</div>
-            <div class="value">${withoutProj}</div>
+            <div class="value">${withoutProjCount}</div>
             <div class="delta">Bench / Available</div>
             <div class="icon-wrap">${I('activity')}</div>
           </div>
@@ -294,14 +303,20 @@
       PDMS.renderTable(document.getElementById('tbl'), {
         columns: [
           { key: 'name', label: 'Consultant', render: r => `<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.name)}</div><div><div class="font-semi">${PDMS.esc(r.name)}</div><div class="text-sm text-muted">${PDMS.esc(r.email)}</div></div></div>` },
-          { key: 'dept', label: 'Designation' },
+          { key: 'dept', label: 'Designation', render: r => PDMS.esc(r.dept || r.specialty || 'Consultant') },
           { key: 'projects', label: 'Projects', render: r => {
             const rName = (r.name || '').toLowerCase();
-            const n = scopedProjects.filter(p => (p.pm || '').toLowerCase() === rName || (p.lead || '').toLowerCase() === rName || (Array.isArray(p.consultants) && p.consultants.some(c => String(c).toLowerCase() === rName))).length;
-            return `<span class="badge badge-primary">${n} project${n!==1?'s':''}</span>`;
+            const rEmail = (r.email || '').toLowerCase();
+            const allAssigned = liveProjects.filter(p => (p.pm || '').toLowerCase() === rName || (p.lead || '').toLowerCase() === rName || (Array.isArray(p.consultants) && p.consultants.some(c => { const val = String(c).toLowerCase(); return val === rName || val === rEmail; })));
+            const myAssigned = myProjects.filter(p => (p.pm || '').toLowerCase() === rName || (p.lead || '').toLowerCase() === rName || (Array.isArray(p.consultants) && p.consultants.some(c => { const val = String(c).toLowerCase(); return val === rName || val === rEmail; })));
+            const n = allAssigned.length;
+            if (n === 0) return '<span class="badge badge-muted">Bench / Available</span>';
+            return `<span class="badge badge-primary">${n} project${n!==1?'s':''}</span>${isPMO && myAssigned.length > 0 ? ` <span class="badge badge-purple" style="margin-left:4px;font-size:10px;padding:2px 6px">${myAssigned.length} on mine</span>` : ''}`;
           }},
-          { key: 'dateOfEntry', label: 'Date of Entry', render: r => PDMS.esc(r.dateOfEntry || '—') }
-        ], rows: consultants, pageSize: 20, searchKeys: ['name', 'dept', 'email'],
+          { key: 'dateOfEntry', label: 'Date of Entry', render: r => PDMS.esc(r.dateOfEntry || r.joined || '—') }
+        ], rows: allConsultants, pageSize: 20, searchKeys: ['name', 'dept', 'email'],
+        defaultSortKey: 'name',
+        defaultSortDir: 1,
         customFilter: customFilter,
         rowHref: r => 'user-details.html#id=' + encodeURIComponent(r.id || '') + (r.email ? '&email=' + encodeURIComponent(r.email) : ''),
         filterOptions: []
