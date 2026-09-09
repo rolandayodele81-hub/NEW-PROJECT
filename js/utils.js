@@ -627,9 +627,81 @@
     if (val === null || val === undefined || val === '') return '—';
     const n = Number(val);
     if (!Number.isFinite(n)) return String(val);
-    return symbol + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const sym = (symbol || '₦').trim();
+    const prefix = (sym.length > 1 && !sym.endsWith(' ')) ? (sym + ' ') : sym;
+    return prefix + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
   PDMS.formatCurrency = PDMS.currency;
+
+  PDMS.commonCurrencies = [
+    { symbol: '₦', label: '₦ (NGN)' },
+    { symbol: '$', label: '$ (USD)' },
+    { symbol: '€', label: '€ (EUR)' },
+    { symbol: '£', label: '£ (GBP)' },
+    { symbol: 'C$', label: 'C$ (CAD)' },
+    { symbol: 'A$', label: 'A$ (AUD)' },
+    { symbol: '₵', label: '₵ (GHS)' },
+    { symbol: 'KSh', label: 'KSh (KES)' },
+    { symbol: 'R', label: 'R (ZAR)' },
+    { symbol: 'AED', label: 'AED' },
+    { symbol: '¥', label: '¥ (JPY)' },
+    { symbol: 'custom', label: 'Custom…' }
+  ];
+
+  PDMS.renderCurrencyInput = function(opts) {
+    opts = opts || {};
+    const selectId = opts.selectId || 'currencySelect';
+    const customId = opts.customId || 'customCurrencyInput';
+    const amountId = opts.amountId || 'amountInput';
+    const currentCurrency = (opts.currency || opts.initialCurrency || '₦').trim();
+    const currentValue = opts.value != null ? opts.value : (opts.initialAmount != null ? opts.initialAmount : '');
+    const placeholder = opts.placeholder || '0.00';
+    const customPlaceholder = opts.customPlaceholder || 'e.g. USD';
+    const disabled = !!opts.disabled;
+    const disabledAttr = disabled ? 'disabled style="background:var(--surface-2);color:var(--text-muted);cursor:not-allowed;opacity:.8"' : '';
+
+    const isStandard = PDMS.commonCurrencies.some(c => c.symbol === currentCurrency && c.symbol !== 'custom');
+    const selectedSym = isStandard ? currentCurrency : 'custom';
+    const customVal = isStandard ? '' : currentCurrency;
+
+    return `
+      <div class="pdms-currency-input-wrap" style="display:flex;gap:8px;align-items:center;width:100%">
+        <select id="${PDMS.esc(selectId)}" style="width:110px;min-width:105px;flex-shrink:0;font-weight:600;padding:8px 6px" ${disabledAttr}>
+          ${PDMS.commonCurrencies.map(c => `<option value="${PDMS.esc(c.symbol)}" ${c.symbol === selectedSym ? 'selected' : ''}>${PDMS.esc(c.label)}</option>`).join('')}
+        </select>
+        <input id="${PDMS.esc(customId)}" type="text" value="${PDMS.esc(customVal)}" placeholder="${PDMS.esc(customPlaceholder)}" style="width:95px;flex-shrink:0;${isStandard ? 'display:none;' : ''}font-weight:600" ${disabledAttr} />
+        <input id="${PDMS.esc(amountId)}" type="number" min="0" step="0.01" value="${PDMS.esc(currentValue != null ? String(currentValue) : '')}" placeholder="${PDMS.esc(placeholder)}" style="flex:1" ${disabledAttr} />
+      </div>
+    `;
+  };
+
+  PDMS.initCurrencyInput = function(containerOrModal, selectId, customId) {
+    const root = containerOrModal || document;
+    const sel = root.querySelector('#' + selectId);
+    const cust = root.querySelector('#' + customId);
+    if (!sel || !cust) return;
+    sel.onchange = () => {
+      if (sel.value === 'custom') {
+        cust.style.display = '';
+        cust.focus();
+      } else {
+        cust.style.display = 'none';
+        cust.value = '';
+      }
+    };
+  };
+
+  PDMS.getCurrencyInputValue = function(containerOrModal, selectId, customId) {
+    const root = containerOrModal || document;
+    const sel = root.querySelector('#' + selectId);
+    const cust = root.querySelector('#' + customId);
+    if (!sel) return '₦';
+    if (sel.value === 'custom' && cust) {
+      const val = cust.value.trim();
+      return val ? val : '₦';
+    }
+    return sel.value || '₦';
+  };
   PDMS.timeAgo = function(iso){
     if (!iso) return '';
     const diffMs = Date.now() - new Date(iso).getTime();
@@ -893,7 +965,7 @@
       clientMode: null, // 'new' or 'existing'
       selectedClient: null, // { name, industry, email, phone, address, workedBefore }
       newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
-      projForm: { type: (D.types && D.types[0]) || 'ERP', workstream: '', status: (D.salesStatuses && D.salesStatuses[0]) || 'Lead', price: '', awardVal: '', desc: '' }
+      projForm: { type: (D.types && D.types[0]) || 'ERP', workstream: '', status: (D.salesStatuses && D.salesStatuses[0]) || 'Lead', currency: '₦', awardCurrency: '₦', price: '', awardVal: '', desc: '' }
     };
 
     function renderModal() {
@@ -1061,12 +1133,26 @@
               <select id="swProjStatus">${statusOptions.map(s => `<option${s === wizardState.projForm.status ? ' selected' : ''}>${s}</option>`).join('')}</select>
             </div>
             <div class="form-row" style="grid-column:1/-1">
-              <label>Opportunity Value (₦)</label>
-              <input id="swProjPrice" type="number" min="0" step="0.01" value="${PDMS.esc(wizardState.projForm.price || '')}" placeholder="0.00" />
+              <label>Opportunity Value</label>
+              ${PDMS.renderCurrencyInput({
+                selectId: 'swProjCurrency',
+                customId: 'swProjCustomCurrency',
+                amountId: 'swProjPrice',
+                currency: wizardState.projForm.currency || '₦',
+                value: wizardState.projForm.price,
+                placeholder: '0.00'
+              })}
             </div>
             <div class="form-row" id="swAwardRow" style="grid-column:1/-1;${(wizardState.projForm.status === 'Award/SLA' || wizardState.projForm.status === 'SLA Signed') ? '' : 'display:none'}">
-              <label>Award Value (₦) <span style="font-size:12px;color:var(--primary);font-weight:600">(Exclusive of VAT)</span></label>
-              <input id="swProjAward" type="number" min="0" step="0.01" value="${PDMS.esc(wizardState.projForm.awardVal || '')}" placeholder="0.00" />
+              <label>Award Value <span style="font-size:12px;color:var(--primary);font-weight:600">(Exclusive of VAT)</span></label>
+              ${PDMS.renderCurrencyInput({
+                selectId: 'swProjAwardCurrency',
+                customId: 'swProjCustomAwardCurrency',
+                amountId: 'swProjAward',
+                currency: wizardState.projForm.awardCurrency || wizardState.projForm.currency || '₦',
+                value: wizardState.projForm.awardVal,
+                placeholder: '0.00'
+              })}
             </div>
           </div>
           <div class="form-row" style="margin-top:12px">
@@ -1223,6 +1309,9 @@
         const changeClientBtn = modalRef.querySelector('#swChangeClientBtn');
         const submitBtn = modalRef.querySelector('#swFinalSubmitBtn');
 
+        PDMS.initCurrencyInput(modalRef, 'swProjCurrency', 'swProjCustomCurrency');
+        PDMS.initCurrencyInput(modalRef, 'swProjAwardCurrency', 'swProjCustomAwardCurrency');
+
         const goBackToStep2 = () => {
           const typeInput = modalRef.querySelector('#swProjType');
           const deptInput = modalRef.querySelector('#swProjDept');
@@ -1230,12 +1319,16 @@
           const priceInput = modalRef.querySelector('#swProjPrice');
           const awardInput = modalRef.querySelector('#swProjAward');
           const descInput = modalRef.querySelector('#swProjDesc');
+          const oppCurr = PDMS.getCurrencyInputValue(modalRef, 'swProjCurrency', 'swProjCustomCurrency');
+          const awardCurr = PDMS.getCurrencyInputValue(modalRef, 'swProjAwardCurrency', 'swProjCustomAwardCurrency');
           if (typeInput) wizardState.projForm.type = typeInput.value.trim();
           if (deptInput) wizardState.projForm.workstream = deptInput.value.trim();
           if (statusInput) wizardState.projForm.status = statusInput.value;
           if (priceInput) wizardState.projForm.price = priceInput.value.trim();
           if (awardInput) wizardState.projForm.awardVal = awardInput.value.trim();
           if (descInput) wizardState.projForm.desc = descInput.value.trim();
+          wizardState.projForm.currency = oppCurr;
+          wizardState.projForm.awardCurrency = awardCurr;
 
           wizardState.step = 2;
           renderModal();
@@ -1270,6 +1363,7 @@
           const type = modalRef.querySelector('#swProjType').value.trim();
           const workstream = modalRef.querySelector('#swProjDept').value.trim();
           const status = modalRef.querySelector('#swProjStatus').value;
+          const currency = PDMS.getCurrencyInputValue(modalRef, 'swProjCurrency', 'swProjCustomCurrency');
           const negotiatedPriceRaw = modalRef.querySelector('#swProjPrice').value.trim();
           const negotiatedPrice = negotiatedPriceRaw === '' ? '' : Number(negotiatedPriceRaw);
           const awardInputEl = modalRef.querySelector('#swProjAward');
@@ -1302,6 +1396,7 @@
           const record = {
             name: client, client, type, workstream, dept: workstream, sales: (currentUser && currentUser.name) || 'Sales Team', pm: '', lead: '', consultants: [],
             status: initialStatus, stage: initialStage, requestedStatus: status, createdByRole: currentUser.role, projectOwnerId: '', projectOwnerName: '', progress: 0, start: '', due: '', completion: null,
+            currency: currency || '₦',
             negotiatedPrice: Number.isFinite(negotiatedPrice) ? negotiatedPrice : '',
             opportunityValue: Number.isFinite(negotiatedPrice) ? negotiatedPrice : '',
             awardValue: isAwardInitial ? (Number.isFinite(awardVal) ? awardVal : (Number.isFinite(negotiatedPrice) ? negotiatedPrice : '')) : '',

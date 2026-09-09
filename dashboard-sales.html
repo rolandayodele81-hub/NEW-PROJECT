@@ -7,7 +7,7 @@
   <title>Sales Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788867580"/>
+<link rel="stylesheet" href="css/style.css?v=1788942892"/>
   <style>
     .sales-hero {
       display: grid;
@@ -94,7 +94,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788867580"></script>
+  <script src="js/bundle.js?v=1788942892"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -347,8 +347,8 @@
                   <tr>
                     <td><a href="project-details.html#id=${p.id}&from=sales" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
                     <td class="font-bold">${PDMS.esc(p.client||p.name||'\u2014')}</td>
-                    <td class="font-semi">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '\u2014'}</td>
-                    <td class="font-semi">${Number.isFinite(Number(p.awardValue || (isDelivery ? p.negotiatedPrice : ''))) && Number(p.awardValue || (isDelivery ? p.negotiatedPrice : '')) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice) : '\u2014'}</td>
+                    <td class="font-semi">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '\u2014'}</td>
+                    <td class="font-semi">${Number.isFinite(Number(p.awardValue || (isDelivery ? p.negotiatedPrice : ''))) && Number(p.awardValue || (isDelivery ? p.negotiatedPrice : '')) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice, p.currency) : '\u2014'}</td>
                     <td>${PDMS.esc(p.type||'\u2014')}</td>
                     <td>${statusDisplay}</td>
                     <td>${actionBtn}</td>

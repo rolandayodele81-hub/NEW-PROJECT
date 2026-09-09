@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788867580"/>
+<link rel="stylesheet" href="css/style.css?v=1788942892"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788867580"></script>
+<script src="js/bundle.js?v=1788942892"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -221,8 +221,8 @@ const canSee = PDMS.canSeePrice && PDMS.canSeePrice(currentUser);
 const columns = viewParam === 'sales' ? [
   {key:'client',label:'Client',render:r=>`<div class="font-semi" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(r.id)}</div>`},
   ...(canSee ? [
-    {key:'opportunityValue',label:'Opportunity Value',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.opportunityValue || r.negotiatedPrice)) && Number(r.opportunityValue || r.negotiatedPrice) > 0 ? PDMS.currency(r.opportunityValue || r.negotiatedPrice) : '\u2014'}</span>`},
-    {key:'awardValue',label:'Award Value (excl. VAT)',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : ''))) && Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : '')) > 0 ? PDMS.currency(r.awardValue || r.negotiatedPrice) : '\u2014'}</span>`}
+    {key:'opportunityValue',label:'Opportunity Value',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.opportunityValue || r.negotiatedPrice)) && Number(r.opportunityValue || r.negotiatedPrice) > 0 ? PDMS.currency(r.opportunityValue || r.negotiatedPrice, r.currency) : '\u2014'}</span>`},
+    {key:'awardValue',label:'Award Value (excl. VAT)',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : ''))) && Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : '')) > 0 ? PDMS.currency(r.awardValue || r.negotiatedPrice, r.currency) : '\u2014'}</span>`}
   ] : []),
   {key:'type',label:'Project Type',render:r=>`<span class="text-sm">${PDMS.esc(r.type||'\u2014')}</span>`},
   {key:'sales',label:'Deal Owner',render:r=>`<span class="text-sm text-muted font-semi">${PDMS.esc(r.projectOwnerName||(r.sales&&r.sales!=='Sales Team'?r.sales:'')||r.sales||'\u2014')}</span>`},
@@ -689,9 +689,16 @@ function editProject(id){
           </div>
           ${!isPMO ? `
           <div class="np-field full">
-            <label>${(project.awardValue || project.stage === 'Delivery' || project.status === 'Award/SLA' || project.status === 'Awaiting Account Approval') ? 'Award Value (Exclusive of VAT)' : 'Opportunity Value (₦)'}</label>
-            <input id="editProjPrice" type="number" min="0" step="0.01" value="${PDMS.esc((project.requestedNegotiatedPrice !== undefined && project.requestedNegotiatedPrice !== null && project.requestedNegotiatedPrice !== '') ? String(project.requestedNegotiatedPrice) : ((project.awardValue !== undefined && project.awardValue !== null && project.awardValue !== '') ? String(project.awardValue) : ((project.negotiatedPrice === '' || project.negotiatedPrice === null || project.negotiatedPrice === undefined) ? '' : String(project.negotiatedPrice))))}" placeholder="0.00" ${isSalesEdit ? 'disabled style="background:var(--surface-2);color:var(--text-muted);cursor:not-allowed;opacity:.8"' : ''}/>
-            ${isSalesEdit ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Current Value: ${Number.isFinite(Number(project.negotiatedPrice)) && Number(project.negotiatedPrice) > 0 ? PDMS.currency(project.negotiatedPrice) : 'Not set'}</div>` : ''}
+            <label>${(project.awardValue || project.stage === 'Delivery' || project.status === 'Award/SLA' || project.status === 'Awaiting Account Approval') ? 'Award Value (Exclusive of VAT)' : 'Opportunity Value'}</label>
+            ${PDMS.renderCurrencyInput({
+              selectId: 'editProjCurrency',
+              customId: 'editProjCustomCurrency',
+              amountId: 'editProjPrice',
+              currency: project.currency || '₦',
+              value: (project.requestedNegotiatedPrice !== undefined && project.requestedNegotiatedPrice !== null && project.requestedNegotiatedPrice !== '') ? String(project.requestedNegotiatedPrice) : ((project.awardValue !== undefined && project.awardValue !== null && project.awardValue !== '') ? String(project.awardValue) : ((project.negotiatedPrice === '' || project.negotiatedPrice === null || project.negotiatedPrice === undefined) ? '' : String(project.negotiatedPrice))),
+              disabled: isSalesEdit
+            })}
+            ${isSalesEdit ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Current Value: ${Number.isFinite(Number(project.negotiatedPrice)) && Number(project.negotiatedPrice) > 0 ? PDMS.currency(project.negotiatedPrice, project.currency) : 'Not set'}</div>` : ''}
           </div>` : ''}
         </div>
       </div>
@@ -735,9 +742,13 @@ function editProject(id){
     </div>
   `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveProjectChangesBtn">${I('check')} Save Changes</button>`, { hideCloseButton: true });
 
+  PDMS.initCurrencyInput(modal, 'editProjCurrency', 'editProjCustomCurrency');
+
   if (isSalesEdit) {
     const toggleBox = modal.querySelector('#toggleProjPriceUpdate');
     const priceInput = modal.querySelector('#editProjPrice');
+    const currSelect = modal.querySelector('#editProjCurrency');
+    const customCurrInput = modal.querySelector('#editProjCustomCurrency');
     const originalPrice = (project.negotiatedPrice === '' || project.negotiatedPrice === null || project.negotiatedPrice === undefined) ? '' : String(project.negotiatedPrice);
     if (toggleBox && priceInput) {
       toggleBox.addEventListener('change', function() {
@@ -747,6 +758,8 @@ function editProject(id){
           priceInput.style.color = 'var(--text)';
           priceInput.style.opacity = '1';
           priceInput.style.borderColor = 'var(--primary)';
+          if (currSelect) currSelect.disabled = false;
+          if (customCurrInput) customCurrInput.disabled = false;
           priceInput.focus();
         } else {
           priceInput.disabled = true;
@@ -755,6 +768,8 @@ function editProject(id){
           priceInput.style.opacity = '.8';
           priceInput.style.borderColor = 'var(--border)';
           priceInput.value = originalPrice;
+          if (currSelect) currSelect.disabled = true;
+          if (customCurrInput) customCurrInput.disabled = true;
         }
       });
     }
@@ -763,6 +778,7 @@ function editProject(id){
   modal.querySelector('#saveProjectChangesBtn').onclick = function(){
     const clientVal = modal.querySelector('#editProjClient') ? modal.querySelector('#editProjClient').value.trim() : (project.client || project.name);
     const ws = modal.querySelector('#editProjWorkstream').value.trim();
+    const chosenCurrency = PDMS.getCurrencyInputValue(modal, 'editProjCurrency', 'editProjCustomCurrency');
     const patch = {
       name: clientVal,
       client: clientVal,
@@ -771,6 +787,7 @@ function editProject(id){
       priority: project.priority || 'Medium',
       description: modal.querySelector('#editProjDesc').value.trim()
     };
+    if (chosenCurrency) patch.currency = chosenCurrency;
 
       const isCancelledLead = project.status === 'Cancelled';
       let resubmissionRequested = false;
@@ -785,7 +802,7 @@ function editProject(id){
           if (rawVal !== '') {
             const num = Number(rawVal);
             const currentVal = Number(project.negotiatedPrice || 0);
-            if (Number.isFinite(num) && num >= 0 && (num !== currentVal || isCancelledLead)) {
+            if (Number.isFinite(num) && num >= 0 && (num !== currentVal || isCancelledLead || (chosenCurrency && chosenCurrency !== project.currency))) {
               priceChangeRequested = true;
               requestedPriceVal = num;
               patch.negotiatedPrice = num;
@@ -833,8 +850,8 @@ function editProject(id){
         Object.assign(project,patch,saved);
         modal.remove();
         if (priceChangeRequested) {
-          PDMS.notify('Opportunity Value Update Request', `${currentUser ? currentUser.name : 'Sales'} requested to update Opportunity Value for "${project.name}" to ${PDMS.currency(requestedPriceVal)}`, 'clock', 'awaiting-projects.html', 'Sales Head', '', project.id);
-          PDMS.toast('Request Sent', `Project updated. Opportunity value change (${PDMS.currency(requestedPriceVal)}) was sent to Sales Head for approval.`, 'success');
+          PDMS.notify('Opportunity Value Update Request', `${currentUser ? currentUser.name : 'Sales'} requested to update Opportunity Value for "${project.name}" to ${PDMS.currency(requestedPriceVal, patch.currency || project.currency)}`, 'clock', 'awaiting-projects.html', 'Sales Head', '', project.id);
+          PDMS.toast('Request Sent', `Project updated. Opportunity value change (${PDMS.currency(requestedPriceVal, patch.currency || project.currency)}) was sent to Sales Head for approval.`, 'success');
         } else if (resubmissionRequested) {
           PDMS.workflowNotify('lead.resubmitted', project);
           PDMS.toast('Re-submitted', `Revised lead details submitted to Sales Head for approval.`, 'success');

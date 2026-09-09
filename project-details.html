@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788867580" />
+  <link rel="stylesheet" href="css/style.css?v=1788942892" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788867580"></script>
+  <script src="js/bundle.js?v=1788942892"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -273,8 +273,8 @@
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Status / Stage</div><div><span class="badge badge-danger">Returned / Rejected</span></div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.type || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Workstream / Dept</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.workstream || p.dept || '—')}</div></div>
-        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—'}</div></div>
-        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Award Value (excl. VAT)</div><div style="font-weight:800;color:var(--primary);font-size:15px">${Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice) : '—'}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '—'}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Award Value (excl. VAT)</div><div style="font-weight:800;color:var(--primary);font-size:15px">${Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice, p.currency) : '—'}</div></div>
         <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px;margin-top:2px">
           <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Project Description</div>
           <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(p.description || 'No description provided.')}</div>
@@ -387,7 +387,7 @@
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Requested Stage</div><div><span class="badge badge-danger">${PDMS.esc(targetStage)} (Rejected)</span></div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.type || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Workstream / Dept</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.workstream || p.dept || '—')}</div></div>
-        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—'}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '—'}</div></div>
         <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px;margin-top:2px">
           <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Project Description</div>
           <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(p.description || 'No description provided.')}</div>
@@ -495,7 +495,7 @@
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Requested Stage</div><div><span class="badge badge-${D.statusColors[targetStage] || 'info'}">${PDMS.esc(targetStage)}</span></div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.type || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Workstream / Dept</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.workstream || p.dept || '—')}</div></div>
-        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—'}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '—'}</div></div>
         <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px;margin-top:2px">
           <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Project Description</div>
           <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(p.description || 'No description provided.')}</div>
@@ -602,8 +602,8 @@
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Status / Stage</div><div><span class="badge badge-success">Award/SLA</span></div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.type || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Workstream / Dept</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.workstream || p.dept || '—')}</div></div>
-        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—'}</div></div>
-        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Award Value (excl. VAT)</div><div style="font-weight:800;color:var(--primary);font-size:15px">${Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice) : '—'}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '—'}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Award Value (excl. VAT)</div><div style="font-weight:800;color:var(--primary);font-size:15px">${Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice, p.currency) : '—'}</div></div>
         <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px;margin-top:2px">
           <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Project Description</div>
           <div style="font-size:13px;color:var(--text);line-height:1.6">${PDMS.esc(p.description || 'No description provided.')}</div>
@@ -899,9 +899,9 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             { label: 'Project Type', value: p.type || '—' },
             { label: 'Workstream', value: p.workstream || p.dept || '—' },
             ...(canSeePrice ? [
-              { label: 'Opportunity Value', value: Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—' },
+              { label: 'Opportunity Value', value: Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '—' },
               ...((p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval' || p.status === 'Closed') ? [
-                { label: 'Award Value (excl. VAT)', value: Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice) : '—' }
+                { label: 'Award Value (excl. VAT)', value: Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice, p.currency) : '—' }
               ] : [])
             ] : []),
             { label: 'Start Date', value: p.start || 'TBD' },
@@ -1765,9 +1765,16 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           </div>
           ${!isPMO ? `
           <div class="np-field full">
-            <label>${(p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') ? 'Award Value (Exclusive of VAT)' : 'Opportunity Value (₦)'}</label>
-            <input id="ed-price" type="number" min="0" step="0.01" value="${PDMS.esc((p.requestedNegotiatedPrice !== undefined && p.requestedNegotiatedPrice !== null && p.requestedNegotiatedPrice !== '') ? String(p.requestedNegotiatedPrice) : ((p.awardValue !== undefined && p.awardValue !== null && p.awardValue !== '') ? String(p.awardValue) : ((p.negotiatedPrice === '' || p.negotiatedPrice === null || p.negotiatedPrice === undefined) ? '' : String(p.negotiatedPrice))))}" placeholder="0.00" ${priceLocked ? 'disabled style="background:var(--surface-2);color:var(--text-muted);cursor:not-allowed;opacity:.8"' : ''}/>
-            ${priceLocked ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Current Value: ${Number.isFinite(Number(p.negotiatedPrice)) && Number(p.negotiatedPrice) > 0 ? PDMS.currency(p.negotiatedPrice) : 'Not set'}</div>` : ''}
+            <label>${(p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') ? 'Award Value (Exclusive of VAT)' : 'Opportunity Value'}</label>
+            ${PDMS.renderCurrencyInput({
+              selectId: 'ed-currency',
+              customId: 'ed-custom-currency',
+              amountId: 'ed-price',
+              currency: p.currency || '₦',
+              value: (p.requestedNegotiatedPrice !== undefined && p.requestedNegotiatedPrice !== null && p.requestedNegotiatedPrice !== '') ? String(p.requestedNegotiatedPrice) : ((p.awardValue !== undefined && p.awardValue !== null && p.awardValue !== '') ? String(p.awardValue) : ((p.negotiatedPrice === '' || p.negotiatedPrice === null || p.negotiatedPrice === undefined) ? '' : String(p.negotiatedPrice))),
+              disabled: priceLocked
+            })}
+            ${priceLocked ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Current Value: ${Number.isFinite(Number(p.negotiatedPrice)) && Number(p.negotiatedPrice) > 0 ? PDMS.currency(p.negotiatedPrice, p.currency) : 'Not set'}</div>` : ''}
           </div>` : ''}
           ${(!isSalesEdit && showSubStatus) ? `
           <div class="np-field full">
@@ -1816,9 +1823,13 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
     </div>
   `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ed-save">${I('check')} Save Changes</button>`, { hideCloseButton: true });
 
+      PDMS.initCurrencyInput(modal, 'ed-currency', 'ed-custom-currency');
+
       if (priceLocked) {
         const toggleBox = modal.querySelector('#togglePriceUpdate');
         const priceInput = modal.querySelector('#ed-price');
+        const currSelect = modal.querySelector('#ed-currency');
+        const customCurrInput = modal.querySelector('#ed-custom-currency');
         const originalPrice = (p.negotiatedPrice === '' || p.negotiatedPrice === null || p.negotiatedPrice === undefined) ? '' : String(p.negotiatedPrice);
         if (toggleBox && priceInput) {
           toggleBox.addEventListener('change', function () {
@@ -1828,6 +1839,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
               priceInput.style.color = 'var(--text)';
               priceInput.style.opacity = '1';
               priceInput.style.borderColor = 'var(--primary)';
+              if (currSelect) currSelect.disabled = false;
+              if (customCurrInput) customCurrInput.disabled = false;
               priceInput.focus();
             } else {
               priceInput.disabled = true;
@@ -1836,6 +1849,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
               priceInput.style.opacity = '.8';
               priceInput.style.borderColor = 'var(--border)';
               priceInput.value = originalPrice;
+              if (currSelect) currSelect.disabled = true;
+              if (customCurrInput) customCurrInput.disabled = true;
             }
           });
         }
@@ -1844,6 +1859,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       modal.querySelector('#ed-save').onclick = function () {
         const clientVal = modal.querySelector('#ed-client') ? modal.querySelector('#ed-client').value.trim() : (p.client || p.name);
         const ws = modal.querySelector('#ed-workstream').value.trim();
+        const chosenCurrency = PDMS.getCurrencyInputValue(modal, 'ed-currency', 'ed-custom-currency');
         const patch = {
           name: clientVal,
           client: clientVal,
@@ -1853,6 +1869,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           priority: p.priority || 'Medium',
           description: modal.querySelector('#ed-desc').value.trim(),
         };
+        if (chosenCurrency) patch.currency = chosenCurrency;
 
         const isCancelledLead = p.status === 'Cancelled';
         let resubmissionRequested = false;
@@ -1878,7 +1895,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             if (rawVal !== '') {
               const num = Number(rawVal);
               const currentVal = Number(p.negotiatedPrice || 0);
-              if (Number.isFinite(num) && num >= 0 && (num !== currentVal || isCancelledLead)) {
+              if (Number.isFinite(num) && num >= 0 && (num !== currentVal || isCancelledLead || (chosenCurrency && chosenCurrency !== p.currency))) {
                 priceChangeRequested = true;
                 requestedPriceVal = num;
                 patch.negotiatedPrice = num;
@@ -1937,8 +1954,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           if (patch.subStatuses) p.subStatuses = saved.subStatuses || patch.subStatuses;
           modal.remove();
           if (priceChangeRequested) {
-            PDMS.notify('Opportunity Value Update Request', `${user ? user.name : 'Sales'} requested to update Opportunity Value for "${p.name}" to ${PDMS.currency(requestedPriceVal)}`, 'clock', 'awaiting-projects.html', 'Sales Head', '', p.id);
-            PDMS.toast('Request Sent', `Project updated. Opportunity value change (${PDMS.currency(requestedPriceVal)}) was sent to Sales Head for approval.`, 'success');
+            PDMS.notify('Opportunity Value Update Request', `${user ? user.name : 'Sales'} requested to update Opportunity Value for "${p.name}" to ${PDMS.currency(requestedPriceVal, patch.currency || p.currency)}`, 'clock', 'awaiting-projects.html', 'Sales Head', '', p.id);
+            PDMS.toast('Request Sent', `Project updated. Opportunity value change (${PDMS.currency(requestedPriceVal, patch.currency || p.currency)}) was sent to Sales Head for approval.`, 'success');
           } else if (resubmissionRequested) {
             PDMS.workflowNotify('lead.resubmitted', p);
             PDMS.toast('Re-submitted', `Revised lead details submitted to Sales Head for approval.`, 'success');
@@ -2023,8 +2040,15 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             </select>
           </div>
           <div class="rs-field">
-            <label>Opportunity Value (₦)</label>
-            <input id="rs-price" type="number" min="0" value="${p.opportunityValue || p.negotiatedPrice || ''}" placeholder="e.g. 5000000" />
+            <label>Opportunity Value</label>
+            ${PDMS.renderCurrencyInput({
+              selectId: 'rs-currency',
+              customId: 'rs-custom-currency',
+              amountId: 'rs-price',
+              currency: p.currency || '₦',
+              value: p.opportunityValue || p.negotiatedPrice || '',
+              placeholder: 'e.g. 5000000'
+            })}
           </div>
           <div class="rs-field">
             <label>Project Type</label>
@@ -2050,9 +2074,12 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="submitResendBtn" style="background:#f59e0b;border-color:#d97706;color:#fff;font-weight:700">Resend Request</button>`
       );
 
+      PDMS.initCurrencyInput(modal, 'rs-currency', 'rs-custom-currency');
+
       modal.querySelector('#submitResendBtn').onclick = function () {
         const clientVal = modal.querySelector('#rs-client').value.trim() || p.client || p.name;
         const targetStatus = modal.querySelector('#rs-status').value;
+        const rsCurrency = PDMS.getCurrencyInputValue(modal, 'rs-currency', 'rs-custom-currency');
         const priceVal = modal.querySelector('#rs-price').value.trim();
         const wsVal = modal.querySelector('#rs-workstream').value.trim();
         const typeVal = modal.querySelector('#rs-type').value;
@@ -2062,6 +2089,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         const patch = {
           client: clientVal,
           name: clientVal,
+          currency: rsCurrency || '₦',
           status: 'Awaiting Sales Head Approval',
           requestedStatus: targetStatus,
           previousStatus: targetStatus,
@@ -2150,8 +2178,16 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         <div><label>Workstream / Dept</label><input id="ra-ws" type="text" value="${PDMS.esc(p.workstream || p.dept || '')}" placeholder="e.g. QMS, FSMS…" /></div>
       </div>
       <div class="ra-field">
-        <label>Award Value (Exclusive of VAT) ₦ <span style="color:var(--danger)">*</span></label>
-        <input id="ra-award" type="number" min="0" value="${currentAwardVal}" placeholder="e.g. 5000000" />
+        <label>Award Value (Exclusive of VAT) <span style="color:var(--danger)">*</span></label>
+        ${PDMS.renderCurrencyInput({
+          selectId: 'ra-curr',
+          customId: 'ra-custom-curr',
+          amountId: 'ra-award',
+          initialCurrency: p.currency || '₦',
+          initialAmount: currentAwardVal,
+          placeholder: 'e.g. 5000000',
+          step: '0.01'
+        })}
       </div>
       <div class="ra-field">
         <label>Project Description</label>
@@ -2165,12 +2201,15 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="raSubmitBtn" style="background:var(--primary);border-color:var(--primary);color:#fff;font-weight:700">Resubmit to Accounts</button>`
       );
 
+      PDMS.initCurrencyInput(modal, 'ra-curr', 'ra-custom-curr');
+
       modal.querySelector('#raSubmitBtn').onclick = function() {
         const clientVal = modal.querySelector('#ra-client').value.trim() || p.client;
         const typeVal = modal.querySelector('#ra-type').value;
         const wsVal = modal.querySelector('#ra-ws').value.trim();
         const awardRaw = modal.querySelector('#ra-award').value.trim();
         const awardVal = awardRaw === '' ? 0 : Number(awardRaw);
+        const raCurrency = PDMS.getCurrencyInputValue(modal, 'ra-curr', 'ra-custom-curr') || p.currency || '₦';
         const descVal = modal.querySelector('#ra-desc').value.trim();
         const noteVal = modal.querySelector('#ra-note').value.trim();
 
@@ -2193,6 +2232,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           status: 'Awaiting Account Approval',
           stage: 'Delivery',
           requestedStatus: 'Award/SLA',
+          currency: raCurrency,
           opportunityValue: existingOppVal,
           awardValue: awardVal,
           negotiatedPrice: awardVal,
@@ -2302,11 +2342,19 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           const currentVal = (p.awardValue !== undefined && p.awardValue !== null && p.awardValue !== '') ? p.awardValue : (p.negotiatedPrice || '');
           const awardModal = PDMS.modal('Award / SLA — Enter Award Value', `
             <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">
-              Updating <strong>${PDMS.esc(p.name)}</strong> to <strong>Award/SLA</strong> will submit it to Accounts for review &amp; approval. Please enter the contracted <strong>Award Value (exclusive of VAT)</strong>.
+              Updating <strong>${PDMS.esc(p.name)}</strong> to <strong>Award/SLA</strong> will submit it to Accounts for review &amp; approval. Please enter the contracted <strong>Award Value (exclusive of VAT)</strong> and currency.
             </p>
             <div class="form-row">
-              <label>Award Value (₦) <span style="font-size:12px;color:var(--primary);font-weight:600">(Exclusive of VAT)</span> <span style="color:var(--danger)">*</span></label>
-              <input id="awardValInput" type="number" min="0" step="0.01" value="${PDMS.esc(currentVal + '')}" placeholder="0.00" autocomplete="off" />
+              <label>Award Value <span style="font-size:12px;color:var(--primary);font-weight:600">(Exclusive of VAT)</span> <span style="color:var(--danger)">*</span></label>
+              ${PDMS.renderCurrencyInput({
+                selectId: 'awardCurrSelect',
+                customId: 'awardCustomCurr',
+                amountId: 'awardValInput',
+                initialCurrency: p.currency || '₦',
+                initialAmount: currentVal,
+                placeholder: '0.00',
+                step: '0.01'
+              })}
             </div>
             <div class="form-row">
               <label>Remarks / Notes (Optional)</label>
@@ -2314,9 +2362,12 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             </div>
           `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmAwardValBtn">Submit for Account Approval →</button>`);
 
+          PDMS.initCurrencyInput(awardModal, 'awardCurrSelect', 'awardCustomCurr');
+
           awardModal.querySelector('#confirmAwardValBtn').onclick = function () {
             const valRaw = awardModal.querySelector('#awardValInput').value.trim();
             const awardVal = valRaw === '' ? 0 : Number(valRaw);
+            const awardCurr = PDMS.getCurrencyInputValue(awardModal, 'awardCurrSelect', 'awardCustomCurr') || p.currency || '₦';
             if (!Number.isFinite(awardVal) || awardVal <= 0) {
               PDMS.toast('Award Value Required', 'Please enter a valid Award Value (exclusive of VAT).', 'error');
               return;
@@ -2330,6 +2381,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
               status: 'Awaiting Account Approval',
               stage: 'Delivery',
               requestedStatus: 'Award/SLA',
+              currency: awardCurr,
               opportunityValue: existingOppVal,
               awardValue: awardVal,
               negotiatedPrice: awardVal,
@@ -2342,11 +2394,11 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
               Object.assign(p, patch, saved);
               if (notes) {
                 const u = PDMS.getUser();
-                const record = { id: 'tmp-' + Date.now(), author: u ? u.name : 'Sales', authorRole: u ? u.role : 'Sales', projectId: p.id, projectName: p.name, message: `[Award/SLA - Award Value (excl. VAT): ₦${awardVal.toLocaleString()}] ${notes}`, time: new Date().toISOString() };
+                const record = { id: 'tmp-' + Date.now(), author: u ? u.name : 'Sales', authorRole: u ? u.role : 'Sales', projectId: p.id, projectName: p.name, message: `[Award/SLA - Award Value (excl. VAT): ${PDMS.currency(awardVal, awardCurr)}] ${notes}`, time: new Date().toISOString() };
                 pushIssueOptimistic(record);
               }
               awardModal.remove();
-              PDMS.toast('Sent for Account Approval', `"${p.name}" updated with Award Value ₦${awardVal.toLocaleString()} (excl. VAT) and sent to Accounts.`, 'success');
+              PDMS.toast('Sent for Account Approval', `"${p.name}" updated with Award Value ${PDMS.currency(awardVal, awardCurr)} (excl. VAT) and sent to Accounts.`, 'success');
               PDMS.workflowNotify('award.submitted', p);
               render();
             }).catch(err => {
@@ -3051,9 +3103,9 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         <div style="margin:12px 0;padding:12px 14px;background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.3);border-radius:10px;font-size:13px">
           <div style="font-weight:700;color:#d97706;margin-bottom:8px">Opportunity Value Update Request</div>
           <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-            <div><span style="font-size:11px;color:var(--text-soft);text-transform:uppercase;display:block">Current Value (Old)</span><strong>${Number.isFinite(Number(p.negotiatedPrice)) && Number(p.negotiatedPrice) > 0 ? PDMS.currency(p.negotiatedPrice) : 'Not set'}</strong></div>
+            <div><span style="font-size:11px;color:var(--text-soft);text-transform:uppercase;display:block">Current Value (Old)</span><strong>${Number.isFinite(Number(p.negotiatedPrice)) && Number(p.negotiatedPrice) > 0 ? PDMS.currency(p.negotiatedPrice, p.currency) : 'Not set'}</strong></div>
             <div style="color:var(--text-muted);font-size:18px">➔</div>
-            <div><span style="font-size:11px;color:#d97706;text-transform:uppercase;display:block">To Be Value (New)</span><strong style="color:#d97706;font-size:15px">${PDMS.currency(p.requestedNegotiatedPrice)}</strong></div>
+            <div><span style="font-size:11px;color:#d97706;text-transform:uppercase;display:block">To Be Value (New)</span><strong style="color:#d97706;font-size:15px">${PDMS.currency(p.requestedNegotiatedPrice, p.currency)}</strong></div>
           </div>
         </div>` : '';
       const willForwardToAccounts = (targetStatus === 'Award/SLA' || targetStatus === 'SLA Signed');

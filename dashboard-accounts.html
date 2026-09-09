@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Accounts Dashboard — PSE PDMS</title>
-  <link rel="stylesheet" href="css/style.css?v=1788867580"/>
+  <link rel="stylesheet" href="css/style.css?v=1788942892"/>
   <style>
     .accounts-hero {
       display: grid;
@@ -59,7 +59,7 @@
   </style>
 </head>
 <body>
-<script src="js/bundle.js?v=1788867580"></script>
+<script src="js/bundle.js?v=1788942892"></script>
 <script>
   PDMS.mountShell('dashboard');
   const D = PDMS_DATA; const I = PDMS.icon;
@@ -165,9 +165,8 @@
                     <div style="font-weight:700;color:var(--primary)">${PDMS.esc(clientName)}</div>
                     <div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(p.id)}</div>
                   </td>
-                  <td class="font-semi" style="color:var(--text)">${PDMS.esc(creator)}</td>
-                  <td class="font-semi">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice) : '—'}</td>
-                  <td class="font-semi">${Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice) : '—'}</td>
+                  <td class="font-semi">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '—'}</td>
+                  <td class="font-semi">${Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice, p.currency) : '—'}</td>
                   <td class="text-muted">${PDMS.esc(p.type||'—')}</td>
                 </tr>`;
               }).join('')}
