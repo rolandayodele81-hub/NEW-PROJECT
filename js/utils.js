@@ -757,16 +757,29 @@
     // opts: {columns, rows, pageSize, searchKeys, filterOptions,
     //        dateFilter:{key,label}  ← adds a From/To date range on that row field}
     const state = { page:1, sortKey:opts.defaultSortKey||opts.sortKey||null, sortDir:opts.defaultSortDir||1, filter:'', filters:opts.filters||{}, dateFrom:'', dateTo:'' };
+    const shouldPaginate = Boolean(opts.paginate && opts.pageSize);
     const pageSize = opts.pageSize || 20;
 
     function filtered(){
       let arr = (opts.rows || []).slice();
       if (!state.sortKey) {
-        PDMS.sortNewestFirst(arr);
+        if (!opts.noDefaultSort) {
+          const firstKey = opts.defaultSortKey || (opts.columns && opts.columns[0] && opts.columns[0].key) || 'name';
+          arr.sort((a, b) => {
+            const valA = String(a.client || a.name || a[firstKey] || '').trim().toLowerCase();
+            const valB = String(b.client || b.name || b[firstKey] || '').trim().toLowerCase();
+            return valA.localeCompare(valB, undefined, { sensitivity: 'base', numeric: true });
+          });
+        }
       }
       if(state.filter){
         const q = state.filter.toLowerCase();
-        arr = arr.filter(r=>(opts.searchKeys||Object.keys(r)).some(k=>String(r[k]||'').toLowerCase().includes(q)));
+        const normQ = q.replace(/\s*\/\s*/g, ' / ').trim();
+        arr = arr.filter(r=>(opts.searchKeys||Object.keys(r)).some(k=>{
+          const raw = String(r[k]||'').toLowerCase();
+          const normRaw = raw.replace(/\s*\/\s*/g, ' / ').trim();
+          return raw.includes(q) || (normQ && normRaw.includes(normQ));
+        }));
       }
       if(opts.dateFilter && (state.dateFrom || state.dateTo)){
         const dk = opts.dateFilter.key;
@@ -808,16 +821,17 @@
                 return isDelivery ? ['Closure', 'Project Closure'].includes(dStat) : (isSalesTable && (v === 'Closed' || v === 'Closure' || v === 'Project Closure'));
               }
               if (filterVal === 'On Hold') {
-                return dStat === 'On Hold' || v === 'On Hold';
+                return isDelivery ? dStat === 'On Hold' : (isSalesTable ? v === 'On Hold' : (dStat === 'On Hold' || v === 'On Hold'));
               }
               if (filterVal === 'Cancelled') {
-                return dStat === 'Cancelled' || v === 'Cancelled';
+                return isDelivery ? dStat === 'Cancelled' : (isSalesTable ? v === 'Cancelled' : (dStat === 'Cancelled' || v === 'Cancelled'));
               }
               return isDelivery ? dStat === filterVal : (dStat === filterVal || v === filterVal);
             }
             if (k === 'type') {
               const rType = (PDMS.typeOf ? PDMS.typeOf(r) : (r.type || ''));
-              return rType === filterVal || v === filterVal;
+              const norm = s => String(s || '').replace(/\s*\/\s*/g, ' / ').trim().toLowerCase();
+              return norm(rType) === norm(filterVal) || norm(v) === norm(filterVal) || rType === filterVal || v === filterVal;
             }
             return v === filterVal;
           });
@@ -838,9 +852,9 @@
     function render(focusSel){
       const caret = focusSel ? ((container.querySelector(focusSel)||{}).selectionStart ?? null) : null;
       const arr = filtered();
-      const totalPages = Math.max(1,Math.ceil(arr.length/pageSize));
+      const totalPages = shouldPaginate ? Math.max(1,Math.ceil(arr.length/pageSize)) : 1;
       if(state.page>totalPages) state.page=totalPages;
-      const slice = arr.slice((state.page-1)*pageSize, state.page*pageSize);
+      const slice = shouldPaginate ? arr.slice((state.page-1)*pageSize, state.page*pageSize) : arr;
       const filterHtml = (opts.filterOptions||[]).map(f=>{
         const opts2 = ['<option value="">All '+f.label+'</option>'].concat(f.options.map(o=>'<option value="'+PDMS.esc(o)+'"'+(state.filters[f.key]===o?' selected':'')+'>'+PDMS.esc(o)+'</option>'));
         return '<div class="form-group tt-filter-group"><label>'+PDMS.esc(f.label)+'</label><select class="select tt-select" data-filter="'+f.key+'">'+opts2.join('')+'</select></div>';
@@ -857,6 +871,15 @@
         '</div>'
       ) : '';
       const hasActiveFilter = state.filter || state.dateFrom || state.dateTo || Object.keys(state.filters).some(k=>state.filters[k]);
+      const paginationHtml = shouldPaginate ? (
+        '<div class="pagination"><div>Showing '+((state.page-1)*pageSize+1)+'-'+Math.min(state.page*pageSize,arr.length)+' of '+arr.length+'</div><div class="pages">'+
+        '<button class="page-btn" data-p="prev">‹</button>'+
+        Array.from({length:totalPages},(_,i)=>'<button class="page-btn '+(state.page===i+1?'active':'')+'" data-p="'+(i+1)+'">'+(i+1)+'</button>').slice(Math.max(0,state.page-3),state.page+2).join('')+
+        '<button class="page-btn" data-p="next">›</button>'+
+        '</div></div>'
+      ) : (
+        arr.length ? '<div class="pagination" style="justify-content:flex-start"><div style="font-size:12px;color:var(--text-muted);font-weight:600">Showing '+arr.length+' of '+arr.length+'</div></div>' : ''
+      );
       container.innerHTML =
         '<div class="table-tools">'+
           '<div class="tt-left">'+
@@ -887,11 +910,7 @@
         }).join('')
           :'<tr><td colspan="'+opts.columns.length+'" class="text-muted" style="text-align:center;padding:28px">'+PDMS.emptyOrLoading('No results found')+'</td></tr>')+
         '</tbody></table></div>'+
-        '<div class="pagination"><div>Showing '+((state.page-1)*pageSize+1)+'-'+Math.min(state.page*pageSize,arr.length)+' of '+arr.length+'</div><div class="pages">'+
-        '<button class="page-btn" data-p="prev">‹</button>'+
-        Array.from({length:totalPages},(_,i)=>'<button class="page-btn '+(state.page===i+1?'active':'')+'" data-p="'+(i+1)+'">'+(i+1)+'</button>').slice(Math.max(0,state.page-3),state.page+2).join('')+
-        '<button class="page-btn" data-p="next">›</button>'+
-        '</div></div>';
+        paginationHtml;
 
       const searchInput = container.querySelector('.tt-search-input');
       if(searchInput) searchInput.addEventListener('input',e=>{state.filter=e.target.value;state.page=1;render('.tt-search-input');});

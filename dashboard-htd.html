@@ -7,7 +7,7 @@
   <title>Delivery Dashboard — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1789023734" />
+  <link rel="stylesheet" href="css/style.css?v=1789040248" />
   <style>
     .htd-hero {
       display: grid;
@@ -149,7 +149,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789023734"></script>
+  <script src="js/bundle.js?v=1789040248"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -327,7 +327,11 @@
 
   <!-- Pending Account Approval -->
   ${(() => {
-          const pendingApproval = liveProjects.filter(p => p.status === 'Awaiting Account Approval');
+          const pendingApproval = liveProjects.filter(p => p.status === 'Awaiting Account Approval').sort((a, b) => {
+            const nameA = String(a.client || a.name || '').trim().toLowerCase();
+            const nameB = String(b.client || b.name || '').trim().toLowerCase();
+            return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+          });
           if (!pendingApproval.length) return '';
           const displayList = pendingApproval.slice(0, 5);
           const hasMore = pendingApproval.length > 5;
@@ -362,7 +366,7 @@
                     </div>
                   </td>
                   <td class="text-muted">${PDMS.esc(p.client || '—')}</td>
-                  <td class="text-muted">${PDMS.esc(p.type || '—')}</td>
+                  <td class="text-muted">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type || '—'))}</td>
                   <td><span class="badge badge-${D.prioColors[p.priority] || 'muted'}">${PDMS.esc(p.priority || '—')}</span></td>
                   <td><span class="badge" style="background:rgba(124,58,237,.12);color:#7c3aed">Awaiting Account Approval</span></td>
                 </tr>`).join('')}
@@ -408,7 +412,7 @@
             const dStat = PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Not Started') : (p.deliveryStatus || p.status);
             return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer">
                   <td><div class="font-semi" style="color:var(--primary)">${PDMS.esc(p.client || p.name || '—')}</div></td>
-                  <td class="text-muted">${PDMS.esc(p.type || '—')}</td>
+                  <td class="text-muted">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type || '—'))}</td>
                   <td><span class="badge badge-${D.statusColors[dStat] || 'muted'}">${PDMS.esc(dStat)}</span></td>
                   <td class="text-muted">${PDMS.esc(p.start || p.startDate || '—')}</td>
                   <td><span class="badge ${urgency}">${PDMS.esc(p.due)} · ${daysLeft}d left</span></td>

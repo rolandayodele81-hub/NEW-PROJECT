@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1789023734" />
+  <link rel="stylesheet" href="css/style.css?v=1789040248" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789023734"></script>
+  <script src="js/bundle.js?v=1789040248"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -42,8 +42,7 @@
       const isSales = pStage === 'Sales';
       const dStat = isSales ? proj.status : (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(proj) : (proj.deliveryStatus || proj.status));
 
-      if (dStat === 'Completed') return { label: 'Completed', cls: 'badge-success' };
-      if (dStat === 'Closure' || dStat === 'Project Closure') return { label: 'Closure', cls: 'badge-success' };
+      if (dStat === 'Completed' || dStat === 'Closure' || dStat === 'Project Closure') return { label: 'Completed', cls: 'badge-success' };
       if (dStat === 'Not Started') return { label: 'Not Started', cls: 'badge-muted' };
       if (proj.status === 'Cancelled' || dStat === 'Cancelled') return { label: 'Cancelled', cls: 'badge-danger' };
       if (proj.status === 'On Hold' || dStat === 'On Hold') return { label: 'On Hold', cls: 'badge-muted' };
@@ -149,18 +148,17 @@
       const isClosureStage = st => {
         if (!st) return false;
         const s = String(st).trim().toLowerCase();
-        return s === 'closure' || s === 'project closure' || s === 'closed' || s === 'completed';
+        return s === 'closure' || s === 'project closure' || s === 'completed';
       };
-      const isProjectClosed = isClosureStage(status) || isClosureStage(proj.deliveryStatus) || isClosureStage(proj.status);
       const currentIndex = mainSequence.indexOf(status);
       const effectiveIndex = currentIndex === -1 ? 0 : currentIndex;
       return mainSequence.map((label, i) => {
         const isThisClosure = isClosureStage(label);
         const isCurrent = i === effectiveIndex;
-        const isDone = i < effectiveIndex || (isProjectClosed && (isThisClosure || i <= effectiveIndex));
-        let state = isDone ? 'done' : (isCurrent && isThisClosure ? 'done' : (isCurrent ? 'active' : ''));
+        const isDone = i < effectiveIndex || (isCurrent && isThisClosure);
+        let state = isDone ? 'done' : (isCurrent ? 'active' : '');
         const mInfo = mDataMap[label] || {};
-        const dueDate = mInfo.dueDate || '';
+        const dueDate = isThisClosure ? '' : (mInfo.dueDate || '');
         const hasPassedDue = dueDate && dueDate < todayStr && !isDone;
         const isDueToday = dueDate && dueDate === todayStr && !isDone;
         const isMarkedDue = mInfo.isDue === true && !isDone;
@@ -171,7 +169,7 @@
         if (isOverdue && !isDone) state = 'overdue';
         else if (isDue && state !== 'done') state = 'due';
 
-        let metaText = (isDone || isThisClosure || (isProjectClosed && isCurrent)) ? 'Completed' : (isOverdue ? 'Overdue' : (isDue ? 'Due' : (isCurrent ? 'Ongoing' : 'Upcoming')));
+        let metaText = isDone ? 'Completed' : (isOverdue ? 'Overdue' : (isDue ? 'Due' : (isCurrent ? 'Ongoing' : 'Upcoming')));
         if (dueDate && !isThisClosure) {
           metaText += ` (${PDMS.esc(dueDate)})`;
         }
@@ -279,7 +277,7 @@
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Client</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(p.client || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Deal Owner</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(dealOwner)}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Status / Stage</div><div><span class="badge badge-danger">Returned / Rejected</span></div></div>
-        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.type || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type || '—'))}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Workstream / Dept</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.workstream || p.dept || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '—'}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Award Value (excl. VAT)</div><div style="font-weight:800;color:var(--primary);font-size:15px">${Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice, p.currency) : '—'}</div></div>
@@ -396,7 +394,7 @@
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Client</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(p.client || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Deal Owner</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(dealOwner)}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Requested Stage</div><div><span class="badge badge-danger">${PDMS.esc(targetStage)} (Rejected)</span></div></div>
-        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.type || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type || '—'))}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Workstream / Dept</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.workstream || p.dept || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '—'}</div></div>
         <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px;margin-top:2px">
@@ -507,7 +505,7 @@
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Client</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(p.client || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Deal Owner</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(dealOwner)}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Requested Stage</div><div><span class="badge badge-${D.statusColors[targetStage] || 'info'}">${PDMS.esc(targetStage)}</span></div></div>
-        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.type || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type || '—'))}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Workstream / Dept</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.workstream || p.dept || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '—'}</div></div>
         <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px;margin-top:2px">
@@ -617,7 +615,7 @@
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Client</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(p.client || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Deal Owner</div><div style="font-weight:700;color:var(--text);font-size:14px">${PDMS.esc(dealOwner)}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Status / Stage</div><div><span class="badge badge-success">Award/SLA</span></div></div>
-        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.type || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Type</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type || '—'))}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Workstream / Dept</div><div style="font-weight:600;color:var(--text);font-size:13px">${PDMS.esc(p.workstream || p.dept || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Opportunity Value</div><div style="font-weight:700;color:var(--text);font-size:14px">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '—'}</div></div>
         <div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:3px">Award Value (excl. VAT)</div><div style="font-weight:800;color:var(--primary);font-size:15px">${Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice, p.currency) : '—'}</div></div>
@@ -719,7 +717,7 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Client</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.client || '—')}</div></div>
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Deal Owner</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(dealOwner)}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Type</div><div style="color:var(--text)">${PDMS.esc(p.type || '—')}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Type</div><div style="color:var(--text)">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type || '—'))}</div></div>
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Delivery Status</div><div style="color:var(--text)"><span class="badge badge-${D.statusColors[PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Not Started') : (p.deliveryStatus || 'Not Started')] || 'muted'}">${PDMS.esc(PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Not Started') : (p.deliveryStatus || 'Not Started'))}</span></div></div>
       </div>
     </div>
@@ -891,7 +889,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             ${p.status === 'Cancelled' ? `<span style="background:rgba(239,68,68,.3);color:#fca5a5;border:1px solid rgba(239,68,68,.5);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.6px">CANCELLED</span>` : ''}
           </div>
           <h1 style="font-size:26px;font-weight:800;color:#fff;margin:0 0 6px;line-height:1.2;text-wrap:balance">${PDMS.esc(clientName)}</h1>
-          <div style="color:rgba(255,255,255,.7);font-size:13px;margin-bottom:14px">${PDMS.esc(p.name)} &nbsp;·&nbsp; ${PDMS.esc(p.type || '—')}</div>
+          <div style="color:rgba(255,255,255,.7);font-size:13px;margin-bottom:14px">${PDMS.esc(p.name)} &nbsp;·&nbsp; ${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type || '—'))}</div>
           <p style="color:rgba(255,255,255,.65);font-size:13px;line-height:1.6;max-width:520px;margin:0">${PDMS.esc(p.description || 'No description provided.')}</p>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;align-self:flex-start;flex-wrap:wrap">
@@ -914,9 +912,9 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
     </div>
 
     <!-- Metadata strip -->
-    <div style="background:var(--surface);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+    <div style="background:var(--surface);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0;border-radius:0 0 16px 16px;overflow:hidden">
       ${[
-            { label: 'Project Type', value: p.type || '—' },
+            { label: 'Project Type', value: (PDMS.formatType ? PDMS.formatType(p.type) : (p.type || '—')) },
             { label: 'Workstream', value: p.workstream || p.dept || '—' },
             ...(canSeePrice ? [
               { label: 'Opportunity Value', value: Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '—' },
@@ -929,9 +927,9 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             { label: 'Actual Completion', value: p.actualCompletion || '—' },
             ...(p.status === 'In Progress' && currentSubStatus ? [{ label: 'Phase', value: currentSubStatus }] : []),
           ].map((f, i, arr) => `
-        <div style="padding:16px 20px;${i < arr.length - 1 ? 'border-right:1px solid var(--border)' : ''}">
-          <div style="font-size:11px;font-weight:600;letter-spacing:.6px;color:var(--text-soft);text-transform:uppercase;margin-bottom:5px">${f.label}</div>
-          <div style="font-size:14px;font-weight:600;color:var(--text)">${PDMS.esc(f.value)}</div>
+        <div style="padding:14px 18px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);min-width:0;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;color:var(--text-soft);text-transform:uppercase;margin-bottom:4px;white-space:nowrap">${f.label}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.4;word-break:normal;overflow-wrap:break-word">${PDMS.esc(f.value)}</div>
         </div>`).join('')}
     </div>
   </div>
@@ -1859,8 +1857,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         }).join('')}
       `;
       const typeOpts = `
-        ${(!D.types.includes(p.type) && p.type) ? `<option value="${PDMS.esc(p.type)}" selected>${PDMS.esc(p.type)}</option>` : ''}
-        ${(D.types || []).map(t => `<option value="${PDMS.esc(t)}" ${t === p.type ? 'selected' : ''}>${PDMS.esc(t)}</option>`).join('')}
+        ${(!D.types.some(t => t.toLowerCase().replace(/\s*\/\s*/g, ' / ') === (p.type || '').toLowerCase().replace(/\s*\/\s*/g, ' / ')) && p.type) ? `<option value="${PDMS.esc(p.type)}" selected>${PDMS.esc(p.type)}</option>` : ''}
+        ${(D.types || []).map(t => `<option value="${PDMS.esc(t)}" ${t.toLowerCase().replace(/\s*\/\s*/g, ' / ') === (p.type || '').toLowerCase().replace(/\s*\/\s*/g, ' / ') ? 'selected' : ''}>${PDMS.esc(t)}</option>`).join('')}
       `;
       const prioOpts = D.priorities.map(pr => `<option ${pr === p.priority ? 'selected' : ''}>${pr}</option>`).join('');
       const currentUser = user || PDMS.getUser();
@@ -2210,8 +2208,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           <div class="rs-field">
             <label>Project Type</label>
             <select id="rs-type">
-              ${(!D.types.includes(p.type) && p.type) ? `<option value="${PDMS.esc(p.type)}" selected>${PDMS.esc(p.type)}</option>` : ''}
-              ${(D.types || []).map(t => `<option value="${PDMS.esc(t)}" ${t === p.type ? 'selected' : ''}>${PDMS.esc(t)}</option>`).join('')}
+              ${(!D.types.some(t => t.toLowerCase().replace(/\s*\/\s*/g, ' / ') === (p.type || '').toLowerCase().replace(/\s*\/\s*/g, ' / ')) && p.type) ? `<option value="${PDMS.esc(p.type)}" selected>${PDMS.esc(p.type)}</option>` : ''}
+              ${(D.types || []).map(t => `<option value="${PDMS.esc(t)}" ${t.toLowerCase().replace(/\s*\/\s*/g, ' / ') === (p.type || '').toLowerCase().replace(/\s*\/\s*/g, ' / ') ? 'selected' : ''}>${PDMS.esc(t)}</option>`).join('')}
             </select>
           </div>
           <div class="rs-field">
@@ -2335,8 +2333,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         <div>
           <label>Project Type</label>
           <select id="ra-type">
-            ${(!D.types.includes(p.type) && p.type) ? `<option value="${PDMS.esc(p.type)}" selected>${PDMS.esc(p.type)}</option>` : ''}
-            ${(D.types || []).map(t => `<option value="${PDMS.esc(t)}" ${t === p.type ? 'selected' : ''}>${PDMS.esc(t)}</option>`).join('')}
+            ${(!D.types.some(t => t.toLowerCase().replace(/\s*\/\s*/g, ' / ') === (p.type || '').toLowerCase().replace(/\s*\/\s*/g, ' / ')) && p.type) ? `<option value="${PDMS.esc(p.type)}" selected>${PDMS.esc(p.type)}</option>` : ''}
+            ${(D.types || []).map(t => `<option value="${PDMS.esc(t)}" ${t.toLowerCase().replace(/\s*\/\s*/g, ' / ') === (p.type || '').toLowerCase().replace(/\s*\/\s*/g, ' / ') ? 'selected' : ''}>${PDMS.esc(t)}</option>`).join('')}
           </select>
         </div>
         <div><label>Workstream / Dept</label><input id="ra-ws" type="text" value="${PDMS.esc(p.workstream || p.dept || '')}" placeholder="e.g. QMS, FSMS…" /></div>

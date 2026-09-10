@@ -3,7 +3,7 @@
    ============================================ */
 (function (global) {
   const roles = ['System Administrator', 'HR', 'COO', 'HTD', 'PM Head', 'PMO', 'Accounts', 'Sales', 'Sales Head', 'Consultant'];
-  const types = ['ISO Management System', 'Regulatory/Compliance', 'Framework Adoption', 'Outsourcing/Governance', 'Technical/Security', 'Software Development', 'Artificial Intelligence', 'Technology Transformation', 'Surveillance / Recertification'];
+  const types = ['ISO Management System', 'Regulatory / Compliance', 'Framework Adoption', 'Outsourcing / Governance', 'Technical / Security', 'Software Development', 'Artificial Intelligence', 'Technology Transformation', 'Surveillance / Recertification'];
   const priorities = ['Critical', 'High', 'Medium', 'Low'];
   const workstreams = ['Cloud Engineering', 'Cybersecurity', 'Data Analytics', 'Digital Transformation', 'ERP Implementation', 'Infrastructure', 'Mobile Development', 'Software Development', 'Web Platform', 'Business Consulting', 'General'];
   const salesJourney = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'];
@@ -372,6 +372,10 @@
   };
   global.PDMS = global.PDMS || {};
   global.PDMS.normalizeStatus = normalizeStatus;
+  global.PDMS.formatType = function (t) {
+    if (!t) return '—';
+    return String(t).replace(/\s*\/\s*/g, ' / ');
+  };
   global.PDMS.normalizeProjectType = function (p) {
     if (!p) return '';
     return typeof p === 'object' ? (p.type || p.projectType || '') : String(p || '');

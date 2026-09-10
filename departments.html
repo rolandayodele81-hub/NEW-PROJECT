@@ -3,8 +3,8 @@
 <title>Departments — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1789023734"/></head><body>
-<script src="js/bundle.js?v=1789023734"></script>
+<link rel="stylesheet" href="css/style.css?v=1789040248"/></head><body>
+<script src="js/bundle.js?v=1789040248"></script>
 <script>
 PDMS.mountShell('departments');
 const D=PDMS_DATA;const I=PDMS.icon;
@@ -14,7 +14,7 @@ document.getElementById('content').innerHTML = `
     <h1 class="page-title">Departments</h1><div class="page-sub">Organizational structure and performance</div></div>
     <button class="btn btn-primary" onclick="openDepartmentModal()">${I('plus')} New Department</button></div>
   <div class="grid grid-3">
-    ${D.departments.map(d=>{const perf=Math.floor(Math.random()*40+55);return `
+    ${D.departments.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''), undefined, { sensitivity: 'base', numeric: true })).map(d=>{const perf=Math.floor(Math.random()*40+55);return `
       <div class="card"><div class="card-body">
         <div class="flex items-center gap-3 mb-3">
           <div style="width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:var(--gradient);color:#fff;font-weight:800;font-size:18px">${d.name.split(' ').map(w=>w[0]).slice(0,2).join('')}</div>

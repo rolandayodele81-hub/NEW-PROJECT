@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Awaiting Approval — PSE PDMS</title>
-  <link rel="stylesheet" href="css/style.css?v=1789023734"/>
+  <link rel="stylesheet" href="css/style.css?v=1789040248"/>
   <style>
     .approve-btn {
       padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
@@ -22,7 +22,7 @@
   </style>
 </head>
 <body>
-<script src="js/bundle.js?v=1789023734"></script>
+<script src="js/bundle.js?v=1789040248"></script>
 <script>
   PDMS.mountShell('awaiting-approval');
   const D = PDMS_DATA; const I = PDMS.icon;
@@ -51,14 +51,21 @@
     const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
     const liveClients  = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients)  || D.clients;
     const rawPending = liveProjects.filter(p => p.status === pendingStatus);
-    const pending = PDMS.sortNewestFirst ? PDMS.sortNewestFirst(rawPending.slice()) : rawPending;
+    const sortByClient = arr => arr.slice().sort((a, b) => {
+      const clientObjA = liveClients.find(c => c.name===a.client||c.email===a.client||c.id===a.client);
+      const nameA = String((clientObjA && clientObjA.name) || a.client || a.name || '').trim().toLowerCase();
+      const clientObjB = liveClients.find(c => c.name===b.client||c.email===b.client||c.id===b.client);
+      const nameB = String((clientObjB && clientObjB.name) || b.client || b.name || '').trim().toLowerCase();
+      return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+    });
+    const pending = sortByClient(rawPending);
     
     // For Sales Head: cancelled leads / rejected by sales head
     // For Accounts / others: projects returned / rejected by accounts
     const rawRejected = isSalesHead
       ? liveProjects.filter(p => p.status === 'Cancelled' && (p.stage === 'Sales' || (!p.stage && p.sales) || p.salesHeadRejectionNote))
       : liveProjects.filter(p => (p.accountsRejectionNote || p.rejectionNote) && p.status !== 'Cancelled' && !p.salesHeadRejectionNote);
-    const rejected = PDMS.sortNewestFirst ? PDMS.sortNewestFirst(rawRejected.slice()) : rawRejected;
+    const rejected = sortByClient(rawRejected);
 
     const isShowingRejected = activeTab === 'rejected' || activeTab === 'cancelled';
     const displayList = isShowingRejected ? rejected : pending;
@@ -124,10 +131,10 @@
             <thead>
               <tr>
                 <th>Client</th>
+                <th>Project Type</th>
                 <th>Deal Owner</th>
                 <th>Opportunity Value</th>
                 <th>Award Value (excl. VAT)</th>
-                <th>Project Type</th>
                 <th>Status</th>
                 ${isShowingRejected ? '<th>Rejection Reason / Feedback</th>' : ''}
               </tr>
@@ -148,10 +155,10 @@
 
                 return `<tr style="cursor:pointer" onclick="location.href='project-details.html#id=${p.id}&from=awaiting'">
                   <td class="font-bold" style="color:var(--primary)">${PDMS.esc(clientName)}</td>
+                  <td class="text-muted">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type||'—'))}</td>
                   <td class="font-semi" style="color:var(--text)">${PDMS.esc(creator)}</td>
                   <td class="font-semi">${p.requestedNegotiatedPrice ? `<span style="color:#d97706;font-weight:700">${PDMS.currency(p.requestedNegotiatedPrice, p.currency)}</span> <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(245,158,11,.15);color:#d97706;margin-left:4px">Requested</span>` : (Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '—')}</td>
                   <td class="font-semi">${Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice, p.currency) : '—'}</td>
-                  <td class="text-muted">${PDMS.esc(p.type||'—')}</td>
                   <td>${statusBadge}</td>
                   ${isShowingRejected ? `<td class="text-sm" style="color:var(--danger);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${PDMS.esc(reasonText)}">${PDMS.esc(reasonText)}</td>` : ''}
                 </tr>`;

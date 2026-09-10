@@ -7,7 +7,7 @@
   <title>Sales Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1789023734"/>
+<link rel="stylesheet" href="css/style.css?v=1789040248"/>
   <style>
     .sales-hero {
       display: grid;
@@ -94,7 +94,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789023734"></script>
+  <script src="js/bundle.js?v=1789040248"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -137,13 +137,27 @@
         ? salesProjectSet.filter(p => projectOwnedByUser(p, currentUser))
         : salesProjectSet;
       // Sales user sees their own projects; general/Sales Head see active approved pipeline
-      const rawSales = isSalesUser
+      const rawSales = (isSalesUser
         ? userSalesSet
-        : salesProjectSet.filter(p => p.status !== 'Awaiting Sales Head Approval' && p.status !== 'Cancelled');
-      const salesProjects = PDMS.sortNewestFirst ? PDMS.sortNewestFirst(rawSales.slice()) : rawSales;
+        : salesProjectSet.filter(p => p.status !== 'Awaiting Sales Head Approval' && p.status !== 'Cancelled')
+      ).filter(p => {
+        const isDeliv = p.stage === 'Delivery' || !!p.deliveryStatus || (PDMS.stageOf && PDMS.stageOf(p) === 'Delivery');
+        if (isDeliv && (p.status === 'On Hold' || p.deliveryStatus === 'On Hold')) return false;
+        return true;
+      });
+      const sortByClient = arr => arr.slice().sort((a, b) => {
+        const nameA = String(a.client || a.name || '').trim().toLowerCase();
+        const nameB = String(b.client || b.name || '').trim().toLowerCase();
+        return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+      });
+      const salesProjects = sortByClient(rawSales);
       // Delivery table should show deals that Sales created which have moved to Delivery
-      const rawDelivery = salesProjectSet.filter(p => (p.status === 'Closed' || p.stage === 'Delivery' || (PDMS.stageOf && PDMS.stageOf(p) === 'Delivery')) && p.status !== 'Cancelled' && p.status !== 'On Hold');
-      const deliveryProjects = PDMS.sortNewestFirst ? PDMS.sortNewestFirst(rawDelivery.slice()) : rawDelivery;
+      const rawDelivery = salesProjectSet.filter(p => {
+        const isDeliv = p.status === 'Closed' || p.stage === 'Delivery' || (PDMS.stageOf && PDMS.stageOf(p) === 'Delivery');
+        const isSalesLeadOnHold = (p.status === 'On Hold' || p.status === 'Cancelled') && (p.stage === 'Sales' || !p.deliveryStatus || (PDMS.stageOf && PDMS.stageOf(p) === 'Sales'));
+        return isDeliv && !isSalesLeadOnHold && p.status !== 'Cancelled' && p.status !== 'On Hold' && p.deliveryStatus !== 'Cancelled' && p.deliveryStatus !== 'On Hold';
+      });
+      const deliveryProjects = sortByClient(rawDelivery);
       const totalInSales = salesProjects.length;
       const inPipeline = salesProjects.filter(p => ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing'].includes(PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status) && p.status !== 'Awaiting Sales Head Approval' && p.status !== 'Awaiting Account Approval' && p.status !== 'Cancelled' && p.status !== 'On Hold' && p.status !== 'Closed' && p.stage !== 'Delivery').length;
       const pendingApprovalCount = salesProjects.filter(p => p.status === 'Awaiting Sales Head Approval').length;
@@ -166,8 +180,8 @@
       });
       const funnelMax = Math.max(salesProjects.length, 1);
       const offRampCounts = {
-        Cancelled: userSalesSet.filter(p => p.status === 'Cancelled').length,
-        'On Hold': userSalesSet.filter(p => p.status === 'On Hold').length
+        Cancelled: userSalesSet.filter(p => p.status === 'Cancelled' && (p.stage === 'Sales' || !p.deliveryStatus || (PDMS.stageOf && PDMS.stageOf(p) === 'Sales'))).length,
+        'On Hold': userSalesSet.filter(p => p.status === 'On Hold' && (p.stage === 'Sales' || !p.deliveryStatus || (PDMS.stageOf && PDMS.stageOf(p) === 'Sales'))).length
       };
 
       document.getElementById('content').innerHTML = `
@@ -309,9 +323,9 @@
               <tr>
                 <th>Project ID</th>
                 <th>Client Partner</th>
+                <th>Project Type</th>
                 <th>Opportunity Value</th>
                 <th>Award Value (excl. VAT)</th>
-                <th>Project Type</th>
                 <th>Stage</th>
                 <th>Action</th>
               </tr>
@@ -347,9 +361,9 @@
                   <tr>
                     <td><a href="project-details.html#id=${p.id}&from=sales" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
                     <td class="font-bold">${PDMS.esc(p.client||p.name||'\u2014')}</td>
+                    <td>${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type||'\u2014'))}</td>
                     <td class="font-semi">${Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '\u2014'}</td>
                     <td class="font-semi">${Number.isFinite(Number(p.awardValue || (isDelivery ? p.negotiatedPrice : ''))) && Number(p.awardValue || (isDelivery ? p.negotiatedPrice : '')) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice, p.currency) : '\u2014'}</td>
-                    <td>${PDMS.esc(p.type||'\u2014')}</td>
                     <td>${statusDisplay}</td>
                     <td>${actionBtn}</td>
                   </tr>`;
@@ -398,7 +412,7 @@
                   <tr>
                     <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${p.id}</a></td>
                     <td class="font-bold">${PDMS.esc(p.client||p.name||'—')}</td>
-                    <td>${PDMS.esc(p.type||'—')}</td>
+                    <td>${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type||'—'))}</td>
                     <td>${PDMS.esc(p.pm || 'TBD')}</td>
                     <td><span class="badge badge-${D.statusColors[delivStatus] || 'muted'}">${PDMS.esc(delivStatus)}</span></td>
                   </tr>`;

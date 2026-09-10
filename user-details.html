@@ -3,8 +3,8 @@
 <title>User Details — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1789023734"/></head><body>
-<script src="js/bundle.js?v=1789023734"></script>
+<link rel="stylesheet" href="css/style.css?v=1789040248"/></head><body>
+<script src="js/bundle.js?v=1789040248"></script>
 <script>
 // A hash survives any host's clean-URL rewriting untouched, since it's never
 // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -142,8 +142,13 @@ function render(){
   };
 
   const userProjects = projectsFor(u);
-  const currentProjects = userProjects.filter(p => !isHistoryProject(p));
-  const previousProjects = userProjects.filter(p => isHistoryProject(p));
+  const sortByClient = arr => arr.slice().sort((a, b) => {
+    const nameA = String(a.client || a.name || '').trim().toLowerCase();
+    const nameB = String(b.client || b.name || '').trim().toLowerCase();
+    return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+  });
+  const currentProjects = sortByClient(userProjects.filter(p => !isHistoryProject(p)));
+  const previousProjects = sortByClient(userProjects.filter(p => isHistoryProject(p)));
 
   const statusColor = u.status==='Active'?'#22c55e':u.status==='On Leave'?'#f59e0b':'#ef4444';
 
@@ -221,8 +226,7 @@ function render(){
         <table style="width:100%;border-collapse:collapse">
           <thead>
             <tr style="background:var(--surface-2)">
-              <th style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Project</th>
-              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Client</th>
+              <th style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Client</th>
               <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Project Type</th>
               <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Role</th>
               <th style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Status</th>
@@ -234,22 +238,22 @@ function render(){
               const roleColor = p.pm===u.name?'#4f46e5':p.lead===u.name?'#7c3aed':'#059669';
               const roleBg = p.pm===u.name?'rgba(79,70,229,.08)':p.lead===u.name?'rgba(124,58,237,.08)':'rgba(5,150,105,.08)';
               const dispStatus = (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status)) || p.status;
+              const clientName = p.client || p.name || '—';
               return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s" onmouseenter="this.style.background='var(--surface-2)'" onmouseleave="this.style.background='transparent'">
                 <td style="padding:14px 20px">
                   <div style="display:flex;align-items:center;gap:10px">
-                    <div style="width:32px;height:32px;border-radius:8px;background:rgba(99,102,241,.12);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--primary);flex-shrink:0">${PDMS.esc(p.name).charAt(0)}</div>
+                    <div style="width:32px;height:32px;border-radius:8px;background:rgba(99,102,241,.12);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--primary);flex-shrink:0">${PDMS.esc(clientName).charAt(0)}</div>
                     <div>
-                      <div style="font-size:13px;font-weight:700;color:var(--text)">${PDMS.esc(p.name)}</div>
+                      <div style="font-size:13px;font-weight:700;color:var(--text)">${PDMS.esc(clientName)}</div>
                       <div style="font-size:11px;color:var(--text-soft);margin-top:1px">${PDMS.esc(p.id)}</div>
                     </div>
                   </div>
                 </td>
-                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.client||'—')}</td>
-                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.type||'—')}</td>
+                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type||'—'))}</td>
                 <td style="padding:14px 16px"><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${role}</span></td>
                 <td style="padding:14px 20px"><span class="badge badge-${D.statusColors[dispStatus]||D.statusColors[p.status]||'muted'}">${PDMS.esc(dispStatus)}</span></td>
               </tr>`;
-            }).join('') : `<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No current projects')}</td></tr>`}
+            }).join('') : `<tr><td colspan="4" style="text-align:center;padding:36px;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No current projects')}</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -265,8 +269,7 @@ function render(){
         <table style="width:100%;border-collapse:collapse">
           <thead>
             <tr style="background:var(--surface-2)">
-              <th style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Project</th>
-              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Client</th>
+              <th style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Client</th>
               <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Project Type</th>
               <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Role</th>
               <th style="text-align:left;padding:10px 20px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)">Status</th>
@@ -278,22 +281,22 @@ function render(){
               const roleColor = p.pm===u.name?'#4f46e5':p.lead===u.name?'#7c3aed':'#059669';
               const roleBg = p.pm===u.name?'rgba(79,70,229,.08)':p.lead===u.name?'rgba(124,58,237,.08)':'rgba(5,150,105,.08)';
               const dispStatus = (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status)) || p.status;
+              const clientName = p.client || p.name || '—';
               return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s" onmouseenter="this.style.background='var(--surface-2)'" onmouseleave="this.style.background='transparent'">
                 <td style="padding:14px 20px">
                   <div style="display:flex;align-items:center;gap:10px">
-                    <div style="width:32px;height:32px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--text-muted);flex-shrink:0">${PDMS.esc(p.name).charAt(0)}</div>
+                    <div style="width:32px;height:32px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--text-muted);flex-shrink:0">${PDMS.esc(clientName).charAt(0)}</div>
                     <div>
-                      <div style="font-size:13px;font-weight:700;color:var(--text)">${PDMS.esc(p.name)}</div>
+                      <div style="font-size:13px;font-weight:700;color:var(--text)">${PDMS.esc(clientName)}</div>
                       <div style="font-size:11px;color:var(--text-soft);margin-top:1px">${PDMS.esc(p.id)}</div>
                     </div>
                   </div>
                 </td>
-                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.client||'—')}</td>
-                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.type||'—')}</td>
+                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type||'—'))}</td>
                 <td style="padding:14px 16px"><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${role}</span></td>
                 <td style="padding:14px 20px"><span class="badge badge-${D.statusColors[dispStatus]||D.statusColors[p.status]||'muted'}">${PDMS.esc(dispStatus)}</span></td>
               </tr>`;
-            }).join('') : `<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No project history')}</td></tr>`}
+            }).join('') : `<tr><td colspan="4" style="text-align:center;padding:36px;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No project history')}</td></tr>`}
           </tbody>
         </table>
       </div>

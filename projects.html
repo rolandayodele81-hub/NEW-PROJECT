@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1789023734"/>
+<link rel="stylesheet" href="css/style.css?v=1789040248"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1789023734"></script>
+<script src="js/bundle.js?v=1789040248"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -72,16 +72,29 @@ function scopedProjects(){
         return PDMS.isSalesStatus(p.status) || p.status==='Cancelled' || p.status==='Awaiting Account Approval' || p.stage==='Delivery' || p.status==='Closed' || (D.deliveryStatuses && D.deliveryStatuses.includes(p.status));
       });
     }
+    // Exclude projects in delivery that are on hold from sales pipeline
+    list = list.filter(p => {
+      const isDeliv = (p.stage === 'Delivery' || (PDMS.stageOf && PDMS.stageOf(p) === 'Delivery') || !!p.deliveryStatus);
+      if (isDeliv && (p.status === 'On Hold' || p.deliveryStatus === 'On Hold')) return false;
+      return true;
+    });
   } else if(viewParam==='delivery') {
     list = liveProjects.filter(p => {
       if (p.status === 'Awaiting Account Approval' || p.status === 'Awaiting Sales Head Approval') return false;
       const preAward = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA'];
       if (preAward.includes(p.status)) return false;
-      if (p.status === 'Cancelled' && p.stage === 'Sales' && !p.deliveryStatus) return false;
+      const isSales = (p.stage === 'Sales' || (PDMS.stageOf && PDMS.stageOf(p) === 'Sales'));
+      if ((p.status === 'Cancelled' || p.status === 'On Hold') && isSales && !p.deliveryStatus) return false;
+      if (PDMS.stageOf && PDMS.stageOf(p) === 'Sales') return false;
       return true;
     });
   }
-  return PDMS.sortNewestFirst ? PDMS.sortNewestFirst(list.slice()) : list;
+  list.sort((a, b) => {
+    const nameA = String(a.client || a.name || '').trim().toLowerCase();
+    const nameB = String(b.client || b.name || '').trim().toLowerCase();
+    return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+  });
+  return list;
 }
 
 // Each bucket is filtered/kanban'd using its own status vocabulary.
@@ -106,16 +119,16 @@ const statTiles = viewParam==='sales'
           {label:'Pending Approval', filterStatus:'Awaiting Sales Head Approval', match:p=>p.status==='Awaiting Sales Head Approval', color:'warn', icon:'clock'},
           {label:'Award/SLA', filterStatus:'Award/SLA', match:p=>(p.status==='Award/SLA' || p.status==='Awaiting Account Approval') && p.status!=='Cancelled' && p.status!=='On Hold', color:'purple', icon:'check'},
           {label:'Closed Deals', filterStatus:'Closed', match:p=>(p.status==='Closed'||((p.stage==='Delivery'||(PDMS.stageOf&&PDMS.stageOf(p)==='Delivery'))&&p.status!=='Cancelled'&&p.status!=='On Hold'&&p.status!=='Awaiting Account Approval'&&p.status!=='Awaiting Sales Head Approval')), color:'success', icon:'briefcase'},
-          {label:'On Hold', filterStatus:'On Hold', match:p=>p.status==='On Hold', color:'warn', icon:'clock'},
-          {label:'Cancelled', filterStatus:'Cancelled', match:p=>p.status==='Cancelled', color:'danger', icon:'close'}
+          {label:'On Hold', filterStatus:'On Hold', match:p=>p.status==='On Hold' && (p.stage==='Sales' || !p.deliveryStatus || (PDMS.stageOf && PDMS.stageOf(p)==='Sales')), color:'warn', icon:'clock'},
+          {label:'Cancelled', filterStatus:'Cancelled', match:p=>p.status==='Cancelled' && (p.stage==='Sales' || !p.deliveryStatus || (PDMS.stageOf && PDMS.stageOf(p)==='Sales')), color:'danger', icon:'close'}
         ]
       : [
           {label:'Total Deals', match:()=>true, filterStatus:null, color:'primary', icon:'folder'},
           {label:'In Pipeline', filterStatus:'Active Pipeline', match:matchInPipeline, color:'info', icon:'activity'},
           {label:'Award/SLA', filterStatus:'Award/SLA', match:p=>(p.status==='Award/SLA' || p.status==='Awaiting Account Approval') && p.status!=='Cancelled' && p.status!=='On Hold', color:'purple', icon:'check'},
           {label:'Closed Deals', filterStatus:'Closed', match:p=>(p.status==='Closed'||((p.stage==='Delivery'||(PDMS.stageOf&&PDMS.stageOf(p)==='Delivery'))&&p.status!=='Cancelled'&&p.status!=='On Hold'&&p.status!=='Awaiting Account Approval')), color:'success', icon:'briefcase'},
-          {label:'On Hold', filterStatus:'On Hold', match:p=>p.status==='On Hold', color:'warn', icon:'clock'},
-          {label:'Cancelled', filterStatus:'Cancelled', match:p=>p.status==='Cancelled', color:'danger', icon:'close'}
+          {label:'On Hold', filterStatus:'On Hold', match:p=>p.status==='On Hold' && (p.stage==='Sales' || !p.deliveryStatus || (PDMS.stageOf && PDMS.stageOf(p)==='Sales')), color:'warn', icon:'clock'},
+          {label:'Cancelled', filterStatus:'Cancelled', match:p=>p.status==='Cancelled' && (p.stage==='Sales' || !p.deliveryStatus || (PDMS.stageOf && PDMS.stageOf(p)==='Sales')), color:'danger', icon:'close'}
         ])
   : viewParam==='delivery'
   ? [
@@ -130,7 +143,7 @@ const statTiles = viewParam==='sales'
       }, color:'success', icon:'activity'},
       {label:'On Hold', filterStatus:'On Hold', match:p=>{
         const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
-        return s==='On Hold' || p.status==='On Hold';
+        return (s==='On Hold' || p.status==='On Hold') && (p.stage==='Delivery' || !!p.deliveryStatus || (PDMS.stageOf && PDMS.stageOf(p)==='Delivery'));
       }, color:'warn', icon:'clock'},
       {label:'Completed', filterStatus:'Completed', match:p=>{
         const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
@@ -226,11 +239,11 @@ content.innerHTML = `
 const canSee = PDMS.canSeePrice && PDMS.canSeePrice(currentUser);
 const columns = viewParam === 'sales' ? [
   {key:'client',label:'Client',render:r=>`<div class="font-semi" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(r.id)}</div>`},
+  {key:'type',label:'Project Type',render:r=>`<span class="text-sm">${PDMS.esc(PDMS.formatType ? PDMS.formatType(r.type) : (r.type||'\u2014'))}</span>`},
   ...(canSee ? [
     {key:'opportunityValue',label:'Opportunity Value',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.opportunityValue || r.negotiatedPrice)) && Number(r.opportunityValue || r.negotiatedPrice) > 0 ? PDMS.currency(r.opportunityValue || r.negotiatedPrice, r.currency) : '\u2014'}</span>`},
     {key:'awardValue',label:'Award Value (excl. VAT)',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : ''))) && Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : '')) > 0 ? PDMS.currency(r.awardValue || r.negotiatedPrice, r.currency) : '\u2014'}</span>`}
   ] : []),
-  {key:'type',label:'Project Type',render:r=>`<span class="text-sm">${PDMS.esc(r.type||'\u2014')}</span>`},
   {key:'sales',label:'Deal Owner',render:r=>`<span class="text-sm text-muted font-semi">${PDMS.esc(r.projectOwnerName||(r.sales&&r.sales!=='Sales Team'?r.sales:'')||r.sales||'\u2014')}</span>`},
   {key:'status',label:'Status',render:r=> {
     // Pending Sales Head Approval
@@ -258,7 +271,7 @@ const columns = viewParam === 'sales' ? [
   }}
 ] : [
   {key:'client',label:'Client',render:r=>`<div class="font-semi" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div>`},
-  {key:'type',label:'Project Type',render:r=>`<span class="text-sm">${PDMS.esc(r.type||'\u2014')}</span>`},
+  {key:'type',label:'Project Type',render:r=>`<span class="text-sm">${PDMS.esc(PDMS.formatType ? PDMS.formatType(r.type) : (r.type||'\u2014'))}</span>`},
   {key:'status',label:'Status',render:r=> {
     if (r.status === 'Awaiting Sales Head Approval') {
       const stageName = r.requestedStatus || r.targetStatus || 'Lead';
@@ -326,8 +339,10 @@ function renderProjects(){
   renderStats(rows);
 
   PDMS.renderTable(document.getElementById('listView'),{
-    columns, rows, pageSize:20,
+    columns, rows,
     isDeliveryTable: viewParam === 'delivery',
+    defaultSortKey: viewParam === 'delivery' ? 'client' : null,
+    defaultSortDir: 1,
     searchKeys:['id','client','pm','status','type'],
     filters: currentStatusFilter ? { status: currentStatusFilter } : {},
     customFilter: currentCustomFilter,
@@ -415,7 +430,7 @@ function renderProjects(){
         }
         return `<div class="kb-card" draggable="true" data-id="${p.id}" ondragstart="handleKbDragStart(event, '${p.id}')" ondragend="handleKbDragEnd(event)" onclick="handleKbCardClick(event, '${p.id}')" title="Drag to change status, or click to view details">
         <div class="t">${PDMS.esc(p.client||p.name||'—')}</div>
-        <div class="m"><span class="text-muted" style="font-size:11px">${PDMS.esc(p.type||'—')}</span><span>${p.due||'—'}</span></div>
+        <div class="m"><span class="text-muted" style="font-size:11px">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type||'—'))}</span><span>${p.due||'—'}</span></div>
         <div class="mt-2">${badgeHtml}</div>
       </div>`;
       }).join('')}
@@ -704,8 +719,8 @@ function editProject(id){
           <div class="np-field">
             <label>Project Type</label>
             <select id="editProjType">
-              ${(!D.types.includes(project.type) && project.type) ? `<option value="${PDMS.esc(project.type)}" selected>${PDMS.esc(project.type)}</option>` : ''}
-              ${(D.types||[]).map(t=>`<option value="${PDMS.esc(t)}"${project.type===t?' selected':''}>${PDMS.esc(t)}</option>`).join('')}
+              ${(!D.types.some(t => t.toLowerCase().replace(/\s*\/\s*/g, ' / ') === (project.type || '').toLowerCase().replace(/\s*\/\s*/g, ' / ')) && project.type) ? `<option value="${PDMS.esc(project.type)}" selected>${PDMS.esc(project.type)}</option>` : ''}
+              ${(D.types||[]).map(t=>`<option value="${PDMS.esc(t)}"${t.toLowerCase().replace(/\s*\/\s*/g, ' / ') === (project.type || '').toLowerCase().replace(/\s*\/\s*/g, ' / ') ? ' selected':''}>${PDMS.esc(t)}</option>`).join('')}
             </select>
           </div>
           <div class="np-field">
