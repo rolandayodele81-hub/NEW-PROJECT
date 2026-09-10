@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1789040248" />
+  <link rel="stylesheet" href="css/style.css?v=1789047766" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789040248"></script>
+  <script src="js/bundle.js?v=1789047766"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -255,7 +255,7 @@
         const isLeadOwner = user && PDMS.isSalesRole(user) && PDMS.projectOwnedByUser(p, user);
         const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
         const rejNote = p.accountsRejectionNote || p.rejectionNote;
-        const docs = Array.isArray(p.documents) ? p.documents : [];
+        const docs = PDMS.visibleDocs ? PDMS.visibleDocs(p.documents, user) : (Array.isArray(p.documents) ? p.documents : []);
         document.getElementById('content').innerHTML = `
   <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>${breadcrumbText}</span><span>${PDMS.esc(p.client || p.name)}</span></div>
   <div style="max-width:960px;margin:30px auto 40px">
@@ -307,12 +307,13 @@
       <div style="padding:16px 20px">
         ${docs.length ? docs.map((d, idx) => `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-          <div style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${I('file')}</div>
-          <div style="flex:1;min-width:0">
-            <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
+          <div onclick="${d.url ? `PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')` : ''}" style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:${d.url ? 'pointer' : 'default'}">${I('file')}</div>
+          <div onclick="${d.url ? `PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')` : ''}" style="flex:1;min-width:0;cursor:${d.url ? 'pointer' : 'default'}">
+            <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)">${PDMS.esc(d.name || d.description || 'Document')}</div>
             <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}${d.fileSize ? ' · ' + PDMS.formatBytes(d.fileSize) : ''}</div>
           </div>
           <div class="flex items-center gap-1" style="flex-shrink:0">
+            ${d.url ? `<button type="button" class="btn btn-primary btn-sm" onclick="PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')" title="View document directly" style="display:inline-flex;align-items:center;gap:4px">${I('eye')} View</button>` : ''}
             ${d.url ? `<button type="button" class="btn btn-secondary btn-sm" onclick="PDMS.downloadDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}')" title="Download document" style="display:inline-flex;align-items:center;gap:4px">${I('download')} Download</button>` : ''}
             ${PDMS.isDocOwner(d, user) ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 6px" onclick="deleteDoc('${d.id || idx}')" title="Delete document"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
           </div>
@@ -372,7 +373,7 @@
         const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
         const targetStage = p.requestedStatus || p.targetStatus || 'Lead';
         const rejNote = p.salesHeadRejectionNote || p.rejectionNote || 'No rejection note provided.';
-        const docs = Array.isArray(p.documents) ? p.documents : [];
+        const docs = PDMS.visibleDocs ? PDMS.visibleDocs(p.documents, user) : (Array.isArray(p.documents) ? p.documents : []);
         document.getElementById('content').innerHTML = `
   <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>${breadcrumbText}</span><span>${PDMS.esc(p.client || p.name)}</span></div>
   <div style="max-width:960px;margin:30px auto 40px">
@@ -423,12 +424,13 @@
       <div style="padding:16px 20px">
         ${docs.length ? docs.map((d, idx) => `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-          <div style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${I('file')}</div>
-          <div style="flex:1;min-width:0">
-            <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
+          <div onclick="${d.url ? `PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')` : ''}" style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:${d.url ? 'pointer' : 'default'}">${I('file')}</div>
+          <div onclick="${d.url ? `PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')` : ''}" style="flex:1;min-width:0;cursor:${d.url ? 'pointer' : 'default'}">
+            <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)">${PDMS.esc(d.name || d.description || 'Document')}</div>
             <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}${d.fileSize ? ' · ' + PDMS.formatBytes(d.fileSize) : ''}</div>
           </div>
           <div class="flex items-center gap-1" style="flex-shrink:0">
+            ${d.url ? `<button type="button" class="btn btn-primary btn-sm" onclick="PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')" title="View document directly" style="display:inline-flex;align-items:center;gap:4px">${I('eye')} View</button>` : ''}
             ${d.url ? `<button type="button" class="btn btn-secondary btn-sm" onclick="PDMS.downloadDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}')" title="Download document" style="display:inline-flex;align-items:center;gap:4px">${I('download')} Download</button>` : ''}
             ${PDMS.isDocOwner(d, user) ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 6px" onclick="deleteDoc('${d.id || idx}')" title="Delete document"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
           </div>
@@ -487,7 +489,7 @@
         const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
         const targetStage = p.requestedStatus || p.targetStatus || 'Lead';
         const hasPriceUpdate = p.requestedNegotiatedPrice !== undefined && p.requestedNegotiatedPrice !== null && p.requestedNegotiatedPrice !== '';
-        const docs = Array.isArray(p.documents) ? p.documents : [];
+        const docs = PDMS.visibleDocs ? PDMS.visibleDocs(p.documents, user) : (Array.isArray(p.documents) ? p.documents : []);
         document.getElementById('content').innerHTML = `
   <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>${breadcrumbText}</span><span>${PDMS.esc(p.client || p.name)}</span></div>
   <div style="max-width:960px;margin:30px auto 40px">
@@ -538,12 +540,13 @@
       <div style="padding:16px 20px">
         ${docs.length ? docs.map((d, idx) => `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-          <div style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${I('file')}</div>
-          <div style="flex:1;min-width:0">
-            <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
+          <div onclick="${d.url ? `PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')` : ''}" style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:${d.url ? 'pointer' : 'default'}">${I('file')}</div>
+          <div onclick="${d.url ? `PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')` : ''}" style="flex:1;min-width:0;cursor:${d.url ? 'pointer' : 'default'}">
+            <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)">${PDMS.esc(d.name || d.description || 'Document')}</div>
             <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}${d.fileSize ? ' · ' + PDMS.formatBytes(d.fileSize) : ''}</div>
           </div>
           <div class="flex items-center gap-1" style="flex-shrink:0">
+            ${d.url ? `<button type="button" class="btn btn-primary btn-sm" onclick="PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')" title="View document directly" style="display:inline-flex;align-items:center;gap:4px">${I('eye')} View</button>` : ''}
             ${d.url ? `<button type="button" class="btn btn-secondary btn-sm" onclick="PDMS.downloadDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}')" title="Download document" style="display:inline-flex;align-items:center;gap:4px">${I('download')} Download</button>` : ''}
             ${PDMS.isDocOwner(d, user) ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 6px" onclick="deleteDoc('${d.id || idx}')" title="Delete document"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
           </div>
@@ -596,7 +599,7 @@
         const isLeadOwner = u && PDMS.isSalesRole(u) && PDMS.projectOwnedByUser(p, u);
         const reviews = projectIssues(p);
         const canUpdate = PDMS.can('Add Remarks');
-        const docs = Array.isArray(p.documents) ? p.documents : [];
+        const docs = PDMS.visibleDocs ? PDMS.visibleDocs(p.documents, u) : (Array.isArray(p.documents) ? p.documents : []);
         const dealOwner = p.projectOwnerName || (p.sales && p.sales !== 'Sales Team' ? p.sales : '') || p.salesOwnerName || p.onboardedByName || p.createdByUserName || p.sales || '—';
         document.getElementById('content').innerHTML = `
   <div class="breadcrumbs" style="margin-bottom:20px"><span>Home</span><span>Projects</span><span>${PDMS.esc(p.client || p.name)}</span></div>
@@ -644,12 +647,13 @@
       <div style="padding:16px 20px">
         ${docs.length ? docs.map((d, idx) => `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-          <div style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${I('file')}</div>
-          <div style="flex:1;min-width:0">
-            <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
+          <div onclick="${d.url ? `PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')` : ''}" style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:${d.url ? 'pointer' : 'default'}">${I('file')}</div>
+          <div onclick="${d.url ? `PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')` : ''}" style="flex:1;min-width:0;cursor:${d.url ? 'pointer' : 'default'}">
+            <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)">${PDMS.esc(d.name || d.description || 'Document')}</div>
             <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}${d.fileSize ? ' · ' + PDMS.formatBytes(d.fileSize) : ''}</div>
           </div>
           <div class="flex items-center gap-1" style="flex-shrink:0">
+            ${d.url ? `<button type="button" class="btn btn-primary btn-sm" onclick="PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')" title="View document directly" style="display:inline-flex;align-items:center;gap:4px">${I('eye')} View</button>` : ''}
             ${d.url ? `<button type="button" class="btn btn-secondary btn-sm" onclick="PDMS.downloadDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}')" title="Download document" style="display:inline-flex;align-items:center;gap:4px">${I('download')} Download</button>` : ''}
             ${PDMS.isDocOwner(d, user) ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 6px" onclick="deleteDoc('${d.id || idx}')" title="Delete document"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
           </div>
@@ -1107,18 +1111,19 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       <div class="card"><div class="card-head"><div class="card-title">Documents</div>${canUploadDoc ? `<button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button>` : ''}</div>
         <div class="card-body" style="padding:8px 20px">
           ${(() => {
-            const docs = Array.isArray(p.documents) ? p.documents : [];
+            const docs = PDMS.visibleDocs ? PDMS.visibleDocs(p.documents, user) : (Array.isArray(p.documents) ? p.documents : []);
             if (!docs.length) return `<div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>`;
             return docs.map((d, idx) => `
               <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-                <div style="width:36px;height:36px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">
+                <div onclick="${d.url ? `PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')` : ''}" style="width:36px;height:36px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;cursor:${d.url ? 'pointer' : 'default'}">
                   ${/\.(pdf)$/i.test(d.url || d.name || '') ? '📄' : /\.(xls|xlsx|csv)$/i.test(d.url || d.name || '') ? '📊' : /\.(doc|docx)$/i.test(d.url || d.name || '') ? '📝' : /\.(png|jpg|jpeg|gif|svg)$/i.test(d.url || d.name || '') ? '🖼️' : '📎'}
                 </div>
-                <div style="flex:1;min-width:0">
-                  <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
+                <div onclick="${d.url ? `PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')` : ''}" style="flex:1;min-width:0;cursor:${d.url ? 'pointer' : 'default'}">
+                  <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)">${PDMS.esc(d.name || d.description || 'Document')}</div>
                   <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}${d.fileSize ? ' · ' + PDMS.formatBytes(d.fileSize) : ''}</div>
                 </div>
                 <div class="flex items-center gap-1" style="flex-shrink:0">
+                  ${d.url ? `<button type="button" class="btn btn-primary btn-sm" onclick="PDMS.viewDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}', '${PDMS.esc(d.fileType || '')}')" title="View document directly" style="display:inline-flex;align-items:center;gap:4px">${I('eye')} View</button>` : ''}
                   ${d.url ? `<button type="button" class="btn btn-secondary btn-sm" onclick="PDMS.downloadDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}')" title="Download document" style="display:inline-flex;align-items:center;gap:4px">${I('download')} Download</button>` : ''}
                   ${PDMS.isDocOwner(d, user) ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 8px" onclick="deleteDoc('${d.id || idx}')" title="Delete document"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
                 </div>
@@ -1781,6 +1786,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
                 fileType: mimeType,
                 uploadedBy: user ? (user.name || user.email || '') : '',
                 uploadedByEmail: user ? (user.email || '') : '',
+                uploadedByRole: user ? (user.role || '') : '',
                 uploaderId: user ? (user.id || '') : '',
                 uploadedAt: new Date().toISOString().slice(0, 10)
               };

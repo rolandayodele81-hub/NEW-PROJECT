@@ -38,7 +38,8 @@
     send:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
     zap:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
     mail:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>',
-    phone:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>'
+    phone:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+    eye:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
   };
 
   PDMS.icon = function(name){ return ICONS[name]||''; };
@@ -969,7 +970,8 @@
   PDMS.modal = function(title, bodyHtml, footHtml, opts = {}){
     const back=document.createElement('div');
     back.className='modal-backdrop open';
-    back.innerHTML = '<div class="modal"><div class="modal-head"><h3 class="card-title">'+title+'</h3></div><div class="modal-body">'+bodyHtml+'</div>'+(footHtml?'<div class="modal-foot">'+footHtml+'</div>':'')+'</div>';
+    const mClass = opts.modalClass ? 'modal ' + opts.modalClass : 'modal';
+    back.innerHTML = '<div class="'+mClass+'"><div class="modal-head"><h3 class="card-title">'+title+'</h3>'+(opts.showCloseBtn !== false ? '<button class="btn btn-ghost btn-sm" data-close style="padding:4px 8px;font-size:16px;line-height:1;border-radius:6px" title="Close">✕</button>' : '')+'</div><div class="modal-body">'+bodyHtml+'</div>'+(footHtml?'<div class="modal-foot">'+footHtml+'</div>':'')+'</div>';
     document.body.appendChild(back);
     back.addEventListener('click',e=>{ if(e.target.closest('[data-close]')) back.remove(); });
     return back;
@@ -2187,6 +2189,181 @@
     }
     return false;
   };
+
+  const SALES_AND_ACCOUNTS_DOC_ROLES = ['sales', 'sales head', 'accounts'];
+  const PRIVILEGED_DOC_VIEWER_ROLES = ['sales', 'sales head', 'accounts', 'htd', 'coo', 'pm head', 'system administrator', 'general admin'];
+
+  PDMS.isSalesOrAccountsRole = function (role) {
+    if (!role) return false;
+    const r = String(role).trim().toLowerCase();
+    return SALES_AND_ACCOUNTS_DOC_ROLES.includes(r);
+  };
+
+  PDMS.canViewRestrictedDocs = function (role) {
+    if (!role) return false;
+    const r = String(role).trim().toLowerCase();
+    return PRIVILEGED_DOC_VIEWER_ROLES.includes(r);
+  };
+
+  PDMS.getDocUploaderRole = function (doc) {
+    if (!doc) return '';
+    if (doc.uploadedByRole) return doc.uploadedByRole;
+    const users = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || (window.PDMS_DATA && window.PDMS_DATA.users) || [];
+    const uId = String(doc.uploaderId || '').trim();
+    const uEmail = String(doc.uploadedByEmail || '').trim().toLowerCase();
+    const uName = String(doc.uploadedBy || '').trim().toLowerCase();
+
+    const match = users.find(u => {
+      if (uId && String(u.id || '').trim() === uId) return true;
+      if (uEmail && String(u.email || '').trim().toLowerCase() === uEmail) return true;
+      if (uName && (String(u.name || '').trim().toLowerCase() === uName || String(u.email || '').trim().toLowerCase() === uName)) return true;
+      return false;
+    });
+
+    return match ? (match.role || '') : '';
+  };
+
+  PDMS.canViewDoc = function (doc, user) {
+    if (!doc) return false;
+    const currentUser = user || (typeof PDMS.getUser === 'function' ? PDMS.getUser() : null);
+    if (!currentUser) return false;
+
+    // Check if document was uploaded by Sales or Accounts
+    const uploaderRole = PDMS.getDocUploaderRole(doc);
+    const isSalesOrAccountsDoc = PDMS.isSalesOrAccountsRole(uploaderRole);
+
+    if (isSalesOrAccountsDoc) {
+      // Only visible to Sales, Accounts, HTD, COO, PM Head, Admin
+      return PDMS.canViewRestrictedDocs(currentUser.role);
+    }
+
+    // Documents uploaded by HTD, COO, PM Head, PMO, Consultants, etc. are visible to all
+    return true;
+  };
+
+  PDMS.visibleDocs = function (docs, user) {
+    if (!Array.isArray(docs)) return [];
+    const currentUser = user || (typeof PDMS.getUser === 'function' ? PDMS.getUser() : null);
+    return docs.filter(d => PDMS.canViewDoc(d, currentUser));
+  };
+
+  PDMS.viewDoc = function (url, filename, mimeType) {
+    if (!url) {
+      PDMS.toast('Error', 'No document URL found', 'error');
+      return;
+    }
+    filename = filename || 'Document';
+    mimeType = (mimeType || '').toLowerCase();
+    const ext = (filename.split('.').pop() || '').toLowerCase();
+
+    function dataUrlToBlobUrl(dataUrl) {
+      try {
+        const parts = dataUrl.split(',');
+        const match = parts[0].match(/:(.*?);/);
+        const mime = match ? match[1] : 'application/octet-stream';
+        const byteString = atob(parts[1]);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: mime });
+        return { blobUrl: URL.createObjectURL(blob), mime: mime, isBlob: true };
+      } catch (e) {
+        console.warn('Could not convert data URL to Blob:', e);
+        return { blobUrl: dataUrl, mime: mimeType || '', isBlob: false };
+      }
+    }
+
+    let viewUrl = url;
+    let effectiveMime = mimeType;
+    let createdBlob = null;
+
+    if (url.startsWith('data:')) {
+      const conv = dataUrlToBlobUrl(url);
+      viewUrl = conv.blobUrl;
+      effectiveMime = conv.mime || mimeType;
+      if (conv.isBlob) createdBlob = conv.blobUrl;
+    }
+
+    const isPdf = effectiveMime.includes('pdf') || ext === 'pdf' || (url.includes('.pdf') && !url.startsWith('data:'));
+    const isImage = effectiveMime.startsWith('image/') || ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'].includes(ext);
+    const isText = effectiveMime.startsWith('text/') || ['txt', 'csv', 'json', 'log', 'md', 'html'].includes(ext);
+    const isGoogleDrive = (url.includes('drive.google.com') || url.includes('docs.google.com'));
+
+    let embedHtml = '';
+
+    if (isGoogleDrive) {
+      const gDriveMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      const fileId = gDriveMatch ? gDriveMatch[1] : '';
+      const previewSrc = fileId ? `https://drive.google.com/file/d/${fileId}/preview` : url;
+      embedHtml = `<iframe src="${previewSrc}" style="width:100%;height:75vh;border:none;border-radius:0 0 14px 14px" allow="autoplay"></iframe>`;
+    } else if (isPdf) {
+      embedHtml = `<iframe src="${viewUrl}" style="width:100%;height:75vh;border:none;border-radius:0 0 14px 14px" type="application/pdf"></iframe>`;
+    } else if (isImage) {
+      embedHtml = `
+        <div style="height:75vh;display:flex;align-items:center;justify-content:center;background:var(--surface-2);padding:20px;overflow:auto">
+          <img src="${viewUrl}" alt="${PDMS.esc(filename)}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,0.15)"/>
+        </div>
+      `;
+    } else if (isText && url.startsWith('data:')) {
+      try {
+        const parts = url.split(',');
+        const textDecoded = decodeURIComponent(escape(atob(parts[1])));
+        embedHtml = `
+          <div style="height:75vh;overflow:auto;padding:20px;background:var(--surface-2)">
+            <pre style="margin:0;font-family:monospace;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--text)">${PDMS.esc(textDecoded)}</pre>
+          </div>
+        `;
+      } catch (err) {
+        embedHtml = `<iframe src="${viewUrl}" style="width:100%;height:75vh;border:none;border-radius:0 0 14px 14px"></iframe>`;
+      }
+    } else if (/^https?:\/\//i.test(url)) {
+      const gDocsViewer = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+      embedHtml = `<iframe src="${gDocsViewer}" style="width:100%;height:75vh;border:none;border-radius:0 0 14px 14px"></iframe>`;
+    } else {
+      embedHtml = `<iframe src="${viewUrl}" style="width:100%;height:75vh;border:none;border-radius:0 0 14px 14px"></iframe>`;
+    }
+
+    const titleHtml = `
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <span style="font-size:18px">${isPdf ? '📄' : isImage ? '🖼️' : isText ? '📝' : '📎'}</span>
+        <span style="font-weight:700;font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:450px">${PDMS.esc(filename)}</span>
+      </div>
+    `;
+
+    const footHtml = `
+      <div style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:10px">
+        <div style="font-size:12px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          ${PDMS.esc(filename)}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <a href="${viewUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Open in Tab
+          </a>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="PDMS.downloadDoc('${PDMS.esc(url)}', '${PDMS.esc(filename)}')" style="display:inline-flex;align-items:center;gap:6px">
+            ${PDMS.icon('download')} Download
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm" data-close>Close</button>
+        </div>
+      </div>
+    `;
+
+    const modal = PDMS.modal(titleHtml, embedHtml, footHtml, { modalClass: 'modal-doc-viewer' });
+
+    if (createdBlob) {
+      const observer = new MutationObserver(() => {
+        if (!document.body.contains(modal)) {
+          URL.revokeObjectURL(createdBlob);
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, { childList: true });
+    }
+  };
+
+  g.viewDoc = PDMS.viewDoc;
 
   PDMS.downloadDoc = function (url, filename) {
     if (!url) return;

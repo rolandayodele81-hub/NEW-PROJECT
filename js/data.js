@@ -374,15 +374,21 @@
   global.PDMS.normalizeStatus = normalizeStatus;
   global.PDMS.formatType = function (t) {
     if (!t) return '—';
-    return String(t).replace(/\s*\/\s*/g, ' / ');
+    const s = String(t).trim();
+    if (s.toLowerCase() === 'erp') return 'Technology Transformation';
+    if (s.toLowerCase() === 'vapt' || s.toLowerCase() === 'sapt') return 'Technical / Security';
+    if (s.toLowerCase() === 'iso') return 'ISO Management System';
+    return s.replace(/\s*\/\s*/g, ' / ');
   };
   global.PDMS.normalizeProjectType = function (p) {
     if (!p) return '';
-    return typeof p === 'object' ? (p.type || p.projectType || '') : String(p || '');
+    const raw = typeof p === 'object' ? (p.type || p.projectType || '') : String(p || '');
+    return global.PDMS.formatType(raw);
   };
   global.PDMS.typeOf = function (p) {
     if (!p) return '';
-    return typeof p === 'object' ? (p.type || p.projectType || '') : String(p || '');
+    const raw = typeof p === 'object' ? (p.type || p.projectType || '') : String(p || '');
+    return global.PDMS.formatType(raw);
   };
   global.PDMS.deliverySequenceFor = deliverySequenceFor;
   global.PDMS.deliveryStagesByType = deliveryStagesByType;

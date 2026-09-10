@@ -7,11 +7,11 @@
   <title>Consultants — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1789040248"/>
+<link rel="stylesheet" href="css/style.css?v=1789047766"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789040248"></script>
+  <script src="js/bundle.js?v=1789047766"></script>
   <script>
     PDMS.mountShell('consultants');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -37,7 +37,9 @@
     }
 
     function projectDocs(project) {
-      return Array.isArray(project.documents) ? project.documents : [];
+      const user = PDMS.getUser();
+      const raw = Array.isArray(project.documents) ? project.documents : [];
+      return PDMS.visibleDocs ? PDMS.visibleDocs(raw, user) : raw;
     }
 
     function projectTasks(project, user) {
@@ -104,14 +106,15 @@
               <div class="card-body">
                 ${docs.length ? docs.map((doc, idx) => `
                   <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-                    <div style="width:36px;height:36px;border-radius:8px;background:rgba(29,60,136,.1);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0">
+                    <div onclick="${doc.url ? `PDMS.viewDoc('${PDMS.esc(doc.url)}', '${PDMS.esc(doc.fileName || doc.name || 'document')}', '${PDMS.esc(doc.fileType || '')}')` : ''}" style="width:36px;height:36px;border-radius:8px;background:rgba(29,60,136,.1);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0;cursor:${doc.url ? 'pointer' : 'default'}">
                       ${I('file')}
                     </div>
-                    <div style="flex:1;min-width:0">
-                      <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(doc.name || doc.description || 'Document')}</div>
+                    <div onclick="${doc.url ? `PDMS.viewDoc('${PDMS.esc(doc.url)}', '${PDMS.esc(doc.fileName || doc.name || 'document')}', '${PDMS.esc(doc.fileType || '')}')` : ''}" style="flex:1;min-width:0;cursor:${doc.url ? 'pointer' : 'default'}">
+                      <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)">${PDMS.esc(doc.name || doc.description || 'Document')}</div>
                       <div class="text-xs text-muted">${PDMS.esc(doc.description || '')}${doc.uploadedBy ? ' · ' + PDMS.esc(doc.uploadedBy) : ''}${doc.uploadedAt ? ' · ' + PDMS.esc(new Date(doc.uploadedAt).toLocaleDateString()) : ''}${doc.fileSize ? ' · ' + PDMS.formatBytes(doc.fileSize) : ''}</div>
                     </div>
                     <div class="flex items-center gap-1" style="flex-shrink:0">
+                      ${doc.url ? `<button type="button" class="btn btn-primary btn-sm" onclick="PDMS.viewDoc('${PDMS.esc(doc.url)}', '${PDMS.esc(doc.fileName || doc.name || 'document')}', '${PDMS.esc(doc.fileType || '')}')" title="View document directly" style="display:inline-flex;align-items:center;gap:4px">${I('eye')} View</button>` : ''}
                       ${doc.url ? `<button type="button" class="btn btn-secondary btn-sm" onclick="PDMS.downloadDoc('${PDMS.esc(doc.url)}', '${PDMS.esc(doc.fileName || doc.name || 'document')}')" title="Download document" style="display:inline-flex;align-items:center;gap:4px">${I('download')} Download</button>` : ''}
                       ${PDMS.isDocOwner(doc, user) ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 8px" onclick="deleteConsultantDoc('${project.id}', '${doc.id || idx}')" title="Delete document"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
                     </div>
@@ -459,6 +462,7 @@
                 uploadedAt: new Date().toISOString().slice(0, 10),
                 uploadedBy: user?.name || 'Consultant',
                 uploadedByEmail: user?.email || '',
+                uploadedByRole: user?.role || 'Consultant',
                 uploaderId: user?.id || ''
               };
               const documents = projectDocs(project);
