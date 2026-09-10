@@ -7,7 +7,7 @@
   <title>HR Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788961869"/>
+<link rel="stylesheet" href="css/style.css?v=1789023734"/>
   <style>
     .hr-hero {
       display: grid;
@@ -75,7 +75,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788961869"></script>
+  <script src="js/bundle.js?v=1789023734"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -92,7 +92,7 @@
       const allDeliveryStageProjects = deliveryProjects;
 
       // Delivery project status distribution
-      const statusColorHex = { 'Completed':'#10b981','Closure':'#10b981','Project Closure':'#10b981','On Hold':'#64748b','Gap Assessment':'#0ea5e9','Risk Assessment':'#f59e0b','Design & Documentation/Implementation':'#8b5cf6','Management System Design & Documentation/Implementation':'#8b5cf6','VAPT':'#8b5cf6','Training & Awareness':'#6366f1','Internal Audit & Management Review':'#06b6d4','Remediation & Certification Readiness':'#f59e0b','Certification Audit':'#8b5cf6','Certification & Post Engagement':'#6366f1','Certification & Post engagement':'#6366f1','Post Engagement':'#6366f1','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Training':'#6366f1','Awareness':'#6366f1','Awareness & VAPT':'#8b5cf6','Testing':'#8b5cf6','Implementation':'#8b5cf6','Internal Testing':'#0ea5e9','Penetration Testing':'#8b5cf6','Report Submission':'#6366f1','Review':'#f59e0b','Requirements Gathering':'#0ea5e9','Configuration & Design':'#6366f1','Data Preparation & Migration':'#8b5cf6','Integration':'#6366f1','User Acceptance Testing (UAT)':'#f59e0b','Go-Live':'#10b981','Previous Findings Closure':'#0ea5e9','Management Review':'#8b5cf6','Readiness Assessment':'#0ea5e9','Remediation':'#f59e0b','Surveillance Audit':'#8b5cf6','Cancelled':'#ef4444' };
+      const statusColorHex = { 'Completed':'#10b981','Closure':'#10b981','Project Closure':'#10b981','On Hold':'#64748b','Gap Assessment':'#0ea5e9','Risk Assessment':'#f59e0b','Design & Documentation/Implementation':'#8b5cf6','Management System Design & Documentation/Implementation':'#8b5cf6','VAPT':'#8b5cf6','Training & Awareness':'#6366f1','Internal Audit & Management Review':'#06b6d4','Remediation & Certification Readiness':'#f59e0b','Certification Audit':'#8b5cf6','Certification & Post Engagement':'#6366f1','Certification & Post engagement':'#6366f1','Post Engagement':'#6366f1','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Training':'#6366f1','Awareness':'#6366f1','Awareness & VAPT':'#8b5cf6','Testing':'#8b5cf6','Implementation':'#8b5cf6','Internal Testing':'#0ea5e9','Penetration Testing':'#8b5cf6','Report Submission':'#6366f1','Review':'#f59e0b','Requirements Gathering':'#0ea5e9','Configuration & Design':'#6366f1','Data Preparation & Migration':'#8b5cf6','Integration':'#6366f1','User Acceptance Testing (UAT)':'#f59e0b','Go-Live':'#10b981','Previous Findings Closure':'#0ea5e9','Management Review':'#8b5cf6','Readiness Assessment':'#0ea5e9','Remediation':'#f59e0b','Surveillance Audit':'#8b5cf6','Assess':'#0ea5e9','Target State':'#6366f1','GAP':'#f59e0b','Roadmap':'#06b6d4','Tailor/Design':'#8b5cf6','Implement':'#8b5cf6','Capability Building':'#6366f1','Post-Implementation Assess':'#0ea5e9','Institutionalise':'#10b981','Institutionalize':'#10b981','Strategy':'#6366f1','Governance':'#8b5cf6','Design':'#8b5cf6','Select/Contract':'#f59e0b','Transition':'#0ea5e9','Operate':'#6366f1','Monitor':'#06b6d4','Improve':'#10b981','Cancelled':'#ef4444' };
       const getDelivStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
       const totalProjects = allDeliveryStageProjects.length;
       const statusCounts = D.deliveryStatuses.map(s => ({

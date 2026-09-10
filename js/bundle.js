@@ -106,6 +106,8 @@
     return data;
   }
 
+
+
   // ── Network Fetch ───────────────────────────────────────────────────────────
   function fetchWithRetry(url, retries) {
     retries = retries || 2;
@@ -199,7 +201,7 @@
    ============================================ */
 (function (global) {
   const roles = ['System Administrator', 'HR', 'COO', 'HTD', 'PM Head', 'PMO', 'Accounts', 'Sales', 'Sales Head', 'Consultant'];
-  const types = ['Management System', 'VAPT', 'Software Development', 'Artificial Intelligence', 'ERP', 'Surveillance / Recertification'];
+  const types = ['ISO Management System', 'Regulatory/Compliance', 'Framework Adoption', 'Outsourcing/Governance', 'Technical/Security', 'Software Development', 'Artificial Intelligence', 'Technology Transformation', 'Surveillance / Recertification'];
   const priorities = ['Critical', 'High', 'Medium', 'Low'];
   const workstreams = ['Cloud Engineering', 'Cybersecurity', 'Data Analytics', 'Digital Transformation', 'ERP Implementation', 'Infrastructure', 'Mobile Development', 'Software Development', 'Web Platform', 'Business Consulting', 'General'];
   const salesJourney = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'];
@@ -227,7 +229,37 @@
     'Certification Audit',
     'Completed',
     'Certification & Post Engagement',
-    'Project Closure'
+    'Closure'
+  ];
+
+  const frameworkAdoptionStages = [
+    'Not Started',
+    'Assess',
+    'Target State',
+    'GAP',
+    'Roadmap',
+    'Tailor/Design',
+    'Implement',
+    'Capability Building',
+    'Post-Implementation Assess',
+    'Institutionalise',
+    'Completed',
+    'Closure'
+  ];
+
+  const outsourcingGovernanceStages = [
+    'Not Started',
+    'Assess',
+    'Strategy',
+    'Governance',
+    'Design',
+    'Select/Contract',
+    'Transition',
+    'Operate',
+    'Monitor',
+    'Improve',
+    'Completed',
+    'Closure'
   ];
 
   const vaptStages = [
@@ -289,7 +321,22 @@
   ];
 
   const deliveryStagesByType = {
+    'ISO Management System': managementSystemStages,
     'Management System': managementSystemStages,
+    'ISO': managementSystemStages,
+    'Regulatory/Compliance': managementSystemStages,
+    'Regulatory / Compliance': managementSystemStages,
+    'Regulatory': managementSystemStages,
+    'Compliance': managementSystemStages,
+    'Framework Adoption': frameworkAdoptionStages,
+    'Framework adoption': frameworkAdoptionStages,
+    'Framework': frameworkAdoptionStages,
+    'Outsourcing/Governance': outsourcingGovernanceStages,
+    'Outsourcing / Governance': outsourcingGovernanceStages,
+    'Outsourcing': outsourcingGovernanceStages,
+    'Governance': outsourcingGovernanceStages,
+    'Technical/Security': vaptStages,
+    'Technical / Security': vaptStages,
     'VAPT': vaptStages,
     'SAPT': vaptStages,
     'Software Development & Artificial Intelligence (AI)': softwareAndAiStages,
@@ -299,6 +346,7 @@
     'Artificial Intelligence': softwareAndAiStages,
     'Artificial intelligence': softwareAndAiStages,
     'AI': softwareAndAiStages,
+    'Technology Transformation': erpStages,
     'ERP': erpStages,
     'Surveillance / Recertification': surveillanceStages,
     'Surveillance/ recertification': surveillanceStages,
@@ -310,6 +358,8 @@
 
   const allTypeDeliveryStatuses = [
     ...managementSystemStages,
+    ...frameworkAdoptionStages,
+    ...outsourcingGovernanceStages,
     ...vaptStages,
     ...softwareAndAiStages,
     ...erpStages,
@@ -395,7 +445,32 @@
     'Readiness Assessment': 'info',
     'Remediation': 'warn',
     'Surveillance Audit': 'purple',
-    'Post Engagement': 'primary'
+    'Post Engagement': 'primary',
+
+    // 6. Framework Adoption
+    'Assess': 'info',
+    'Target State': 'primary',
+    'GAP': 'warn',
+    'Roadmap': 'info',
+    'Tailor/Design': 'purple',
+    'Tailor / Design': 'purple',
+    'Implement': 'purple',
+    'Capability Building': 'primary',
+    'Post-Implementation Assess': 'info',
+    'Assess (Post-Implementation)': 'info',
+    'Institutionalise': 'success',
+    'Institutionalize': 'success',
+
+    // 7. Outsourcing / Governance
+    'Strategy': 'primary',
+    'Governance': 'purple',
+    'Design': 'purple',
+    'Select/Contract': 'warn',
+    'Select / Contract': 'warn',
+    'Transition': 'info',
+    'Operate': 'primary',
+    'Monitor': 'info',
+    'Improve': 'success'
   };
   Object.assign(statusColors, {
     'Incoming': 'info', 'Initial Contact': 'info', 'Requirement Gathering': 'purple',
@@ -405,13 +480,14 @@
   const prioColors = { 'Critical': 'prio-critical', 'High': 'prio-high', 'Medium': 'prio-medium', 'Low': 'prio-low' };
 
   function normalizeStatus(status) {
+    if (status === 'Project Closure') return 'Closure';
     return salesStatusAliases[status] || status;
   }
 
   function salesSequenceFor(projectOrType) {
     if (typeof projectOrType === 'object' && projectOrType) {
       if (Array.isArray(projectOrType.timelineStages) && projectOrType.timelineStages.length > 0) {
-        return projectOrType.timelineStages.slice();
+        return projectOrType.timelineStages.map(s => s === 'Project Closure' ? 'Closure' : s);
       }
     }
     return salesJourney.slice();
@@ -420,7 +496,7 @@
   function deliverySequenceFor(projectOrType) {
     if (typeof projectOrType === 'object' && projectOrType) {
       if (Array.isArray(projectOrType.timelineStages) && projectOrType.timelineStages.length > 0) {
-        return projectOrType.timelineStages.slice();
+        return projectOrType.timelineStages.map(s => s === 'Project Closure' ? 'Closure' : s);
       }
       let type = projectOrType.type || projectOrType.projectType;
       if (type && deliveryStagesByType[type]) {
@@ -428,14 +504,20 @@
         if (projectOrType.hasTraining === false || projectOrType.includeTraining === false || projectOrType.noTraining === true) {
           seq = seq.filter(s => s !== 'Training');
         }
-        return seq;
+        return seq.map(s => s === 'Project Closure' ? 'Closure' : s);
       }
     }
     let type = typeof projectOrType === 'string' ? projectOrType : (projectOrType && (projectOrType.type || projectOrType.projectType));
     if (type && deliveryStagesByType[type]) {
-      return deliveryStagesByType[type].slice();
+      return deliveryStagesByType[type].map(s => s === 'Project Closure' ? 'Closure' : s);
     }
-    return defaultDeliverySequence.slice();
+    if (type) {
+      const matchedKey = Object.keys(deliveryStagesByType).find(k => k.toLowerCase() === String(type).trim().toLowerCase());
+      if (matchedKey) {
+        return deliveryStagesByType[matchedKey].map(s => s === 'Project Closure' ? 'Closure' : s);
+      }
+    }
+    return defaultDeliverySequence.map(s => s === 'Project Closure' ? 'Closure' : s);
   }
 
   // -----------------------------
@@ -466,7 +548,8 @@
   }]);
   const consultants = loadCollection('consultants', []);
   const clients = loadCollection('clients', []);
-  const projects = loadCollection('projects', []).reverse();
+  const rawProjects = loadCollection('projects', []).reverse();
+  const projects = rawProjects;
   const notifications = loadCollection('notifications', []);
   const threads = loadCollection('threads', []);
   const activities = loadCollection('activities', []);
@@ -487,6 +570,14 @@
   };
   global.PDMS = global.PDMS || {};
   global.PDMS.normalizeStatus = normalizeStatus;
+  global.PDMS.normalizeProjectType = function (p) {
+    if (!p) return '';
+    return typeof p === 'object' ? (p.type || p.projectType || '') : String(p || '');
+  };
+  global.PDMS.typeOf = function (p) {
+    if (!p) return '';
+    return typeof p === 'object' ? (p.type || p.projectType || '') : String(p || '');
+  };
   global.PDMS.deliverySequenceFor = deliverySequenceFor;
   global.PDMS.deliveryStagesByType = deliveryStagesByType;
 })(window);/* PDMS Utils */
@@ -1306,6 +1397,10 @@
               }
               return isDelivery ? dStat === filterVal : (dStat === filterVal || v === filterVal);
             }
+            if (k === 'type') {
+              const rType = (PDMS.typeOf ? PDMS.typeOf(r) : (r.type || ''));
+              return rType === filterVal || v === filterVal;
+            }
             return v === filterVal;
           });
         }
@@ -1471,6 +1566,10 @@
       PDMS.toast('Session expired', 'Please sign in again before creating a project.', 'error');
       return;
     }
+    if (currentUser.role === 'PMO' || (PDMS.can && !PDMS.can('Create Project', currentUser))) {
+      PDMS.toast('Permission Denied', 'PMO accounts do not have permission to create projects.', 'error');
+      return;
+    }
     const D = window.PDMS_DATA || {};
     const I = PDMS.icon;
     let modalRef = null;
@@ -1480,7 +1579,7 @@
       clientMode: null, // 'new' or 'existing'
       selectedClient: null, // { name, industry, email, phone, address, workedBefore }
       newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
-      projForm: { type: (D.types && D.types[0]) || 'ERP', workstream: '', status: (D.salesStatuses && D.salesStatuses[0]) || 'Lead', currency: '₦', awardCurrency: '₦', price: '', awardVal: '', desc: '' }
+      projForm: { type: (D.types && D.types[0]) || 'ISO Management System', workstream: '', status: (D.salesStatuses && D.salesStatuses[0]) || 'Lead', currency: '₦', awardCurrency: '₦', price: '', awardVal: '', desc: '' }
     };
 
     function renderModal() {
@@ -1997,6 +2096,11 @@
       PDMS.toast('Session expired', 'Please sign in again before creating a project.', 'error');
       return;
     }
+    const canCreateDelivery = PDMS.isDeliveryCreationRole ? PDMS.isDeliveryCreationRole(currentUser) : (currentUser.role !== 'PMO' && PDMS.isDeliveryRole && PDMS.isDeliveryRole(currentUser));
+    if (currentUser.role === 'PMO' || !canCreateDelivery) {
+      PDMS.toast('Permission Denied', 'PMO accounts do not have permission to create or onboard delivery projects.', 'error');
+      return;
+    }
     const D = window.PDMS_DATA || {};
     const I = PDMS.icon;
     let modalRef = null;
@@ -2006,7 +2110,7 @@
       clientMode: null, // 'new' or 'existing'
       selectedClient: null, // { name, industry, email, phone, address, workedBefore }
       newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
-      projForm: { type: (D.types && D.types[0]) || 'Management System', workstream: '', status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'Management System')) || ['Not Started'])[0] || 'Not Started', start: '', due: '', actualCompletion: '', desc: '' }
+      projForm: { type: (D.types && D.types[0]) || 'ISO Management System', workstream: '', status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'ISO Management System')) || ['Not Started'])[0] || 'Not Started', start: '', due: '', actualCompletion: '', desc: '' }
     };
 
     function renderModal() {
@@ -3073,6 +3177,7 @@
   PDMS.can = function (action, user) {
     user = user || PDMS.getUser();
     if (!user) return false;
+    if (action === 'Create Project' && user.role === 'PMO') return false;
     const allowed = MATRIX[action];
     return !!allowed && allowed.includes(user.role);
   };
@@ -3096,10 +3201,15 @@
 
   const DELIVERY_ROLES = ['HTD', 'COO', 'PM Head', 'PMO', 'General Admin'];
   const SALES_ROLES = ['Sales', 'Sales Head'];
+  const DELIVERY_CREATION_ROLES = ['HTD', 'COO', 'PM Head', 'General Admin'];
 
   PDMS.isDeliveryRole = function (user) {
     user = user || PDMS.getUser();
     return !!user && DELIVERY_ROLES.includes(user.role);
+  };
+  PDMS.isDeliveryCreationRole = function (user) {
+    user = user || PDMS.getUser();
+    return !!user && DELIVERY_CREATION_ROLES.includes(user.role);
   };
   PDMS.isSalesRole = function (user) {
     user = user || PDMS.getUser();
@@ -3125,7 +3235,7 @@
     }
 
     const D = window.PDMS_DATA;
-    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure'];
+    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure'];
     if (allDelivery.includes(normalized) || allDelivery.includes(project.status)) return 'Delivery';
 
     if (project.status === 'Closed') return 'Delivery';
@@ -3235,7 +3345,7 @@
     if (preAwardSales.includes(project.status) || (project.status === 'Cancelled' && project.stage === 'Sales' && !project.deliveryStatus)) {
       return null;
     }
-    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure']);
+    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure']);
     
     // 1. Check explicit deliveryStatus field
     const delivRaw = String(project.deliveryStatus || '').trim();
@@ -3269,13 +3379,19 @@
     // 3. For projects with legacy generic statuses (e.g. 'In Progress', 'Awaiting Review', 'Not Started', 'Closed'),
     // map them cleanly into this project type's pipeline sequence:
     const type = String(project.type || project.projectType || '').trim();
-    if (type === 'VAPT' || type === 'SAPT') {
+    if (type === 'Technical/Security' || type === 'Technical / Security' || type === 'VAPT' || type === 'SAPT' || type.toLowerCase().includes('technical') || type.toLowerCase().includes('security') || type.toLowerCase().includes('vapt')) {
       if (st.toLowerCase() === 'awaiting review' || st.toLowerCase() === 'testing / quality assurance') return 'Review';
       if (st.toLowerCase() === 'in progress') return 'Internal Testing';
-    } else if (type === 'ERP') {
+    } else if (type === 'Technology Transformation' || type === 'ERP' || type.toLowerCase().includes('technology transformation')) {
       if (st.toLowerCase() === 'awaiting review') return 'Testing';
       if (st.toLowerCase() === 'in progress') return 'Configuration & Design';
-    } else if (type === 'Management System') {
+    } else if (type.toLowerCase().includes('framework')) {
+      if (st.toLowerCase() === 'awaiting review') return 'Post-Implementation Assess';
+      if (st.toLowerCase() === 'in progress') return 'Implement';
+    } else if (type.toLowerCase().includes('outsourcing') || type.toLowerCase().includes('governance')) {
+      if (st.toLowerCase() === 'awaiting review') return 'Monitor';
+      if (st.toLowerCase() === 'in progress') return 'Transition';
+    } else if (type === 'ISO Management System' || type === 'Management System' || type === 'Regulatory/Compliance' || type === 'Regulatory / Compliance' || type.toLowerCase().includes('management system') || type.toLowerCase().includes('regulatory') || type.toLowerCase().includes('compliance')) {
       if (st.toLowerCase() === 'awaiting review') return 'Certification Audit';
       if (st.toLowerCase() === 'in progress') return 'Design & Documentation/Implementation';
     } else if (type.toLowerCase().includes('surveillance') || type.toLowerCase().includes('recertification')) {

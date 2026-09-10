@@ -7,11 +7,11 @@
   <title>Profile — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788961869" />
+  <link rel="stylesheet" href="css/style.css?v=1789023734" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788961869"></script>
+  <script src="js/bundle.js?v=1789023734"></script>
   <script>
     PDMS.mountShell('profile');
     let u = PDMS.getUser(); const I = PDMS.icon;
@@ -40,12 +40,30 @@
       });
       const isHistoryProject = p => {
         if (!p) return false;
-        const s = String(p.status || '').trim();
+        const isDelivery = (PDMS.stageOf ? PDMS.stageOf(p) === 'Delivery' : p.stage === 'Delivery');
+        const isSales = (PDMS.stageOf ? PDMS.stageOf(p) === 'Sales' : p.stage === 'Sales');
         const dStat = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus) || '').trim();
+        const s = String(p.status || '').trim();
+
+        if (isDelivery) {
+          const activeDeliveryStatuses = ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Internal Testing', 'Penetration Testing', 'Report Submission', 'Review', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Ongoing', 'In Progress', 'Assess', 'Target State', 'GAP', 'Roadmap', 'Tailor/Design', 'Implement', 'Capability Building', 'Post-Implementation Assess', 'Strategy', 'Governance', 'Design', 'Select/Contract', 'Transition', 'Operate', 'Monitor', 'Improve', 'Previous Findings Closure', 'Awareness', 'Management Review', 'Readiness Assessment', 'Remediation', 'Surveillance Audit', 'Requirements Gathering', 'Configuration & Design', 'Data Preparation & Migration', 'Integration', 'Testing', 'User Acceptance Testing (UAT)', 'Go-Live', 'Project Initiation & Business Case', 'Requirements & Use-Case Definition', 'Architecture & Solution Design', 'Data Readiness & Preparation', 'PoC / Prototype', 'Software Development & AI Model Build', 'System Integration', 'Testing & AI Validation', 'UAT & Business Acceptance', 'Production Deployment & Go-Live', 'Hypercare & Operational Handover', 'On Hold'];
+          if (activeDeliveryStatuses.some(a => a.toLowerCase() === dStat.toLowerCase())) {
+            return false;
+          }
+          const deliveryDoneStatuses = ['Completed', 'Closure', 'Project Closure', 'Certification & Post Engagement', 'Closed', 'Cancelled', 'Rejected'];
+          if (deliveryDoneStatuses.some(h => h.toLowerCase() === dStat.toLowerCase())) {
+            return true;
+          }
+          return false;
+        }
+
+        if (isSales) {
+          const salesHistoryStatuses = ['Cancelled', 'Rejected'];
+          return salesHistoryStatuses.some(h => h.toLowerCase() === s.toLowerCase());
+        }
+
         const historyStatuses = ['Completed', 'Closure', 'Project Closure', 'Certification & Post Engagement', 'Closed', 'Rejected', 'Cancelled'];
-        if (historyStatuses.some(h => h.toLowerCase() === s.toLowerCase())) return true;
-        if (dStat && historyStatuses.some(h => h.toLowerCase() === dStat.toLowerCase())) return true;
-        return false;
+        return historyStatuses.some(h => h.toLowerCase() === s.toLowerCase() || (dStat && h.toLowerCase() === dStat.toLowerCase()));
       };
       const currentProjects = userProjects.filter(p => !isHistoryProject(p));
       const currentCount = currentProjects.length;

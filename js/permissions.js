@@ -32,6 +32,7 @@
   PDMS.can = function (action, user) {
     user = user || PDMS.getUser();
     if (!user) return false;
+    if (action === 'Create Project' && user.role === 'PMO') return false;
     const allowed = MATRIX[action];
     return !!allowed && allowed.includes(user.role);
   };
@@ -55,10 +56,15 @@
 
   const DELIVERY_ROLES = ['HTD', 'COO', 'PM Head', 'PMO', 'General Admin'];
   const SALES_ROLES = ['Sales', 'Sales Head'];
+  const DELIVERY_CREATION_ROLES = ['HTD', 'COO', 'PM Head', 'General Admin'];
 
   PDMS.isDeliveryRole = function (user) {
     user = user || PDMS.getUser();
     return !!user && DELIVERY_ROLES.includes(user.role);
+  };
+  PDMS.isDeliveryCreationRole = function (user) {
+    user = user || PDMS.getUser();
+    return !!user && DELIVERY_CREATION_ROLES.includes(user.role);
   };
   PDMS.isSalesRole = function (user) {
     user = user || PDMS.getUser();
@@ -84,7 +90,7 @@
     }
 
     const D = window.PDMS_DATA;
-    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure'];
+    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure'];
     if (allDelivery.includes(normalized) || allDelivery.includes(project.status)) return 'Delivery';
 
     if (project.status === 'Closed') return 'Delivery';
@@ -194,7 +200,7 @@
     if (preAwardSales.includes(project.status) || (project.status === 'Cancelled' && project.stage === 'Sales' && !project.deliveryStatus)) {
       return null;
     }
-    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Project Closure']);
+    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure']);
     
     // 1. Check explicit deliveryStatus field
     const delivRaw = String(project.deliveryStatus || '').trim();
@@ -228,13 +234,19 @@
     // 3. For projects with legacy generic statuses (e.g. 'In Progress', 'Awaiting Review', 'Not Started', 'Closed'),
     // map them cleanly into this project type's pipeline sequence:
     const type = String(project.type || project.projectType || '').trim();
-    if (type === 'VAPT' || type === 'SAPT') {
+    if (type === 'Technical/Security' || type === 'Technical / Security' || type === 'VAPT' || type === 'SAPT' || type.toLowerCase().includes('technical') || type.toLowerCase().includes('security') || type.toLowerCase().includes('vapt')) {
       if (st.toLowerCase() === 'awaiting review' || st.toLowerCase() === 'testing / quality assurance') return 'Review';
       if (st.toLowerCase() === 'in progress') return 'Internal Testing';
-    } else if (type === 'ERP') {
+    } else if (type === 'Technology Transformation' || type === 'ERP' || type.toLowerCase().includes('technology transformation')) {
       if (st.toLowerCase() === 'awaiting review') return 'Testing';
       if (st.toLowerCase() === 'in progress') return 'Configuration & Design';
-    } else if (type === 'Management System') {
+    } else if (type.toLowerCase().includes('framework')) {
+      if (st.toLowerCase() === 'awaiting review') return 'Post-Implementation Assess';
+      if (st.toLowerCase() === 'in progress') return 'Implement';
+    } else if (type.toLowerCase().includes('outsourcing') || type.toLowerCase().includes('governance')) {
+      if (st.toLowerCase() === 'awaiting review') return 'Monitor';
+      if (st.toLowerCase() === 'in progress') return 'Transition';
+    } else if (type === 'ISO Management System' || type === 'Management System' || type === 'Regulatory/Compliance' || type === 'Regulatory / Compliance' || type.toLowerCase().includes('management system') || type.toLowerCase().includes('regulatory') || type.toLowerCase().includes('compliance')) {
       if (st.toLowerCase() === 'awaiting review') return 'Certification Audit';
       if (st.toLowerCase() === 'in progress') return 'Design & Documentation/Implementation';
     } else if (type.toLowerCase().includes('surveillance') || type.toLowerCase().includes('recertification')) {

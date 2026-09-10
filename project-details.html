@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788961869" />
+  <link rel="stylesheet" href="css/style.css?v=1789023734" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788961869"></script>
+  <script src="js/bundle.js?v=1789023734"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -67,9 +67,10 @@
       const isPendingSalesHead = proj.status === 'Awaiting Sales Head Approval';
       const pStage = PDMS.stageOf ? PDMS.stageOf(proj) : (proj.stage || 'Delivery');
       const isSales = pStage === 'Sales';
-      const mainSequence = isSales
+      const rawMainSequence = isSales
         ? (PDMS.salesSequenceFor ? PDMS.salesSequenceFor(proj) : (Array.isArray(proj.timelineStages) && proj.timelineStages.length > 0 ? proj.timelineStages.slice() : ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed']))
-        : (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(proj) : ((D && D.deliveryStagesByType && D.deliveryStagesByType['Management System']) || []));
+        : (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(proj) : ((D && D.deliveryStagesByType && (D.deliveryStagesByType['ISO Management System'] || D.deliveryStagesByType['Management System'])) || []));
+      const mainSequence = (rawMainSequence || []).map(s => s === 'Project Closure' ? 'Closure' : s);
 
       let statusToMatch = isSales
         ? (isPendingSalesHead ? (proj.requestedStatus || proj.targetStatus || 'Lead') : proj.status)
@@ -145,12 +146,19 @@
         });
       }
 
+      const isClosureStage = st => {
+        if (!st) return false;
+        const s = String(st).trim().toLowerCase();
+        return s === 'closure' || s === 'project closure' || s === 'closed' || s === 'completed';
+      };
+      const isProjectClosed = isClosureStage(status) || isClosureStage(proj.deliveryStatus) || isClosureStage(proj.status);
       const currentIndex = mainSequence.indexOf(status);
       const effectiveIndex = currentIndex === -1 ? 0 : currentIndex;
       return mainSequence.map((label, i) => {
+        const isThisClosure = isClosureStage(label);
         const isCurrent = i === effectiveIndex;
-        const isDone = i < effectiveIndex;
-        let state = isDone ? 'done' : isCurrent ? 'active' : '';
+        const isDone = i < effectiveIndex || (isProjectClosed && (isThisClosure || i <= effectiveIndex));
+        let state = isDone ? 'done' : (isCurrent && isThisClosure ? 'done' : (isCurrent ? 'active' : ''));
         const mInfo = mDataMap[label] || {};
         const dueDate = mInfo.dueDate || '';
         const hasPassedDue = dueDate && dueDate < todayStr && !isDone;
@@ -160,11 +168,11 @@
         const isOverdue = hasPassedDue;
         const isDue = isMarkedDue || isDueToday || isOverdue;
 
-        if (isOverdue) state = 'overdue';
+        if (isOverdue && !isDone) state = 'overdue';
         else if (isDue && state !== 'done') state = 'due';
 
-        let metaText = isDone ? 'Completed' : (isOverdue ? 'Overdue' : (isDue ? 'Due' : (isCurrent ? 'Ongoing' : 'Upcoming')));
-        if (dueDate) {
+        let metaText = (isDone || isThisClosure || (isProjectClosed && isCurrent)) ? 'Completed' : (isOverdue ? 'Overdue' : (isDue ? 'Due' : (isCurrent ? 'Ongoing' : 'Upcoming')));
+        if (dueDate && !isThisClosure) {
           metaText += ` (${PDMS.esc(dueDate)})`;
         }
 
@@ -1850,7 +1858,10 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           return `<option value="${PDMS.esc(cName)}" ${cName === currentClient ? 'selected' : ''}>${PDMS.esc(cName)}</option>`;
         }).join('')}
       `;
-      const typeOpts = D.types.map(t => `<option ${t === p.type ? 'selected' : ''}>${t}</option>`).join('');
+      const typeOpts = `
+        ${(!D.types.includes(p.type) && p.type) ? `<option value="${PDMS.esc(p.type)}" selected>${PDMS.esc(p.type)}</option>` : ''}
+        ${(D.types || []).map(t => `<option value="${PDMS.esc(t)}" ${t === p.type ? 'selected' : ''}>${PDMS.esc(t)}</option>`).join('')}
+      `;
       const prioOpts = D.priorities.map(pr => `<option ${pr === p.priority ? 'selected' : ''}>${pr}</option>`).join('');
       const currentUser = user || PDMS.getUser();
       const isPMO = currentUser && currentUser.role === 'PMO';
@@ -1903,7 +1914,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           </div>
           <div class="np-field">
             <label>Project Type</label>
-            <select id="ed-type">${(D.types || []).map(t => `<option${t === p.type ? ' selected' : ''}>${t}</option>`).join('')}</select>
+            <select id="ed-type">${typeOpts}</select>
           </div>
           <div class="np-field">
             <label>Workstream</label>
@@ -2199,7 +2210,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           <div class="rs-field">
             <label>Project Type</label>
             <select id="rs-type">
-              ${(D.types || []).map(t => `<option ${t === p.type ? 'selected' : ''}>${t}</option>`).join('')}
+              ${(!D.types.includes(p.type) && p.type) ? `<option value="${PDMS.esc(p.type)}" selected>${PDMS.esc(p.type)}</option>` : ''}
+              ${(D.types || []).map(t => `<option value="${PDMS.esc(t)}" ${t === p.type ? 'selected' : ''}>${PDMS.esc(t)}</option>`).join('')}
             </select>
           </div>
           <div class="rs-field">
@@ -2320,7 +2332,13 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         <select id="ra-client">${clientOpts}</select>
       </div>
       <div class="ra-field grid-2">
-        <div><label>Project Type</label><select id="ra-type">${(D.types || []).map(t => `<option ${t === p.type ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+        <div>
+          <label>Project Type</label>
+          <select id="ra-type">
+            ${(!D.types.includes(p.type) && p.type) ? `<option value="${PDMS.esc(p.type)}" selected>${PDMS.esc(p.type)}</option>` : ''}
+            ${(D.types || []).map(t => `<option value="${PDMS.esc(t)}" ${t === p.type ? 'selected' : ''}>${PDMS.esc(t)}</option>`).join('')}
+          </select>
+        </div>
         <div><label>Workstream / Dept</label><input id="ra-ws" type="text" value="${PDMS.esc(p.workstream || p.dept || '')}" placeholder="e.g. QMS, FSMS…" /></div>
       </div>
       <div class="ra-field">
@@ -2689,10 +2707,10 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
     function customizeTimelineStages() {
       const pStage = PDMS.stageOf ? PDMS.stageOf(p) : (p.stage || 'Delivery');
       const isSales = pStage === 'Sales';
-      const type = p.type || p.projectType || (isSales ? 'Sales Pipeline' : 'Management System');
+      const type = p.type || p.projectType || (isSales ? 'Sales Pipeline' : 'ISO Management System');
       const allDefaultStages = isSales
         ? ['Lead', 'Opportunity', 'Initial Proposal', 'Presentation', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed']
-        : ((window.PDMS_DATA && window.PDMS_DATA.deliveryStagesByType && (window.PDMS_DATA.deliveryStagesByType[type] || window.PDMS_DATA.deliveryStagesByType['Management System'])) || ['Handover / Kickoff', 'Project Initiation Document (PID)', 'Discovery / Assessment', 'Gap Analysis Report', 'Documentation & Policy Development', 'Implementation / Remediation', 'Training', 'Pre-Audit / Internal Audit', 'Certification Audit / Final Sign-off']);
+        : ((window.PDMS_DATA && window.PDMS_DATA.deliveryStagesByType && (window.PDMS_DATA.deliveryStagesByType[type] || window.PDMS_DATA.deliveryStagesByType['ISO Management System'] || window.PDMS_DATA.deliveryStagesByType['Management System'])) || ['Handover / Kickoff', 'Project Initiation Document (PID)', 'Discovery / Assessment', 'Gap Analysis Report', 'Documentation & Policy Development', 'Implementation / Remediation', 'Training', 'Pre-Audit / Internal Audit', 'Certification Audit / Final Sign-off']);
       
       const currentSequence = isSales
         ? (PDMS.salesSequenceFor ? PDMS.salesSequenceFor(p) : (Array.isArray(p.timelineStages) && p.timelineStages.length > 0 ? p.timelineStages.slice() : allDefaultStages))
@@ -2905,6 +2923,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         return;
       }
 
+      const isClosureStage = ['closure', 'project closure', 'closed', 'completed'].includes(String(stageLabel).trim().toLowerCase());
       const mDataMap = getMilestonesMap(p);
       const mInfo = mDataMap[stageLabel] || {};
       const currentDueDate = mInfo.dueDate || '';
@@ -2912,13 +2931,22 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
 
       const modal = PDMS.modal(`Update Stage: ${PDMS.esc(stageLabel)}`, `
         <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">
-          Update <strong>${PDMS.esc(p.name)}</strong> timeline stage to <strong style="color:var(--primary);font-size:15px">${PDMS.esc(stageLabel)}</strong>.
+          ${isClosureStage
+            ? `Move <strong>${PDMS.esc(p.name)}</strong> to <strong style="color:var(--primary);font-size:15px">${PDMS.esc(stageLabel)}</strong> (Completed).`
+            : `Update <strong>${PDMS.esc(p.name)}</strong> timeline stage to <strong style="color:var(--primary);font-size:15px">${PDMS.esc(stageLabel)}</strong>.`
+          }
         </p>
 
-        <div class="form-row">
-          <label>Stage Target Due Date</label>
-          <input type="date" id="mStageDueDate" value="${PDMS.esc(currentDueDate)}" style="width:100%" />
-        </div>
+        ${isClosureStage ? `
+          <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--text)">
+            ✓ This will mark the project stage as <strong>Completed</strong> (${PDMS.esc(stageLabel)}). No stage target due date is required.
+          </div>
+        ` : `
+          <div class="form-row">
+            <label>Stage Target Due Date</label>
+            <input type="date" id="mStageDueDate" value="${PDMS.esc(currentDueDate)}" style="width:100%" />
+          </div>
+        `}
 
         <div class="form-row" style="margin-top:12px">
           <label>Milestone Notes / Deliverables (Optional)</label>
@@ -2927,7 +2955,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveMilestoneBtn">Update Stage</button>`);
 
       modal.querySelector('#saveMilestoneBtn').onclick = function () {
-        const dueDate = modal.querySelector('#mStageDueDate').value;
+        const dueDateInput = modal.querySelector('#mStageDueDate');
+        const dueDate = dueDateInput ? dueDateInput.value : '';
         const notes = modal.querySelector('#mStageNotes').value.trim();
 
         const btn = this;
@@ -2936,7 +2965,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         const updatedMap = Object.assign({}, mDataMap);
         updatedMap[stageLabel] = {
           stage: stageLabel,
-          dueDate: dueDate || '',
+          dueDate: isClosureStage ? '' : (dueDate || ''),
           notes: notes,
           updatedAt: new Date().toISOString()
         };
@@ -2945,6 +2974,10 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           status: stageLabel,
           milestones: updatedMap
         };
+
+        if (isClosureStage) {
+          patch.actualCompletion = p.actualCompletion || new Date().toISOString().slice(0, 10);
+        }
 
         if (stageLabel === 'On Hold') {
           patch.previousStatus = p.status !== 'On Hold' ? p.status : (p.previousStatus || 'Lead');

@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1788961869"/>
+<link rel="stylesheet" href="css/style.css?v=1789023734"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1788961869"></script>
+<script src="js/bundle.js?v=1789023734"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -191,11 +191,13 @@ if (currentStatusFilter) {
   if (sIdx !== -1) selectedTileIndex = sIdx;
 }
 
-// Sales can view the delivery bucket but never create there — only a delivery
-// role creates projects that belong in Projects in Delivery.
-const canCreateHere = viewParam==='sales' ? PDMS.isSalesRole(currentUser)
-  : viewParam==='delivery' ? PDMS.isDeliveryRole(currentUser)
-  : PDMS.can('Create Project');
+// Sales can create in sales view; only delivery creation roles (HTD, COO, PM Head, Admin) can create in delivery.
+// PMO accounts do not have permission to create or onboard projects.
+const isPMO = currentUser && currentUser.role === 'PMO';
+const canCreateHere = isPMO ? false
+  : viewParam === 'sales' ? PDMS.isSalesRole(currentUser)
+  : viewParam === 'delivery' ? (PDMS.isDeliveryCreationRole ? PDMS.isDeliveryCreationRole(currentUser) : (PDMS.isDeliveryRole(currentUser) && currentUser.role !== 'PMO'))
+  : (PDMS.can('Create Project', currentUser) && currentUser.role !== 'PMO');
 
 // Sales Pipeline and Projects in Delivery default to Table view; the plain
 // Projects page (used by delivery roles day-to-day) defaults to Kanban.
@@ -510,19 +512,29 @@ function handleKbDrop(e, targetStatus) {
   }
 
   const mDataMap = getMilestonesMap(p);
+  const isClosureStage = ['closure', 'project closure', 'closed', 'completed'].includes(String(targetStatus).trim().toLowerCase());
   const mInfo = mDataMap[targetStatus] || {};
   const currentDueDate = mInfo.dueDate || '';
   const currentNotes = mInfo.notes || '';
 
   const modal = PDMS.modal(`Update Status: ${PDMS.esc(targetStatus)}`, `
     <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">
-      Move <strong>${PDMS.esc(p.name || p.client)}</strong> to <strong style="color:var(--primary);font-size:15px">${PDMS.esc(targetStatus)}</strong>.
+      ${isClosureStage
+        ? `Move <strong>${PDMS.esc(p.name || p.client)}</strong> to <strong style="color:var(--primary);font-size:15px">${PDMS.esc(targetStatus)}</strong> (Completed).`
+        : `Move <strong>${PDMS.esc(p.name || p.client)}</strong> to <strong style="color:var(--primary);font-size:15px">${PDMS.esc(targetStatus)}</strong>.`
+      }
     </p>
 
-    <div class="form-row">
-      <label>Stage Target Due Date</label>
-      <input type="date" id="kbStageDueDate" value="${PDMS.esc(currentDueDate)}" style="width:100%" />
-    </div>
+    ${isClosureStage ? `
+      <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--text)">
+        ✓ This will mark the project as <strong>Completed</strong> (${PDMS.esc(targetStatus)}). No stage target due date is required.
+      </div>
+    ` : `
+      <div class="form-row">
+        <label>Stage Target Due Date</label>
+        <input type="date" id="kbStageDueDate" value="${PDMS.esc(currentDueDate)}" style="width:100%" />
+      </div>
+    `}
 
     <div class="form-row" style="margin-top:12px">
       <label>Milestone Notes / Deliverables (Optional)</label>
@@ -531,7 +543,8 @@ function handleKbDrop(e, targetStatus) {
   `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmKbDropBtn">Update Status</button>`);
 
   modal.querySelector('#confirmKbDropBtn').onclick = function () {
-    const dueDate = modal.querySelector('#kbStageDueDate').value;
+    const dueDateInput = modal.querySelector('#kbStageDueDate');
+    const dueDate = dueDateInput ? dueDateInput.value : '';
     const notes = modal.querySelector('#kbStageNotes').value.trim();
 
     const btn = this;
@@ -540,7 +553,7 @@ function handleKbDrop(e, targetStatus) {
     const updatedMap = Object.assign({}, mDataMap);
     updatedMap[targetStatus] = {
       stage: targetStatus,
-      dueDate: dueDate || '',
+      dueDate: isClosureStage ? '' : (dueDate || ''),
       notes: notes,
       updatedAt: new Date().toISOString()
     };
@@ -549,6 +562,10 @@ function handleKbDrop(e, targetStatus) {
       status: targetStatus,
       milestones: updatedMap
     };
+
+    if (isClosureStage) {
+      patch.actualCompletion = p.actualCompletion || new Date().toISOString().slice(0, 10);
+    }
 
     if (targetStatus === 'On Hold') {
       patch.previousStatus = currentStatus !== 'On Hold' ? currentStatus : (p.previousStatus || 'Lead');
@@ -686,7 +703,10 @@ function editProject(id){
           </div>
           <div class="np-field">
             <label>Project Type</label>
-            <select id="editProjType">${(D.types||[]).map(t=>`<option${project.type===t?' selected':''}>${t}</option>`).join('')}</select>
+            <select id="editProjType">
+              ${(!D.types.includes(project.type) && project.type) ? `<option value="${PDMS.esc(project.type)}" selected>${PDMS.esc(project.type)}</option>` : ''}
+              ${(D.types||[]).map(t=>`<option value="${PDMS.esc(t)}"${project.type===t?' selected':''}>${PDMS.esc(t)}</option>`).join('')}
+            </select>
           </div>
           <div class="np-field">
             <label>Workstream</label>

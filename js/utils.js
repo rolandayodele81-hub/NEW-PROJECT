@@ -815,6 +815,10 @@
               }
               return isDelivery ? dStat === filterVal : (dStat === filterVal || v === filterVal);
             }
+            if (k === 'type') {
+              const rType = (PDMS.typeOf ? PDMS.typeOf(r) : (r.type || ''));
+              return rType === filterVal || v === filterVal;
+            }
             return v === filterVal;
           });
         }
@@ -980,6 +984,10 @@
       PDMS.toast('Session expired', 'Please sign in again before creating a project.', 'error');
       return;
     }
+    if (currentUser.role === 'PMO' || (PDMS.can && !PDMS.can('Create Project', currentUser))) {
+      PDMS.toast('Permission Denied', 'PMO accounts do not have permission to create projects.', 'error');
+      return;
+    }
     const D = window.PDMS_DATA || {};
     const I = PDMS.icon;
     let modalRef = null;
@@ -989,7 +997,7 @@
       clientMode: null, // 'new' or 'existing'
       selectedClient: null, // { name, industry, email, phone, address, workedBefore }
       newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
-      projForm: { type: (D.types && D.types[0]) || 'ERP', workstream: '', status: (D.salesStatuses && D.salesStatuses[0]) || 'Lead', currency: '₦', awardCurrency: '₦', price: '', awardVal: '', desc: '' }
+      projForm: { type: (D.types && D.types[0]) || 'ISO Management System', workstream: '', status: (D.salesStatuses && D.salesStatuses[0]) || 'Lead', currency: '₦', awardCurrency: '₦', price: '', awardVal: '', desc: '' }
     };
 
     function renderModal() {
@@ -1506,6 +1514,11 @@
       PDMS.toast('Session expired', 'Please sign in again before creating a project.', 'error');
       return;
     }
+    const canCreateDelivery = PDMS.isDeliveryCreationRole ? PDMS.isDeliveryCreationRole(currentUser) : (currentUser.role !== 'PMO' && PDMS.isDeliveryRole && PDMS.isDeliveryRole(currentUser));
+    if (currentUser.role === 'PMO' || !canCreateDelivery) {
+      PDMS.toast('Permission Denied', 'PMO accounts do not have permission to create or onboard delivery projects.', 'error');
+      return;
+    }
     const D = window.PDMS_DATA || {};
     const I = PDMS.icon;
     let modalRef = null;
@@ -1515,7 +1528,7 @@
       clientMode: null, // 'new' or 'existing'
       selectedClient: null, // { name, industry, email, phone, address, workedBefore }
       newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
-      projForm: { type: (D.types && D.types[0]) || 'Management System', workstream: '', status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'Management System')) || ['Not Started'])[0] || 'Not Started', start: '', due: '', actualCompletion: '', desc: '' }
+      projForm: { type: (D.types && D.types[0]) || 'ISO Management System', workstream: '', status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'ISO Management System')) || ['Not Started'])[0] || 'Not Started', start: '', due: '', actualCompletion: '', desc: '' }
     };
 
     function renderModal() {

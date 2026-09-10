@@ -3,7 +3,7 @@
    ============================================ */
 (function (global) {
   const roles = ['System Administrator', 'HR', 'COO', 'HTD', 'PM Head', 'PMO', 'Accounts', 'Sales', 'Sales Head', 'Consultant'];
-  const types = ['Management System', 'VAPT', 'Software Development', 'Artificial Intelligence', 'ERP', 'Surveillance / Recertification'];
+  const types = ['ISO Management System', 'Regulatory/Compliance', 'Framework Adoption', 'Outsourcing/Governance', 'Technical/Security', 'Software Development', 'Artificial Intelligence', 'Technology Transformation', 'Surveillance / Recertification'];
   const priorities = ['Critical', 'High', 'Medium', 'Low'];
   const workstreams = ['Cloud Engineering', 'Cybersecurity', 'Data Analytics', 'Digital Transformation', 'ERP Implementation', 'Infrastructure', 'Mobile Development', 'Software Development', 'Web Platform', 'Business Consulting', 'General'];
   const salesJourney = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'];
@@ -31,7 +31,37 @@
     'Certification Audit',
     'Completed',
     'Certification & Post Engagement',
-    'Project Closure'
+    'Closure'
+  ];
+
+  const frameworkAdoptionStages = [
+    'Not Started',
+    'Assess',
+    'Target State',
+    'GAP',
+    'Roadmap',
+    'Tailor/Design',
+    'Implement',
+    'Capability Building',
+    'Post-Implementation Assess',
+    'Institutionalise',
+    'Completed',
+    'Closure'
+  ];
+
+  const outsourcingGovernanceStages = [
+    'Not Started',
+    'Assess',
+    'Strategy',
+    'Governance',
+    'Design',
+    'Select/Contract',
+    'Transition',
+    'Operate',
+    'Monitor',
+    'Improve',
+    'Completed',
+    'Closure'
   ];
 
   const vaptStages = [
@@ -93,7 +123,22 @@
   ];
 
   const deliveryStagesByType = {
+    'ISO Management System': managementSystemStages,
     'Management System': managementSystemStages,
+    'ISO': managementSystemStages,
+    'Regulatory/Compliance': managementSystemStages,
+    'Regulatory / Compliance': managementSystemStages,
+    'Regulatory': managementSystemStages,
+    'Compliance': managementSystemStages,
+    'Framework Adoption': frameworkAdoptionStages,
+    'Framework adoption': frameworkAdoptionStages,
+    'Framework': frameworkAdoptionStages,
+    'Outsourcing/Governance': outsourcingGovernanceStages,
+    'Outsourcing / Governance': outsourcingGovernanceStages,
+    'Outsourcing': outsourcingGovernanceStages,
+    'Governance': outsourcingGovernanceStages,
+    'Technical/Security': vaptStages,
+    'Technical / Security': vaptStages,
     'VAPT': vaptStages,
     'SAPT': vaptStages,
     'Software Development & Artificial Intelligence (AI)': softwareAndAiStages,
@@ -103,6 +148,7 @@
     'Artificial Intelligence': softwareAndAiStages,
     'Artificial intelligence': softwareAndAiStages,
     'AI': softwareAndAiStages,
+    'Technology Transformation': erpStages,
     'ERP': erpStages,
     'Surveillance / Recertification': surveillanceStages,
     'Surveillance/ recertification': surveillanceStages,
@@ -114,6 +160,8 @@
 
   const allTypeDeliveryStatuses = [
     ...managementSystemStages,
+    ...frameworkAdoptionStages,
+    ...outsourcingGovernanceStages,
     ...vaptStages,
     ...softwareAndAiStages,
     ...erpStages,
@@ -199,7 +247,32 @@
     'Readiness Assessment': 'info',
     'Remediation': 'warn',
     'Surveillance Audit': 'purple',
-    'Post Engagement': 'primary'
+    'Post Engagement': 'primary',
+
+    // 6. Framework Adoption
+    'Assess': 'info',
+    'Target State': 'primary',
+    'GAP': 'warn',
+    'Roadmap': 'info',
+    'Tailor/Design': 'purple',
+    'Tailor / Design': 'purple',
+    'Implement': 'purple',
+    'Capability Building': 'primary',
+    'Post-Implementation Assess': 'info',
+    'Assess (Post-Implementation)': 'info',
+    'Institutionalise': 'success',
+    'Institutionalize': 'success',
+
+    // 7. Outsourcing / Governance
+    'Strategy': 'primary',
+    'Governance': 'purple',
+    'Design': 'purple',
+    'Select/Contract': 'warn',
+    'Select / Contract': 'warn',
+    'Transition': 'info',
+    'Operate': 'primary',
+    'Monitor': 'info',
+    'Improve': 'success'
   };
   Object.assign(statusColors, {
     'Incoming': 'info', 'Initial Contact': 'info', 'Requirement Gathering': 'purple',
@@ -209,13 +282,14 @@
   const prioColors = { 'Critical': 'prio-critical', 'High': 'prio-high', 'Medium': 'prio-medium', 'Low': 'prio-low' };
 
   function normalizeStatus(status) {
+    if (status === 'Project Closure') return 'Closure';
     return salesStatusAliases[status] || status;
   }
 
   function salesSequenceFor(projectOrType) {
     if (typeof projectOrType === 'object' && projectOrType) {
       if (Array.isArray(projectOrType.timelineStages) && projectOrType.timelineStages.length > 0) {
-        return projectOrType.timelineStages.slice();
+        return projectOrType.timelineStages.map(s => s === 'Project Closure' ? 'Closure' : s);
       }
     }
     return salesJourney.slice();
@@ -224,7 +298,7 @@
   function deliverySequenceFor(projectOrType) {
     if (typeof projectOrType === 'object' && projectOrType) {
       if (Array.isArray(projectOrType.timelineStages) && projectOrType.timelineStages.length > 0) {
-        return projectOrType.timelineStages.slice();
+        return projectOrType.timelineStages.map(s => s === 'Project Closure' ? 'Closure' : s);
       }
       let type = projectOrType.type || projectOrType.projectType;
       if (type && deliveryStagesByType[type]) {
@@ -232,14 +306,20 @@
         if (projectOrType.hasTraining === false || projectOrType.includeTraining === false || projectOrType.noTraining === true) {
           seq = seq.filter(s => s !== 'Training');
         }
-        return seq;
+        return seq.map(s => s === 'Project Closure' ? 'Closure' : s);
       }
     }
     let type = typeof projectOrType === 'string' ? projectOrType : (projectOrType && (projectOrType.type || projectOrType.projectType));
     if (type && deliveryStagesByType[type]) {
-      return deliveryStagesByType[type].slice();
+      return deliveryStagesByType[type].map(s => s === 'Project Closure' ? 'Closure' : s);
     }
-    return defaultDeliverySequence.slice();
+    if (type) {
+      const matchedKey = Object.keys(deliveryStagesByType).find(k => k.toLowerCase() === String(type).trim().toLowerCase());
+      if (matchedKey) {
+        return deliveryStagesByType[matchedKey].map(s => s === 'Project Closure' ? 'Closure' : s);
+      }
+    }
+    return defaultDeliverySequence.map(s => s === 'Project Closure' ? 'Closure' : s);
   }
 
   // -----------------------------
@@ -270,7 +350,8 @@
   }]);
   const consultants = loadCollection('consultants', []);
   const clients = loadCollection('clients', []);
-  const projects = loadCollection('projects', []).reverse();
+  const rawProjects = loadCollection('projects', []).reverse();
+  const projects = rawProjects;
   const notifications = loadCollection('notifications', []);
   const threads = loadCollection('threads', []);
   const activities = loadCollection('activities', []);
@@ -291,6 +372,14 @@
   };
   global.PDMS = global.PDMS || {};
   global.PDMS.normalizeStatus = normalizeStatus;
+  global.PDMS.normalizeProjectType = function (p) {
+    if (!p) return '';
+    return typeof p === 'object' ? (p.type || p.projectType || '') : String(p || '');
+  };
+  global.PDMS.typeOf = function (p) {
+    if (!p) return '';
+    return typeof p === 'object' ? (p.type || p.projectType || '') : String(p || '');
+  };
   global.PDMS.deliverySequenceFor = deliverySequenceFor;
   global.PDMS.deliveryStagesByType = deliveryStagesByType;
 })(window);
