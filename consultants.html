@@ -7,11 +7,11 @@
   <title>Consultants — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1788956664"/>
+<link rel="stylesheet" href="css/style.css?v=1788961869"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788956664"></script>
+  <script src="js/bundle.js?v=1788961869"></script>
   <script>
     PDMS.mountShell('consultants');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -102,7 +102,20 @@
             <div class="card" style="margin-bottom:12px">
               <div class="card-head"><div class="card-title">Delivery Plan Documents</div></div>
               <div class="card-body">
-                ${docs.length ? docs.map(doc => `<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="font-semi text-sm">${PDMS.esc(doc.name || 'Document')}</div><div class="text-sm text-muted">${PDMS.esc(doc.description || 'Uploaded for this project')}</div><div class="text-sm text-muted">${PDMS.esc(doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleString() : '')}</div></div>`).join('') : '<div class="text-muted text-sm">No delivery plan documents uploaded yet.</div>'}
+                ${docs.length ? docs.map((doc, idx) => `
+                  <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+                    <div style="width:36px;height:36px;border-radius:8px;background:rgba(29,60,136,.1);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0">
+                      ${I('file')}
+                    </div>
+                    <div style="flex:1;min-width:0">
+                      <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(doc.name || doc.description || 'Document')}</div>
+                      <div class="text-xs text-muted">${PDMS.esc(doc.description || '')}${doc.uploadedBy ? ' · ' + PDMS.esc(doc.uploadedBy) : ''}${doc.uploadedAt ? ' · ' + PDMS.esc(new Date(doc.uploadedAt).toLocaleDateString()) : ''}${doc.fileSize ? ' · ' + PDMS.formatBytes(doc.fileSize) : ''}</div>
+                    </div>
+                    <div class="flex items-center gap-1" style="flex-shrink:0">
+                      ${doc.url ? `<button type="button" class="btn btn-secondary btn-sm" onclick="PDMS.downloadDoc('${PDMS.esc(doc.url)}', '${PDMS.esc(doc.fileName || doc.name || 'document')}')" title="Download document" style="display:inline-flex;align-items:center;gap:4px">${I('download')} Download</button>` : ''}
+                      ${PDMS.isDocOwner(doc, user) ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 8px" onclick="deleteConsultantDoc('${project.id}', '${doc.id || idx}')" title="Delete document"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
+                    </div>
+                  </div>`).join('') : '<div class="text-muted text-sm" style="text-align:center;padding:16px 0">No delivery plan documents uploaded yet.</div>'}
               </div>
             </div>
 
@@ -336,22 +349,164 @@
       const user = getUser();
       const project = (D.projects || []).find(item => String(item.id) === String(projectId));
       if (!project) return;
-      const modal = PDMS.modal('Upload Document', `<div class="form-row"><label>Link / URL <span style="color:var(--danger)">*</span></label><input id="planUrl" type="url" placeholder="https://..." autocomplete="off"/></div><div class="form-row"><label>Description <span style="color:var(--text-soft);font-weight:400">(optional)</span></label><input id="planDescription" placeholder="e.g. Delivery plan v1" /></div>`, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="savePlanBtn">${I('upload')} Upload</button>`);
-      modal.querySelector('#savePlanBtn').onclick = function () {
-        let url = modal.querySelector('#planUrl').value.trim();
-        if (!url) { PDMS.toast('Required', 'Please enter a link / URL', 'error'); return; }
-        if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-        const description = modal.querySelector('#planDescription').value.trim();
-        let name = description || 'Document';
-        const doc = { id: 'DOC-' + Math.floor(1000 + Math.random() * 9000), name, url, description, uploadedAt: new Date().toISOString(), uploadedBy: user?.name || 'Consultant' };
-        const documents = projectDocs(project);
-        documents.unshift(doc);
-        saveProject(project, { documents }).then(() => {
-          modal.remove();
-          PDMS.toast('Uploaded', 'Document saved for this project', 'success');
-          render();
-        }).catch(err => PDMS.toast('Error', err.message || 'Could not upload document', 'error'));
+      let selectedFile = null;
+
+      const modal = PDMS.modal('Upload Delivery Plan / Document', `
+        <div class="form-row">
+          <label style="display:flex;justify-content:space-between;align-items:center">
+            <span>Select File <span style="color:var(--danger)">*</span></span>
+            <span class="text-xs text-muted">Max 25MB</span>
+          </label>
+          <div id="planDropzone" class="file-dropzone" style="margin-top:4px">
+            <div class="file-dropzone-icon">${I('upload')}</div>
+            <div style="font-weight:600;font-size:13px;color:var(--text);margin-top:4px">Click or drag & drop a file here</div>
+            <div class="text-xs text-muted">Supports PDF, Word, Excel, PowerPoint, Images, CSV, etc.</div>
+            <input type="file" id="planFileInput" style="display:none" />
+          </div>
+          <div id="planSelectedBox" class="file-selected-box" style="display:none">
+            <div style="width:36px;height:36px;border-radius:8px;background:rgba(29,60,136,.1);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0">
+              ${I('file')}
+            </div>
+            <div class="file-info">
+              <div class="file-name" id="planSelectedName"></div>
+              <div class="file-size" id="planSelectedSize"></div>
+            </div>
+            <button type="button" class="file-remove-btn" id="planRemoveFileBtn" title="Remove file">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="form-row" style="margin-top:14px">
+          <label>Description / Title <span style="color:var(--text-soft);font-weight:400">(optional)</span></label>
+          <input id="planDescription" placeholder="e.g. Delivery plan v1" autocomplete="off" />
+        </div>
+      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="savePlanBtn" disabled>${I('upload')} Upload File</button>`);
+
+      const dropzone = modal.querySelector('#planDropzone');
+      const fileInput = modal.querySelector('#planFileInput');
+      const selectedBox = modal.querySelector('#planSelectedBox');
+      const selectedNameEl = modal.querySelector('#planSelectedName');
+      const selectedSizeEl = modal.querySelector('#planSelectedSize');
+      const removeBtn = modal.querySelector('#planRemoveFileBtn');
+      const descInput = modal.querySelector('#planDescription');
+      const saveBtn = modal.querySelector('#savePlanBtn');
+
+      function handleFile(file) {
+        if (!file) return;
+        selectedFile = file;
+        selectedNameEl.textContent = file.name;
+        selectedSizeEl.textContent = PDMS.formatBytes ? PDMS.formatBytes(file.size) : (Math.round(file.size / 1024) + ' KB');
+        dropzone.style.display = 'none';
+        selectedBox.style.display = 'flex';
+        saveBtn.disabled = false;
+        if (!descInput.value.trim()) {
+          const baseName = file.name.replace(/\.[^/.]+$/, '');
+          descInput.value = baseName;
+        }
+      }
+
+      dropzone.onclick = () => fileInput.click();
+      fileInput.onchange = (e) => {
+        if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
       };
+      dropzone.ondragover = (e) => { e.preventDefault(); dropzone.classList.add('dragover'); };
+      dropzone.ondragleave = (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); };
+      dropzone.ondrop = (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+      };
+      removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        selectedFile = null;
+        fileInput.value = '';
+        selectedBox.style.display = 'none';
+        dropzone.style.display = 'flex';
+        saveBtn.disabled = true;
+      };
+
+      saveBtn.onclick = function () {
+        if (!selectedFile) {
+          PDMS.toast('File Required', 'Please choose a file to upload', 'error');
+          return;
+        }
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Uploading…');
+
+        const reader = new FileReader();
+        reader.onerror = () => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', 'Failed to read file', 'error');
+        };
+        reader.onload = () => {
+          const result = reader.result;
+          const base64 = typeof result === 'string' && result.includes(',') ? result.split(',')[1] : result;
+          const mimeType = selectedFile.type || 'application/octet-stream';
+          const fileName = selectedFile.name;
+          const description = descInput.value.trim() || fileName;
+
+          PDMS.api.uploadDoc(fileName, mimeType, base64)
+            .then(res => {
+              const url = (res && res.url) ? res.url : (result || '#');
+              const doc = {
+                id: 'DOC-' + Math.floor(1000 + Math.random() * 9000),
+                name: description || fileName,
+                fileName: fileName,
+                url: url,
+                description: description !== fileName ? description : '',
+                fileSize: selectedFile.size,
+                fileType: mimeType,
+                uploadedAt: new Date().toISOString().slice(0, 10),
+                uploadedBy: user?.name || 'Consultant',
+                uploadedByEmail: user?.email || '',
+                uploaderId: user?.id || ''
+              };
+              const documents = projectDocs(project);
+              documents.unshift(doc);
+              return saveProject(project, { documents }).then(() => {
+                modal.remove();
+                PDMS.toast('Uploaded', `"${doc.name}" uploaded successfully`, 'success');
+                render();
+              });
+            })
+            .catch(err => {
+              PDMS.setButtonLoading(btn, false);
+              PDMS.toast('Error', err.message || 'Could not upload document', 'error');
+            });
+        };
+        reader.readAsDataURL(selectedFile);
+      };
+    }
+
+    function deleteConsultantDoc(projectId, docIdOrIdx) {
+      const user = getUser();
+      const project = (D.projects || []).find(item => String(item.id) === String(projectId));
+      if (!project) return;
+      const documents = projectDocs(project);
+      let docIndex = -1;
+      if (typeof docIdOrIdx === 'number') {
+        docIndex = docIdOrIdx;
+      } else {
+        docIndex = documents.findIndex((d, i) => String(d.id || i) === String(docIdOrIdx) || String(d.url) === String(docIdOrIdx));
+      }
+      if (docIndex < 0 || docIndex >= documents.length) return;
+      const targetDoc = documents[docIndex];
+      if (!PDMS.isDocOwner(targetDoc, user)) {
+        PDMS.toast('Permission Denied', 'You can only delete documents that you uploaded', 'error');
+        return;
+      }
+
+      PDMS.confirm(
+        'Delete Document',
+        `Are you sure you want to delete "${PDMS.esc(targetDoc.name || targetDoc.description || 'Document')}"? This action cannot be undone.`,
+        () => {
+          documents.splice(docIndex, 1);
+          saveProject(project, { documents }).then(() => {
+            PDMS.toast('Deleted', 'Document removed successfully', 'success');
+            render();
+          }).catch(err => PDMS.toast('Error', err.message || 'Could not delete document', 'error'));
+        }
+      );
     }
 
     function addPrivateTask(projectId) {
@@ -441,6 +596,7 @@
     }
 
     window.uploadDeliveryPlan = uploadDeliveryPlan;
+    window.deleteConsultantDoc = deleteConsultantDoc;
     window.addPrivateTask = addPrivateTask;
     window.addProjectRemark = addProjectRemark;
     window.addTaskGlobal = addTaskGlobal;

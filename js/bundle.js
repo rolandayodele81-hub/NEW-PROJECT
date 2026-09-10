@@ -1443,6 +1443,26 @@
     return back;
   };
 
+  PDMS.confirm = function(title, message, onConfirm, onCancel, confirmText = 'Delete', confirmClass = 'btn-danger'){
+    const modal = PDMS.modal(
+      title || 'Confirm Action',
+      `<div style="font-size:14px;color:var(--text);line-height:1.5">${typeof message === 'string' ? message : ''}</div>`,
+      `<button class="btn btn-ghost" data-close id="confirmModalCancelBtn">Cancel</button><button class="btn ${confirmClass}" id="confirmModalOkBtn">${confirmText}</button>`
+    );
+    modal.querySelector('#confirmModalOkBtn').onclick = function() {
+      modal.remove();
+      if (typeof onConfirm === 'function') onConfirm();
+    };
+    const cancelBtn = modal.querySelector('#confirmModalCancelBtn');
+    if (cancelBtn) {
+      cancelBtn.onclick = function() {
+        modal.remove();
+        if (typeof onCancel === 'function') onCancel();
+      };
+    }
+    return modal;
+  };
+
   // Multi-step Sales Project Onboarding Wizard
   // Multi-step Sales Project Onboarding Wizard
   PDMS.openSalesProjectWizard = function(opts = {}){
@@ -2604,6 +2624,130 @@
     ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
     ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
   }
+  PDMS.formatBytes = function (bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  PDMS.isDocOwner = function (doc, user) {
+    if (!doc || !user) return false;
+    const uName = (user.name || '').trim().toLowerCase();
+    const uEmail = (user.email || '').trim().toLowerCase();
+    const uId = String(user.id || '').trim();
+
+    if (doc.uploaderId && uId && String(doc.uploaderId) === uId) return true;
+    if (doc.uploadedByEmail && uEmail && doc.uploadedByEmail.trim().toLowerCase() === uEmail) return true;
+    if (doc.uploadedBy) {
+      const docUploader = doc.uploadedBy.trim().toLowerCase();
+      if (docUploader && (docUploader === uName || docUploader === uEmail)) return true;
+    }
+    return false;
+  };
+
+  PDMS.downloadDoc = function (url, filename) {
+    if (!url) return;
+    filename = filename || 'document';
+
+    // Ensure filename has proper extension if missing and known from data URL mimeType
+    if (filename && !filename.includes('.') && url.startsWith('data:')) {
+      const mimeMatch = url.match(/data:([^;]+);/);
+      if (mimeMatch) {
+        const mime = mimeMatch[1];
+        const extMap = {
+          'application/pdf': '.pdf',
+          'image/png': '.png',
+          'image/jpeg': '.jpg',
+          'image/jpg': '.jpg',
+          'image/gif': '.gif',
+          'image/svg+xml': '.svg',
+          'text/csv': '.csv',
+          'application/vnd.ms-excel': '.xls',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+          'application/msword': '.doc',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+          'application/vnd.ms-powerpoint': '.ppt',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+          'text/plain': '.txt',
+          'application/zip': '.zip'
+        };
+        if (extMap[mime]) filename += extMap[mime];
+      }
+    }
+
+    // Helper: trigger browser download using blob URL or anchor
+    function triggerDownload(blobUrl, name) {
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = name;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        a.remove();
+        if (blobUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(blobUrl);
+        }
+      }, 1500);
+    }
+
+    // Handle base64 / Data URLs
+    if (url.startsWith('data:')) {
+      try {
+        const parts = url.split(',');
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+        const byteString = atob(parts[1]);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: mime });
+        const blobUrl = URL.createObjectURL(blob);
+        triggerDownload(blobUrl, filename);
+        return;
+      } catch (err) {
+        console.warn('Error converting data URL to blob, falling back:', err);
+        triggerDownload(url, filename);
+        return;
+      }
+    }
+
+    // Handle Google Drive Links
+    const gDriveMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (gDriveMatch && (url.includes('drive.google.com') || url.includes('docs.google.com'))) {
+      const fileId = gDriveMatch[1];
+      const gDownloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`;
+      const win = window.open(gDownloadUrl, '_blank');
+      if (!win) {
+        window.location.href = gDownloadUrl;
+      }
+      return;
+    }
+
+    // Handle standard HTTP/HTTPS links: fetch as blob for direct download
+    if (/^https?:\/\//i.test(url)) {
+      fetch(url)
+        .then(res => {
+          if (!res.ok) throw new Error('Network response not ok');
+          return res.blob();
+        })
+        .then(blob => {
+          const blobUrl = URL.createObjectURL(blob);
+          triggerDownload(blobUrl, filename);
+        })
+        .catch(() => {
+          triggerDownload(url, filename);
+        });
+      return;
+    }
+
+    triggerDownload(url, filename);
+  };
+
   PDMS.togglePasswordVisibility = function (inputId, btnEl) {
     const input = typeof inputId === 'string' ? document.getElementById(inputId) : inputId;
     if (!input) return;
@@ -2620,6 +2764,7 @@
     }
   };
 })(window);
+
 
 /* PDMS API adapter — the only file that knows the backend is Apps Script + Sheets.
    Reads arrive already-loaded via the bootstrap <script> tag in js/config.js;
@@ -2776,6 +2921,10 @@
         persistLocalData();
         return resolve({ id: payload.id });
       }
+      if (action === 'uploaddoc') {
+        const dataUrl = payload.base64 ? `data:${payload.mimeType || 'application/octet-stream'};base64,${payload.base64}` : '#';
+        return resolve({ url: dataUrl, fileName: payload.fileName, fileId: 'doc_' + Date.now() });
+      }
       reject(new Error('Unsupported local action ' + action));
     });
   }
@@ -2877,7 +3026,8 @@
     remove: (resource, id) => post('remove', { resource, id }),
     login: (email, password) => post('login', { email, password }),
     register: (account) => post('register', { resource: 'users', account, appUrl: location.href.replace(/\/[^\/]*$/, '/') }),
-    forgotPassword: (email) => post('forgotpassword', { email, appUrl: location.href.replace(/\/[^\/]*$/, '/index.html') })
+    forgotPassword: (email) => post('forgotpassword', { email, appUrl: location.href.replace(/\/[^\/]*$/, '/index.html') }),
+    uploadDoc: (fileName, mimeType, base64) => post('uploaddoc', { fileName, mimeType, base64 })
   };
 
   if (hasRemoteBackend) {

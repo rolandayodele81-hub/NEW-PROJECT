@@ -153,6 +153,10 @@
         persistLocalData();
         return resolve({ id: payload.id });
       }
+      if (action === 'uploaddoc') {
+        const dataUrl = payload.base64 ? `data:${payload.mimeType || 'application/octet-stream'};base64,${payload.base64}` : '#';
+        return resolve({ url: dataUrl, fileName: payload.fileName, fileId: 'doc_' + Date.now() });
+      }
       reject(new Error('Unsupported local action ' + action));
     });
   }
@@ -254,7 +258,8 @@
     remove: (resource, id) => post('remove', { resource, id }),
     login: (email, password) => post('login', { email, password }),
     register: (account) => post('register', { resource: 'users', account, appUrl: location.href.replace(/\/[^\/]*$/, '/') }),
-    forgotPassword: (email) => post('forgotpassword', { email, appUrl: location.href.replace(/\/[^\/]*$/, '/index.html') })
+    forgotPassword: (email) => post('forgotpassword', { email, appUrl: location.href.replace(/\/[^\/]*$/, '/index.html') }),
+    uploadDoc: (fileName, mimeType, base64) => post('uploaddoc', { fileName, mimeType, base64 })
   };
 
   if (hasRemoteBackend) {

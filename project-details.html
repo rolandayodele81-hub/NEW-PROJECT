@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1788956664" />
+  <link rel="stylesheet" href="css/style.css?v=1788961869" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1788956664"></script>
+  <script src="js/bundle.js?v=1788961869"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -299,14 +299,17 @@
     <div class="card" style="margin-bottom:20px">
       <div class="card-head"><div><div class="card-title">Documents</div><div class="card-sub">${docs.length} file${docs.length !== 1 ? 's' : ''} attached</div></div><button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button></div>
       <div style="padding:16px 20px">
-        ${docs.length ? docs.map(d => `
+        ${docs.length ? docs.map((d, idx) => `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
           <div style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${I('file')}</div>
           <div style="flex:1;min-width:0">
             <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
-            <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}</div>
+            <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}${d.fileSize ? ' · ' + PDMS.formatBytes(d.fileSize) : ''}</div>
           </div>
-          ${d.url ? `<a href="${PDMS.esc(d.url)}" target="_blank" style="font-size:12px;font-weight:600;color:var(--primary);text-decoration:none">View</a>` : ''}
+          <div class="flex items-center gap-1" style="flex-shrink:0">
+            ${d.url ? `<button type="button" class="btn btn-secondary btn-sm" onclick="PDMS.downloadDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}')" title="Download document" style="display:inline-flex;align-items:center;gap:4px">${I('download')} Download</button>` : ''}
+            ${PDMS.isDocOwner(d, user) ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 6px" onclick="deleteDoc('${d.id || idx}')" title="Delete document"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
+          </div>
         </div>`).join('') : `<div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>`}
       </div>
     </div>` : ''}
@@ -412,14 +415,17 @@
     <div class="card" style="margin-bottom:20px">
       <div class="card-head"><div><div class="card-title">Documents</div><div class="card-sub">${docs.length} file${docs.length !== 1 ? 's' : ''} attached</div></div><button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button></div>
       <div style="padding:16px 20px">
-        ${docs.length ? docs.map(d => `
+        ${docs.length ? docs.map((d, idx) => `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
           <div style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${I('file')}</div>
           <div style="flex:1;min-width:0">
             <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
-            <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}</div>
+            <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}${d.fileSize ? ' · ' + PDMS.formatBytes(d.fileSize) : ''}</div>
           </div>
-          ${d.url ? `<a href="${PDMS.esc(d.url)}" target="_blank" style="font-size:12px;font-weight:600;color:var(--primary);text-decoration:none">View</a>` : ''}
+          <div class="flex items-center gap-1" style="flex-shrink:0">
+            ${d.url ? `<button type="button" class="btn btn-secondary btn-sm" onclick="PDMS.downloadDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}')" title="Download document" style="display:inline-flex;align-items:center;gap:4px">${I('download')} Download</button>` : ''}
+            ${PDMS.isDocOwner(d, user) ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 6px" onclick="deleteDoc('${d.id || idx}')" title="Delete document"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
+          </div>
         </div>`).join('') : `<div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>`}
       </div>
     </div>` : ''}
@@ -524,14 +530,17 @@
     <div class="card" style="margin-bottom:20px">
       <div class="card-head"><div><div class="card-title">Documents</div><div class="card-sub">${docs.length} file${docs.length !== 1 ? 's' : ''} attached</div></div><button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button></div>
       <div style="padding:16px 20px">
-        ${docs.length ? docs.map(d => `
+        ${docs.length ? docs.map((d, idx) => `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
           <div style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${I('file')}</div>
           <div style="flex:1;min-width:0">
             <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
-            <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}</div>
+            <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}${d.fileSize ? ' · ' + PDMS.formatBytes(d.fileSize) : ''}</div>
           </div>
-          ${d.url ? `<a href="${PDMS.esc(d.url)}" target="_blank" style="font-size:12px;font-weight:600;color:var(--primary);text-decoration:none">View</a>` : ''}
+          <div class="flex items-center gap-1" style="flex-shrink:0">
+            ${d.url ? `<button type="button" class="btn btn-secondary btn-sm" onclick="PDMS.downloadDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}')" title="Download document" style="display:inline-flex;align-items:center;gap:4px">${I('download')} Download</button>` : ''}
+            ${PDMS.isDocOwner(d, user) ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 6px" onclick="deleteDoc('${d.id || idx}')" title="Delete document"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
+          </div>
         </div>`).join('') : `<div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>`}
       </div>
     </div>` : ''}
@@ -627,14 +636,17 @@
     <div class="card" style="margin-bottom:20px">
       <div class="card-head"><div><div class="card-title">Documents</div><div class="card-sub">${docs.length} file${docs.length !== 1 ? 's' : ''} attached</div></div><button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button></div>
       <div style="padding:16px 20px">
-        ${docs.length ? docs.map(d => `
+        ${docs.length ? docs.map((d, idx) => `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
           <div style="width:36px;height:36px;background:rgba(99,102,241,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${I('file')}</div>
           <div style="flex:1;min-width:0">
             <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
-            <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}</div>
+            <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}${d.fileSize ? ' · ' + PDMS.formatBytes(d.fileSize) : ''}</div>
           </div>
-          ${d.url ? `<a href="${PDMS.esc(d.url)}" target="_blank" style="font-size:12px;font-weight:600;color:var(--primary);text-decoration:none">View</a>` : ''}
+          <div class="flex items-center gap-1" style="flex-shrink:0">
+            ${d.url ? `<button type="button" class="btn btn-secondary btn-sm" onclick="PDMS.downloadDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}')" title="Download document" style="display:inline-flex;align-items:center;gap:4px">${I('download')} Download</button>` : ''}
+            ${PDMS.isDocOwner(d, user) ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 6px" onclick="deleteDoc('${d.id || idx}')" title="Delete document"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
+          </div>
         </div>`).join('') : `<div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>`}
       </div>
     </div>` : ''}
@@ -1091,16 +1103,19 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           ${(() => {
             const docs = Array.isArray(p.documents) ? p.documents : [];
             if (!docs.length) return `<div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No documents uploaded yet')}</div>`;
-            return docs.map(d => `
+            return docs.map((d, idx) => `
               <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
                 <div style="width:36px;height:36px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">
                   ${/\.(pdf)$/i.test(d.url || d.name || '') ? '📄' : /\.(xls|xlsx|csv)$/i.test(d.url || d.name || '') ? '📊' : /\.(doc|docx)$/i.test(d.url || d.name || '') ? '📝' : /\.(png|jpg|jpeg|gif|svg)$/i.test(d.url || d.name || '') ? '🖼️' : '📎'}
                 </div>
                 <div style="flex:1;min-width:0">
                   <div class="font-semi text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${PDMS.esc(d.name || d.description || 'Document')}</div>
-                  <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}</div>
+                  <div class="text-sm text-muted">${PDMS.esc(d.description || '')}${d.uploadedBy ? ' · ' + PDMS.esc(d.uploadedBy) : ''}${d.uploadedAt ? ' · ' + PDMS.esc(d.uploadedAt) : ''}${d.fileSize ? ' · ' + PDMS.formatBytes(d.fileSize) : ''}</div>
                 </div>
-                ${d.url ? `<a href="${PDMS.esc(d.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex-shrink:0">${I('external-link') || '↗'} Open</a>` : ''}
+                <div class="flex items-center gap-1" style="flex-shrink:0">
+                  ${d.url ? `<button type="button" class="btn btn-secondary btn-sm" onclick="PDMS.downloadDoc('${PDMS.esc(d.url)}', '${PDMS.esc(d.fileName || d.name || 'document')}')" title="Download document" style="display:inline-flex;align-items:center;gap:4px">${I('download')} Download</button>` : ''}
+                  ${PDMS.isDocOwner(d, user) ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 8px" onclick="deleteDoc('${d.id || idx}')" title="Delete document"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
+                </div>
               </div>`).join('');
           })()}
         </div>
@@ -1639,53 +1654,184 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
     }
     function uploadDoc() {
       const user = PDMS.getUser();
-      const modal = PDMS.modal('Upload Document', `
-    <div class="form-row"><label>Link / URL <span style="color:var(--danger)">*</span></label><input id="docUrl" type="url" placeholder="https://..." autocomplete="off"/></div>
-    <div class="form-row"><label>Description <span style="color:var(--text-soft);font-weight:400">(optional)</span></label><input id="docDesc" placeholder="e.g. Q3 Delivery Plan"/></div>
-  `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="docSaveBtn">${I('upload')} Upload</button>`);
+      let selectedFile = null;
 
-      modal.querySelector('#docSaveBtn').onclick = function () {
-        let url = modal.querySelector('#docUrl').value.trim();
-        if (!url) { PDMS.toast('Required', 'Please enter a link / URL', 'error'); return; }
-        if (!/^https?:\/\//i.test(url)) {
-          url = 'https://' + url;
+      const modal = PDMS.modal('Upload Document', `
+        <div class="form-row">
+          <label style="display:flex;justify-content:space-between;align-items:center">
+            <span>Select File <span style="color:var(--danger)">*</span></span>
+            <span class="text-xs text-muted">Max 25MB</span>
+          </label>
+          <div id="docDropzone" class="file-dropzone" style="margin-top:4px">
+            <div class="file-dropzone-icon">${I('upload')}</div>
+            <div style="font-weight:600;font-size:13px;color:var(--text);margin-top:4px">Click or drag & drop a file here</div>
+            <div class="text-xs text-muted">Supports PDF, Word, Excel, PowerPoint, Images, CSV, etc.</div>
+            <input type="file" id="docFileInput" style="display:none" />
+          </div>
+          <div id="docSelectedBox" class="file-selected-box" style="display:none">
+            <div style="width:36px;height:36px;border-radius:8px;background:rgba(29,60,136,.1);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0">
+              ${I('file')}
+            </div>
+            <div class="file-info">
+              <div class="file-name" id="docSelectedName"></div>
+              <div class="file-size" id="docSelectedSize"></div>
+            </div>
+            <button type="button" class="file-remove-btn" id="docRemoveFileBtn" title="Remove file">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="form-row" style="margin-top:14px">
+          <label>Document Title / Description <span style="color:var(--text-soft);font-weight:400">(optional)</span></label>
+          <input id="docDesc" placeholder="e.g. Q3 Delivery Plan" autocomplete="off" />
+        </div>
+      `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="docSaveBtn" disabled>${I('upload')} Upload File</button>`);
+
+      const dropzone = modal.querySelector('#docDropzone');
+      const fileInput = modal.querySelector('#docFileInput');
+      const selectedBox = modal.querySelector('#docSelectedBox');
+      const selectedNameEl = modal.querySelector('#docSelectedName');
+      const selectedSizeEl = modal.querySelector('#docSelectedSize');
+      const removeBtn = modal.querySelector('#docRemoveFileBtn');
+      const descInput = modal.querySelector('#docDesc');
+      const saveBtn = modal.querySelector('#docSaveBtn');
+
+      function handleFile(file) {
+        if (!file) return;
+        selectedFile = file;
+        selectedNameEl.textContent = file.name;
+        selectedSizeEl.textContent = PDMS.formatBytes ? PDMS.formatBytes(file.size) : (Math.round(file.size / 1024) + ' KB');
+        dropzone.style.display = 'none';
+        selectedBox.style.display = 'flex';
+        saveBtn.disabled = false;
+        if (!descInput.value.trim()) {
+          const baseName = file.name.replace(/\.[^/.]+$/, '');
+          descInput.value = baseName;
         }
-        const description = modal.querySelector('#docDesc').value.trim();
-        let name = description;
-        if (!name) {
-          try {
-            const parsed = new URL(url);
-            const pathParts = parsed.pathname.split('/').filter(Boolean);
-            name = pathParts.length ? decodeURIComponent(pathParts[pathParts.length - 1]) : parsed.hostname;
-          } catch (e) {
-            name = 'Document';
-          }
+      }
+
+      dropzone.onclick = () => fileInput.click();
+      fileInput.onchange = (e) => {
+        if (e.target.files && e.target.files[0]) {
+          handleFile(e.target.files[0]);
+        }
+      };
+
+      dropzone.ondragover = (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      };
+      dropzone.ondragleave = (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+      };
+      dropzone.ondrop = (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleFile(e.dataTransfer.files[0]);
+        }
+      };
+
+      removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        selectedFile = null;
+        fileInput.value = '';
+        selectedBox.style.display = 'none';
+        dropzone.style.display = 'flex';
+        saveBtn.disabled = true;
+      };
+
+      saveBtn.onclick = function () {
+        if (!selectedFile) {
+          PDMS.toast('File Required', 'Please choose a file to upload', 'error');
+          return;
         }
         const btn = this;
         PDMS.setButtonLoading(btn, true, 'Uploading…');
 
-        const doc = {
-          name: name || 'Document',
-          url,
-          description: description || '',
-          uploadedBy: user ? user.name : '',
-          uploadedAt: new Date().toISOString().slice(0, 10)
+        const reader = new FileReader();
+        reader.onerror = () => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', 'Failed to read file', 'error');
         };
+        reader.onload = () => {
+          const result = reader.result;
+          const base64 = typeof result === 'string' && result.includes(',') ? result.split(',')[1] : result;
+          const mimeType = selectedFile.type || 'application/octet-stream';
+          const fileName = selectedFile.name;
+          const description = descInput.value.trim() || fileName;
 
-        if (!p.documents) p.documents = [];
-        p.documents.unshift(doc);
-        modal.remove();
-        render();
+          PDMS.api.uploadDoc(fileName, mimeType, base64)
+            .then(res => {
+              const url = (res && res.url) ? res.url : (result || '#');
+              const doc = {
+                id: 'DOC-' + Date.now(),
+                name: description || fileName,
+                fileName: fileName,
+                url: url,
+                description: description !== fileName ? description : '',
+                fileSize: selectedFile.size,
+                fileType: mimeType,
+                uploadedBy: user ? (user.name || user.email || '') : '',
+                uploadedByEmail: user ? (user.email || '') : '',
+                uploaderId: user ? (user.id || '') : '',
+                uploadedAt: new Date().toISOString().slice(0, 10)
+              };
 
-        PDMS.api.update('projects', p.id, { documents: JSON.parse(JSON.stringify(p.documents)) })
-          .then(saved => {
-            if (saved && Array.isArray(saved.documents)) p.documents = saved.documents;
-            PDMS.toast('Uploaded', `"${doc.name}" uploaded successfully`, 'success');
-          })
-          .catch(err => {
-            PDMS.toast('Error', err.message || 'Could not save document', 'error');
-          });
+              if (!p.documents) p.documents = [];
+              p.documents.unshift(doc);
+              modal.remove();
+              render();
+
+              return PDMS.api.update('projects', p.id, { documents: JSON.parse(JSON.stringify(p.documents)) })
+                .then(saved => {
+                  if (saved && Array.isArray(saved.documents)) p.documents = saved.documents;
+                  PDMS.toast('Uploaded', `"${doc.name}" uploaded successfully`, 'success');
+                });
+            })
+            .catch(err => {
+              PDMS.setButtonLoading(btn, false);
+              PDMS.toast('Error', err.message || 'Could not upload document', 'error');
+            });
+        };
+        reader.readAsDataURL(selectedFile);
       };
+    }
+
+    function deleteDoc(docIdOrIdx) {
+      const user = PDMS.getUser();
+      const docs = Array.isArray(p.documents) ? p.documents : [];
+      let docIndex = -1;
+      if (typeof docIdOrIdx === 'number') {
+        docIndex = docIdOrIdx;
+      } else {
+        docIndex = docs.findIndex((d, i) => String(d.id || i) === String(docIdOrIdx) || String(d.url) === String(docIdOrIdx));
+      }
+      if (docIndex < 0 || docIndex >= docs.length) return;
+      const targetDoc = docs[docIndex];
+      if (!PDMS.isDocOwner(targetDoc, user)) {
+        PDMS.toast('Permission Denied', 'You can only delete documents that you uploaded', 'error');
+        return;
+      }
+
+      PDMS.confirm(
+        'Delete Document',
+        `Are you sure you want to delete "${PDMS.esc(targetDoc.name || targetDoc.description || 'Document')}"? This action cannot be undone.`,
+        () => {
+          docs.splice(docIndex, 1);
+          p.documents = docs;
+          render();
+          PDMS.api.update('projects', p.id, { documents: JSON.parse(JSON.stringify(p.documents)) })
+            .then(saved => {
+              if (saved && Array.isArray(saved.documents)) p.documents = saved.documents;
+              PDMS.toast('Deleted', 'Document deleted successfully', 'success');
+            })
+            .catch(err => {
+              PDMS.toast('Error', err.message || 'Could not delete document', 'error');
+            });
+        }
+      );
     }
     function editDetails() {
       const isSales = PDMS.stageOf(p) === 'Sales';
@@ -3028,7 +3174,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       }
     }
 
-    window.postProjectReview = postProjectReview; window.submitInlineIssue = submitInlineIssue; window.assignTeam = assignTeam; window.uploadDoc = uploadDoc; window.changeStatus = changeStatus; window.startDelivery = startDelivery; window.selectTimelineStage = selectTimelineStage; window.customizeTimelineStages = customizeTimelineStages; window.openMilestoneScheduleModal = openMilestoneScheduleModal; window.toggleProjectOnHold = toggleProjectOnHold; window.toggleProjectCancelled = toggleProjectCancelled;
+    window.postProjectReview = postProjectReview; window.submitInlineIssue = submitInlineIssue; window.assignTeam = assignTeam; window.uploadDoc = uploadDoc; window.deleteDoc = deleteDoc; window.changeStatus = changeStatus; window.startDelivery = startDelivery; window.selectTimelineStage = selectTimelineStage; window.customizeTimelineStages = customizeTimelineStages; window.openMilestoneScheduleModal = openMilestoneScheduleModal; window.toggleProjectOnHold = toggleProjectOnHold; window.toggleProjectCancelled = toggleProjectCancelled;
 
     function approveProjectInline() {
       const modal = PDMS.modal('Approve Project (Accounts)', `

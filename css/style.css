@@ -1361,3 +1361,82 @@ body:not(:has(.sidebar)) .pdms-splash-loader,
   border-color: var(--border);
   color: var(--text-soft);
 }
+
+/* ============ DIRECT FILE UPLOAD ============ */
+.file-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 24px 16px;
+  text-align: center;
+  background: var(--surface-2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+}
+.file-dropzone:hover, .file-dropzone.dragover {
+  border-color: var(--primary);
+  background: rgba(29, 60, 136, 0.05);
+}
+[data-theme="dark"] .file-dropzone:hover, [data-theme="dark"] .file-dropzone.dragover {
+  background: rgba(92, 126, 224, 0.08);
+}
+.file-dropzone-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+.file-selected-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  margin-top: 12px;
+  text-align: left;
+}
+.file-selected-box .file-info {
+  flex: 1;
+  min-width: 0;
+}
+.file-selected-box .file-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-selected-box .file-size {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.file-remove-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.file-remove-btn:hover {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+}
