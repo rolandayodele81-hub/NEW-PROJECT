@@ -7,7 +7,7 @@
   <title>Sales Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1789047766"/>
+<link rel="stylesheet" href="css/style.css?v=1789049499"/>
   <style>
     .sales-hero {
       display: grid;
@@ -94,7 +94,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789047766"></script>
+  <script src="js/bundle.js?v=1789049499"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -183,6 +183,43 @@
         Cancelled: userSalesSet.filter(p => p.status === 'Cancelled' && (p.stage === 'Sales' || !p.deliveryStatus || (PDMS.stageOf && PDMS.stageOf(p) === 'Sales'))).length,
         'On Hold': userSalesSet.filter(p => p.status === 'On Hold' && (p.stage === 'Sales' || !p.deliveryStatus || (PDMS.stageOf && PDMS.stageOf(p) === 'Sales'))).length
       };
+
+      // Client accounts: Sales Head sees all enterprise clients; general Sales user only sees clients they onboarded / own.
+      const allClients = (window.PDMS_REMOTE && window.PDMS_REMOTE.clients) || D.clients || [];
+      const userProjectsForClientCount = isSalesUser ? userSalesSet : liveProjects;
+      
+      const getActiveProjectsCount = (clientName) => {
+        const cNameLower = String(clientName || '').trim().toLowerCase();
+        return userProjectsForClientCount.filter(p => {
+          const pClient = String(p.client || p.name || '').trim().toLowerCase();
+          if (pClient !== cNameLower) return false;
+          const status = PDMS.normalizeStatus ? PDMS.normalizeStatus(p.status) : p.status;
+          const dStat = p.deliveryStatus || '';
+          return status !== 'Cancelled' && status !== 'On Hold' && dStat !== 'Cancelled' && dStat !== 'On Hold' && dStat !== 'Closure';
+        }).length;
+      };
+
+      const myClientNamesSet = new Set(
+        userSalesSet
+          .map(p => String(p.client || p.name || '').trim().toLowerCase())
+          .filter(Boolean)
+      );
+
+      const isClientForSalesUser = (c) => {
+        if (isSalesHead || !isSalesUser) return true;
+        return (PDMS.clientOwnedByUser && PDMS.clientOwnedByUser(c, currentUser))
+          || (c.createdById && String(c.createdById).trim().toLowerCase() === String(currentUser.id || '').trim().toLowerCase())
+          || (c.createdByName && String(c.createdByName).trim().toLowerCase() === String(currentUser.name || '').trim().toLowerCase())
+          || myClientNamesSet.has(String(c && c.name || '').trim().toLowerCase());
+      };
+
+      const displayClientsList = allClients
+        .filter(isClientForSalesUser)
+        .map(c => ({
+          ...c,
+          calculatedActiveProjects: getActiveProjectsCount(c.name)
+        }))
+        .sort((a, b) => b.calculatedActiveProjects - a.calculatedActiveProjects || String(a.name || '').localeCompare(String(b.name || '')));
 
       document.getElementById('content').innerHTML = `
     <div class="sales-hero">
@@ -285,22 +322,22 @@
         <div class="card-head">
           <div>
             <div class="card-title">Client Accounts</div>
-            <div class="card-sub">Top enterprise accounts by active projects</div>
+            <div class="card-sub">${isSalesHead ? 'Top enterprise accounts by active projects' : 'Your onboarded accounts by active projects'}</div>
           </div>
           <a class="btn btn-secondary btn-sm" href="clients.html">View Accounts</a>
         </div>
         <div class="card-body" style="padding:8px 20px">
-          ${D.clients.slice(0, 5).map(c => `
+          ${displayClientsList.length ? displayClientsList.slice(0, 5).map(c => `
             <div class="flex items-center gap-3" style="padding:12px 0;border-bottom:1px solid var(--border)">
               <div style="width:36px;height:36px;border-radius:10px;background:var(--gradient-2);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px">
-                ${c.name.split(' ').map(w => w[0]).slice(0, 2).join('')}
+                ${(c.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('')}
               </div>
               <div style="flex:1">
                 <div class="font-semi text-sm">${PDMS.esc(c.name)}</div>
-                <div class="text-sm text-muted">${c.projects} active projects</div>
+                <div class="text-sm text-muted">${c.calculatedActiveProjects} active project${c.calculatedActiveProjects === 1 ? '' : 's'}</div>
               </div>
-              <span class="badge badge-primary">${c.industry}</span>
-            </div>`).join('')}
+              <span class="badge badge-primary">${PDMS.esc(c.industry || 'Enterprise')}</span>
+            </div>`).join('') : `<div class="text-muted text-sm" style="text-align:center;padding:24px 0">${PDMS.emptyOrLoading('No onboarded client accounts yet')}</div>`}
         </div>
       </div>
     </div>
