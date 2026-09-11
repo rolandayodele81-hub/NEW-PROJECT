@@ -21,7 +21,9 @@ var ENTITIES = {
   threads: { sheet: 'Threads', idPrefix: 'T', jsonFields: ['user', 'messages'] },
   activities: { sheet: 'Activities', idPrefix: 'A' },
   reviews: { sheet: 'Reviews', idPrefix: 'RV', jsonFields: ['comments'] },
-  issues: { sheet: 'Issues', idPrefix: 'IS', textFields: ['time'], jsonFields: [] }
+  issues: { sheet: 'Issues', idPrefix: 'IS', textFields: ['time'], jsonFields: [] },
+  complaints: { sheet: 'Complaints', idPrefix: 'CMP-', jsonFields: ['responses', 'attachment'], textFields: ['createdAt', 'updatedAt', 'resolvedAt'] },
+  leaveRequests: { sheet: 'LeaveRequests', idPrefix: 'LV-', jsonFields: [], textFields: ['startDate', 'endDate', 'createdAt', 'reviewedAt'] }
 };
 
 function getDocFolderId_() {

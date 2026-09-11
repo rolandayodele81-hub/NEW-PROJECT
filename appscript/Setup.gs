@@ -54,6 +54,17 @@ function initializeSheets() {
       headers: ['id', 'projectId', 'projectName', 'author', 'authorRole', 'message', 'time'],
       textColumns: ['time'],
       rows: []
+    },
+    Complaints: {
+      headers: ['id', 'ticketNumber', 'subject', 'category', 'priority', 'status', 'description', 'submittedById', 'submittedByName', 'submittedByEmail', 'submittedByRole', 'createdAt', 'updatedAt', 'resolvedAt', 'assignedTo', 'responses', 'attachment'],
+      jsonColumns: ['responses', 'attachment'],
+      textColumns: ['createdAt', 'updatedAt', 'resolvedAt'],
+      rows: []
+    },
+    LeaveRequests: {
+      headers: ['id', 'userId', 'userName', 'userEmail', 'userRole', 'dept', 'startDate', 'endDate', 'daysCount', 'type', 'reason', 'status', 'reviewerId', 'reviewerName', 'reviewerRole', 'reviewNote', 'createdAt', 'reviewedAt'],
+      textColumns: ['startDate', 'endDate', 'createdAt', 'reviewedAt'],
+      rows: []
     }
   };
 

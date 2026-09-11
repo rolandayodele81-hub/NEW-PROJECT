@@ -4,10 +4,10 @@
 <title>Dashboard — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1789049499"/>
+<link rel="stylesheet" href="css/style.css?v=1789132687"/>
 </head>
 <body>
-<script src="js/bundle.js?v=1789049499"></script>
+<script src="js/bundle.js?v=1789132687"></script>
 <script>
 PDMS.mountShell('dashboard');
 
@@ -32,9 +32,9 @@ requestAnimationFrame(() => {
       const inProgress = D.projects.filter(p=>p.status==='In Progress').length;
       const today = new Date().toISOString().slice(0,10);
       const week = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
-      const delayed = D.projects.filter(p=>p.due<today && !['Completed','Closed','Cancelled'].includes(p.status)).length;
-      const dueToday = D.projects.filter(p=>p.due===today).length;
-      const dueWeek = D.projects.filter(p=>p.due>=today && p.due<=week).length;
+      const delayed = D.projects.filter(p=>p.due && p.due<today && !(PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(p) : ['Completed','Closed','Closure','Project Closure','Cancelled','On Hold'].includes(p.deliveryStatus || p.status))).length;
+      const dueToday = D.projects.filter(p=>p.due===today && !(PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(p) : ['Completed','Closed','Closure','Project Closure','Cancelled','On Hold'].includes(p.deliveryStatus || p.status))).length;
+      const dueWeek = D.projects.filter(p=>p.due && p.due>=today && p.due<=week && !(PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(p) : ['Completed','Closed','Closure','Project Closure','Cancelled','On Hold'].includes(p.deliveryStatus || p.status))).length;
       const avail = D.consultants.filter(c=>c.availability==='Available').length;
       const busy = D.consultants.length - avail;
       const isConsultant = user && user.role === 'Consultant';

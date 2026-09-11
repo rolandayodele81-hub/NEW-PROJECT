@@ -18,7 +18,8 @@
     threads: 'T',
     activities: 'A',
     reviews: 'RV',
-    issues: 'IS'
+    issues: 'IS',
+    complaints: 'CMP-'
   };
 
   function persistLocalData() {
@@ -33,7 +34,8 @@
       threads: global.PDMS_DATA.threads,
       activities: global.PDMS_DATA.activities,
       reviews: global.PDMS_DATA.reviews,
-      issues: global.PDMS_DATA.issues
+      issues: global.PDMS_DATA.issues,
+      complaints: global.PDMS_DATA.complaints
     }));
   }
 

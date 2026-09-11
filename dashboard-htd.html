@@ -7,7 +7,7 @@
   <title>Delivery Dashboard — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1789049499" />
+  <link rel="stylesheet" href="css/style.css?v=1789132687" />
   <style>
     .htd-hero {
       display: grid;
@@ -263,17 +263,20 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789049499"></script>
+  <script src="js/bundle.js?v=1789132687"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
 
     function isDeliveryProject(p) {
+      if (PDMS.isDeliveryProject) return PDMS.isDeliveryProject(p);
       if (!p) return false;
       if (p.status === 'Awaiting Account Approval' || p.status === 'Awaiting Sales Head Approval') return false;
       const preAward = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA'];
-      if (preAward.includes(p.status)) return false;
-      if (p.status === 'Cancelled' && p.stage === 'Sales' && !p.deliveryStatus) return false;
+      if (preAward.includes(p.status) && p.stage !== 'Delivery' && !p.deliveryStatus) return false;
+      const isSales = (p.stage === 'Sales' || (PDMS.stageOf && PDMS.stageOf(p) === 'Sales'));
+      if ((p.status === 'Cancelled' || p.status === 'On Hold') && isSales && !p.deliveryStatus) return false;
+      if (PDMS.stageOf && PDMS.stageOf(p) === 'Sales') return false;
       return true;
     }
 
@@ -305,8 +308,7 @@
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const in28 = new Date(today); in28.setDate(in28.getDate() + 28);
       const dueForCompletion = deliveryProjects.filter(p => {
-        const st = getDeliveryStatus(p);
-        if (!p.due || st === 'Completed' || isClosedStatus(st) || st === 'On Hold' || st === 'Cancelled') return false;
+        if (!p.due || (PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(p) : (p.status === 'Completed' || p.status === 'Closed' || p.status === 'Closure' || p.status === 'On Hold' || p.status === 'Cancelled'))) return false;
         const d = new Date(p.due);
         return d >= today && d <= in28;
       }).length;
@@ -626,10 +628,11 @@
           <thead><tr><th>Client</th><th>Project Type</th><th>Status</th><th>Start Date</th><th>Due Date</th></tr></thead>
           <tbody>
             ${(() => {
-          const lp = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+          const lp = ((window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects).filter(isDeliveryProject);
           const t = new Date(); t.setHours(0, 0, 0, 0);
           const i28 = new Date(t); i28.setDate(i28.getDate() + 28);
-          const due = lp.filter(p => { if (!p.due || p.status === 'Completed' || p.status === 'Closed' || p.status === 'On Hold' || p.status === 'Cancelled') return false; const d = new Date(p.due); return d >= t && d <= i28; }).sort((a, b) => new Date(a.due) - new Date(b.due));
+          const isFinished = p => PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(p) : (p.status === 'Completed' || p.status === 'Closed' || p.status === 'Closure' || p.status === 'Project Closure' || p.status === 'On Hold' || p.status === 'Cancelled');
+          const due = lp.filter(p => { if (!p.due || isFinished(p)) return false; const d = new Date(p.due); return d >= t && d <= i28; }).sort((a, b) => new Date(a.due) - new Date(b.due));
           const displayList = due.slice(0, 5);
           return due.length ? displayList.map(p => {
             const daysLeft = Math.ceil((new Date(p.due) - t) / 86400000);
@@ -648,10 +651,11 @@
         </table>
       </div>
       ${(() => {
-        const lp = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
+        const lp = ((window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects).filter(isDeliveryProject);
         const t = new Date(); t.setHours(0, 0, 0, 0);
         const i28 = new Date(t); i28.setDate(i28.getDate() + 28);
-        const due = lp.filter(p => { if (!p.due || p.status === 'Completed' || p.status === 'Closed' || p.status === 'On Hold' || p.status === 'Cancelled') return false; const d = new Date(p.due); return d >= t && d <= i28; });
+        const isFinished = p => PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(p) : (p.status === 'Completed' || p.status === 'Closed' || p.status === 'Closure' || p.status === 'Project Closure' || p.status === 'On Hold' || p.status === 'Cancelled');
+        const due = lp.filter(p => { if (!p.due || isFinished(p)) return false; const d = new Date(p.due); return d >= t && d <= i28; });
         return due.length > 5 ? `
         <div style="padding:12px 16px;border-top:1px solid var(--border);background:var(--surface-2);display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:12px;color:var(--text-muted)">Showing 5 of ${due.length} projects due soon</span>
@@ -750,7 +754,11 @@
         const q = mcSearch.value.trim().toLowerCase();
         if (!q) { mcDrop.classList.remove('open'); return; }
         const hits = consultantUsers.filter(u => u.name.toLowerCase().includes(q) && !selected.includes(u.name)).slice(0, 8);
-        mcDrop.innerHTML = hits.map(u => `<div class="assign-ac-item" data-name="${PDMS.esc(u.name)}"><div class="assign-ac-avatar">${PDMS.initials(u.name)}</div><div><div style="font-weight:600">${PDMS.esc(u.name)}</div><div style="font-size:12px;color:var(--text-muted)">${PDMS.esc(u.dept || '')}</div></div></div>`).join('') || `<div class="assign-ac-item" style="color:var(--text-muted)">No matches</div>`;
+        mcDrop.innerHTML = hits.map(u => {
+          const activeLv = PDMS.getUserActiveLeave ? PDMS.getUserActiveLeave(u) : null;
+          const leaveTag = activeLv ? `<span class="badge badge-warn" style="font-size:10px;padding:1px 5px;margin-left:6px">● On Leave (until ${activeLv.endDate})</span>` : '';
+          return `<div class="assign-ac-item" data-name="${PDMS.esc(u.name)}"><div class="assign-ac-avatar">${PDMS.initials(u.name)}</div><div><div style="font-weight:600;display:flex;align-items:center">${PDMS.esc(u.name)}${leaveTag}</div><div style="font-size:12px;color:var(--text-muted)">${PDMS.esc(u.dept || '')}</div></div></div>`;
+        }).join('') || `<div class="assign-ac-item" style="color:var(--text-muted)">No matches</div>`;
         mcDrop.classList.add('open');
         mcDrop.querySelectorAll('.assign-ac-item[data-name]').forEach(el => {
           el.addEventListener('mousedown', e => { e.preventDefault(); selected.push(el.dataset.name); mcSearch.value = ''; mcDrop.classList.remove('open'); refreshChips(); });

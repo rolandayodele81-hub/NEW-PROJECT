@@ -7,7 +7,7 @@
   <title>PMO Dashboard — PSE PDMS</title>
   
   
-  <link rel="stylesheet" href="css/style.css?v=1789049499"/>
+  <link rel="stylesheet" href="css/style.css?v=1789132687"/>
   <style>
     .pmo-hero {
       display: grid;
@@ -62,7 +62,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789049499"></script>
+  <script src="js/bundle.js?v=1789132687"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -75,6 +75,7 @@
       const myEmail = (user.email || '').toLowerCase();
       const myId = String(user.id || '').toLowerCase();
       const res = lp.filter(p => {
+        if (PDMS.isDeliveryProject && !PDMS.isDeliveryProject(p)) return false;
         const consultants = Array.isArray(p.consultants) ? p.consultants.map(n => String(n).toLowerCase()) : [];
         return (p.pm || '').toLowerCase() === myName
           || (p.pm || '').toLowerCase() === myEmail
@@ -104,8 +105,7 @@
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const in14 = new Date(today); in14.setDate(in14.getDate() + 14);
       const dueSoon = projects.filter(p => {
-        const st = getDeliveryStatus(p);
-        if (!p.due || st === 'Completed' || isClosedStatus(st) || st === 'On Hold' || st === 'Cancelled') return false;
+        if (!p.due || (PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(p) : (p.status === 'Completed' || p.status === 'Closed' || p.status === 'Closure' || p.status === 'On Hold' || p.status === 'Cancelled'))) return false;
         const d = new Date(p.due); return d >= today && d <= in14;
       }).length;
 
@@ -249,8 +249,9 @@
           <thead><tr><th>Client</th><th>Project Type</th><th>Status</th><th>Start Date</th><th>Due Date</th></tr></thead>
           <tbody>
             ${(() => {
+              const isFinished = p => PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(p) : (p.status === 'Completed' || p.status === 'Closed' || p.status === 'Closure' || p.status === 'Project Closure' || p.status === 'On Hold' || p.status === 'Cancelled');
               const due = projects.filter(p => {
-                if (!p.due || p.status === 'Completed' || p.status === 'Closed' || p.status === 'On Hold' || p.status === 'Cancelled') return false;
+                if (!p.due || isFinished(p)) return false;
                 const d = new Date(p.due); return d >= today && d <= in14;
               }).sort((a, b) => new Date(a.due) - new Date(b.due));
               const displayList = due.slice(0, 5);
@@ -271,8 +272,9 @@
         </table>
       </div>
       ${(() => {
+        const isFinished = p => PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(p) : (p.status === 'Completed' || p.status === 'Closed' || p.status === 'Closure' || p.status === 'Project Closure' || p.status === 'On Hold' || p.status === 'Cancelled');
         const due = projects.filter(p => {
-          if (!p.due || p.status === 'Completed' || p.status === 'Closed' || p.status === 'On Hold' || p.status === 'Cancelled') return false;
+          if (!p.due || isFinished(p)) return false;
           const d = new Date(p.due); return d >= today && d <= in14;
         });
         return due.length > 5 ? `

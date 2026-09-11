@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Time Off Approvals — PSE PDMS</title>
+  <link rel="stylesheet" href="css/style.css?v=1789132687" />
+</head>
+
+<body>
+  <script src="js/bundle.js?v=1789132687"></script>
+  <script>
+    PDMS.mountShell('leave-approvals');
+    const D = PDMS_DATA;
+    const I = PDMS.icon;
+    let currentTab = 'pending';
+
+    function setTab(tab) {
+      currentTab = tab;
+      location.hash = 'tab=' + tab;
+      render();
+    }
+
+    function render() {
+      const hash = (location.hash || '').replace(/^#/, '');
+      const hashParams = new URLSearchParams(hash);
+      const requestedTab = hashParams.get('tab');
+      if (requestedTab && ['pending', 'active', 'history'].includes(requestedTab)) {
+        currentTab = requestedTab;
+      }
+
+      const allLeaves = PDMS.getAllLeaveRequests ? PDMS.getAllLeaveRequests() : (D.leaveRequests || []);
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const currentMonthStr = todayStr.slice(0, 7);
+
+      const pendingLeaves = allLeaves.filter(l => {
+        const st = String(l.status || 'Pending Approval').toLowerCase();
+        return st === 'pending approval' || st === 'pending';
+      });
+
+      const activeLeaves = allLeaves.filter(l => {
+        const st = String(l.status || '').toLowerCase();
+        if (st !== 'approved') return false;
+        const end = l.endDate || l.startDate || '';
+        return end >= todayStr;
+      }).sort((a, b) => String(a.startDate || '').localeCompare(String(b.startDate || '')));
+
+      const staffOnLeaveCount = (D.users || []).filter(u => PDMS.isUserOnLeave ? PDMS.isUserOnLeave(u) : false).length;
+
+      const approvedThisMonth = allLeaves.filter(l => {
+        const st = String(l.status || '').toLowerCase();
+        return st === 'approved' && String(l.startDate || '').startsWith(currentMonthStr);
+      }).length;
+
+      document.getElementById('content').innerHTML = `
+        <div class="page-head">
+          <div>
+            <div class="breadcrumbs"><span>Home</span><span>HR</span><span>Time Off Approvals</span></div>
+            <h1 class="page-title">Time Off &amp; Off-Day Approvals Desk</h1>
+            <div class="page-sub">Review employee time-off requests, manage approvals, and monitor company-wide availability in real time.</div>
+          </div>
+          <div class="flex gap-2">
+            <a class="btn btn-secondary" href="dashboard-hr.html">${I('activity')} HR Dashboard</a>
+            <a class="btn btn-secondary" href="users.html">${I('users')} Staff Directory</a>
+          </div>
+        </div>
+
+        <!-- Metric Stat Cards -->
+        <div class="grid grid-4 mb-4" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px">
+          <div class="stat ${pendingLeaves.length > 0 ? 'i-purple' : 'i-primary'}" onclick="setTab('pending')" style="cursor:pointer;${pendingLeaves.length > 0 ? 'border:1.5px solid rgba(139,92,246,.5);box-shadow:0 4px 14px rgba(139,92,246,.15)' : ''}" title="View pending requests">
+            <div class="label">Pending Approvals</div>
+            <div class="value">${pendingLeaves.length}</div>
+            <div class="delta">${pendingLeaves.length > 0 ? 'Requires HR action' : 'All caught up'}</div>
+            <div class="icon-wrap">${I('clock')}</div>
+          </div>
+          <div class="stat ${staffOnLeaveCount > 0 ? 'i-warn' : 'i-success'}" onclick="setTab('active')" style="cursor:pointer" title="View employees currently on leave">
+            <div class="label">On Leave Today</div>
+            <div class="value">${staffOnLeaveCount}</div>
+            <div class="delta">${staffOnLeaveCount === 1 ? '1 team member off' : `${staffOnLeaveCount} team members off`}</div>
+            <div class="icon-wrap">${I('calendar')}</div>
+          </div>
+          <div class="stat i-info" onclick="setTab('active')" style="cursor:pointer" title="View active and scheduled leaves">
+            <div class="label">Active &amp; Upcoming</div>
+            <div class="value">${activeLeaves.length}</div>
+            <div class="delta">Approved scheduled leaves</div>
+            <div class="icon-wrap">${I('check')}</div>
+          </div>
+          <div class="stat i-primary" onclick="setTab('history')" style="cursor:pointer" title="View all records">
+            <div class="label">Total Records</div>
+            <div class="value">${allLeaves.length}</div>
+            <div class="delta">${approvedThisMonth} approved this month</div>
+            <div class="icon-wrap">${I('folder')}</div>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tabs mb-4" style="display:flex;gap:8px;border-bottom:1px solid var(--border);padding-bottom:10px">
+          <button class="btn btn-sm ${currentTab === 'pending' ? 'btn-primary' : 'btn-ghost'}" onclick="setTab('pending')" style="display:inline-flex;align-items:center;gap:6px">
+            ${I('clock')} Pending Requests
+            <span class="badge ${currentTab === 'pending' ? 'badge-warn' : 'badge-secondary'}" style="font-size:11px">${pendingLeaves.length}</span>
+          </button>
+          <button class="btn btn-sm ${currentTab === 'active' ? 'btn-primary' : 'btn-ghost'}" onclick="setTab('active')" style="display:inline-flex;align-items:center;gap:6px">
+            ${I('calendar')} Active &amp; Upcoming
+            <span class="badge badge-secondary" style="font-size:11px">${activeLeaves.length}</span>
+          </button>
+          <button class="btn btn-sm ${currentTab === 'history' ? 'btn-primary' : 'btn-ghost'}" onclick="setTab('history')" style="display:inline-flex;align-items:center;gap:6px">
+            ${I('folder')} Full Leave History
+            <span class="badge badge-secondary" style="font-size:11px">${allLeaves.length}</span>
+          </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="card">
+          ${renderTabContent(currentTab, { pendingLeaves, activeLeaves, allLeaves, todayStr })}
+        </div>
+      `;
+    }
+
+    function renderTabContent(tab, data) {
+      if (tab === 'pending') {
+        const { pendingLeaves } = data;
+        if (!pendingLeaves.length) {
+          return `
+            <div class="card-body text-center" style="padding:48px 20px">
+              <div style="width:52px;height:52px;border-radius:50%;background:rgba(16,185,129,0.12);color:#10b981;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px">
+                ${I('check')}
+              </div>
+              <div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:6px">No Pending Requests</div>
+              <div class="text-sm text-muted" style="max-width:420px;margin:0 auto">All employee off-day submissions have been reviewed and resolved.</div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="card-head">
+            <div>
+              <div class="card-title">Pending Time-Off Applications</div>
+              <div class="card-sub">Review and take action on incoming requests from team members</div>
+            </div>
+            <span class="badge badge-warn">${pendingLeaves.length} Awaiting Decision</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Department / Role</th>
+                  <th>Requested Period</th>
+                  <th>Duration</th>
+                  <th>Category</th>
+                  <th>Reason / Notes</th>
+                  <th style="text-align:right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${pendingLeaves.map(lv => `
+                  <tr>
+                    <td>
+                      <div class="flex items-center gap-2">
+                        <div class="avatar avatar-sm">${PDMS.initials(lv.userName || '?')}</div>
+                        <div>
+                          <a href="user-details.html#id=${encodeURIComponent(lv.userId || '')}&email=${encodeURIComponent(lv.userEmail || '')}" class="font-semi hover-link" style="color:var(--text);text-decoration:none">
+                            ${PDMS.esc(lv.userName || 'Employee')}
+                          </a>
+                          <div class="text-xs text-muted">${PDMS.esc(lv.userEmail || '')}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div>${PDMS.esc(lv.dept || '—')}</div>
+                      <span class="badge badge-secondary" style="font-size:10px">${PDMS.esc(lv.userRole || 'Staff')}</span>
+                    </td>
+                    <td class="font-semi">
+                      <div>${PDMS.esc(lv.startDate)} <span style="color:var(--text-muted)">→</span> ${PDMS.esc(lv.endDate)}</div>
+                      <div class="text-xs text-muted">Submitted ${new Date(lv.createdAt || Date.now()).toLocaleDateString()}</div>
+                    </td>
+                    <td>
+                      <span class="badge badge-primary">${lv.daysCount || 1} working day${(lv.daysCount||1)===1?'':'s'}</span>
+                    </td>
+                    <td>
+                      <span class="badge badge-purple">${PDMS.esc(lv.type || lv.category || 'General')}</span>
+                    </td>
+                    <td style="max-width:260px;line-height:1.4">
+                      <div style="font-size:12.5px">${PDMS.esc(lv.reason || '—')}</div>
+                    </td>
+                    <td style="text-align:right">
+                      <div style="display:inline-flex;gap:6px;justify-content:flex-end">
+                        <button class="btn btn-primary btn-sm" onclick="approveLeaveRequest('${lv.id}')" style="background:#10b981;border-color:#10b981;padding:4px 10px;font-size:12px">
+                          ${I('check')} Approve
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="rejectLeaveRequest('${lv.id}')" style="color:var(--danger);border-color:rgba(239,68,68,.3);padding:4px 10px;font-size:12px">
+                          ${I('close')} Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      if (tab === 'active') {
+        const { activeLeaves, todayStr } = data;
+        if (!activeLeaves.length) {
+          return `
+            <div class="card-body text-center" style="padding:48px 20px">
+              <div style="width:52px;height:52px;border-radius:50%;background:rgba(99,102,241,0.12);color:var(--primary);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px">
+                ${I('calendar')}
+              </div>
+              <div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:6px">No Active or Upcoming Leaves</div>
+              <div class="text-sm text-muted" style="max-width:420px;margin:0 auto">There are no approved leaves active today or scheduled for upcoming dates.</div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="card-head">
+            <div>
+              <div class="card-title">Active &amp; Scheduled Leave Records</div>
+              <div class="card-sub">Approved time-off currently active today or scheduled for upcoming dates</div>
+            </div>
+            <span class="badge badge-success">${activeLeaves.length} Active / Upcoming</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Department / Role</th>
+                  <th>Leave Period</th>
+                  <th>Duration</th>
+                  <th>Status</th>
+                  <th>Category</th>
+                  <th>Reason</th>
+                  <th>Approved By</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${activeLeaves.map(lv => {
+                  const isCurrentlyOff = (lv.startDate <= todayStr && lv.endDate >= todayStr);
+                  const statusTag = isCurrentlyOff
+                    ? `<span class="badge badge-warn">● On Leave Today</span>`
+                    : `<span class="badge badge-info">● Upcoming (Starts ${lv.startDate})</span>`;
+
+                  return `
+                    <tr>
+                      <td>
+                        <div class="flex items-center gap-2">
+                          <div class="avatar avatar-sm">${PDMS.initials(lv.userName || '?')}</div>
+                          <div>
+                            <a href="user-details.html#id=${encodeURIComponent(lv.userId || '')}&email=${encodeURIComponent(lv.userEmail || '')}" class="font-semi hover-link" style="color:var(--text);text-decoration:none">
+                              ${PDMS.esc(lv.userName || 'Employee')}
+                            </a>
+                            <div class="text-xs text-muted">${PDMS.esc(lv.userEmail || '')}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div>${PDMS.esc(lv.dept || '—')}</div>
+                        <span class="badge badge-secondary" style="font-size:10px">${PDMS.esc(lv.userRole || 'Staff')}</span>
+                      </td>
+                      <td class="font-semi">
+                        <div>${PDMS.esc(lv.startDate)} <span style="color:var(--text-muted)">→</span> ${PDMS.esc(lv.endDate)}</div>
+                      </td>
+                      <td><span class="badge badge-primary">${lv.daysCount || 1} day${(lv.daysCount||1)===1?'':'s'}</span></td>
+                      <td>${statusTag}</td>
+                      <td><span class="badge badge-purple">${PDMS.esc(lv.type || lv.category || 'General')}</span></td>
+                      <td style="max-width:220px;line-height:1.4">
+                        <div style="font-size:12.5px">${PDMS.esc(lv.reason || '—')}</div>
+                      </td>
+                      <td class="text-sm text-muted">
+                        ${lv.reviewerName ? PDMS.esc(lv.reviewerName) : 'HR'}
+                        ${lv.reviewedAt ? `<div style="font-size:11px">${new Date(lv.reviewedAt).toLocaleDateString()}</div>` : ''}
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      // History tab
+      const { allLeaves } = data;
+      if (!allLeaves.length) {
+        return `
+          <div class="card-body text-center" style="padding:48px 20px">
+            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">No Leave History</div>
+            <div class="text-sm text-muted">No time-off requests have been logged yet.</div>
+          </div>
+        `;
+      }
+
+      const sortedAll = allLeaves.slice().sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+      return `
+        <div class="card-head">
+          <div>
+            <div class="card-title">All Leave Requests &amp; Decision History</div>
+            <div class="card-sub">Complete archive of all approved, rejected, pending, and cancelled leave applications</div>
+          </div>
+          <span class="badge badge-secondary">${sortedAll.length} Total Records</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data" style="width:100%">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Period</th>
+                <th>Days</th>
+                <th>Category</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Reviewer Remarks</th>
+                <th>Logged At</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sortedAll.map(lv => {
+                const st = String(lv.status || 'Pending Approval').toLowerCase();
+                let badge = '<span class="badge badge-warn">Pending Review</span>';
+                if (st === 'approved') badge = '<span class="badge badge-success">Approved</span>';
+                if (st === 'rejected') badge = '<span class="badge badge-danger">Rejected</span>';
+                if (st === 'cancelled') badge = '<span class="badge badge-muted">Cancelled</span>';
+
+                return `
+                  <tr>
+                    <td>
+                      <div class="flex items-center gap-2">
+                        <div class="avatar avatar-sm">${PDMS.initials(lv.userName || '?')}</div>
+                        <div>
+                          <a href="user-details.html#id=${encodeURIComponent(lv.userId || '')}&email=${encodeURIComponent(lv.userEmail || '')}" class="font-semi hover-link" style="color:var(--text);text-decoration:none">
+                            ${PDMS.esc(lv.userName || 'Employee')}
+                          </a>
+                          <div class="text-xs text-muted">${PDMS.esc(lv.userRole || '')}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="font-semi">
+                      <div>${PDMS.esc(lv.startDate)} → ${PDMS.esc(lv.endDate)}</div>
+                    </td>
+                    <td><span class="badge badge-primary">${lv.daysCount || 1}d</span></td>
+                    <td><span class="badge badge-purple">${PDMS.esc(lv.type || lv.category || 'General')}</span></td>
+                    <td style="max-width:200px;line-height:1.4">
+                      <div style="font-size:12px">${PDMS.esc(lv.reason || '—')}</div>
+                    </td>
+                    <td>${badge}</td>
+                    <td style="max-width:200px;line-height:1.4">
+                      ${lv.reviewNote ? `<div style="font-size:12px;color:var(--danger)">${PDMS.esc(lv.reviewNote)}</div>` : ''}
+                      ${lv.reviewerName ? `<div style="font-size:11px;color:var(--text-muted)">By ${PDMS.esc(lv.reviewerName)}</div>` : '—'}
+                    </td>
+                    <td class="text-xs text-muted">
+                      ${lv.createdAt ? new Date(lv.createdAt).toLocaleDateString() : '—'}
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    window.approveLeaveRequest = function (leaveId) {
+      const list = PDMS.getAllLeaveRequests ? PDMS.getAllLeaveRequests() : (D.leaveRequests || []);
+      const lv = list.find(l => String(l.id) === String(leaveId));
+      if (!lv) return;
+      const user = PDMS.getUser();
+
+      const patch = {
+        status: 'Approved',
+        reviewerId: String(user.id || ''),
+        reviewerName: String(user.name || 'HR'),
+        reviewerRole: String(user.role || 'HR'),
+        reviewedAt: new Date().toISOString()
+      };
+
+      PDMS.api.update('leaveRequests', leaveId, patch).then(saved => {
+        Object.assign(lv, patch, saved || {});
+        PDMS.notify('Time-Off Request Approved', `Your request for ${lv.daysCount} off-day(s) (${lv.startDate} to ${lv.endDate}) has been approved by HR.`, 'check', 'user-details.html#id=' + encodeURIComponent(lv.userId || ''), lv.userRole, lv.userEmail);
+        PDMS.toast('Leave Approved', `Approved time off for ${lv.userName} (${lv.startDate} to ${lv.endDate})`, 'success');
+        render();
+        if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+      }).catch(err => {
+        PDMS.toast('Error', err.message || 'Could not approve leave request', 'error');
+      });
+    };
+
+    window.rejectLeaveRequest = function (leaveId) {
+      const list = PDMS.getAllLeaveRequests ? PDMS.getAllLeaveRequests() : (D.leaveRequests || []);
+      const lv = list.find(l => String(l.id) === String(leaveId));
+      if (!lv) return;
+      const user = PDMS.getUser();
+
+      const note = prompt('Please provide a reason / note for rejecting this time-off request:');
+      if (note === null) return; // cancelled
+
+      const patch = {
+        status: 'Rejected',
+        reviewNote: note.trim() || 'Not approved by HR',
+        reviewerId: String(user.id || ''),
+        reviewerName: String(user.name || 'HR'),
+        reviewerRole: String(user.role || 'HR'),
+        reviewedAt: new Date().toISOString()
+      };
+
+      PDMS.api.update('leaveRequests', leaveId, patch).then(saved => {
+        Object.assign(lv, patch, saved || {});
+        PDMS.notify('Time-Off Request Rejected', `Your request for off-days (${lv.startDate} to ${lv.endDate}) was not approved. Reason: ${patch.reviewNote}`, 'alert-triangle', 'user-details.html#id=' + encodeURIComponent(lv.userId || ''), lv.userRole, lv.userEmail);
+        PDMS.toast('Leave Rejected', `Time off request for ${lv.userName} was rejected.`, 'info');
+        render();
+        if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+      }).catch(err => {
+        PDMS.toast('Error', err.message || 'Could not reject leave request', 'error');
+      });
+    };
+
+    window.setTab = setTab;
+    PDMS.onRefresh(render);
+  </script>
+</body>
+
+</html>

@@ -7,7 +7,7 @@
   <title>HR Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1789049499"/>
+<link rel="stylesheet" href="css/style.css?v=1789132687"/>
   <style>
     .hr-hero {
       display: grid;
@@ -75,7 +75,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789049499"></script>
+  <script src="js/bundle.js?v=1789132687"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -106,6 +106,10 @@
         color: statusColorHex[s] || '#94a3b8'
       })).filter(s => s.count > 0);
 
+      const allLeaves = PDMS.getAllLeaveRequests ? PDMS.getAllLeaveRequests() : (D.leaveRequests || []);
+      const pendingLeaves = allLeaves.filter(l => String(l.status || 'Pending Approval').toLowerCase() === 'pending approval' || String(l.status || '').toLowerCase() === 'pending');
+      const staffOnLeaveCount = D.users.filter(u => PDMS.isUserOnLeave ? PDMS.isUserOnLeave(u) : false).length;
+
       document.getElementById('content').innerHTML = `
     <div class="hr-hero">
       <div class="hr-hero-copy">
@@ -120,13 +124,13 @@
         <div style="width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,0.2);display:grid;place-items:center;font-size:28px;flex-shrink:0">${I('users')}</div>
         <div>
           <div class="hero-card-title">Consultant Bench</div>
-          <div class="hero-card-text">${totalConsultants} consultant${totalConsultants !== 1 ? 's' : ''} on the bench. All staff are available for assignment.</div>
-          <div class="hero-card-foot">Always Available</div>
+          <div class="hero-card-text">${totalConsultants} consultant${totalConsultants !== 1 ? 's' : ''} on the bench. Real-time leave tracking enabled.</div>
+          <div class="hero-card-foot">Live Availability</div>
         </div>
       </div>
     </div>
 
-    <div class="grid grid-2 mb-4">
+    <div class="grid grid-4 mb-4" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px">
       <a class="stat i-primary" href="users.html" title="View staff directory">
         <div class="label">Total Staff</div>
         <div class="value">${totalStaff}</div>
@@ -136,8 +140,20 @@
       <a class="stat i-info" href="consultants.html" title="View consultants and bench">
         <div class="label">Consultants</div>
         <div class="value">${totalConsultants}</div>
-        <div class="delta up">On bench, all available</div>
+        <div class="delta up">Technical delivery</div>
         <div class="icon-wrap">${I('briefcase')}</div>
+      </a>
+      <a class="stat ${staffOnLeaveCount > 0 ? 'i-warn' : 'i-success'}" href="leave-approvals.html#tab=active" title="View employees on leave today" style="text-decoration:none">
+        <div class="label">On Leave Today</div>
+        <div class="value">${staffOnLeaveCount}</div>
+        <div class="delta">${staffOnLeaveCount === 1 ? '1 team member' : `${staffOnLeaveCount} team members`}</div>
+        <div class="icon-wrap">${I('calendar')}</div>
+      </a>
+      <a class="stat ${pendingLeaves.length > 0 ? 'i-purple' : 'i-primary'}" href="leave-approvals.html#tab=pending" title="View and approve pending time-off" style="text-decoration:none;${pendingLeaves.length > 0 ? 'border:1.5px solid rgba(139,92,246,.5);box-shadow:0 4px 14px rgba(139,92,246,.15)' : ''}">
+        <div class="label">Pending Time-Off</div>
+        <div class="value">${pendingLeaves.length}</div>
+        <div class="delta">${pendingLeaves.length > 0 ? 'Needs HR review' : 'All clear'}</div>
+        <div class="icon-wrap">${I('clock')}</div>
       </a>
     </div>
 
@@ -256,8 +272,16 @@
                 </tr>
               </thead>
               <tbody>
-                ${consultants.slice(0, 5).map(c => {
+                ${consultants.slice(0, 6).map(c => {
                   const projCount = D.projects.filter(p => p.pm===c.name||p.lead===c.name||(p.consultants||[]).includes(c.name)).length;
+                  const activeLv = PDMS.getUserActiveLeave ? PDMS.getUserActiveLeave(c) : null;
+                  let statusBadge = `<span class="badge badge-primary">${projCount} project${projCount!==1?'s':''}</span>`;
+                  if (activeLv) {
+                    statusBadge = `<span class="badge badge-warn" title="On leave from ${activeLv.startDate} to ${activeLv.endDate}">● On Leave</span>`;
+                  } else if (projCount === 0) {
+                    statusBadge = `<span class="badge badge-success">● Available</span>`;
+                  }
+
                   return `
                   <tr>
                     <td>
@@ -270,7 +294,7 @@
                       </a>
                     </td>
                     <td><span class="badge badge-purple">${PDMS.esc(c.skillSet||c.dept||'—')}</span></td>
-                    <td><span class="badge badge-primary">${projCount} project${projCount!==1?'s':''}</span></td>
+                    <td>${statusBadge}</td>
                   </tr>`;
                 }).join('') || `<tr><td colspan="3" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No consultants yet')}</td></tr>`}
               </tbody>
@@ -368,6 +392,60 @@
         render();
       }).catch(err => PDMS.toast('Error', err.message || 'Could not update availability', 'error'));
     }
+
+    window.approveLeaveRequest = function (leaveId) {
+      const list = PDMS.getAllLeaveRequests ? PDMS.getAllLeaveRequests() : (D.leaveRequests || []);
+      const lv = list.find(l => String(l.id) === String(leaveId));
+      if (!lv) return;
+      const user = PDMS.getUser();
+
+      const patch = {
+        status: 'Approved',
+        reviewerId: String(user.id || ''),
+        reviewerName: String(user.name || 'HR'),
+        reviewerRole: String(user.role || 'HR'),
+        reviewedAt: new Date().toISOString()
+      };
+
+      PDMS.api.update('leaveRequests', leaveId, patch).then(saved => {
+        Object.assign(lv, patch, saved || {});
+        PDMS.notify('Time-Off Request Approved', `Your request for ${lv.daysCount} off-day(s) (${lv.startDate} to ${lv.endDate}) has been approved by HR.`, 'check', 'profile.html', lv.userRole, lv.userEmail);
+        PDMS.toast('Leave Approved', `Approved time off for ${lv.userName} (${lv.startDate} to ${lv.endDate})`, 'success');
+        render();
+        if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+      }).catch(err => {
+        PDMS.toast('Error', err.message || 'Could not approve leave request', 'error');
+      });
+    };
+
+    window.rejectLeaveRequest = function (leaveId) {
+      const list = PDMS.getAllLeaveRequests ? PDMS.getAllLeaveRequests() : (D.leaveRequests || []);
+      const lv = list.find(l => String(l.id) === String(leaveId));
+      if (!lv) return;
+      const user = PDMS.getUser();
+
+      const note = prompt('Please provide a reason / note for rejecting this time-off request:');
+      if (note === null) return; // cancelled
+
+      const patch = {
+        status: 'Rejected',
+        reviewNote: note.trim() || 'Not approved by HR',
+        reviewerId: String(user.id || ''),
+        reviewerName: String(user.name || 'HR'),
+        reviewerRole: String(user.role || 'HR'),
+        reviewedAt: new Date().toISOString()
+      };
+
+      PDMS.api.update('leaveRequests', leaveId, patch).then(saved => {
+        Object.assign(lv, patch, saved || {});
+        PDMS.notify('Time-Off Request Rejected', `Your request for off-days (${lv.startDate} to ${lv.endDate}) was not approved. Reason: ${patch.reviewNote}`, 'alert-triangle', 'profile.html', lv.userRole, lv.userEmail);
+        PDMS.toast('Leave Rejected', `Time off request for ${lv.userName} was rejected.`, 'info');
+        render();
+        if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+      }).catch(err => {
+        PDMS.toast('Error', err.message || 'Could not reject leave request', 'error');
+      });
+    };
 
     window.newUser = newUser;
     window.toggleAvailability = toggleAvailability;

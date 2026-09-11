@@ -307,16 +307,14 @@
   const surveillanceStages = [
     'Not Started',
     'Previous Findings Closure',
-    'Training',
     'Awareness',
     'VAPT',
     'Internal Audit',
+    'Remediation',
     'Management Review',
     'Readiness Assessment',
-    'Remediation',
     'Surveillance Audit',
     'Completed',
-    'Post Engagement',
     'Closure'
   ];
 
@@ -555,6 +553,8 @@
   const activities = loadCollection('activities', []);
   const reviews = loadCollection('reviews', []);
   const issues = loadCollection('issues', []);
+  const complaints = loadCollection('complaints', []);
+  const leaveRequests = loadCollection('leaveRequests', []);
 
   function tasksFor(projectId) {
     return [];
@@ -562,7 +562,7 @@
 
   global.PDMS_DATA = {
     departments, users, consultants, clients, projects,
-    notifications, threads, activities, reviews, issues,
+    notifications, threads, activities, reviews, issues, complaints, leaveRequests,
     roles, types, priorities, workstreams, statuses, salesJourney, salesStatuses, salesStatusAliases, deliveryStatuses,
     deliveryStagesByType, deliverySequenceFor,
     statusColors, prioColors,
@@ -631,7 +631,10 @@
     zap:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
     mail:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>',
     phone:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
-    eye:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
+    eye:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+    'help-circle':'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    'life-buoy':'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></svg>',
+    'alert-triangle':'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
   };
 
   PDMS.icon = function(name){ return ICONS[name]||''; };
@@ -1030,6 +1033,60 @@
         projectName: project.name || project.client || '',
         dedupeKey: dedupeKey
       });
+    });
+  };
+
+  // Notify management when a complaint is submitted
+  PDMS.notifyComplaintSubmitted = function(complaint, user) {
+    if (!complaint) return;
+    const managementRoles = ['HR', 'PM Head', 'HTD', 'COO', 'System Administrator'];
+    const nowIso = new Date().toISOString();
+    const actorName = (user && user.name) || complaint.submittedByName || 'User';
+    const actorRole = (user && user.role) || complaint.submittedByRole || 'Member';
+
+    managementRoles.forEach(role => {
+      postNotification({
+        title: `New Complaint: ${complaint.subject || 'Support Ticket'}`,
+        msg: `${actorName} (${actorRole}) submitted a ${complaint.priority || 'Normal'} priority complaint (${complaint.category || 'General'}).`,
+        icon: 'alert-triangle',
+        link: `help.html#ticket=${complaint.id}`,
+        actor: actorName,
+        actorRole: actorRole,
+        time: nowIso,
+        unread: true,
+        recipientRole: role,
+        kind: 'action',
+        event: 'complaint.submitted',
+        projectId: '',
+        projectName: '',
+        dedupeKey: `complaint.submitted:${complaint.id}:${role}`
+      });
+    });
+  };
+
+  // Notify submitter when complaint status is updated or replied to
+  PDMS.notifyComplaintResponse = function(complaint, responseMsg, actor) {
+    if (!complaint) return;
+    const nowIso = new Date().toISOString();
+    const actorUser = actor || PDMS.getUser() || { name: 'Support Team', role: 'Management' };
+    
+    postNotification({
+      title: `Update on Ticket #${complaint.ticketNumber || complaint.id}`,
+      msg: `${actorUser.name} (${actorUser.role}): ${responseMsg || `Status updated to ${complaint.status}`}`,
+      icon: 'message',
+      link: `help.html#ticket=${complaint.id}`,
+      actor: actorUser.name,
+      actorRole: actorUser.role,
+      time: nowIso,
+      unread: true,
+      recipientId: String(complaint.submittedById || ''),
+      recipientName: String(complaint.submittedByName || ''),
+      recipientRole: String(complaint.submittedByRole || ''),
+      kind: 'info',
+      event: 'complaint.updated',
+      projectId: '',
+      projectName: '',
+      dedupeKey: `complaint.response:${complaint.id}:${Date.now()}`
     });
   };
 
@@ -3096,7 +3153,8 @@
     threads: 'T',
     activities: 'A',
     reviews: 'RV',
-    issues: 'IS'
+    issues: 'IS',
+    complaints: 'CMP-'
   };
 
   function persistLocalData() {
@@ -3111,7 +3169,8 @@
       threads: global.PDMS_DATA.threads,
       activities: global.PDMS_DATA.activities,
       reviews: global.PDMS_DATA.reviews,
-      issues: global.PDMS_DATA.issues
+      issues: global.PDMS_DATA.issues,
+      complaints: global.PDMS_DATA.complaints
     }));
   }
 
@@ -3434,9 +3493,15 @@
 
     const normalized = PDMS.normalizeStatus ? PDMS.normalizeStatus(project.status) : project.status;
     const preAwardSales = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing'];
-    if (preAwardSales.includes(normalized)) return 'Sales';
+    if (preAwardSales.includes(normalized) && project.stage !== 'Delivery' && !project.deliveryStatus) return 'Sales';
 
-    if ((project.status === 'Cancelled' || project.status === 'On Hold') && project.stage === 'Sales' && !project.deliveryStatus) {
+    if (project.status === 'Cancelled' || project.status === 'On Hold') {
+      if (project.stage === 'Delivery' || !!project.deliveryStatus) return 'Delivery';
+      const prev = project.previousStatus || project.heldAtStatus;
+      const D = window.PDMS_DATA;
+      const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure'];
+      if (prev && allDelivery.includes(prev)) return 'Delivery';
+      if (project.stage === 'Sales') return 'Sales';
       return 'Sales';
     }
 
@@ -3450,6 +3515,36 @@
 
     if (project.stage === 'Sales') return 'Sales';
     return 'Sales';
+  };
+
+  PDMS.isDeliveryProject = function (project) {
+    if (!project) return false;
+    if (project.status === 'Awaiting Account Approval' || project.status === 'Awaiting Sales Head Approval') return false;
+    const preAward = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA'];
+    if (preAward.includes(project.status) && project.stage !== 'Delivery' && !project.deliveryStatus) return false;
+    if ((project.status === 'Cancelled' || project.status === 'On Hold') && (project.stage === 'Sales' || (!project.deliveryStatus && (PDMS.stageOf ? PDMS.stageOf(project) === 'Sales' : true)))) {
+      return false;
+    }
+    if (PDMS.stageOf && PDMS.stageOf(project) === 'Sales') return false;
+    return true;
+  };
+
+  PDMS.getDeliveryProjects = function (projectsList) {
+    const list = projectsList || (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || (window.PDMS_DATA && window.PDMS_DATA.projects) || [];
+    return list.filter(PDMS.isDeliveryProject);
+  };
+
+  PDMS.isClosedOrCompleted = function (projectOrStatus) {
+    if (!projectOrStatus) return false;
+    if (typeof projectOrStatus === 'string') {
+      const s = projectOrStatus.trim().toLowerCase();
+      return ['completed', 'closed', 'closure', 'project closure', 'cancelled', 'on hold', 'rejected', 'certification & post engagement'].includes(s);
+    }
+    const p = projectOrStatus;
+    const dStat = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus) || '').trim().toLowerCase();
+    const s = String(p.status || '').trim().toLowerCase();
+    const closedList = ['completed', 'closed', 'closure', 'project closure', 'cancelled', 'on hold', 'rejected', 'certification & post engagement'];
+    return closedList.includes(dStat) || closedList.includes(s);
   };
 
   PDMS.isSalesOrigin = function (project) {
@@ -3535,6 +3630,90 @@
   PDMS.canDeleteClient = function (client, user) {
     user = user || PDMS.getUser();
     return !!user && ['Sales Head', 'System Administrator'].includes(user.role);
+  };
+
+  // Help Center Complaints permissions:
+  // Visible to management: HR, PM Head, HTD, COO, System Administrator.
+  // Regular users can only see complaints they submitted.
+  const COMPLAINT_MANAGEMENT_ROLES = ['hr', 'pm head', 'htd', 'coo', 'system administrator', 'general admin'];
+
+  PDMS.canManageComplaints = function (user) {
+    user = user || PDMS.getUser();
+    if (!user || !user.role) return false;
+    const r = String(user.role).trim().toLowerCase();
+    return COMPLAINT_MANAGEMENT_ROLES.includes(r);
+  };
+  PDMS.canViewAllComplaints = PDMS.canManageComplaints;
+
+  PDMS.complaintOwnedByUser = function (complaint, user) {
+    if (!complaint || !user) return false;
+    const uId = String(user.id || '').trim().toLowerCase();
+    const uEmail = String(user.email || '').trim().toLowerCase();
+    const uName = String(user.name || '').trim().toLowerCase();
+    if (complaint.submittedById && String(complaint.submittedById).trim().toLowerCase() === uId) return true;
+    if (complaint.submittedByEmail && String(complaint.submittedByEmail).trim().toLowerCase() === uEmail) return true;
+    if (complaint.submittedByName && String(complaint.submittedByName).trim().toLowerCase() === uName) return true;
+    return false;
+  };
+
+  // Leave / Off-Days Request & Availability Helpers
+  PDMS.canManageLeaveRequests = function (user) {
+    user = user || PDMS.getUser();
+    if (!user || !user.role) return false;
+    const r = String(user.role).trim().toLowerCase();
+    return ['hr', 'system administrator', 'general admin'].includes(r);
+  };
+
+  PDMS.getAllLeaveRequests = function () {
+    const live = (window.PDMS_REMOTE && window.PDMS_REMOTE.leaveRequests) || (window.PDMS_DATA && window.PDMS_DATA.leaveRequests) || [];
+    return Array.isArray(live) ? live : [];
+  };
+
+  PDMS.getUserLeaveHistory = function (userOrIdOrName) {
+    if (!userOrIdOrName) return [];
+    const list = PDMS.getAllLeaveRequests();
+    const target = typeof userOrIdOrName === 'object' ? userOrIdOrName : { id: userOrIdOrName, name: userOrIdOrName, email: userOrIdOrName };
+    const tId = String(target.id || '').trim().toLowerCase();
+    const tEmail = String(target.email || '').trim().toLowerCase();
+    const tName = String(target.name || '').trim().toLowerCase();
+
+    return list.filter(lv => {
+      if (!lv) return false;
+      const lvId = String(lv.userId || '').trim().toLowerCase();
+      const lvEmail = String(lv.userEmail || '').trim().toLowerCase();
+      const lvName = String(lv.userName || '').trim().toLowerCase();
+      return (tId && lvId === tId) || (tEmail && lvEmail === tEmail) || (tName && lvName === tName);
+    }).sort((a, b) => new Date(b.createdAt || b.startDate || 0) - new Date(a.createdAt || a.startDate || 0));
+  };
+
+  PDMS.getUserActiveLeave = function (userOrIdOrName, checkDate) {
+    const userLeaves = PDMS.getUserLeaveHistory(userOrIdOrName);
+    if (!userLeaves.length) return null;
+
+    const dateStr = (checkDate ? new Date(checkDate) : new Date()).toISOString().slice(0, 10);
+    return userLeaves.find(lv => {
+      if (String(lv.status || '').toLowerCase() !== 'approved') return false;
+      const start = String(lv.startDate || '').slice(0, 10);
+      const end = String(lv.endDate || '').slice(0, 10);
+      if (!start || !end) return false;
+      return dateStr >= start && dateStr <= end;
+    }) || null;
+  };
+
+  PDMS.isUserOnLeave = function (userOrIdOrName, checkDate) {
+    return !!PDMS.getUserActiveLeave(userOrIdOrName, checkDate);
+  };
+
+  PDMS.getUserUpcomingLeaves = function (userOrIdOrName, checkDate) {
+    const userLeaves = PDMS.getUserLeaveHistory(userOrIdOrName);
+    if (!userLeaves.length) return [];
+
+    const dateStr = (checkDate ? new Date(checkDate) : new Date()).toISOString().slice(0, 10);
+    return userLeaves.filter(lv => {
+      if (String(lv.status || '').toLowerCase() !== 'approved') return false;
+      const start = String(lv.startDate || '').slice(0, 10);
+      return start > dateStr;
+    }).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
   };
 
   // Shared status/bucket helpers used across all dashboard pages.
@@ -3732,9 +3911,11 @@
       {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR','HTD','PM Head','COO','System Administrator','General Admin']},
       {id:'project-managers',label:'Project Managers',icon:'user-check',href:'project-managers.html',roles:['HTD','PM Head','COO','HR','System Administrator','General Admin']},
       {id:'consultants',label:'Consultants',icon:'briefcase',href:'consultants.html',roles:['HR','COO','HTD','PM Head','PMO','Project Manager']},
+      {id:'leave-approvals',label:'Time Off Approvals',icon:'calendar',href:'leave-approvals.html',roles:['HR','System Administrator','General Admin']},
     ]},
     {section:'Community',items:[
       {id:'notifications',label:'Notifications',icon:'bell',href:'notifications.html',roles:'*'},
+      {id:'help',label:'Help Center',icon:'help-circle',href:'help.html',roles:'*'},
     ]},
     {section:'System',items:[
       {id:'profile',label:'My Profile',icon:'user',href:'profile.html',roles:'*'},

@@ -109,16 +109,14 @@
   const surveillanceStages = [
     'Not Started',
     'Previous Findings Closure',
-    'Training',
     'Awareness',
     'VAPT',
     'Internal Audit',
+    'Remediation',
     'Management Review',
     'Readiness Assessment',
-    'Remediation',
     'Surveillance Audit',
     'Completed',
-    'Post Engagement',
     'Closure'
   ];
 
@@ -357,6 +355,8 @@
   const activities = loadCollection('activities', []);
   const reviews = loadCollection('reviews', []);
   const issues = loadCollection('issues', []);
+  const complaints = loadCollection('complaints', []);
+  const leaveRequests = loadCollection('leaveRequests', []);
 
   function tasksFor(projectId) {
     return [];
@@ -364,7 +364,7 @@
 
   global.PDMS_DATA = {
     departments, users, consultants, clients, projects,
-    notifications, threads, activities, reviews, issues,
+    notifications, threads, activities, reviews, issues, complaints, leaveRequests,
     roles, types, priorities, workstreams, statuses, salesJourney, salesStatuses, salesStatusAliases, deliveryStatuses,
     deliveryStagesByType, deliverySequenceFor,
     statusColors, prioColors,

@@ -15,9 +15,11 @@
       {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR','HTD','PM Head','COO','System Administrator','General Admin']},
       {id:'project-managers',label:'Project Managers',icon:'user-check',href:'project-managers.html',roles:['HTD','PM Head','COO','HR','System Administrator','General Admin']},
       {id:'consultants',label:'Consultants',icon:'briefcase',href:'consultants.html',roles:['HR','COO','HTD','PM Head','PMO','Project Manager']},
+      {id:'leave-approvals',label:'Time Off Approvals',icon:'calendar',href:'leave-approvals.html',roles:['HR','System Administrator','General Admin']},
     ]},
     {section:'Community',items:[
       {id:'notifications',label:'Notifications',icon:'bell',href:'notifications.html',roles:'*'},
+      {id:'help',label:'Help Center',icon:'help-circle',href:'help.html',roles:'*'},
     ]},
     {section:'System',items:[
       {id:'profile',label:'My Profile',icon:'user',href:'profile.html',roles:'*'},

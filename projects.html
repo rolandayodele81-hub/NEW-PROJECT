@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1789049499"/>
+<link rel="stylesheet" href="css/style.css?v=1789132687"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1789049499"></script>
+<script src="js/bundle.js?v=1789132687"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -80,15 +80,12 @@ function scopedProjects(){
       return true;
     });
   } else if(viewParam==='delivery') {
-    list = liveProjects.filter(p => {
-      if (p.status === 'Awaiting Account Approval' || p.status === 'Awaiting Sales Head Approval') return false;
-      const preAward = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA'];
-      if (preAward.includes(p.status)) return false;
-      const isSales = (p.stage === 'Sales' || (PDMS.stageOf && PDMS.stageOf(p) === 'Sales'));
-      if ((p.status === 'Cancelled' || p.status === 'On Hold') && isSales && !p.deliveryStatus) return false;
-      if (PDMS.stageOf && PDMS.stageOf(p) === 'Sales') return false;
-      return true;
-    });
+    list = liveProjects.filter(p => PDMS.isDeliveryProject ? PDMS.isDeliveryProject(p) : (
+      p.status !== 'Awaiting Account Approval' && p.status !== 'Awaiting Sales Head Approval' &&
+      !['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA'].includes(p.status) &&
+      !((p.status === 'Cancelled' || p.status === 'On Hold') && (p.stage === 'Sales' || (PDMS.stageOf && PDMS.stageOf(p) === 'Sales')) && !p.deliveryStatus) &&
+      !(PDMS.stageOf && PDMS.stageOf(p) === 'Sales')
+    ));
   }
   list.sort((a, b) => {
     const nameA = String(a.client || a.name || '').trim().toLowerCase();
@@ -182,13 +179,13 @@ if (initialFilterParam === 'pipeline' || initialStatusParam === 'In Pipeline' ||
 } else if (initialFilterParam === 'dueSoon') {
   const today = new Date().toISOString().slice(0,10);
   const future = new Date(Date.now() + 30 * 86400000).toISOString().slice(0,10);
-  currentCustomFilter = r => r.due && r.due >= today && r.due <= future && !['Completed','Closed','Cancelled'].includes(PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : r.status);
+  currentCustomFilter = r => r.due && r.due >= today && r.due <= future && !(PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(r) : ['Completed','Closed','Closure','Project Closure','Cancelled','On Hold'].includes(PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : r.status));
 } else if (initialFilterParam === 'delayed') {
   const today = new Date().toISOString().slice(0,10);
-  currentCustomFilter = r => r.due && r.due < today && !['Completed','Closed','Cancelled'].includes(PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : r.status);
+  currentCustomFilter = r => r.due && r.due < today && !(PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(r) : ['Completed','Closed','Closure','Project Closure','Cancelled','On Hold'].includes(PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : r.status));
 } else if (initialFilterParam === 'dueToday') {
   const today = new Date().toISOString().slice(0,10);
-  currentCustomFilter = r => r.due === today && !['Completed','Closed','Cancelled'].includes(PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : r.status);
+  currentCustomFilter = r => r.due === today && !(PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(r) : ['Completed','Closed','Closure','Project Closure','Cancelled','On Hold'].includes(PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : r.status));
 } else if (initialFilterParam === 'activeTasks' || initialTaskFilterParam === 'active') {
   currentCustomFilter = p => (p.privateTasks||[]).some(t=>!t.done);
   selectedTileIndex = statTiles.findIndex(t => t.filterKey === 'activeTasks');
