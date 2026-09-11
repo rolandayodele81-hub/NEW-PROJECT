@@ -1622,6 +1622,7 @@
     const mClass = opts.modalClass ? 'modal ' + opts.modalClass : 'modal';
     back.innerHTML = '<div class="'+mClass+'"><div class="modal-head"><h3 class="card-title">'+title+'</h3>'+(opts.showCloseBtn !== false ? '<button class="btn btn-ghost btn-sm" data-close style="padding:4px 8px;font-size:16px;line-height:1;border-radius:6px" title="Close">✕</button>' : '')+'</div><div class="modal-body">'+bodyHtml+'</div>'+(footHtml?'<div class="modal-foot">'+footHtml+'</div>':'')+'</div>';
     document.body.appendChild(back);
+    back.close = function() { back.remove(); };
     back.addEventListener('click',e=>{ if(e.target.closest('[data-close]')) back.remove(); });
     return back;
   };
@@ -3653,6 +3654,14 @@
     if (complaint.submittedById && String(complaint.submittedById).trim().toLowerCase() === uId) return true;
     if (complaint.submittedByEmail && String(complaint.submittedByEmail).trim().toLowerCase() === uEmail) return true;
     if (complaint.submittedByName && String(complaint.submittedByName).trim().toLowerCase() === uName) return true;
+    return false;
+  };
+
+  PDMS.canCloseComplaint = function (complaint, user) {
+    user = user || PDMS.getUser();
+    if (!user || !complaint) return false;
+    if (PDMS.canManageComplaints(user)) return true;
+    if (PDMS.complaintOwnedByUser(complaint, user)) return true;
     return false;
   };
 

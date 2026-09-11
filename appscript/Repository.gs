@@ -5,8 +5,23 @@
  */
 
 function getSheet_(name) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
-  if (!sheet) throw new Error('Sheet not found: ' + name + ' (run Setup.initializeSheets first)');
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    try {
+      if (typeof initializeSheets === 'function') {
+        initializeSheets();
+        sheet = ss.getSheetByName(name);
+      }
+    } catch (e) {
+      // fallback
+    }
+    if (!sheet) {
+      sheet = ss.insertSheet(name);
+      sheet.getRange(1, 1, 1, 1).setValues([['id']]).setFontWeight('bold');
+      sheet.setFrozenRows(1);
+    }
+  }
   return sheet;
 }
 

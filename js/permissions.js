@@ -246,6 +246,14 @@
     return false;
   };
 
+  PDMS.canCloseComplaint = function (complaint, user) {
+    user = user || PDMS.getUser();
+    if (!user || !complaint) return false;
+    if (PDMS.canManageComplaints(user)) return true;
+    if (PDMS.complaintOwnedByUser(complaint, user)) return true;
+    return false;
+  };
+
   // Leave / Off-Days Request & Availability Helpers
   PDMS.canManageLeaveRequests = function (user) {
     user = user || PDMS.getUser();

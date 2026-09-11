@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Help Center &amp; Complaints — PSE PDMS</title>
-  <link rel="stylesheet" href="css/style.css?v=1789132687" />
+  <link rel="stylesheet" href="css/style.css?v=1789158508" />
   <style>
     .help-hero {
       background: linear-gradient(135deg, #090d16 0%, #1d3c88 45%, #6366f1 80%, #8b5cf6 100%);
@@ -99,118 +99,269 @@
       box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
     }
 
-    .ticket-card {
-      background: var(--surface);
+    .review-card {
+      position: relative;
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px 22px;
-      margin-bottom: 12px;
-      transition: all 0.15s;
-      cursor: pointer;
+      border-radius: 16px;
+      padding: 20px 22px;
+      margin-bottom: 16px;
+      background: var(--surface);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .review-card:hover {
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    .review-head {
       display: flex;
-      flex-direction: column;
+      align-items: flex-start;
       gap: 12px;
+      margin-bottom: 12px;
     }
 
-    .ticket-card:hover {
-      border-color: var(--primary);
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+    .review-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      flex-shrink: 0;
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+      display: grid;
+      place-items: center;
+      background: var(--gradient);
     }
 
-    .ticket-header {
+    .review-author-row {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      gap: 8px;
       flex-wrap: wrap;
     }
 
-    .ticket-num {
-      font-family: monospace;
-      font-weight: 700;
+    .review-role-chip {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--surface-2);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .review-time {
       font-size: 12px;
-      color: var(--primary);
-      background: rgba(99, 102, 241, 0.1);
-      padding: 3px 8px;
-      border-radius: 6px;
+      color: var(--text-soft);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
-    .badge-prio-critical {
-      background: rgba(239, 68, 68, 0.12);
-      color: #ef4444;
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      font-weight: 700;
+    .review-body {
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 4px 0 12px;
+      color: var(--text);
     }
 
-    .badge-prio-high {
+    .review-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 2px;
+    }
+
+    .comment-count-pill {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .comment-thread {
+      padding: 12px 0 0;
+      margin-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .comment {
+      padding: 10px 12px;
+      background: var(--surface-2);
+      border-radius: 12px;
+      margin-bottom: 8px;
+    }
+
+    .comment-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .comment-form {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .comment-form input {
+      flex: 1;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .comment-form input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Status Dropdown Trigger Button */
+    .status-dropdown-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    .status-dropdown-trigger:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transform: translateY(-0.5px);
+    }
+
+    .status-dropdown-trigger.status-open {
       background: rgba(245, 158, 11, 0.12);
-      color: #d97706;
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      font-weight: 700;
-    }
-
-    .badge-prio-medium {
-      background: rgba(59, 130, 246, 0.12);
-      color: #2563eb;
-      font-weight: 600;
-    }
-
-    .badge-prio-low {
-      background: var(--surface-2);
-      color: var(--text-muted);
-      font-weight: 600;
-    }
-
-    .badge-status-open {
-      background: rgba(245, 158, 11, 0.15);
       color: #b45309;
-      font-weight: 700;
+      border-color: rgba(245, 158, 11, 0.25);
     }
 
-    .badge-status-in-review {
-      background: rgba(139, 92, 246, 0.15);
+    .status-dropdown-trigger.status-in-review {
+      background: rgba(139, 92, 246, 0.12);
       color: #7c3aed;
-      font-weight: 700;
+      border-color: rgba(139, 92, 246, 0.25);
     }
 
-    .badge-status-in-progress {
-      background: rgba(59, 130, 246, 0.15);
+    .status-dropdown-trigger.status-in-progress {
+      background: rgba(59, 130, 246, 0.12);
       color: #1d4ed8;
-      font-weight: 700;
+      border-color: rgba(59, 130, 246, 0.25);
     }
 
-    .badge-status-resolved {
-      background: rgba(16, 185, 129, 0.15);
+    .status-dropdown-trigger.status-resolved {
+      background: rgba(16, 185, 129, 0.12);
       color: #047857;
-      font-weight: 700;
+      border-color: rgba(16, 185, 129, 0.25);
     }
 
-    .badge-status-closed {
+    /* Custom Floating Popover Menu */
+    .status-popover-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      z-index: 100;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      min-width: 175px;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      animation: popoverFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes popoverFadeIn {
+      from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .status-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+      background: none;
+      border: none;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+
+    .status-menu-item:hover {
       background: var(--surface-2);
-      color: var(--text-muted);
-      font-weight: 600;
+    }
+
+    .status-menu-item.active {
+      font-weight: 700;
+      background: rgba(99, 102, 241, 0.08);
+      color: var(--primary);
+    }
+
+    .status-menu-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    .status-menu-item.danger {
+      color: var(--danger);
+    }
+
+    .status-menu-item.danger:hover {
+      background: rgba(239, 68, 68, 0.08);
+    }
+
+    .ticket-delete-btn {
+      background: none;
+      border: none;
+      color: var(--text-soft);
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      transition: all 0.15s;
     }
 
     .faq-accordion {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       overflow: hidden;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
     }
 
     .faq-header {
-      padding: 16px 20px;
-      font-weight: 700;
-      font-size: 14px;
+      padding: 14px 18px;
+      font-weight: 600;
+      font-size: 13.5px;
       cursor: pointer;
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 12px;
       background: var(--surface);
+      transition: background 0.15s;
     }
 
     .faq-header:hover {
@@ -218,17 +369,17 @@
     }
 
     .faq-body {
-      padding: 0 20px 18px 20px;
+      padding: 0 18px 14px 18px;
       font-size: 13px;
       color: var(--text-muted);
-      line-height: 1.6;
+      line-height: 1.55;
       border-top: 1px solid var(--border);
       display: none;
     }
 
     .faq-accordion.open .faq-body {
       display: block;
-      padding-top: 14px;
+      padding-top: 12px;
     }
 
     .faq-accordion.open .faq-arrow {
@@ -236,138 +387,15 @@
     }
 
     .faq-arrow {
-      transition: transform 0.2s;
+      transition: transform 0.2s ease;
       color: var(--text-muted);
-    }
-
-    /* Clean Enterprise Ticket Details & Conversation Modal */
-    .ticket-detail-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .ticket-meta-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border);
-      flex-wrap: wrap;
-    }
-
-    .ticket-issue-box {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px 18px;
-    }
-
-    .ticket-issue-title {
-      font-size: 16px;
-      font-weight: 800;
-      color: var(--text);
-      margin-bottom: 8px;
-      line-height: 1.35;
-    }
-
-    .ticket-issue-desc {
-      font-size: 13.5px;
-      color: var(--text);
-      line-height: 1.6;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .ticket-thread-section {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .ticket-thread-title {
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-soft);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .ticket-messages-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-height: 260px;
-      overflow-y: auto;
-      padding-right: 4px;
-    }
-
-    .ticket-msg-item {
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px 16px;
-      background: var(--surface);
-      transition: border-color 0.15s;
-    }
-
-    .ticket-msg-item.leadership {
-      border-left: 3.5px solid var(--primary);
-      background: rgba(99, 102, 241, 0.02);
-    }
-
-    .ticket-msg-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 6px;
-    }
-
-    .ticket-msg-body {
-      font-size: 13px;
-      color: var(--text);
-      line-height: 1.55;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .ticket-reply-box {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 14px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .ticket-reply-textarea {
-      width: 100%;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 13px;
-      background: var(--surface);
-      color: var(--text);
-      resize: vertical;
-      font-family: inherit;
-      box-sizing: border-box;
-    }
-
-    .ticket-reply-textarea:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+      font-size: 11px;
     }
   </style>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789132687"></script>
+  <script src="js/bundle.js?v=1789158508"></script>
   <script>
     PDMS.mountShell('help');
     const D = PDMS_DATA;
@@ -378,20 +406,31 @@
     let activeTab = canManageAll ? 'all' : 'my';
 
     const CATEGORIES = [
-      'Technical & System Issue',
-      'HR & Workplace / Personnel',
-      'Project & Delivery Issue',
-      'Accounts & Invoicing',
+      'Workplace & Conduct',
+      'Project & Delivery Roadblock',
+      'Finance & Invoicing Dispute',
+      'Commission & Earnings',
+      'Staff & Management Roadblock',
+      'Technical & Tooling Issue',
       'Access & Permissions',
       'General Complaint / Feedback'
     ];
 
     const PRIORITIES = ['Low', 'Medium', 'High', 'Critical'];
-    const STATUSES = ['Open', 'In Review', 'In Progress', 'Resolved', 'Closed'];
+    const STATUSES = ['Open', 'In Review', 'In Progress', 'Resolved'];
 
     function allComplaints() {
       const live = (window.PDMS_REMOTE && window.PDMS_REMOTE.complaints) || D.complaints || [];
-      return Array.isArray(live) ? live : [];
+      const arr = Array.isArray(live) ? live : [];
+      const seen = new Set();
+      return arr.filter(item => {
+        if (!item) return false;
+        const key = String(item.id || item.ticketNumber || '').trim();
+        if (!key) return true;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     }
 
     function timeAgo(iso) {
@@ -407,10 +446,9 @@
 
     function getPriorityBadge(priority) {
       const p = String(priority || 'Low').toLowerCase();
-      if (p === 'critical') return `<span class="badge badge-prio-critical">⚡ Critical</span>`;
-      if (p === 'high') return `<span class="badge badge-prio-high">▲ High</span>`;
-      if (p === 'medium') return `<span class="badge badge-prio-medium">Medium</span>`;
-      return `<span class="badge badge-prio-low">Low</span>`;
+      if (p === 'critical') return `<span class="badge" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.3);font-weight:700">⚡ Critical</span>`;
+      if (p === 'high') return `<span class="badge" style="background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.3);font-weight:700">▲ High</span>`;
+      return '';
     }
 
     function getStatusBadge(status) {
@@ -419,7 +457,6 @@
       if (s === 'in review' || s === 'in-review') return `<span class="badge badge-status-in-review">⏳ In Review</span>`;
       if (s === 'in progress' || s === 'in-progress') return `<span class="badge badge-status-in-progress">⚙️ In Progress</span>`;
       if (s === 'resolved') return `<span class="badge badge-status-resolved">✓ Resolved</span>`;
-      if (s === 'closed') return `<span class="badge badge-status-closed">Closed</span>`;
       return `<span class="badge badge-secondary">${PDMS.esc(status)}</span>`;
     }
 
@@ -434,8 +471,7 @@
 
       const openCount = list.filter(c => c.status === 'Open' || !c.status).length;
       const inReviewCount = list.filter(c => c.status === 'In Review' || c.status === 'In Progress').length;
-      const resolvedCount = list.filter(c => c.status === 'Resolved' || c.status === 'Closed').length;
-      const criticalCount = list.filter(c => c.priority === 'Critical' || c.priority === 'High').length;
+      const resolvedCount = list.filter(c => c.status === 'Resolved').length;
 
       let filtered = targetList.slice();
       // Sort newest first
@@ -467,7 +503,7 @@
             <div class="help-stat-icon" style="background:rgba(99,102,241,.12);color:var(--primary)">${I('folder')}</div>
             <div>
               <div style="font-size:22px;font-weight:800;color:var(--text)">${list.length}</div>
-              <div style="font-size:12px;color:var(--text-muted);font-weight:600">Total Complaints</div>
+              <div style="font-size:12px;color:var(--text-muted);font-weight:600">Total Active Tickets</div>
             </div>
           </div>
           <div class="help-stat-card">
@@ -510,9 +546,9 @@
         </div>
 
         ${activeTab === 'faq' ? renderFaqSection() : `
-          <div id="complaintsListContainer">
+          <div id="complaintsListContainer" style="max-width:760px">
             ${filtered.length ? filtered.map(c => renderComplaintCard(c)).join('') : `
-              <div class="card" style="text-align:center;padding:48px 20px;background:var(--surface)">
+              <div class="card" style="text-align:center;padding:48px 20px;background:var(--surface);border-radius:16px">
                 <div style="font-size:36px;margin-bottom:12px">📭</div>
                 <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">No complaints found</div>
                 <div style="font-size:13px;color:var(--text-muted);max-width:400px;margin:0 auto 16px">
@@ -526,261 +562,258 @@
       `;
     }
 
+    function getStatusLabel(status) {
+      const s = String(status || 'Open').toLowerCase();
+      if (s === 'open') return '● Open';
+      if (s === 'in review' || s === 'in-review') return '⏳ In Review';
+      if (s === 'in progress' || s === 'in-progress') return '⚙️ In Progress';
+      if (s === 'resolved') return '✓ Resolved';
+      return PDMS.esc(status || 'Open');
+    }
+
     function renderComplaintCard(c) {
-      const responsesCount = Array.isArray(c.responses) ? c.responses.length : 0;
-      const hasAttachment = c.attachment && c.attachment.url;
-      return `
-        <div class="ticket-card" onclick="openComplaintDetails('${c.id}')">
-          <div class="ticket-header">
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-              <span class="ticket-num">#${PDMS.esc(c.ticketNumber || c.id)}</span>
-              ${getStatusBadge(c.status || 'Open')}
-              <span class="badge badge-secondary" style="font-size:11px">${PDMS.esc(c.category || 'General')}</span>
-            </div>
-            <div style="font-size:12px;color:var(--text-soft);font-weight:500">
-              ${timeAgo(c.createdAt)}
-            </div>
-          </div>
-
-          <div>
-            <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;line-height:1.3">
-              ${PDMS.esc(c.subject || 'No Subject')}
-            </div>
-            <div style="font-size:13px;color:var(--text-muted);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">
-              ${PDMS.esc(c.description || 'No description.')}
-            </div>
-          </div>
-
-          <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);padding-top:10px;margin-top:2px;font-size:12px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <div class="avatar" style="width:24px;height:24px;font-size:10px">${PDMS.initials(c.submittedByName || '?')}</div>
-              <span style="font-weight:600;color:var(--text)">${PDMS.esc(c.submittedByName || 'User')}</span>
-              <span style="color:var(--text-soft)">(${PDMS.esc(c.submittedByRole || 'Staff')})</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:14px;color:var(--text-muted)">
-              ${hasAttachment ? `<span title="File attached" style="display:inline-flex;align-items:center;gap:4px">📎 Attachment</span>` : ''}
-              <span style="display:inline-flex;align-items:center;gap:4px">
-                💬 ${responsesCount} ${responsesCount === 1 ? 'response' : 'responses'}
-              </span>
-              <span style="color:var(--primary);font-weight:700">View Details →</span>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    function getFaqsForRole(user) {
-      const role = String((user && user.role) || '').trim().toLowerCase();
-
-      if (role === 'consultant') {
-        return [
-          {
-            q: 'How do I view my assigned projects and deliverables?',
-            a: 'Navigate to "Dashboard" or "Projects" in the sidebar. You will strictly see the delivery projects where you have been allocated. You can click into any project to inspect the delivery milestones, document library, and checklists.'
-          },
-          {
-            q: 'How do I manage and check off my private tasks?',
-            a: 'Open your project details page and switch to the "Tasks" or "My Tasks" section. You can mark tasks as completed in real time, which automatically updates your progress metrics on the Consultant Dashboard.'
-          },
-          {
-            q: 'How do I view and upload project documents?',
-            a: 'In the Project Details workspace, go to the "Documents" tab. You can upload project deliverables or click the "View" button to read PDFs, images, spreadsheets, and Word documents directly in your browser without downloading.'
-          },
-          {
-            q: 'How do I lay a complaint or report a project roadblock?',
-            a: 'Click "+ Submit a Complaint" in this Help Center. Select your issue category and describe your concern. Your ticket is confidential and delivered straight to HR, PM Head, HTD, and COO leadership.'
-          },
-          {
-            q: 'How do I change my profile details or password?',
-            a: 'Go to "My Profile" from the sidebar. You can update your contact information, delivery domain, profile avatar, and account password.'
-          }
-        ];
-      }
-
-      if (role === 'project manager' || role === 'pm') {
-        return [
-          {
-            q: 'How do I update project delivery status and milestones?',
-            a: 'Open the Project Details page and click the status dropdown. The delivery roadmap automatically synchronizes with the standardized milestone sequence for your project type.'
-          },
-          {
-            q: 'How do I assign tasks to consultants on my project?',
-            a: 'In the Project Details workspace, open the "Tasks & Team" tab. You can add specific tasks, set deadlines, and delegate them to staffed consultants.'
-          },
-          {
-            q: 'How do I log a project risk, delay, or incident?',
-            a: 'Go to "Incidents" from the sidebar or click "Log Incident" within your project page. High-priority incidents immediately trigger real-time notifications to the HTD and COO.'
-          },
-          {
-            q: 'Who can view documents uploaded in project delivery?',
-            a: 'Delivery documents are accessible to your project team, lead consultants, and executive delivery leadership (HTD, COO, PM Head). Commercial sales and accounting files remain restricted to those departments.'
-          },
-          {
-            q: 'How do I escalate resource constraints or staff disputes?',
-            a: 'Submit a ticket in this Help Center under "Project & Delivery Issue" or "HR & Workplace". The ticket is routed immediately to HR, PM Head, HTD, and COO.'
-          }
-        ];
-      }
-
-      if (role === 'pmo') {
-        return [
-          {
-            q: 'What projects are tracked in the PMO workspace?',
-            a: 'The PMO portal tracks timeline governance, milestone progress, staffing allocations, and deliverable deadlines across all projects currently in active technical delivery.'
-          },
-          {
-            q: 'How are "Delayed" projects and upcoming deadlines calculated?',
-            a: 'Any delivery project whose planned completion date is in the past and has not reached "Completed" or "Closure" is flagged as Delayed. The PMO dashboard highlights all projects due within the next 14 days.'
-          },
-          {
-            q: 'How do I monitor consultant bench utilization?',
-            a: 'Inspect the Bench Utilization widget on the PMO dashboard and visit "Consultants" in the sidebar to review which team members are currently staffed versus available for new project assignments.'
-          },
-          {
-            q: 'How do I escalate operational delivery bottlenecks?',
-            a: 'Use this Help Center to submit a ticket with full details. It will be reviewed by the PM Head, HTD, COO, and HR.'
-          }
-        ];
-      }
-
-      if (role === 'sales' || role === 'sales head') {
-        return [
-          {
-            q: 'How do I create and onboard a new sales lead?',
-            a: 'Go to "Sales Pipeline" in the sidebar and click "+ Create New Leads". Complete the 2-step onboarding wizard with client details, estimated deal value, and proposed project scope.'
-          },
-          {
-            q: 'How does the lead approval and handover to delivery work?',
-            a: 'Leads progress through Lead → Opportunity → Proposal → Negotiation → Invoicing → Award/SLA. Once the deal is awarded and approved by Sales Head and Accounts, it transitions seamlessly into Delivery.'
-          },
-          {
-            q: 'Why do I only see my own clients on the dashboard?',
-            a: 'General Sales users only see clients and pipeline leads that they personally onboarded. The Sales Head has executive oversight over all enterprise accounts and deals across the organization.'
-          },
-          {
-            q: 'Who can view uploaded sales proposals and contract documents?',
-            a: 'Documents uploaded by Sales and Accounts are strictly confidential to the Sales team, Account team, HTD, COO, PM Head, and Admins. Delivery consultants cannot access commercial files.'
-          },
-          {
-            q: 'How do I lay a commission, client, or support complaint?',
-            a: 'Click "+ Submit a Complaint" in this Help Center. Your ticket will be routed directly to HR, PM Head, HTD, and COO leadership.'
-          }
-        ];
-      }
-
-      if (role === 'accounts' || role === 'finance') {
-        return [
-          {
-            q: 'How do I review and approve awarded deals for delivery?',
-            a: 'Navigate to "Awaiting Approval" in the sidebar. Review the submitted commercial terms, contract value, and signed SLA documents before approving the deal to start technical delivery.'
-          },
-          {
-            q: 'How do I return a deal for revision if contract terms are missing?',
-            a: 'In the Awaiting Approval portal, click "Reject / Request Revision" and provide notes. The sales lead will be returned to the onboarding sales representative for correction.'
-          },
-          {
-            q: 'Who can see invoices and financial attachments?',
-            a: 'Financial attachments and invoices uploaded by Accounts remain strictly restricted to the Accounts team, Sales leadership, HTD, COO, PM Head, and System Administrators.'
-          },
-          {
-            q: 'How do I report financial discrepancy or platform issues?',
-            a: 'Submit a ticket in this Help Center under the "Account & Finance" category to alert executive leadership immediately.'
-          }
-        ];
-      }
-
-      if (role === 'hr') {
-        return [
-          {
-            q: 'How do I onboard new staff members and consultants?',
-            a: 'Navigate to "Staff Directory" from the sidebar and click "+ Onboard User". Set their name, work email, department, and role to generate their platform credentials.'
-          },
-          {
-            q: 'How do I review and respond to Help Center complaints?',
-            a: 'As HR leadership, you have full access to the "All Complaints" tab in this Help Center. You can open any ticket, post official leadership replies, and update resolution statuses.'
-          },
-          {
-            q: 'How do I evaluate consultant bench utilization and availability?',
-            a: 'The Talent & Resource Dashboard provides real-time counts of available bench consultants, staffed engagements, and departmental distribution.'
-          }
-        ];
-      }
-
-      if (role === 'htd' || role === 'coo' || role === 'pm head') {
-        return [
-          {
-            q: 'How do I manage and resolve Help Center complaints?',
-            a: 'You have full executive visibility over the "All Complaints" tab. You can inspect submitter details, review attached evidence in-app, post leadership responses, and transition statuses (In Review, In Progress, Resolved, Closed).'
-          },
-          {
-            q: 'How do I onboard delivery projects and assign PMs & Leads?',
-            a: 'Click "+ Onboard Project" on the Delivery & Operations Dashboard. Select the client, project type, designated PM, Technical Lead, and allocated consultants.'
-          },
-          {
-            q: 'What access do I have to project and sales documents?',
-            a: 'As executive delivery leadership, you have unrestricted direct view access to all technical project deliverables, commercial sales proposals, and financial invoices.'
-          },
-          {
-            q: 'How are delivery deadlines and on-hold projects tracked?',
-            a: 'The Delivery Dashboard tracks active projects by type, upcoming deadlines in the next 28 days (excluding closed/completed projects), and paused engagements on hold.'
-          }
-        ];
-      }
-
-      // Default / General Admin FAQs
-      return [
-        {
-          q: 'How do I submit a complaint or request assistance?',
-          a: 'Click "+ Submit a Complaint" in this Help Center. Fill in the subject, category, description, and optional attachments. Your ticket is routed directly to HR, PM Head, HTD, and COO leadership.'
-        },
-        {
-          q: 'Who can view uploaded files and documents?',
-          a: 'Delivery documents are accessible to the project team and leadership. Sales and Account financial documents are strictly restricted to commercial leadership (Sales, Accounts, HTD, COO, PM Head, Admins).'
-        },
-        {
-          q: 'How do I view documents without downloading them?',
-          a: 'Click the "View" button with the eye icon on any document item to open the integrated in-app file viewer.'
-        },
-        {
-          q: 'How do I change or reset my password?',
-          a: 'Go to "My Profile" to update your password at any time. If locked out, use the "Forgot Password?" link on the login page.'
-        },
-        {
-          q: 'How do I track responses to my submitted complaints?',
-          a: 'Open the "My Complaints & Requests" tab in this Help Center and click on your ticket to view the conversation history and official leadership replies.'
-        }
-      ];
-    }
-
-    function renderFaqSection() {
       const user = PDMS.getUser();
-      const roleName = user && user.role ? user.role : 'User';
-      const faqs = getFaqsForRole(user);
+      const responses = Array.isArray(c.responses) ? c.responses : [];
+      const hasAttachment = c.attachment && c.attachment.url;
+      const statusKey = String(c.status || 'open').toLowerCase().replace(/\s+/g, '-');
+      const canClose = PDMS.canCloseComplaint ? PDMS.canCloseComplaint(c, user) : false;
 
       return `
-        <div style="max-width:860px;margin:0 auto">
-          <div style="margin-bottom:24px;text-align:center">
-            <h3 style="font-size:22px;font-weight:800;color:var(--text);margin-bottom:6px">Frequently Asked Questions</h3>
-            <p style="font-size:13px;color:var(--text-muted)">Essential guides and workflows tailored specifically to your role and permissions.</p>
-          </div>
-          <div>
-            ${faqs.map((f, i) => `
-              <div class="faq-accordion ${i === 0 ? 'open' : ''}" onclick="this.classList.toggle('open')">
-                <div class="faq-header">
-                  <span style="display:flex;align-items:center;gap:10px">
-                    <span style="color:var(--primary);font-size:16px">💬</span>
-                    <span>${PDMS.esc(f.q)}</span>
-                  </span>
-                  <span class="faq-arrow">▼</span>
-                </div>
-                <div class="faq-body">
-                  ${PDMS.esc(f.a)}
-                </div>
+        <div class="review-card" id="ticket-${c.id}">
+          <div class="review-head">
+            <div class="review-avatar">${PDMS.initials(c.submittedByName || '?')}</div>
+            <div style="flex:1;min-width:0">
+              <div class="review-author-row">
+                <span class="font-bold text-sm">${PDMS.esc(c.submittedByName || 'User')}</span>
+                <span class="review-role-chip">${PDMS.esc(c.submittedByRole || 'Staff')}</span>
               </div>
-            `).join('')}
+              <div class="review-time">
+                <span>${timeAgo(c.createdAt)}</span>
+                <span>·</span>
+                <span>${PDMS.esc(c.category || 'General')}</span>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="position:relative;display:inline-block">
+                ${canManageAll ? `
+                  <button class="status-dropdown-trigger status-${statusKey}" onclick="toggleStatusMenu('${c.id}', event)" title="Click to update status">
+                    ${getStatusLabel(c.status)} <span style="font-size:9px;opacity:0.7">▾</span>
+                  </button>
+                  <div id="statusMenu-${c.id}" class="status-popover-menu hidden">
+                    <button class="status-menu-item ${(c.status === 'Open' || !c.status) ? 'active' : ''}" onclick="setComplaintStatus('${c.id}', 'Open')">
+                      <span style="color:#f59e0b">●</span> Open
+                    </button>
+                    <button class="status-menu-item ${c.status === 'In Review' ? 'active' : ''}" onclick="setComplaintStatus('${c.id}', 'In Review')">
+                      <span style="color:#7c3aed">⏳</span> In Review
+                    </button>
+                    <button class="status-menu-item ${c.status === 'In Progress' ? 'active' : ''}" onclick="setComplaintStatus('${c.id}', 'In Progress')">
+                      <span style="color:#1d4ed8">⚙️</span> In Progress
+                    </button>
+                    <button class="status-menu-item ${c.status === 'Resolved' ? 'active' : ''}" onclick="setComplaintStatus('${c.id}', 'Resolved')">
+                      <span style="color:#047857">✓</span> Resolved
+                    </button>
+                    ${canClose ? `
+                      <div class="status-menu-divider"></div>
+                      <button class="status-menu-item danger" onclick="closeAndDeleteComplaint('${c.id}')">
+                        ${I('trash')} Close &amp; Delete
+                      </button>
+                    ` : ''}
+                  </div>
+                ` : `
+                  <span class="status-dropdown-trigger status-${statusKey}" style="cursor:default">
+                    ${getStatusLabel(c.status)}
+                  </span>
+                `}
+              </div>
+
+              ${(canClose && !canManageAll) ? `
+                <button class="ticket-delete-btn" title="Close and delete ticket" onclick="closeAndDeleteComplaint('${c.id}')">
+                  ${I('trash')}
+                </button>
+              ` : ''}
+            </div>
+          </div>
+
+          <div class="review-body">
+            ${c.subject ? `<div style="font-weight:700;color:var(--text);margin-bottom:4px">${PDMS.esc(c.subject)}</div>` : ''}
+            <div>${PDMS.esc(c.description || '')}</div>
+            ${hasAttachment ? `
+              <div style="margin-top:10px">
+                <a href="javascript:void(0)" onclick="PDMS.viewDoc('${PDMS.esc(c.attachment.url)}', '${PDMS.esc(c.attachment.name || 'document')}', '${PDMS.esc(c.attachment.fileType || '')}')" class="badge badge-secondary" style="font-size:12px;gap:6px;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center">
+                  ${I('file')} ${PDMS.esc(c.attachment.name || 'Attachment')}
+                </a>
+              </div>
+            ` : ''}
+          </div>
+
+          ${responses.length ? `
+            <div class="review-footer">
+              <div class="comment-count-pill">${I('message')} ${responses.length} ${responses.length === 1 ? 'reply' : 'replies'}</div>
+            </div>
+            <div class="comment-thread">
+              ${responses.map(r => `
+                <div class="comment" style="margin-bottom:8px">
+                  <div class="comment-head">
+                    <div class="avatar avatar-sm" style="width:26px;height:26px;font-size:11px;background:var(--primary)">${PDMS.initials(r.author || '?')}</div>
+                    <div style="flex:1">
+                      <div class="font-semi text-sm">${PDMS.esc(r.author)} <span class="text-muted font-normal">· ${PDMS.esc(r.authorRole || '')}</span></div>
+                    </div>
+                    <div class="text-sm text-muted">${timeAgo(r.time)}</div>
+                  </div>
+                  <div class="text-sm mt-1" style="padding-left:34px;color:var(--text)">${PDMS.esc(r.message || '')}</div>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          <div class="comment-form">
+            <input id="replyInput-${c.id}" placeholder="Write a reply..." onkeydown="if(event.key==='Enter') sendInlineReply('${c.id}', this)"/>
+            <button class="btn btn-secondary btn-sm" onclick="sendInlineReply('${c.id}', this)">Reply</button>
           </div>
         </div>
       `;
+    }
+
+    function toggleStatusMenu(complaintId, event) {
+      if (event) event.stopPropagation();
+      const menu = document.getElementById('statusMenu-' + complaintId);
+      if (!menu) return;
+      const isHidden = menu.classList.contains('hidden');
+      document.querySelectorAll('.status-popover-menu').forEach(el => el.classList.add('hidden'));
+      if (isHidden) {
+        menu.classList.remove('hidden');
+      }
+    }
+
+    function setComplaintStatus(complaintId, newStatus) {
+      document.querySelectorAll('.status-popover-menu').forEach(el => el.classList.add('hidden'));
+      const user = PDMS.getUser();
+      const list = allComplaints();
+      const c = list.find(item => String(item.id) === String(complaintId));
+      if (!c) return;
+
+      const patch = {
+        status: newStatus,
+        updatedAt: new Date().toISOString()
+      };
+      if (newStatus === 'Resolved') {
+        patch.resolvedAt = new Date().toISOString();
+      }
+
+      PDMS.api.update('complaints', c.id, patch)
+        .then(saved => {
+          Object.assign(c, patch, saved || {});
+
+          if (PDMS.notifyComplaintResponse) {
+            PDMS.notifyComplaintResponse(c, `Status updated to ${newStatus}`, user);
+          }
+
+          PDMS.toast('Status Updated', `Ticket status is now ${newStatus}.`, 'success');
+          render();
+        })
+        .catch(err => {
+          PDMS.toast('Error', err.message || 'Could not update status', 'error');
+          render();
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.status-dropdown-trigger') && !e.target.closest('.status-popover-menu')) {
+        document.querySelectorAll('.status-popover-menu').forEach(el => el.classList.add('hidden'));
+      }
+    });
+
+    function sendInlineReply(complaintId, triggerElem) {
+      const user = PDMS.getUser();
+      const list = allComplaints();
+      const c = list.find(item => String(item.id) === String(complaintId));
+      if (!c) {
+        PDMS.toast('Error', 'Ticket not found', 'error');
+        return;
+      }
+
+      const input = document.getElementById('replyInput-' + complaintId);
+      const message = input ? input.value.trim() : '';
+      if (!message) {
+        PDMS.toast('Empty Reply', 'Please enter a message to send.', 'error');
+        return;
+      }
+
+      const btn = triggerElem.tagName === 'BUTTON' ? triggerElem : (input ? input.nextElementSibling : null);
+      if (btn) PDMS.setButtonLoading(btn, true, 'Sending...');
+
+      const currentResponses = Array.isArray(c.responses) ? c.responses.slice() : [];
+      const newResponse = {
+        id: 'RSP-' + Date.now(),
+        author: user.name || 'User',
+        authorRole: user.role || 'Staff',
+        message: message,
+        time: new Date().toISOString(),
+        isStaff: canManageAll
+      };
+      currentResponses.push(newResponse);
+
+      const patch = {
+        responses: currentResponses,
+        updatedAt: new Date().toISOString()
+      };
+
+      PDMS.api.update('complaints', c.id, patch)
+        .then(saved => {
+          Object.assign(c, patch, saved || {});
+
+          if (PDMS.notifyComplaintResponse) {
+            PDMS.notifyComplaintResponse(c, message, user);
+          }
+
+          PDMS.toast('Reply Sent', 'Your response was added.', 'success');
+          render();
+        })
+        .catch(err => {
+          if (btn) PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not send reply', 'error');
+        });
+    }
+
+    function closeAndDeleteComplaint(complaintId) {
+      const user = PDMS.getUser();
+      const list = allComplaints();
+      const c = list.find(item => String(item.id) === String(complaintId));
+      if (!c) {
+        PDMS.toast('Not Found', 'Complaint record could not be found.', 'error');
+        return;
+      }
+      if (!PDMS.canCloseComplaint || !PDMS.canCloseComplaint(c, user)) {
+        PDMS.toast('Permission Denied', 'You do not have permission to close this ticket.', 'error');
+        return;
+      }
+
+      PDMS.confirm(
+        'Close & Delete Ticket',
+        `Are you sure you want to close Ticket #${c.ticketNumber || c.id}? Closing this ticket will permanently delete it and its conversation from the system.`,
+        () => {
+          PDMS.api.remove('complaints', c.id)
+            .then(() => {
+              const removeFrom = (arr) => {
+                if (!Array.isArray(arr)) return;
+                const idx = arr.findIndex(x => x && (String(x.id) === String(c.id) || (c.ticketNumber && String(x.ticketNumber) === String(c.ticketNumber))));
+                if (idx >= 0) arr.splice(idx, 1);
+              };
+              if (window.PDMS_DATA && window.PDMS_DATA.complaints) removeFrom(window.PDMS_DATA.complaints);
+              if (window.PDMS_REMOTE && window.PDMS_REMOTE.complaints) removeFrom(window.PDMS_REMOTE.complaints);
+
+              PDMS.toast('Ticket Closed', `Ticket #${c.ticketNumber || c.id} was closed and permanently deleted.`, 'success');
+              render();
+            })
+            .catch(err => {
+              PDMS.toast('Error', err.message || 'Could not close ticket', 'error');
+            });
+        },
+        null,
+        'Yes, Close & Delete',
+        'btn-danger'
+      );
     }
 
     function switchTab(tab) {
@@ -788,7 +821,6 @@
       render();
     }
 
-    // Modal to Submit a New Complaint
     function openNewComplaintModal() {
       const user = PDMS.getUser();
       if (!user) return;
@@ -926,12 +958,18 @@
             PDMS.api.create('complaints', record)
               .then(saved => {
                 const finalObj = Object.assign({}, record, saved || {});
-                const list = (D.complaints = D.complaints || []);
-                list.unshift(finalObj);
-                if (window.PDMS_REMOTE) {
-                  window.PDMS_REMOTE.complaints = window.PDMS_REMOTE.complaints || [];
-                  window.PDMS_REMOTE.complaints.unshift(finalObj);
-                }
+                
+                const syncTo = (arr) => {
+                  if (!Array.isArray(arr)) return;
+                  const idx = arr.findIndex(x => x && (String(x.id) === String(finalObj.id) || (record.id && String(x.id) === String(record.id))));
+                  if (idx >= 0) {
+                    arr[idx] = finalObj;
+                  } else {
+                    arr.unshift(finalObj);
+                  }
+                };
+                if (window.PDMS_DATA && window.PDMS_DATA.complaints) syncTo(window.PDMS_DATA.complaints);
+                if (window.PDMS_REMOTE && window.PDMS_REMOTE.complaints) syncTo(window.PDMS_REMOTE.complaints);
 
                 if (PDMS.notifyComplaintSubmitted) {
                   PDMS.notifyComplaintSubmitted(finalObj, user);
@@ -980,184 +1018,177 @@
       }
     }
 
-    // Modal to View Details & Respond to Complaint
-    function openComplaintDetails(complaintId) {
-      const user = PDMS.getUser();
-      const list = allComplaints();
-      const c = list.find(item => String(item.id) === String(complaintId));
-      if (!c) {
-        PDMS.toast('Not Found', 'Complaint record could not be found.', 'error');
-        return;
+    function getFaqsForRole(user) {
+      const role = String((user && user.role) || '').trim().toLowerCase();
+
+      if (role === 'consultant') {
+        return [
+          {
+            q: 'How do I view my assigned projects and deliverables?',
+            a: 'Navigate to "Dashboard" or "Projects" in the sidebar. You will strictly see the delivery projects where you have been allocated. You can click into any project to inspect the delivery milestones, document library, and checklists.'
+          },
+          {
+            q: 'How do I manage and check off my private tasks?',
+            a: 'Open your project details page and switch to the "Tasks" or "My Tasks" section. You can mark tasks as completed in real time, which automatically updates your progress metrics on the Consultant Dashboard.'
+          },
+          {
+            q: 'How do I view and upload project documents?',
+            a: 'In the Project Details workspace, go to the "Documents" tab. You can upload project deliverables or click the "View" button to read PDFs, images, spreadsheets, and Word documents directly in your browser without downloading.'
+          },
+          {
+            q: 'How do I lay a complaint or report a project roadblock?',
+            a: 'Click "+ Lay a Complaint / Ticket" in this Help Center. Select your issue category and describe your concern. Your ticket is confidential and delivered straight to HR, PM Head, HTD, and COO leadership.'
+          },
+          {
+            q: 'How do I change my profile details or password?',
+            a: 'Go to "My Profile" from the sidebar. You can update your contact information, delivery domain, profile avatar, and account password.'
+          }
+        ];
       }
 
-      const responses = Array.isArray(c.responses) ? c.responses : [];
-      const hasAttachment = c.attachment && c.attachment.url;
+      if (role === 'project manager' || role === 'pm') {
+        return [
+          {
+            q: 'How do I update project delivery status and milestones?',
+            a: 'Open any assigned project in the "Projects" workspace. Go to the "Timeline" or "Status" tab to mark stages as In Progress or Completed. You can also reorder or add custom milestones.'
+          },
+          {
+            q: 'How do I submit an issue or roadblock to management?',
+            a: 'On your Project Details page, go to the "Issues" tab and click "Add Issue". To escalate a sensitive workplace or resource grievance, use "+ Lay a Complaint / Ticket" here in the Help Center.'
+          },
+          {
+            q: 'How do I assign consultants to a delivery project?',
+            a: 'Open Project Details and scroll to the "Project Team" card. Click "Manage Team" to allocate or de-allocate consultants from available delivery staff.'
+          }
+        ];
+      }
 
-      const bodyHtml = `
-        <div class="ticket-detail-wrap">
-          <!-- Metadata & Submitter Row -->
-          <div class="ticket-meta-bar">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              ${getStatusBadge(c.status || 'Open')}
-              <span class="badge badge-secondary" style="font-size:11px">${PDMS.esc(c.category || 'General')}</span>
+      if (role === 'sales' || role === 'sales lead' || role === 'business development') {
+        return [
+          {
+            q: 'How do I create and initiate a new project opportunity?',
+            a: 'Click "+ New Project" in the navigation bar. Fill in the client, standard/framework, opportunity value, and assigned Project Manager. The project starts in the sales pipeline and transitions to delivery upon SLA signing.'
+          },
+          {
+            q: 'How do I submit negotiated price approvals?',
+            a: 'In the project timeline / financial section, enter the negotiated price and click "Request Price Approval". It will be routed to the COO or HTD for formal sign-off.'
+          },
+          {
+            q: 'How do I lay a commission, client, or support complaint?',
+            a: 'Click "+ Lay a Complaint / Ticket" in this Help Center. Your ticket will be routed directly to HR, PM Head, HTD, and COO leadership.'
+          }
+        ];
+      }
+
+      if (role === 'hr' || role === 'human resources') {
+        return [
+          {
+            q: 'How do I review and approve employee time-off requests?',
+            a: 'Navigate to "Time Off Approvals" in the HR sidebar section. You can inspect all pending employee leave requests, view duration calculations, and click "Approve" or "Reject".'
+          },
+          {
+            q: 'How do I manage users and consultants in the system?',
+            a: 'Go to "Users" or "Consultants" in the sidebar to invite staff, update roles, assign departments, and configure user permissions.'
+          },
+          {
+            q: 'How do I review and respond to Help Center complaints?',
+            a: 'As HR leadership, you have full access to the "All Complaints" tab in this Help Center. You can read ticket details, post replies directly in the feed, and update resolution statuses.'
+          }
+        ];
+      }
+
+      if (role === 'coo' || role === 'htd' || role === 'pm head' || role === 'system administrator' || role === 'general admin') {
+        return [
+          {
+            q: 'How do I manage and resolve Help Center complaints?',
+            a: 'You have full executive visibility over the "All Complaints" tab. You can inspect submitter details, review attached evidence directly, post leadership responses in the chat thread, and update resolution statuses (Open, In Review, In Progress, Resolved) or close tickets.'
+          },
+          {
+            q: 'How do I approve project handoffs and price approvals?',
+            a: 'Check your executive dashboard or the "Awaiting Handover" workspace to approve SLA-signed projects and negotiated price requests.'
+          },
+          {
+            q: 'How do I monitor overall delivery health and consultant workloads?',
+            a: 'Use the Delivery Dashboard (HTD Dashboard) to inspect active delivery projects, overdue milestones, workload distributions, and project team allocations.'
+          }
+        ];
+      }
+
+      return [
+        {
+          q: 'How do I submit a complaint or request assistance?',
+          a: 'Click "+ Lay a Complaint / Ticket" in this Help Center. Fill in the subject, category, description, and optional attachments. Your ticket is routed directly to HR, PM Head, HTD, and COO leadership.'
+        },
+        {
+          q: 'Who can see the tickets I submit?',
+          a: 'Your tickets are strictly confidential. Only you and authorized leadership (HR, PM Head, HTD, COO, and System Administrator) can view your ticket and participate in the thread.'
+        },
+        {
+          q: 'How do I reply to a ticket?',
+          a: 'Scroll to the ticket card in your feed. Type your message in the reply box at the bottom of the card and click "Reply".'
+        }
+      ];
+    }
+
+    function renderFaqSection() {
+      const faqs = getFaqsForRole(currentUser);
+      return `
+        <div style="max-width:760px;margin:0 auto;padding-top:4px">
+          <div style="margin-bottom:20px;text-align:center">
+            <div style="font-size:22px;font-weight:800;color:var(--text);margin-bottom:6px">
+              Frequently Asked Questions
             </div>
-            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted)">
-              <div class="avatar" style="width:24px;height:24px;font-size:10px">${PDMS.initials(c.submittedByName || '?')}</div>
-              <span><strong style="color:var(--text)">${PDMS.esc(c.submittedByName || 'User')}</strong> (${PDMS.esc(c.submittedByRole || 'Staff')})</span>
-              <span>•</span>
-              <span>${timeAgo(c.createdAt)}</span>
+            <div style="font-size:13.5px;color:var(--text-muted)">
+              Essential guides and workflows tailored specifically to your role and permissions.
             </div>
           </div>
 
-          <!-- Original Issue / Complaint -->
-          <div class="ticket-issue-box">
-            <div class="ticket-issue-title">${PDMS.esc(c.subject || 'No Subject')}</div>
-            <div class="ticket-issue-desc">${PDMS.esc(c.description || 'No description provided.')}</div>
-            
-            ${hasAttachment ? `
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-top:12px">
-                <div style="display:flex;align-items:center;gap:8px;min-width:0">
-                  <span style="display:inline-flex;color:var(--primary)">${I('file')}</span>
-                  <div style="min-width:0">
-                    <span style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block">${PDMS.esc(c.attachment.name || 'Attachment')}</span>
-                    <span style="font-size:11px;color:var(--text-soft)">${c.attachment.fileSize ? PDMS.formatBytes(c.attachment.fileSize) : ''}</span>
+          <div>
+            ${faqs.map((faq, idx) => `
+              <div class="faq-accordion ${idx === 0 ? 'open' : ''}" id="faq-${idx}">
+                <div class="faq-header" onclick="toggleFaq(${idx})">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <span style="color:var(--primary);font-size:15px">❓</span>
+                    <span style="color:var(--text)">${PDMS.esc(faq.q)}</span>
                   </div>
+                  <span class="faq-arrow">▼</span>
                 </div>
-                <div style="display:flex;gap:6px;flex-shrink:0">
-                  <button class="btn btn-primary btn-sm" onclick="PDMS.viewDoc('${PDMS.esc(c.attachment.url)}', '${PDMS.esc(c.attachment.name || 'document')}', '${PDMS.esc(c.attachment.fileType || '')}')">${I('eye')} View</button>
-                  <button class="btn btn-secondary btn-sm" onclick="PDMS.downloadDoc('${PDMS.esc(c.attachment.url)}', '${PDMS.esc(c.attachment.name || 'document')}')">${I('download')} Download</button>
+                <div class="faq-body">
+                  ${PDMS.esc(faq.a)}
                 </div>
               </div>
-            ` : ''}
-          </div>
-
-          <!-- Conversation Thread -->
-          <div class="ticket-thread-section">
-            <div class="ticket-thread-title">
-              <span>Activity &amp; Leadership Thread (${responses.length})</span>
-              <span style="font-weight:500;text-transform:none;font-size:11px">Confidential History</span>
-            </div>
-
-            <div class="ticket-messages-list" id="complaintResponsesList">
-              ${responses.length ? responses.map(r => `
-                <div class="ticket-msg-item ${r.isStaff ? 'leadership' : ''}">
-                  <div class="ticket-msg-head">
-                    <div style="display:flex;align-items:center;gap:8px">
-                      <span style="font-weight:700;font-size:12.5px;color:var(--text)">${PDMS.esc(r.author || 'User')}</span>
-                      ${r.authorRole ? `<span class="badge ${r.isStaff ? 'badge-primary' : 'badge-secondary'}" style="font-size:10px">${PDMS.esc(r.authorRole)}</span>` : ''}
-                    </div>
-                    <span style="font-size:11px;color:var(--text-soft)">${timeAgo(r.time)}</span>
-                  </div>
-                  <div class="ticket-msg-body">${PDMS.esc(r.message || '')}</div>
-                </div>
-              `).join('') : `
-                <div style="text-align:center;padding:20px;color:var(--text-soft);font-size:13px;background:var(--surface);border:1px dashed var(--border);border-radius:8px">
-                  No responses posted yet.
-                </div>
-              `}
-            </div>
-          </div>
-
-          <!-- Reply Composer & Actions -->
-          <div class="ticket-reply-box">
-            <textarea id="cmpReplyInput" class="ticket-reply-textarea" rows="2" placeholder="${canManageAll ? 'Type official leadership response or update…' : 'Type a follow-up reply…'}"></textarea>
-            
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-              ${canManageAll ? `
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span style="font-size:12px;font-weight:600;color:var(--text-muted)">Update Status:</span>
-                  <select id="cmpUpdateStatus" style="font-size:12px;padding:6px 10px;border-radius:6px">
-                    <option value="">Keep (${PDMS.esc(c.status || 'Open')})</option>
-                    <option value="In Review">In Review</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Resolved">Resolved</option>
-                    <option value="Closed">Closed</option>
-                  </select>
-                </div>
-                <button id="cmpSendReplyBtn" class="btn btn-primary btn-sm">${I('send')} Send Response</button>
-              ` : `
-                <div></div>
-                <button id="cmpSendReplyBtn" class="btn btn-primary btn-sm">${I('send')} Send Reply</button>
-              `}
-            </div>
+            `).join('')}
           </div>
         </div>
       `;
+    }
 
-      const footHtml = `
-        <button class="btn btn-ghost" data-close>Close</button>
-      `;
-
-      const modal = PDMS.modal(`Ticket #${c.ticketNumber || c.id}`, bodyHtml, footHtml, { modalClass: 'modal-lg' });
-
-      const sendBtn = modal.querySelector('#cmpSendReplyBtn');
-      if (sendBtn) {
-        sendBtn.onclick = function () {
-          const replyInput = modal.querySelector('#cmpReplyInput');
-          const message = replyInput ? replyInput.value.trim() : '';
-          const statusSelect = modal.querySelector('#cmpUpdateStatus');
-          const newStatus = statusSelect ? statusSelect.value : '';
-
-          if (!message && !newStatus) {
-            PDMS.toast('Empty Reply', 'Please enter a response message or select a new status.', 'error');
-            return;
-          }
-
-          const btn = this;
-          PDMS.setButtonLoading(btn, true, 'Sending...');
-
-          const patch = {};
-          const currentResponses = Array.isArray(c.responses) ? c.responses.slice() : [];
-          if (message) {
-            currentResponses.push({
-              id: 'RSP-' + Date.now(),
-              author: user.name || 'Leadership',
-              authorRole: user.role || 'Management',
-              message: message,
-              time: new Date().toISOString(),
-              isStaff: canManageAll
-            });
-            patch.responses = currentResponses;
-          }
-          if (newStatus) {
-            patch.status = newStatus;
-            if (newStatus === 'Resolved' || newStatus === 'Closed') {
-              patch.resolvedAt = new Date().toISOString();
-            }
-          }
-          patch.updatedAt = new Date().toISOString();
-
-          PDMS.api.update('complaints', c.id, patch)
-            .then(saved => {
-              Object.assign(c, patch, saved || {});
-
-              if (PDMS.notifyComplaintResponse) {
-                PDMS.notifyComplaintResponse(c, message || `Status updated to ${c.status}`, user);
-              }
-
-              modal.remove();
-              PDMS.toast('Updated', 'Response added successfully.', 'success');
-              render();
-              setTimeout(() => openComplaintDetails(c.id), 200);
-            })
-            .catch(err => {
-              PDMS.setButtonLoading(btn, false);
-              PDMS.toast('Error', err.message || 'Could not send reply', 'error');
-            });
-        };
-      }
+    function toggleFaq(idx) {
+      const el = document.getElementById(`faq-${idx}`);
+      if (el) el.classList.toggle('open');
     }
 
     window.switchTab = switchTab;
     window.openNewComplaintModal = openNewComplaintModal;
-    window.openComplaintDetails = openComplaintDetails;
+    window.sendInlineReply = sendInlineReply;
+    window.setComplaintStatus = setComplaintStatus;
+    window.toggleStatusMenu = toggleStatusMenu;
+    window.closeAndDeleteComplaint = closeAndDeleteComplaint;
+    window.toggleFaq = toggleFaq;
 
     // Deep link support: if url has #ticket=CMP-... open it automatically
     function checkHashDeepLink() {
       const hash = location.hash.replace(/^#/, '');
       if (hash.startsWith('ticket=')) {
         const ticketId = hash.replace('ticket=', '');
-        setTimeout(() => openComplaintDetails(ticketId), 300);
+        setTimeout(() => {
+          const el = document.getElementById('ticket-' + ticketId);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.style.borderColor = 'var(--primary)';
+            setTimeout(() => { el.style.borderColor = ''; }, 2000);
+          }
+        }, 300);
       }
     }
 

@@ -1030,6 +1030,7 @@
     const mClass = opts.modalClass ? 'modal ' + opts.modalClass : 'modal';
     back.innerHTML = '<div class="'+mClass+'"><div class="modal-head"><h3 class="card-title">'+title+'</h3>'+(opts.showCloseBtn !== false ? '<button class="btn btn-ghost btn-sm" data-close style="padding:4px 8px;font-size:16px;line-height:1;border-radius:6px" title="Close">✕</button>' : '')+'</div><div class="modal-body">'+bodyHtml+'</div>'+(footHtml?'<div class="modal-foot">'+footHtml+'</div>':'')+'</div>';
     document.body.appendChild(back);
+    back.close = function() { back.remove(); };
     back.addEventListener('click',e=>{ if(e.target.closest('[data-close]')) back.remove(); });
     return back;
   };

@@ -7,11 +7,11 @@
   <title>Profile — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1789132687" />
+  <link rel="stylesheet" href="css/style.css?v=1789158508" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789132687"></script>
+  <script src="js/bundle.js?v=1789158508"></script>
   <script>
     PDMS.mountShell('profile');
     let u = PDMS.getUser(); const I = PDMS.icon;
@@ -358,12 +358,14 @@
 
         PDMS.api.create('leaveRequests', record).then(saved => {
           const finalObj = Object.assign({}, record, saved || {});
-          D.leaveRequests = D.leaveRequests || [];
-          D.leaveRequests.unshift(finalObj);
-          if (window.PDMS_REMOTE) {
-            window.PDMS_REMOTE.leaveRequests = window.PDMS_REMOTE.leaveRequests || [];
-            window.PDMS_REMOTE.leaveRequests.unshift(finalObj);
-          }
+          const syncTo = (arr) => {
+            if (!Array.isArray(arr)) return;
+            const idx = arr.findIndex(x => x && (String(x.id) === String(finalObj.id) || (record.id && String(x.id) === String(record.id))));
+            if (idx >= 0) arr[idx] = finalObj;
+            else arr.unshift(finalObj);
+          };
+          if (window.PDMS_DATA && window.PDMS_DATA.leaveRequests) syncTo(window.PDMS_DATA.leaveRequests);
+          if (window.PDMS_REMOTE && window.PDMS_REMOTE.leaveRequests) syncTo(window.PDMS_REMOTE.leaveRequests);
 
           PDMS.notify('New Time-Off Request', `${u.name} requested ${daysCount} off-day(s) (${startDate} to ${endDate})`, 'calendar', 'dashboard-hr.html', 'HR,System Administrator');
 
@@ -382,15 +384,59 @@
       const item = list.find(l => String(l.id) === String(leaveId));
       if (!item) return;
 
-      if (!confirm('Are you sure you want to cancel this pending time-off request?')) return;
+      const days = parseInt(item.daysCount, 10) || 1;
+      const isSingleDay = item.startDate && item.endDate && item.startDate === item.endDate;
+      const dateDisplay = isSingleDay 
+        ? (PDMS.formatDate ? PDMS.formatDate(item.startDate) : item.startDate) 
+        : `${PDMS.formatDate ? PDMS.formatDate(item.startDate) : item.startDate} → ${PDMS.formatDate ? PDMS.formatDate(item.endDate) : item.endDate}`;
 
-      PDMS.api.update('leaveRequests', leaveId, { status: 'Cancelled', updatedAt: new Date().toISOString() }).then(saved => {
-        Object.assign(item, { status: 'Cancelled' }, saved || {});
-        PDMS.toast('Cancelled', 'Time off request cancelled.', 'success');
-        render();
-      }).catch(err => {
-        PDMS.toast('Error', err.message || 'Could not cancel request', 'error');
-      });
+      const bodyHtml = `
+        <div style="display:flex;align-items:center;gap:14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);padding:16px 18px;border-radius:12px">
+          <div style="width:44px;height:44px;border-radius:12px;background:#ef4444;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">
+            ${I('trash')}
+          </div>
+          <div>
+            <div style="font-weight:700;font-size:15px;color:var(--text)">Cancel Time-Off Request</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:4px;line-height:1.45">
+              Are you sure you want to cancel and delete your pending request for <strong>${days} day(s)</strong> (${dateDisplay})? This action cannot be undone.
+            </div>
+          </div>
+        </div>
+      `;
+
+      const footerHtml = `
+        <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+          <button class="btn btn-ghost" data-close>Keep Request</button>
+          <button class="btn btn-danger" id="confirmCancelSubmitBtn" style="background:#ef4444;border-color:#ef4444;color:#fff;font-weight:600;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(239,68,68,.3)">
+            ${I('trash')} Confirm &amp; Cancel
+          </button>
+        </div>
+      `;
+
+      const confirmModal = PDMS.modal('Confirm Cancellation', bodyHtml, footerHtml);
+      const submitBtn = confirmModal.querySelector('#confirmCancelSubmitBtn');
+
+      if (submitBtn) {
+        submitBtn.onclick = () => {
+          confirmModal.remove();
+
+          PDMS.api.delete('leaveRequests', leaveId).then(() => {
+            const removeFrom = (arr) => {
+              if (!Array.isArray(arr)) return;
+              const idx = arr.findIndex(x => x && String(x.id) === String(leaveId));
+              if (idx >= 0) arr.splice(idx, 1);
+            };
+            if (window.PDMS_DATA && window.PDMS_DATA.leaveRequests) removeFrom(window.PDMS_DATA.leaveRequests);
+            if (window.PDMS_REMOTE && window.PDMS_REMOTE.leaveRequests) removeFrom(window.PDMS_REMOTE.leaveRequests);
+
+            PDMS.toast('Request Cancelled', 'Your pending time-off request was cancelled and removed.', 'success');
+            render();
+            if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+          }).catch(err => {
+            PDMS.toast('Error', err.message || 'Could not cancel request', 'error');
+          });
+        };
+      }
     };
   </script>
 </body>
