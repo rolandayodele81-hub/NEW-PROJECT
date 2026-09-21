@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1789984764" />
+  <link rel="stylesheet" href="css/style.css?v=1789986276" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789984764"></script>
+  <script src="js/bundle.js?v=1789986276"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -1285,7 +1285,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             if (saved && Array.isArray(saved.privateTasks)) p.privateTasks = saved.privateTasks;
             PDMS.toast('Task Assigned', `Task assigned to ${assigneeName}`, 'success');
             if (assigneeName && (!user || assigneeName.toLowerCase() !== user.name.toLowerCase())) {
-              PDMS.notify('Task Assigned', `${user ? user.name : 'Delivery Team'} assigned you a task: "${activity}" on ${p.name}`, 'clipboard', 'project-details.html#id=' + p.id, assigneeName);
+              PDMS.notify('Task Assigned', `${user ? user.name : 'Delivery Team'} assigned you a task: "${activity}" on ${p.name}`, 'clipboard', 'project-details.html#id=' + p.id, '', assigneeId || '', p.id, assigneeName);
             }
           })
           .catch(err => PDMS.toast('Sync error', err.message || 'Task may not have saved', 'error'));

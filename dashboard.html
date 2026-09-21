@@ -4,10 +4,10 @@
 <title>Dashboard — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1789984764"/>
+<link rel="stylesheet" href="css/style.css?v=1789986276"/>
 </head>
 <body>
-<script src="js/bundle.js?v=1789984764"></script>
+<script src="js/bundle.js?v=1789986276"></script>
 <script>
 PDMS.mountShell('dashboard');
 
@@ -266,9 +266,15 @@ requestAnimationFrame(() => {
     </div>
     <div class="card"><div class="card-head"><div class="card-title">Notifications</div><a class="text-sm" style="color:var(--primary);font-weight:600" href="notifications.html">View all</a></div>
       <div class="card-body" style="padding:6px">${
-        D.notifications.slice(0,7).map(n=>`
-          <div class="notif ${n.unread?'unread':''}"><div class="n-icon">${I(n.icon)}</div>
-          <div><div class="n-title">${PDMS.esc(n.title)}</div><div class="n-msg">${PDMS.esc(n.msg)}</div><div class="n-time">${n.time}</div></div></div>`).join('')
+        (() => {
+          const list = (PDMS.notificationsFor ? PDMS.notificationsFor(user) : (D.notifications || [])).slice(0, 7);
+          if (!list.length) return '<div style="padding:20px 16px;text-align:center;color:var(--text-muted);font-size:13px">No notifications</div>';
+          return list.map(n => {
+            const isUnread = PDMS.isNotificationUnread ? PDMS.isNotificationUnread(n, user) : n.unread;
+            return `<div class="notif ${isUnread ? 'unread' : ''}" style="cursor:pointer" onclick="PDMS.markNotificationAsRead('${PDMS.esc(n.id)}', '${PDMS.esc(n.link || '')}')"><div class="n-icon">${I(n.icon)}</div>
+            <div><div class="n-title">${PDMS.esc(n.title)}</div><div class="n-msg">${PDMS.esc(n.msg)}</div><div class="n-time">${n.time}</div></div></div>`;
+          }).join('');
+        })()
       }</div>
     </div>
   `;

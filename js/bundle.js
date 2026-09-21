@@ -912,10 +912,37 @@
   // Broadcast a notification to targeted roles/users — fires and forgets.
   // icon: any key from ICONS; link: optional href the notification card links to.
   // recipientRole: optional target role(s) (e.g. 'Sales Head', 'Accounts', 'HR', 'COO,HTD,PM Head')
-  // recipientId: optional target user id
+  // recipientId: optional target user id or email
   // projectId: optional project ID to scope to project members
-  PDMS.notify = function(title, msg, icon, link, recipientRole, recipientId, projectId){
+  // recipientName: optional recipient user name
+  PDMS.notify = function(title, msg, icon, link, recipientRole, recipientId, projectId, recipientName){
     const user = PDMS.getUser();
+    let rRole = recipientRole || '';
+    let rId = recipientId || '';
+    let rName = recipientName || '';
+    let pId = projectId || '';
+
+    // If recipientRole is actually a user email or ID or single user name (not a system role)
+    const knownRoles = ['system administrator','general admin','sales','sales head','accounts','coo','htd','pm head','pmo','hr','consultant','lead','pm','*'];
+    if (rRole && !rId && !rRole.includes(',')) {
+      const trimmed = rRole.trim().toLowerCase();
+      if (!knownRoles.includes(trimmed)) {
+        if (trimmed.includes('@')) {
+          rId = rRole;
+          rRole = '';
+        } else {
+          rName = rRole;
+          rRole = '';
+        }
+      }
+    }
+
+    // Auto-extract projectId from link if not explicitly provided
+    if (!pId && link) {
+      const match = link.match(/[#?]id=([^&]+)/i);
+      if (match) pId = decodeURIComponent(match[1]).trim();
+    }
+
     const record = {
       title, msg,
       icon: icon || 'bell',
@@ -924,9 +951,10 @@
       actorRole: user ? user.role : '',
       time: new Date().toISOString(),
       unread: true,
-      recipientRole: recipientRole || '',
-      recipientId: recipientId || '',
-      projectId: projectId || ''
+      recipientRole: rRole,
+      recipientId: rId,
+      recipientName: rName,
+      projectId: pId
     };
     PDMS.api.create('notifications', record).then(saved=>{
       if(window.PDMS_DATA && Array.isArray(window.PDMS_DATA.notifications)){
@@ -1159,142 +1187,285 @@
   };
 
   // Notifications visible strictly to `user`:
-  // - Targeted to their user id or name
+  // - Targeted to their user id, email, or name
+  // - Targeted to their specific role
+  // Notifications visible strictly to `user`:
+  // - Targeted to their user id, email, or name
   // - Targeted to their specific role
   // - Targeted to project owner (for leads they own)
-  // - Project-scoped updates (only for members assigned to that project)
+  // - Project-scoped updates (only for members onboarded/assigned to that project)
+  // - Time-off requests only visible to HR/Admin, responses only to the requester and HR/Admin
+  // - PMOs, Consultants, and HR only see notifications for projects/leads they belong to and their own leave requests
   // - Generic system announcements only for Admins & Executive Leadership (COO)
-  PDMS.notificationsFor = function(user){
+  PDMS.notificationsFor = function(user, opts){
+    opts = opts || {};
     user = user || PDMS.getUser();
     if(!user) return [];
     const all = liveList('notifications');
     const projectsAll = liveList('projects');
     const role = String(user.role || '').trim();
     const roleLower = role.toLowerCase();
-    const uid = String(user.id || '');
+    const uid = String(user.id || '').trim().toLowerCase();
+    const uemail = String(user.email || '').trim().toLowerCase();
     const uname = String(user.name || '').trim().toLowerCase();
-    const isAdmin = ['System Administrator', 'General Admin'].includes(role);
+    const isConsultant = roleLower === 'consultant';
+    const isPMO = roleLower === 'pmo';
+    const isHR = roleLower === 'hr';
+    const isScopedRole = isConsultant || isPMO || isHR;
+    const isAdmin = ['system administrator', 'general admin'].includes(roleLower);
+    const isDeliveryLead = ['coo', 'htd', 'pm head'].includes(roleLower);
 
-    const ownsProject = function(projectId){
-      if(!projectId || !PDMS.projectOwnedByUser) return false;
-      const proj = projectsAll.find(p => String(p.id) === String(projectId));
-      return !!proj && PDMS.projectOwnedByUser(proj, user);
-    };
-
-    const isProjectMember = function(projectId){
-      if(!projectId) return false;
-      const proj = projectsAll.find(p => String(p.id) === String(projectId));
+    const isProjectMember = function(projectId, projObj){
+      if(!projectId && !projObj) return false;
+      const pIdStr = String(projectId || (projObj && projObj.id) || '').trim().toLowerCase();
+      const proj = projObj || projectsAll.find(p => p && String(p.id).trim().toLowerCase() === pIdStr);
       if(!proj) return false;
+
+      // 1. Lead / Deal owner
       if(PDMS.projectOwnedByUser && PDMS.projectOwnedByUser(proj, user)) return true;
+      const ownerId = String(proj.projectOwnerId || proj.salesOwnerId || proj.onboardedById || proj.createdByUserId || '').trim().toLowerCase();
+      const ownerName = String(proj.projectOwnerName || proj.salesOwnerName || proj.onboardedByName || proj.createdByUserName || proj.sales || '').trim().toLowerCase();
+      if(ownerId && (ownerId === uid || ownerId === uemail)) return true;
+      if(ownerName && ownerName !== 'sales team' && (ownerName === uname || ownerName === uemail)) return true;
+
+      // 2. PM or Lead
       const pm = String(proj.pm || '').trim().toLowerCase();
       const lead = String(proj.lead || '').trim().toLowerCase();
-      if(pm === uname || lead === uname) return true;
-      const cons = Array.isArray(proj.consultants) ? proj.consultants.map(n => String(n).trim().toLowerCase()) : [];
-      if(cons.includes(uname) || cons.includes(uid.toLowerCase())) return true;
+      if(pm && (pm === uname || pm === uid || pm === uemail)) return true;
+      if(lead && (lead === uname || lead === uid || lead === uemail)) return true;
+
+      // 3. Assigned consultants list
+      const rawCons = PDMS.asArray ? PDMS.asArray(proj.consultants) : (Array.isArray(proj.consultants) ? proj.consultants : []);
+      const cons = rawCons.map(x => String(x).trim().toLowerCase());
+      if(cons.includes(uname) || (uid && cons.includes(uid)) || (uemail && cons.includes(uemail))) return true;
+
+      // 4. Private tasks assigned to this user
+      const tasks = PDMS.getPrivateTasks ? PDMS.getPrivateTasks(proj) : (Array.isArray(proj.privateTasks) ? proj.privateTasks : []);
+      if(tasks.some(t => t && ((t.ownerName && t.ownerName.trim().toLowerCase() === uname) || (t.ownerId && t.ownerId.trim().toLowerCase() === uid) || (t.ownerEmail && t.ownerEmail.trim().toLowerCase() === uemail)))) return true;
+
       return false;
     };
 
-    return all.filter(n => {
-      // 1. Direct recipient by user ID
-      if(n.recipientId && String(n.recipientId) === uid) return true;
+    const ownsProject = function(projectId){
+      if(!projectId) return false;
+      const pIdStr = String(projectId).trim().toLowerCase();
+      const proj = projectsAll.find(p => p && String(p.id).trim().toLowerCase() === pIdStr);
+      return !!proj && isProjectMember(projectId, proj);
+    };
 
-      // 2. Direct recipient by user Name
-      if(n.recipientName && uname && String(n.recipientName).trim().toLowerCase() === uname) return true;
-
-      // 3. Direct recipient by project ownership (Lead Owner)
-      if(n.recipientOwner && ownsProject(n.recipientOwner)) return true;
-
-      // 4. Targeted by specific Role(s) (e.g. "Sales Head", "Accounts", "HR", "HTD,COO,PM Head")
-      if(n.recipientRole){
-        const roles = String(n.recipientRole).split(',').map(s => s.trim().toLowerCase());
-        if(roles.includes(roleLower) || roles.includes('*')) return true;
-        // If targeted to other specific role(s), do NOT show to this user
+    const filtered = all.filter(n => {
+      if(!n) return false;
+      if (!opts.includeCleared && PDMS.isNotificationCleared && PDMS.isNotificationCleared(n, user)) {
         return false;
       }
 
-      // 5. Project-scoped notification (issues, team assignments on a project)
-      if(n.projectId){
-        if(['COO', 'HTD', 'PM Head', 'System Administrator', 'General Admin'].includes(role)) return true;
-        return isProjectMember(n.projectId);
+      const title = String(n.title || '').trim();
+      const titleLower = title.toLowerCase();
+      const msg = String(n.msg || n.message || '').trim();
+      const link = String(n.link || '').trim();
+      const event = String(n.event || '').trim().toLowerCase();
+
+      // Extract target identifiers
+      const rId = String(n.recipientId || n.targetId || '').trim().toLowerCase();
+      const rName = String(n.recipientName || n.targetUser || n.recipient || '').trim().toLowerCase();
+      const rEmail = String(n.recipientEmail || n.targetEmail || '').trim().toLowerCase();
+      const rRole = String(n.recipientRole || '').trim().toLowerCase();
+      const hasSpecificRecipient = !!(rId || rName || rEmail);
+
+      // Check if this notification directly targets THIS specific user
+      const isTargetedToMe = (
+        (rId && (rId === uid || rId === uemail || rId === uname)) ||
+        (rEmail && (rEmail === uemail || rEmail === uid || rEmail === uname)) ||
+        (rName && (rName === uname || rName === uemail || rName === uid))
+      );
+
+      // ─────────────────────────────────────────────────────────────
+      // A. TIME-OFF / LEAVE NOTIFICATIONS
+      // ─────────────────────────────────────────────────────────────
+      const isTimeOffNotif = (
+        titleLower.includes('time-off') || titleLower.includes('time off') ||
+        titleLower.includes('leave request') || titleLower.includes('off-day') ||
+        event.startsWith('leave.') || event.startsWith('timeoff.')
+      );
+
+      if (isTimeOffNotif) {
+        // "New Time-Off Request":
+        // Only HR and System Administrator should see incoming requests.
+        // PMOs and Consultants must never see requests made by others.
+        if (titleLower.includes('new time-off') || titleLower.includes('request submitted') || event === 'leave.submitted') {
+          return isHR || isAdmin;
+        }
+
+        // "Time-Off Request Approved" / "Time-Off Request Rejected":
+        // Only visible to the individual requester or HR / Admin.
+        if (isTargetedToMe) return true;
+        if (isHR || isAdmin) return true;
+        return false;
       }
 
-      // 6. Generic untargeted broadcast — only show to Admins and executive leadership (COO)
-      if(isAdmin || role === 'COO') return true;
+      // ─────────────────────────────────────────────────────────────
+      // B. DIRECT NOTIFICATIONS (Task assigned, personal mentions, direct alerts)
+      // ─────────────────────────────────────────────────────────────
+      if (hasSpecificRecipient) {
+        if (isTargetedToMe) return true;
+        // If targeted to someone else, do not let role matching leak it to PMOs or Consultants
+        if (isScopedRole) return false;
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // C. PROJECT & LEAD NOTIFICATIONS (Status changed, team assigned, issues, etc.)
+      // ─────────────────────────────────────────────────────────────
+      let notifProjectId = String(n.projectId || n.recipientOwner || '').trim();
+      if (!notifProjectId && link) {
+        const match = link.match(/[#?]id=([^&]+)/i);
+        if (match) notifProjectId = decodeURIComponent(match[1]).trim();
+      }
+
+      if (notifProjectId) {
+        const isMember = isProjectMember(notifProjectId);
+
+        // For PMOs and Consultants:
+        // Must ONLY see notifications of projects and leads that they belong to.
+        if (isScopedRole) {
+          return isMember;
+        }
+
+        // For project members of other roles (Sales lead owners, etc.):
+        if (isMember) return true;
+
+        // Delivery leadership & Admins can oversee all project updates
+        if (isDeliveryLead || isAdmin) return true;
+
+        // Role-based delivery or accounts review
+        if (rRole) {
+          const roles = rRole.split(',').map(s => s.trim());
+          if (roles.includes(roleLower) || roles.includes('*')) return true;
+        }
+
+        return false;
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // D. ROLE-TARGETED BROADCASTS (e.g. Sales Head review, Accounts review)
+      // ─────────────────────────────────────────────────────────────
+      if (rRole) {
+        const roles = rRole.split(',').map(s => s.trim());
+        if (roles.includes(roleLower) || roles.includes('*')) {
+          if (isScopedRole && hasSpecificRecipient && !isTargetedToMe) {
+            return false;
+          }
+          return true;
+        }
+        return false;
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // E. GENERAL UNTARGETED NOTIFICATIONS
+      // ─────────────────────────────────────────────────────────────
+      // Only Admins and Executive Leadership (COO) see untargeted broadcasts
+      if (isAdmin || roleLower === 'coo') return true;
 
       return false;
     });
-    list.sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
-    return list;
+
+    return filtered.slice().sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
   };
 
-  PDMS.isNotificationUnread = function(n, user){
-    if (!n) return false;
+  PDMS.isNotificationCleared = function(n, user){
+    if (!n) return true;
     user = user || PDMS.getUser();
-    if (!user) return n.unread !== false;
+    if (!user) return n.unread === false;
     const uid = String(user.id || '').trim().toLowerCase();
     const uEmail = String(user.email || '').trim().toLowerCase();
     const uName = String(user.name || '').trim().toLowerCase();
+    const userKey = uid || uEmail || uName;
 
-    // Check notification's readBy list (user IDs / emails / names)
+    // Check notification's dismissedBy list
+    const dismissedBy = Array.isArray(n.dismissedBy) ? n.dismissedBy.map(x => String(x).trim().toLowerCase()) : [];
+    if (uid && dismissedBy.includes(uid)) return true;
+    if (uEmail && dismissedBy.includes(uEmail)) return true;
+    if (uName && dismissedBy.includes(uName)) return true;
+
+    // Check notification's readBy list (reading clears notification from active feed)
     const readBy = Array.isArray(n.readBy) ? n.readBy.map(x => String(x).trim().toLowerCase()) : [];
-    if (uid && readBy.includes(uid)) return false;
-    if (uEmail && readBy.includes(uEmail)) return false;
-    if (uName && readBy.includes(uName)) return false;
+    if (uid && readBy.includes(uid)) return true;
+    if (uEmail && readBy.includes(uEmail)) return true;
+    if (uName && readBy.includes(uName)) return true;
 
     // Check user-specific local storage cache
-    const userKey = uid || uEmail || uName;
     if (userKey) {
       try {
+        const userDismissedSet = JSON.parse(localStorage.getItem('pdms_user_dismissed_notifs_' + userKey) || '[]');
+        if (Array.isArray(userDismissedSet) && userDismissedSet.includes(String(n.id))) {
+          return true;
+        }
         const userReadSet = JSON.parse(localStorage.getItem('pdms_user_read_notifs_' + userKey) || '[]');
         if (Array.isArray(userReadSet) && userReadSet.includes(String(n.id))) {
-          return false;
+          return true;
         }
       } catch(_) {}
     }
 
-    if (n.unread === false && (!n.readBy || !n.readBy.length)) {
-      return false;
+    // Direct single-recipient notification marked unread: false
+    if (n.unread === false && (!n.recipientRole || !n.recipientRole.trim())) {
+      return true;
     }
 
-    return true;
+    return false;
   };
 
-  // Count of unread notifications addressed to this user specifically
+  PDMS.isNotificationUnread = function(n, user){
+    return !PDMS.isNotificationCleared(n, user);
+  };
+
+  // Count of active/unread notifications for this user
   PDMS.unreadCountFor = function(user){
     user = user || PDMS.getUser();
     if(!user) return 0;
-    return PDMS.notificationsFor(user).filter(n =>
-      PDMS.isNotificationUnread(n, user) && (n.recipientId || n.recipientName || n.recipientRole || n.recipientOwner)
-    ).length;
+    return PDMS.notificationsFor(user).length;
   };
 
-  PDMS.markNotificationAsRead = function(id, link){
+  PDMS.dismissNotification = function(id, e){
+    if (e) {
+      if (typeof e.stopPropagation === 'function') e.stopPropagation();
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+    }
     const user = PDMS.getUser();
-    const userKey = user ? String(user.id || user.email || user.name || '').trim() : '';
+    const userKey = user ? String(user.id || user.email || user.name || '').trim().toLowerCase() : '';
     const liveNotifs = liveList('notifications');
     const target = liveNotifs.find(n => String(n.id) === String(id));
 
     if (target) {
+      target.dismissedBy = Array.isArray(target.dismissedBy) ? target.dismissedBy : [];
       target.readBy = Array.isArray(target.readBy) ? target.readBy : [];
-      if (userKey && !target.readBy.includes(userKey)) {
-        target.readBy.push(userKey);
+      if (userKey) {
+        if (!target.dismissedBy.includes(userKey)) target.dismissedBy.push(userKey);
+        if (!target.readBy.includes(userKey)) target.readBy.push(userKey);
       }
       if (userKey) {
         try {
-          const storageKey = 'pdms_user_read_notifs_' + userKey.toLowerCase();
-          const userReadSet = JSON.parse(localStorage.getItem(storageKey) || '[]');
-          if (!userReadSet.includes(String(id))) {
-            userReadSet.push(String(id));
-            localStorage.setItem(storageKey, JSON.stringify(userReadSet));
-          }
+          const dKey = 'pdms_user_dismissed_notifs_' + userKey;
+          const rKey = 'pdms_user_read_notifs_' + userKey;
+          const dSet = JSON.parse(localStorage.getItem(dKey) || '[]');
+          const rSet = JSON.parse(localStorage.getItem(rKey) || '[]');
+          if (!dSet.includes(String(id))) { dSet.push(String(id)); localStorage.setItem(dKey, JSON.stringify(dSet)); }
+          if (!rSet.includes(String(id))) { rSet.push(String(id)); localStorage.setItem(rKey, JSON.stringify(rSet)); }
         } catch(_) {}
       }
       if (!target.recipientRole && (target.recipientId || target.recipientOwner)) {
         target.unread = false;
       }
-      PDMS.api.update('notifications', id, { readBy: target.readBy, unread: target.unread }).catch(() => {});
+      PDMS.api.update('notifications', id, {
+        readBy: target.readBy,
+        dismissedBy: target.dismissedBy,
+        unread: target.unread
+      }).catch(() => {});
       document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
     }
+  };
+
+  PDMS.markNotificationAsRead = function(id, link){
+    PDMS.dismissNotification(id);
     if (link) {
       location.href = link;
     }
@@ -1302,30 +1473,36 @@
 
   PDMS.markAllNotificationsRead = function(user){
     user = user || PDMS.getUser();
-    const userKey = user ? String(user.id || user.email || user.name || '').trim() : '';
+    const userKey = user ? String(user.id || user.email || user.name || '').trim().toLowerCase() : '';
     const liveNotifs = liveList('notifications');
     const visible = PDMS.notificationsFor ? PDMS.notificationsFor(user) : liveNotifs;
-    const unread = visible.filter(n => PDMS.isNotificationUnread(n, user));
-    if (!unread.length) return Promise.resolve([]);
+    if (!visible.length) return Promise.resolve([]);
 
     if (userKey) {
       try {
-        const storageKey = 'pdms_user_read_notifs_' + userKey.toLowerCase();
-        const userReadSet = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        unread.forEach(n => {
-          if (!userReadSet.includes(String(n.id))) userReadSet.push(String(n.id));
+        const dKey = 'pdms_user_dismissed_notifs_' + userKey;
+        const rKey = 'pdms_user_read_notifs_' + userKey;
+        const dSet = JSON.parse(localStorage.getItem(dKey) || '[]');
+        const rSet = JSON.parse(localStorage.getItem(rKey) || '[]');
+        visible.forEach(n => {
+          if (!dSet.includes(String(n.id))) dSet.push(String(n.id));
+          if (!rSet.includes(String(n.id))) rSet.push(String(n.id));
         });
-        localStorage.setItem(storageKey, JSON.stringify(userReadSet));
+        localStorage.setItem(dKey, JSON.stringify(dSet));
+        localStorage.setItem(rKey, JSON.stringify(rSet));
       } catch(_) {}
     }
 
-    unread.forEach(n => {
+    visible.forEach(n => {
+      n.dismissedBy = Array.isArray(n.dismissedBy) ? n.dismissedBy : [];
       n.readBy = Array.isArray(n.readBy) ? n.readBy : [];
-      if (userKey && !n.readBy.includes(userKey)) {
-        n.readBy.push(userKey);
+      if (userKey) {
+        if (!n.dismissedBy.includes(userKey)) n.dismissedBy.push(userKey);
+        if (!n.readBy.includes(userKey)) n.readBy.push(userKey);
       }
       const match = liveNotifs.find(item => String(item.id) === String(n.id));
       if (match) {
+        match.dismissedBy = n.dismissedBy;
         match.readBy = n.readBy;
         if (!match.recipientRole && (match.recipientId || match.recipientOwner)) {
           match.unread = false;
@@ -1333,12 +1510,19 @@
       }
     });
 
-    const updates = unread.map(n => PDMS.api.update('notifications', n.id, { readBy: n.readBy, unread: n.unread }).catch(() => {}));
+    const updates = visible.map(n => PDMS.api.update('notifications', n.id, {
+      readBy: n.readBy,
+      dismissedBy: n.dismissedBy,
+      unread: n.unread
+    }).catch(() => {}));
+
     return Promise.all(updates).then(() => {
       document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
-      return unread;
+      return visible;
     });
   };
+
+  PDMS.clearAllNotifications = PDMS.markAllNotificationsRead;
 
   // Money & date fmt
   PDMS.money = n => '$'+Number(n).toLocaleString();
@@ -4161,15 +4345,24 @@
     const mine = (PDMS.notificationsFor ? PDMS.notificationsFor() : (PDMS_DATA.notifications || []));
     const sorted = mine.slice().sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
     const list = sorted.slice(0, 10);
-    const unread = mine.filter(n => PDMS.isNotificationUnread ? PDMS.isNotificationUnread(n) : n.unread).length;
+    const unread = mine.length;
     const dot = document.querySelector('#notifBtn .dot');
     if(dot) dot.style.display = unread ? 'block' : 'none';
     p.innerHTML = '<div class="panel-head"><h3>Notifications</h3><div style="display:flex;align-items:center;gap:10px">'+
-      (unread ? '<button onclick="PDMS.markAllNotificationsRead && PDMS.markAllNotificationsRead().then(()=>{PDMS.toast(\'Done\',\'All notifications marked as read\',\'success\');})" style="background:none;border:none;padding:0;color:var(--primary);font-size:12px;font-weight:600;cursor:pointer">Mark all as read</button>' : '')+
+      (unread ? '<button onclick="PDMS.clearAllNotifications && PDMS.clearAllNotifications().then(()=>{PDMS.toast(\'Cleared\',\'All notifications cleared\',\'success\');})" style="background:none;border:none;padding:0;color:var(--primary);font-size:12px;font-weight:600;cursor:pointer">Clear all</button>' : '')+
       '<a href="notifications.html" class="text-sm" style="color:var(--primary);font-weight:600">View all</a></div></div><div class="panel-body">'+
       (list.length ? list.map(n=>{
-        const isUnread = PDMS.isNotificationUnread ? PDMS.isNotificationUnread(n) : n.unread;
-        return '<div class="notif '+(isUnread?'unread':'')+'" style="cursor:pointer" onclick="PDMS.markNotificationAsRead(\''+PDMS.esc(n.id)+'\',\''+PDMS.esc(n.link||'')+'\')"><div class="n-icon">'+I(n.icon)+'</div><div><div class="n-title">'+PDMS.esc(n.title)+'</div><div class="n-msg">'+PDMS.esc(n.msg)+'</div><div class="n-time">'+PDMS.timeAgo(n.time)+'</div></div></div>';
+        return '<div class="notif" style="cursor:pointer;position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:8px" onclick="PDMS.markNotificationAsRead(\''+PDMS.esc(n.id)+'\',\''+PDMS.esc(n.link||'')+'\')">'+
+          '<div style="display:flex;gap:12px;min-width:0;flex:1">'+
+            '<div class="n-icon">'+I(n.icon)+'</div>'+
+            '<div style="min-width:0;flex:1">'+
+              '<div class="n-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+PDMS.esc(n.title)+'</div>'+
+              '<div class="n-msg">'+PDMS.esc(n.msg)+'</div>'+
+              '<div class="n-time">'+PDMS.timeAgo(n.time)+'</div>'+
+            '</div>'+
+          '</div>'+
+          '<button class="btn-notif-dismiss" onclick="PDMS.dismissNotification(\''+PDMS.esc(n.id)+'\', event)">Dismiss</button>'+
+        '</div>';
       }).join('')
         : '<div style="padding:24px 16px;text-align:center;color:var(--text-muted);font-size:13px">No notifications</div>')+
     '</div>';

@@ -3,8 +3,8 @@
 <title>User Details — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1789984764"/></head><body>
-<script src="js/bundle.js?v=1789984764"></script>
+<link rel="stylesheet" href="css/style.css?v=1789986276"/></head><body>
+<script src="js/bundle.js?v=1789986276"></script>
 <script>
 // A hash survives any host's clean-URL rewriting untouched, since it's never
 // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -791,7 +791,7 @@ window.openRequestLeaveModal = function () {
           PDMS.api.update('leaveRequests', leaveId, patch).then(saved => {
             Object.assign(lv, patch, saved || {});
             const noteText = note ? ` Note: ${note}` : '';
-            PDMS.notify('Time-Off Request Approved', `Your request for ${lv.daysCount} off-day(s) (${lv.startDate} to ${lv.endDate}) has been approved by HR.${noteText}`, 'check', 'user-details.html#id=' + encodeURIComponent(lv.userId || ''), lv.userRole, lv.userEmail);
+            PDMS.notify('Time-Off Request Approved', `Your request for ${lv.daysCount} off-day(s) (${lv.startDate} to ${lv.endDate}) has been approved by HR.${noteText}`, 'check', 'user-details.html#id=' + encodeURIComponent(lv.userId || ''), '', lv.userId || lv.userEmail || '', '', lv.userName || '');
             PDMS.toast('Leave Approved', `Approved time off for ${lv.userName} (${lv.startDate} to ${lv.endDate})`, 'success');
             render();
             if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
@@ -877,7 +877,7 @@ window.openRequestLeaveModal = function () {
 
           PDMS.api.update('leaveRequests', leaveId, patch).then(saved => {
             Object.assign(lv, patch, saved || {});
-            PDMS.notify('Time-Off Request Rejected', `Your request for off-days (${lv.startDate} to ${lv.endDate}) was not approved. Reason: ${patch.reviewNote}`, 'alert-triangle', 'user-details.html#id=' + encodeURIComponent(lv.userId || ''), lv.userRole, lv.userEmail);
+            PDMS.notify('Time-Off Request Rejected', `Your request for off-days (${lv.startDate} to ${lv.endDate}) was not approved. Reason: ${patch.reviewNote}`, 'alert-triangle', 'user-details.html#id=' + encodeURIComponent(lv.userId || ''), '', lv.userId || lv.userEmail || '', '', lv.userName || '');
             PDMS.toast('Leave Rejected', `Time off request for ${lv.userName} was rejected.`, 'info');
             render();
             if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();

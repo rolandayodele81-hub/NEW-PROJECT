@@ -7,11 +7,11 @@
   <title>Consultants — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1789984764"/>
+<link rel="stylesheet" href="css/style.css?v=1789986276"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789984764"></script>
+  <script src="js/bundle.js?v=1789986276"></script>
   <script>
     PDMS.mountShell('consultants');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -55,10 +55,14 @@
     }
 
     function projectNotifications(project, user) {
-      return (D.notifications || []).filter(notification => {
-        const sameProject = String(notification.projectId || '') === String(project.id || '');
-        const recipient = String(notification.recipientId || notification.recipient || '').trim();
-        return sameProject && (!recipient || recipient === String(user?.id || '') || recipient === String(user?.name || ''));
+      if (!project || !user) return [];
+      const userNotifs = PDMS.notificationsFor ? PDMS.notificationsFor(user) : (D.notifications || []);
+      return userNotifs.filter(notification => {
+        const notifProjId = String(notification.projectId || notification.recipientOwner || '').trim();
+        const link = String(notification.link || '');
+        const match = link.match(/[#?]id=([^&]+)/i);
+        const linkProjId = match ? decodeURIComponent(match[1]).trim() : '';
+        return (notifProjId && notifProjId === String(project.id)) || (linkProjId && linkProjId === String(project.id));
       }).sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
     }
 
