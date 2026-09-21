@@ -119,6 +119,30 @@
             p[field] = [];
           }
         });
+
+        // Normalize timelineStages (customized sequence of stages)
+        if (p.timelineStages !== undefined && p.timelineStages !== null) {
+          var tList = null;
+          if (typeof p.timelineStages === 'string') {
+            var tStr = p.timelineStages.trim();
+            if (tStr) {
+              try {
+                var tParsed = JSON.parse(tStr);
+                if (Array.isArray(tParsed)) tList = tParsed;
+                else if (tStr.includes(',')) tList = tStr.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+              } catch (e) {
+                if (tStr.includes(',')) tList = tStr.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+              }
+            }
+          } else if (Array.isArray(p.timelineStages)) {
+            tList = p.timelineStages;
+          }
+          if (Array.isArray(tList) && tList.length >= 2) {
+            p.timelineStages = tList;
+          } else {
+            delete p.timelineStages;
+          }
+        }
       });
     }
     return data;

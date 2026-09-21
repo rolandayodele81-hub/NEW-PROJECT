@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1789986276" />
+  <link rel="stylesheet" href="css/style.css?v=1789990129" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789986276"></script>
+  <script src="js/bundle.js?v=1789990129"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -67,9 +67,9 @@
       const pStage = PDMS.stageOf ? PDMS.stageOf(proj) : (proj.stage || 'Delivery');
       const isSales = pStage === 'Sales';
       const rawMainSequence = isSales
-        ? (PDMS.salesSequenceFor ? PDMS.salesSequenceFor(proj) : (Array.isArray(proj.timelineStages) && proj.timelineStages.length > 0 ? proj.timelineStages.slice() : ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed']))
+        ? (PDMS.salesSequenceFor ? PDMS.salesSequenceFor(proj) : ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'])
         : (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(proj) : ((D && D.deliveryStagesByType && (D.deliveryStagesByType['ISO Management System'] || D.deliveryStagesByType['Management System'])) || []));
-      const mainSequence = (rawMainSequence || []).map(s => s === 'Project Closure' ? 'Closure' : s);
+      const mainSequence = (rawMainSequence && rawMainSequence.length >= 2 ? rawMainSequence : (isSales ? ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'] : (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(proj.type || 'ISO Management System') : []))).map(s => s === 'Project Closure' ? 'Closure' : s);
 
       let statusToMatch = isSales
         ? (isPendingSalesHead ? (proj.requestedStatus || proj.targetStatus || 'Lead') : proj.status)
@@ -2885,11 +2885,12 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       const type = p.type || p.projectType || (isSales ? 'Sales Pipeline' : 'ISO Management System');
       const allDefaultStages = isSales
         ? ['Lead', 'Opportunity', 'Initial Proposal', 'Presentation', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed']
-        : ((window.PDMS_DATA && window.PDMS_DATA.deliveryStagesByType && (window.PDMS_DATA.deliveryStagesByType[type] || window.PDMS_DATA.deliveryStagesByType['ISO Management System'] || window.PDMS_DATA.deliveryStagesByType['Management System'])) || ['Handover / Kickoff', 'Project Initiation Document (PID)', 'Discovery / Assessment', 'Gap Analysis Report', 'Documentation & Policy Development', 'Implementation / Remediation', 'Training', 'Pre-Audit / Internal Audit', 'Certification Audit / Final Sign-off']);
+        : ((PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(type) : null) || (window.PDMS_DATA && window.PDMS_DATA.deliveryStagesByType && (window.PDMS_DATA.deliveryStagesByType[type] || window.PDMS_DATA.deliveryStagesByType['ISO Management System'])) || ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure']);
       
-      const currentSequence = isSales
-        ? (PDMS.salesSequenceFor ? PDMS.salesSequenceFor(p) : (Array.isArray(p.timelineStages) && p.timelineStages.length > 0 ? p.timelineStages.slice() : allDefaultStages))
+      const rawCurrent = isSales
+        ? (PDMS.salesSequenceFor ? PDMS.salesSequenceFor(p) : allDefaultStages)
         : (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(p) : allDefaultStages);
+      const currentSequence = (rawCurrent && rawCurrent.length >= 2) ? rawCurrent : allDefaultStages;
       
       // Merge currentSequence with any default stages not in sequence
       const fullList = currentSequence.slice();
@@ -3072,7 +3073,15 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         }
 
         PDMS.api.update('projects', p.id, patch).then(saved => {
-          Object.assign(p, saved, patch);
+          Object.assign(p, patch, saved || {});
+          if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
+            const rProj = window.PDMS_REMOTE.projects.find(x => String(x.id) === String(p.id));
+            if (rProj) Object.assign(rProj, patch, saved || {});
+          }
+          if (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.projects)) {
+            const dProj = window.PDMS_DATA.projects.find(x => String(x.id) === String(p.id));
+            if (dProj) Object.assign(dProj, patch, saved || {});
+          }
           modal.remove();
           PDMS.toast('Stages Saved', 'Project timeline stages and order updated', 'success');
           render();

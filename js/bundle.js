@@ -119,6 +119,30 @@
             p[field] = [];
           }
         });
+
+        // Normalize timelineStages (customized sequence of stages)
+        if (p.timelineStages !== undefined && p.timelineStages !== null) {
+          var tList = null;
+          if (typeof p.timelineStages === 'string') {
+            var tStr = p.timelineStages.trim();
+            if (tStr) {
+              try {
+                var tParsed = JSON.parse(tStr);
+                if (Array.isArray(tParsed)) tList = tParsed;
+                else if (tStr.includes(',')) tList = tStr.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+              } catch (e) {
+                if (tStr.includes(',')) tList = tStr.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+              }
+            }
+          } else if (Array.isArray(p.timelineStages)) {
+            tList = p.timelineStages;
+          }
+          if (Array.isArray(tList) && tList.length >= 2) {
+            p.timelineStages = tList;
+          } else {
+            delete p.timelineStages;
+          }
+        }
       });
     }
     return data;
@@ -511,37 +535,54 @@
     return salesStatusAliases[status] || status;
   }
 
-  function salesSequenceFor(projectOrType) {
-    if (typeof projectOrType === 'object' && projectOrType) {
-      if (Array.isArray(projectOrType.timelineStages) && projectOrType.timelineStages.length > 0) {
-        return projectOrType.timelineStages.map(s => s === 'Project Closure' ? 'Closure' : s);
+  function getCustomTimelineStages(projectOrType) {
+    if (!projectOrType || typeof projectOrType !== 'object') return null;
+    var stg = projectOrType.timelineStages;
+    if (typeof stg === 'string') {
+      var str = stg.trim();
+      if (!str) return null;
+      try {
+        var parsed = JSON.parse(str);
+        stg = Array.isArray(parsed) ? parsed : null;
+      } catch (e) {
+        stg = str.includes(',') ? str.split(',').map(function (s) { return s.trim(); }).filter(Boolean) : null;
       }
     }
+    // A valid custom stage sequence must have at least 2 stages
+    return (Array.isArray(stg) && stg.length >= 2)
+      ? stg.map(function (s) { return s === 'Project Closure' ? 'Closure' : s; })
+      : null;
+  }
+
+  function salesSequenceFor(projectOrType) {
+    var custom = getCustomTimelineStages(projectOrType);
+    if (custom) return custom;
     return salesJourney.slice();
   }
 
   function deliverySequenceFor(projectOrType) {
-    if (typeof projectOrType === 'object' && projectOrType) {
-      if (Array.isArray(projectOrType.timelineStages) && projectOrType.timelineStages.length > 0) {
-        return projectOrType.timelineStages.map(s => s === 'Project Closure' ? 'Closure' : s);
-      }
-      let type = projectOrType.type || projectOrType.projectType;
-      if (type && deliveryStagesByType[type]) {
-        let seq = deliveryStagesByType[type].slice();
+    var custom = getCustomTimelineStages(projectOrType);
+    if (custom) return custom;
+    let type = typeof projectOrType === 'string' ? projectOrType : (projectOrType && (projectOrType.type || projectOrType.projectType));
+    if (type && deliveryStagesByType[type]) {
+      let seq = deliveryStagesByType[type].slice();
+      if (typeof projectOrType === 'object' && projectOrType) {
         if (projectOrType.hasTraining === false || projectOrType.includeTraining === false || projectOrType.noTraining === true) {
           seq = seq.filter(s => s !== 'Training');
         }
-        return seq.map(s => s === 'Project Closure' ? 'Closure' : s);
       }
-    }
-    let type = typeof projectOrType === 'string' ? projectOrType : (projectOrType && (projectOrType.type || projectOrType.projectType));
-    if (type && deliveryStagesByType[type]) {
-      return deliveryStagesByType[type].map(s => s === 'Project Closure' ? 'Closure' : s);
+      return seq.map(s => s === 'Project Closure' ? 'Closure' : s);
     }
     if (type) {
       const matchedKey = Object.keys(deliveryStagesByType).find(k => k.toLowerCase() === String(type).trim().toLowerCase());
       if (matchedKey) {
-        return deliveryStagesByType[matchedKey].map(s => s === 'Project Closure' ? 'Closure' : s);
+        let seq = deliveryStagesByType[matchedKey].slice();
+        if (typeof projectOrType === 'object' && projectOrType) {
+          if (projectOrType.hasTraining === false || projectOrType.includeTraining === false || projectOrType.noTraining === true) {
+            seq = seq.filter(s => s !== 'Training');
+          }
+        }
+        return seq.map(s => s === 'Project Closure' ? 'Closure' : s);
       }
     }
     return defaultDeliverySequence.map(s => s === 'Project Closure' ? 'Closure' : s);
@@ -614,7 +655,7 @@
     departments, users, consultants, clients, projects,
     notifications, threads, activities, reviews, issues, complaints, leaveRequests,
     roles, types, priorities, workstreams, statuses, salesJourney, salesStatuses, salesStatusAliases, deliveryStatuses,
-    deliveryStagesByType, deliverySequenceFor,
+    deliveryStagesByType, deliverySequenceFor, salesSequenceFor,
     statusColors, prioColors,
     tasksFor
   };
@@ -639,6 +680,7 @@
     return global.PDMS.formatType(raw);
   };
   global.PDMS.deliverySequenceFor = deliverySequenceFor;
+  global.PDMS.salesSequenceFor = salesSequenceFor;
   global.PDMS.deliveryStagesByType = deliveryStagesByType;
 })(window);/* PDMS Utils */
 (function(g){
