@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1789388407"/>
+<link rel="stylesheet" href="css/style.css?v=1789984764"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1789388407"></script>
+<script src="js/bundle.js?v=1789984764"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -159,8 +159,8 @@ const statTiles = viewParam==='sales'
   : (currentUser && currentUser.role==='Consultant')
   ? [
       {label:'Total', match:()=>true, filterStatus:null, color:'primary', icon:'folder'},
-      {label:'With Active Tasks', filterKey:'activeTasks', filterFn:p=>(p.privateTasks||[]).some(t=>!t.done), match:p=>(p.privateTasks||[]).some(t=>!t.done), color:'warn', icon:'activity', sub:'projects'},
-      {label:'Tasks Completed', filterKey:'tasksCompleted', filterFn:p=>(p.privateTasks||[]).length>0&&(p.privateTasks||[]).every(t=>t.done), match:p=>(p.privateTasks||[]).length>0&&(p.privateTasks||[]).every(t=>t.done), color:'info', icon:'check', sub:'projects'}
+      {label:'With Active Tasks', filterKey:'activeTasks', filterFn:p=>(PDMS.getPrivateTasks ? PDMS.getPrivateTasks(p) : (Array.isArray(p.privateTasks)?p.privateTasks:[])).some(t=>t&&!t.done), match:p=>(PDMS.getPrivateTasks ? PDMS.getPrivateTasks(p) : (Array.isArray(p.privateTasks)?p.privateTasks:[])).some(t=>t&&!t.done), color:'warn', icon:'activity', sub:'projects'},
+      {label:'Tasks Completed', filterKey:'tasksCompleted', filterFn:p=>{ const t=(PDMS.getPrivateTasks ? PDMS.getPrivateTasks(p) : (Array.isArray(p.privateTasks)?p.privateTasks:[])); return t.length>0&&t.every(t=>t&&t.done); }, match:p=>{ const t=(PDMS.getPrivateTasks ? PDMS.getPrivateTasks(p) : (Array.isArray(p.privateTasks)?p.privateTasks:[])); return t.length>0&&t.every(t=>t&&t.done); }, color:'info', icon:'check', sub:'projects'}
     ]
   : [
       {label:'Total', match:()=>true, filterStatus:null, color:'primary', icon:'folder'},
@@ -187,10 +187,10 @@ if (initialFilterParam === 'pipeline' || initialStatusParam === 'In Pipeline' ||
   const today = new Date().toISOString().slice(0,10);
   currentCustomFilter = r => r.due === today && !(PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(r) : ['Completed','Closed','Closure','Project Closure','Cancelled','On Hold'].includes(PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : r.status));
 } else if (initialFilterParam === 'activeTasks' || initialTaskFilterParam === 'active') {
-  currentCustomFilter = p => (p.privateTasks||[]).some(t=>!t.done);
+  currentCustomFilter = p => (PDMS.getPrivateTasks ? PDMS.getPrivateTasks(p) : (Array.isArray(p.privateTasks)?p.privateTasks:[])).some(t=>t&&!t.done);
   selectedTileIndex = statTiles.findIndex(t => t.filterKey === 'activeTasks');
 } else if (initialFilterParam === 'tasksCompleted' || initialTaskFilterParam === 'completed') {
-  currentCustomFilter = p => (p.privateTasks||[]).length>0 && (p.privateTasks||[]).every(t=>t.done);
+  currentCustomFilter = p => { const t = (PDMS.getPrivateTasks ? PDMS.getPrivateTasks(p) : (Array.isArray(p.privateTasks)?p.privateTasks:[])); return t.length>0 && t.every(t=>t&&t.done); };
   selectedTileIndex = statTiles.findIndex(t => t.filterKey === 'tasksCompleted');
 }
 

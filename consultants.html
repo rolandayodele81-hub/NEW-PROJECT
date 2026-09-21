@@ -7,11 +7,11 @@
   <title>Consultants — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1789388407"/>
+<link rel="stylesheet" href="css/style.css?v=1789984764"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789388407"></script>
+  <script src="js/bundle.js?v=1789984764"></script>
   <script>
     PDMS.mountShell('consultants');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -43,7 +43,9 @@
     }
 
     function projectTasks(project, user) {
-      return (project.privateTasks || []).filter(task => {
+      const tasks = PDMS.getPrivateTasks ? PDMS.getPrivateTasks(project) : (Array.isArray(project && project.privateTasks) ? project.privateTasks : []);
+      return tasks.filter(task => {
+        if (!task) return false;
         const ownerId = String(task.ownerId || '').trim();
         const ownerName = String(task.ownerName || '').trim().toLowerCase();
         const currentName = String(user?.name || '').trim().toLowerCase();
@@ -529,7 +531,7 @@
           return;
         }
         const task = { id: 'T-' + Math.floor(1000 + Math.random() * 9000), activity, deliverable, date, ownerId: user?.id || '', ownerName: user?.name || '' };
-        const privateTasks = Array.isArray(project.privateTasks) ? project.privateTasks.slice() : [];
+        const privateTasks = (PDMS.getPrivateTasks ? PDMS.getPrivateTasks(project) : (Array.isArray(project.privateTasks) ? project.privateTasks : [])).slice();
         privateTasks.unshift(task);
         saveProject(project, { privateTasks }).then(() => {
           modal.remove();
@@ -591,7 +593,7 @@
         const project = (D.projects || []).find(p => String(p.id) === String(projectId));
         if (!project) return;
         const task = { id: 'T-' + Math.floor(1000 + Math.random() * 9000), activity, deliverable, date, ownerId: user?.id || '', ownerName: user?.name || '' };
-        const privateTasks = Array.isArray(project.privateTasks) ? project.privateTasks.slice() : [];
+        const privateTasks = (PDMS.getPrivateTasks ? PDMS.getPrivateTasks(project) : (Array.isArray(project.privateTasks) ? project.privateTasks : [])).slice();
         privateTasks.unshift(task);
         saveProject(project, { privateTasks }).then(() => {
           modal.remove();

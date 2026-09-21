@@ -96,8 +96,37 @@
     });
   }
 
+  function normalizeProjectsData(data) {
+    if (!data || typeof data !== 'object') return data;
+    if (Array.isArray(data.projects)) {
+      var jsonFields = ['consultants', 'privateTasks', 'documents', 'milestones', 'subStatuses'];
+      data.projects.forEach(function (p) {
+        if (!p || typeof p !== 'object') return;
+        jsonFields.forEach(function (field) {
+          if (typeof p[field] === 'string') {
+            var str = p[field].trim();
+            if (!str) {
+              p[field] = [];
+            } else {
+              try {
+                var parsed = JSON.parse(str);
+                p[field] = Array.isArray(parsed) ? parsed : [];
+              } catch (e) {
+                p[field] = [];
+              }
+            }
+          } else if (!Array.isArray(p[field])) {
+            p[field] = [];
+          }
+        });
+      });
+    }
+    return data;
+  }
+
   function sortAllDataNewestFirst(data) {
     if (!data || typeof data !== 'object') return data;
+    normalizeProjectsData(data);
     Object.keys(data).forEach(function (key) {
       if (Array.isArray(data[key])) {
         sortCollectionNewestFirst(data[key]);

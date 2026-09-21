@@ -47,6 +47,24 @@
 
   PDMS.icon = function(name){ return ICONS[name]||''; };
 
+  PDMS.asArray = function(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+      var trimmed = val.trim();
+      if (!trimmed) return [];
+      try {
+        var parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return [];
+  };
+
+  PDMS.getPrivateTasks = function(project) {
+    return project ? PDMS.asArray(project.privateTasks) : [];
+  };
+
   // Theme
   PDMS.applyTheme = function(){
     const t = localStorage.getItem('pdms-theme')||'light';

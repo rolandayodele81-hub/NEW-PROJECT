@@ -349,6 +349,27 @@
   const consultants = loadCollection('consultants', []);
   const clients = loadCollection('clients', []);
   const rawProjects = loadCollection('projects', []).reverse();
+  const jsonProjectFields = ['consultants', 'privateTasks', 'documents', 'milestones', 'subStatuses'];
+  rawProjects.forEach(p => {
+    if (!p || typeof p !== 'object') return;
+    jsonProjectFields.forEach(field => {
+      if (typeof p[field] === 'string') {
+        const str = p[field].trim();
+        if (!str) {
+          p[field] = [];
+        } else {
+          try {
+            const parsed = JSON.parse(str);
+            p[field] = Array.isArray(parsed) ? parsed : [];
+          } catch (e) {
+            p[field] = [];
+          }
+        }
+      } else if (!Array.isArray(p[field])) {
+        p[field] = [];
+      }
+    });
+  });
   const projects = rawProjects;
   const notifications = loadCollection('notifications', []);
   const threads = loadCollection('threads', []);

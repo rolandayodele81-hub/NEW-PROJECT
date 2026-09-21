@@ -96,8 +96,37 @@
     });
   }
 
+  function normalizeProjectsData(data) {
+    if (!data || typeof data !== 'object') return data;
+    if (Array.isArray(data.projects)) {
+      var jsonFields = ['consultants', 'privateTasks', 'documents', 'milestones', 'subStatuses'];
+      data.projects.forEach(function (p) {
+        if (!p || typeof p !== 'object') return;
+        jsonFields.forEach(function (field) {
+          if (typeof p[field] === 'string') {
+            var str = p[field].trim();
+            if (!str) {
+              p[field] = [];
+            } else {
+              try {
+                var parsed = JSON.parse(str);
+                p[field] = Array.isArray(parsed) ? parsed : [];
+              } catch (e) {
+                p[field] = [];
+              }
+            }
+          } else if (!Array.isArray(p[field])) {
+            p[field] = [];
+          }
+        });
+      });
+    }
+    return data;
+  }
+
   function sortAllDataNewestFirst(data) {
     if (!data || typeof data !== 'object') return data;
+    normalizeProjectsData(data);
     Object.keys(data).forEach(function (key) {
       if (Array.isArray(data[key])) {
         sortCollectionNewestFirst(data[key]);
@@ -547,6 +576,27 @@
   const consultants = loadCollection('consultants', []);
   const clients = loadCollection('clients', []);
   const rawProjects = loadCollection('projects', []).reverse();
+  const jsonProjectFields = ['consultants', 'privateTasks', 'documents', 'milestones', 'subStatuses'];
+  rawProjects.forEach(p => {
+    if (!p || typeof p !== 'object') return;
+    jsonProjectFields.forEach(field => {
+      if (typeof p[field] === 'string') {
+        const str = p[field].trim();
+        if (!str) {
+          p[field] = [];
+        } else {
+          try {
+            const parsed = JSON.parse(str);
+            p[field] = Array.isArray(parsed) ? parsed : [];
+          } catch (e) {
+            p[field] = [];
+          }
+        }
+      } else if (!Array.isArray(p[field])) {
+        p[field] = [];
+      }
+    });
+  });
   const projects = rawProjects;
   const notifications = loadCollection('notifications', []);
   const threads = loadCollection('threads', []);
@@ -638,6 +688,24 @@
   };
 
   PDMS.icon = function(name){ return ICONS[name]||''; };
+
+  PDMS.asArray = function(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+      var trimmed = val.trim();
+      if (!trimmed) return [];
+      try {
+        var parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return [];
+  };
+
+  PDMS.getPrivateTasks = function(project) {
+    return project ? PDMS.asArray(project.privateTasks) : [];
+  };
 
   // Theme
   PDMS.applyTheme = function(){
