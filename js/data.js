@@ -286,7 +286,19 @@
 
   function getCustomTimelineStages(projectOrType) {
     if (!projectOrType || typeof projectOrType !== 'object') return null;
-    var stg = projectOrType.timelineStages;
+    var stg = projectOrType.timelineStages || projectOrType.timeline_stages;
+    if (!stg && projectOrType.milestones) {
+      if (typeof projectOrType.milestones === 'object' && !Array.isArray(projectOrType.milestones)) {
+        stg = projectOrType.milestones._timelineStages || projectOrType.milestones.timelineStages;
+      } else if (typeof projectOrType.milestones === 'string') {
+        try {
+          var mParsed = JSON.parse(projectOrType.milestones);
+          if (mParsed && typeof mParsed === 'object') {
+            stg = mParsed._timelineStages || mParsed.timelineStages;
+          }
+        } catch (_) {}
+      }
+    }
     if (typeof stg === 'string') {
       var str = stg.trim();
       if (!str) return null;

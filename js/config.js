@@ -99,10 +99,10 @@
   function normalizeProjectsData(data) {
     if (!data || typeof data !== 'object') return data;
     if (Array.isArray(data.projects)) {
-      var jsonFields = ['consultants', 'privateTasks', 'documents', 'milestones', 'subStatuses'];
+      var arrayJsonFields = ['consultants', 'privateTasks', 'documents', 'subStatuses'];
       data.projects.forEach(function (p) {
         if (!p || typeof p !== 'object') return;
-        jsonFields.forEach(function (field) {
+        arrayJsonFields.forEach(function (field) {
           if (typeof p[field] === 'string') {
             var str = p[field].trim();
             if (!str) {
@@ -120,27 +120,60 @@
           }
         });
 
-        // Normalize timelineStages (customized sequence of stages)
-        if (p.timelineStages !== undefined && p.timelineStages !== null) {
-          var tList = null;
-          if (typeof p.timelineStages === 'string') {
-            var tStr = p.timelineStages.trim();
-            if (tStr) {
-              try {
-                var tParsed = JSON.parse(tStr);
-                if (Array.isArray(tParsed)) tList = tParsed;
-                else if (tStr.includes(',')) tList = tStr.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
-              } catch (e) {
-                if (tStr.includes(',')) tList = tStr.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
-              }
-            }
-          } else if (Array.isArray(p.timelineStages)) {
-            tList = p.timelineStages;
-          }
-          if (Array.isArray(tList) && tList.length >= 2) {
-            p.timelineStages = tList;
+        // Normalize milestones (supports both stage map object and legacy array)
+        if (typeof p.milestones === 'string') {
+          var mStr = p.milestones.trim();
+          if (!mStr) {
+            p.milestones = {};
           } else {
-            delete p.timelineStages;
+            try {
+              var mParsed = JSON.parse(mStr);
+              p.milestones = (mParsed && typeof mParsed === 'object') ? mParsed : {};
+            } catch (e) {
+              p.milestones = {};
+            }
+          }
+        } else if (!p.milestones || typeof p.milestones !== 'object') {
+          p.milestones = {};
+        }
+
+        // Normalize timelineStages (customized sequence of stages)
+        var rawStages = p.timelineStages !== undefined && p.timelineStages !== null ? p.timelineStages : p.timeline_stages;
+        if ((!rawStages || (Array.isArray(rawStages) && rawStages.length === 0)) && p.milestones) {
+          if (typeof p.milestones === 'object' && !Array.isArray(p.milestones)) {
+            rawStages = p.milestones._timelineStages || p.milestones.timelineStages;
+          }
+        }
+
+        var tList = null;
+        if (typeof rawStages === 'string') {
+          var tStr = rawStages.trim();
+          if (tStr) {
+            try {
+              var tParsed = JSON.parse(tStr);
+              if (Array.isArray(tParsed)) tList = tParsed;
+              else if (tStr.includes(',')) tList = tStr.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+            } catch (e) {
+              if (tStr.includes(',')) tList = tStr.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+            }
+          }
+        } else if (Array.isArray(rawStages)) {
+          tList = rawStages;
+        }
+
+        if (Array.isArray(tList) && tList.length >= 2) {
+          var cleanedStages = tList.map(function (s) { return s === 'Project Closure' ? 'Closure' : s; });
+          p.timelineStages = cleanedStages;
+          p.timeline_stages = cleanedStages;
+          if (p.milestones && typeof p.milestones === 'object' && !Array.isArray(p.milestones)) {
+            p.milestones._timelineStages = cleanedStages;
+          }
+        } else {
+          delete p.timelineStages;
+          delete p.timeline_stages;
+          if (p.milestones && typeof p.milestones === 'object' && !Array.isArray(p.milestones)) {
+            delete p.milestones._timelineStages;
+            delete p.milestones.timelineStages;
           }
         }
       });

@@ -30,7 +30,7 @@ function initializeSheets() {
       rows: []
     },
     Projects: {
-      headers: ['id', 'name', 'client', 'type', 'dept', 'workstream', 'sales', 'pm', 'lead', 'consultants', 'priority', 'status', 'stage', 'createdByRole', 'projectOwnerId', 'projectOwnerName', 'progress', 'start', 'due', 'actualCompletion', 'completion', 'currency', 'opportunityValue', 'negotiatedPrice', 'awardValue', 'requestedNegotiatedPrice', 'requestedStatus', 'previousStatus', 'priceUpdatePending', 'description', 'files', 'remarks', 'privateTasks', 'documents', 'milestones', 'subStatus', 'subStatuses'],
+      headers: ['id', 'name', 'client', 'type', 'dept', 'workstream', 'sales', 'pm', 'lead', 'consultants', 'priority', 'status', 'stage', 'createdByRole', 'projectOwnerId', 'projectOwnerName', 'progress', 'start', 'due', 'actualCompletion', 'completion', 'currency', 'opportunityValue', 'negotiatedPrice', 'awardValue', 'requestedNegotiatedPrice', 'requestedStatus', 'previousStatus', 'priceUpdatePending', 'description', 'files', 'remarks', 'privateTasks', 'documents', 'milestones', 'subStatus', 'subStatuses', 'timelineStages'],
       textColumns: ['start', 'due', 'actualCompletion', 'completion', 'currency', 'negotiatedPrice', 'awardValue', 'requestedNegotiatedPrice', 'opportunityValue'],
       rows: []
     },

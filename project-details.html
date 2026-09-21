@@ -7,11 +7,11 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1789990129" />
+  <link rel="stylesheet" href="css/style.css?v=1789991631" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789990129"></script>
+  <script src="js/bundle.js?v=1789991631"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -3059,10 +3059,15 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         const btn = this;
         PDMS.setButtonLoading(btn, true, 'Saving...');
 
+        const mDataMap = getMilestonesMap(p);
+        const updatedMilestones = Object.assign({}, mDataMap, { _timelineStages: selected });
+
         const patch = {
           hasTraining: includeTraining,
           noTraining: !includeTraining,
-          timelineStages: selected
+          timelineStages: selected,
+          timeline_stages: selected,
+          milestones: updatedMilestones
         };
 
         if (!includeTraining && (p.status === 'Training' || p.status === 'Training & Awareness')) {
@@ -3073,14 +3078,27 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         }
 
         PDMS.api.update('projects', p.id, patch).then(saved => {
+          p.timelineStages = selected;
+          p.timeline_stages = selected;
+          p.milestones = updatedMilestones;
           Object.assign(p, patch, saved || {});
           if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
             const rProj = window.PDMS_REMOTE.projects.find(x => String(x.id) === String(p.id));
-            if (rProj) Object.assign(rProj, patch, saved || {});
+            if (rProj) {
+              rProj.timelineStages = selected;
+              rProj.timeline_stages = selected;
+              rProj.milestones = updatedMilestones;
+              Object.assign(rProj, patch, saved || {});
+            }
           }
           if (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.projects)) {
             const dProj = window.PDMS_DATA.projects.find(x => String(x.id) === String(p.id));
-            if (dProj) Object.assign(dProj, patch, saved || {});
+            if (dProj) {
+              dProj.timelineStages = selected;
+              dProj.timeline_stages = selected;
+              dProj.milestones = updatedMilestones;
+              Object.assign(dProj, patch, saved || {});
+            }
           }
           modal.remove();
           PDMS.toast('Stages Saved', 'Project timeline stages and order updated', 'success');
@@ -3147,6 +3165,12 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         PDMS.setButtonLoading(btn, true, 'Updating...');
 
         const updatedMap = Object.assign({}, mDataMap);
+        if (p.timelineStages && Array.isArray(p.timelineStages)) {
+          updatedMap._timelineStages = p.timelineStages;
+        } else if (mDataMap._timelineStages) {
+          updatedMap._timelineStages = mDataMap._timelineStages;
+        }
+
         updatedMap[stageLabel] = {
           stage: stageLabel,
           dueDate: isClosureStage ? '' : (dueDate || ''),
@@ -3158,6 +3182,11 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           status: stageLabel,
           milestones: updatedMap
         };
+
+        if (p.timelineStages && Array.isArray(p.timelineStages)) {
+          patch.timelineStages = p.timelineStages;
+          patch.timeline_stages = p.timelineStages;
+        }
 
         if (isClosureStage) {
           patch.actualCompletion = p.actualCompletion || new Date().toISOString().slice(0, 10);
@@ -3173,6 +3202,11 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         }
 
         PDMS.api.update('projects', p.id, patch).then(saved => {
+          p.milestones = updatedMap;
+          if (p.timelineStages) {
+            patch.timelineStages = p.timelineStages;
+            patch.timeline_stages = p.timelineStages;
+          }
           Object.assign(p, saved, patch);
           modal.remove();
           PDMS.toast('Stage Updated', `Project updated to "${stageLabel}"`, 'success');
