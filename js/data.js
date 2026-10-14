@@ -3,7 +3,7 @@
    ============================================ */
 (function (global) {
   const roles = ['System Administrator', 'HR', 'COO', 'HTD', 'PM Head', 'PMO', 'Accounts', 'Sales', 'Sales Head', 'Consultant'];
-  const types = ['ISO Management System', 'Regulatory / Compliance', 'Framework Adoption', 'Outsourcing / Governance', 'Technical / Security', 'Software Development', 'Artificial Intelligence', 'Technology Transformation', 'Surveillance / Recertification'];
+  const types = ['ISO Management System', 'Regulatory / Compliance', 'Framework Adoption', 'Outsourcing / Governance', 'Technical / Security', 'Software Development', 'Artificial Intelligence', 'Technology Transformation', 'Surveillance / Recertification', 'Assessment / Audit'];
   const priorities = ['Critical', 'High', 'Medium', 'Low'];
   const workstreams = ['Cloud Engineering', 'Cybersecurity', 'Data Analytics', 'Digital Transformation', 'ERP Implementation', 'Infrastructure', 'Mobile Development', 'Software Development', 'Web Platform', 'Business Consulting', 'General'];
   const salesJourney = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'];
@@ -120,6 +120,18 @@
     'Closure'
   ];
 
+  const assessmentAuditStages = [
+    'Not Started',
+    'Gap Assessment',
+    'Risk Assessment',
+    'Internal Audit',
+    'Remediation',
+    'Report Submission',
+    'Review',
+    'Completed',
+    'Closure'
+  ];
+
   const deliveryStagesByType = {
     'ISO Management System': managementSystemStages,
     'Management System': managementSystemStages,
@@ -151,7 +163,12 @@
     'Surveillance / Recertification': surveillanceStages,
     'Surveillance/ recertification': surveillanceStages,
     'Surveillance / recertification': surveillanceStages,
-    'Surveillance': surveillanceStages
+    'Surveillance': surveillanceStages,
+    'Assessment / Audit': assessmentAuditStages,
+    'Assessment/ Audit': assessmentAuditStages,
+    'Assessment/Audit': assessmentAuditStages,
+    'Assessment': assessmentAuditStages,
+    'Audit': assessmentAuditStages
   };
 
   const defaultDeliverySequence = managementSystemStages.slice();
@@ -164,6 +181,7 @@
     ...softwareAndAiStages,
     ...erpStages,
     ...surveillanceStages,
+    ...assessmentAuditStages,
     'On Hold', 'Cancelled'
   ];
   const deliveryStatuses = [...new Set(allTypeDeliveryStatuses)];

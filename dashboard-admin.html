@@ -7,11 +7,11 @@
   <title>Admin Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1789991631"/>
+<link rel="stylesheet" href="css/style.css?v=1791981676"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1789991631"></script>
+  <script src="js/bundle.js?v=1791981676"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -171,12 +171,13 @@
       <div class="card-body" style="padding:0">
         <div style="overflow-x:auto">
           <table class="data">
-            <thead><tr><th>Project</th><th>Client</th><th>Priority</th><th>Status</th></tr></thead>
+            <thead><tr><th>Project</th><th>Client</th><th>Workstream</th><th>Priority</th><th>Status</th></tr></thead>
             <tbody>
               ${salesProjects.map(p => `
                 <tr>
                   <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
                   <td>${PDMS.esc(p.client)}</td>
+                  <td class="text-muted">${PDMS.esc(p.workstream || p.dept || '—')}</td>
                   <td><span class="badge ${D.prioColors[p.priority]}">${PDMS.esc(p.priority)}</span></td>
                   <td>${
                     p.status === 'Awaiting Sales Head Approval'
@@ -189,7 +190,7 @@
                                   ? '<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">Award/SLA (Returned)</span>'
                                   : `<span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span>`)))
                   }</td>
-                </tr>`).join('') || `<tr><td colspan="4" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects')}</td></tr>`}
+                </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects')}</td></tr>`}
             </tbody>
           </table>
         </div>

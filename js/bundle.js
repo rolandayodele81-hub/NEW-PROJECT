@@ -287,7 +287,7 @@
    ============================================ */
 (function (global) {
   const roles = ['System Administrator', 'HR', 'COO', 'HTD', 'PM Head', 'PMO', 'Accounts', 'Sales', 'Sales Head', 'Consultant'];
-  const types = ['ISO Management System', 'Regulatory / Compliance', 'Framework Adoption', 'Outsourcing / Governance', 'Technical / Security', 'Software Development', 'Artificial Intelligence', 'Technology Transformation', 'Surveillance / Recertification'];
+  const types = ['ISO Management System', 'Regulatory / Compliance', 'Framework Adoption', 'Outsourcing / Governance', 'Technical / Security', 'Software Development', 'Artificial Intelligence', 'Technology Transformation', 'Surveillance / Recertification', 'Assessment / Audit'];
   const priorities = ['Critical', 'High', 'Medium', 'Low'];
   const workstreams = ['Cloud Engineering', 'Cybersecurity', 'Data Analytics', 'Digital Transformation', 'ERP Implementation', 'Infrastructure', 'Mobile Development', 'Software Development', 'Web Platform', 'Business Consulting', 'General'];
   const salesJourney = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'];
@@ -404,6 +404,18 @@
     'Closure'
   ];
 
+  const assessmentAuditStages = [
+    'Not Started',
+    'Gap Assessment',
+    'Risk Assessment',
+    'Internal Audit',
+    'Remediation',
+    'Report Submission',
+    'Review',
+    'Completed',
+    'Closure'
+  ];
+
   const deliveryStagesByType = {
     'ISO Management System': managementSystemStages,
     'Management System': managementSystemStages,
@@ -435,7 +447,12 @@
     'Surveillance / Recertification': surveillanceStages,
     'Surveillance/ recertification': surveillanceStages,
     'Surveillance / recertification': surveillanceStages,
-    'Surveillance': surveillanceStages
+    'Surveillance': surveillanceStages,
+    'Assessment / Audit': assessmentAuditStages,
+    'Assessment/ Audit': assessmentAuditStages,
+    'Assessment/Audit': assessmentAuditStages,
+    'Assessment': assessmentAuditStages,
+    'Audit': assessmentAuditStages
   };
 
   const defaultDeliverySequence = managementSystemStages.slice();
@@ -448,6 +465,7 @@
     ...softwareAndAiStages,
     ...erpStages,
     ...surveillanceStages,
+    ...assessmentAuditStages,
     'On Hold', 'Cancelled'
   ];
   const deliveryStatuses = [...new Set(allTypeDeliveryStatuses)];
@@ -1828,7 +1846,11 @@
       });
       if(state.sortKey){
         arr.sort((a,b)=>{
-          const va=a[state.sortKey],vb=b[state.sortKey];
+          let va=a[state.sortKey],vb=b[state.sortKey];
+          if(state.sortKey==='workstream'){
+            va = va || a.dept || '';
+            vb = vb || b.dept || '';
+          }
           if (typeof va === 'string' || typeof vb === 'string') {
             return String(va||'').localeCompare(String(vb||''), undefined, { sensitivity: 'base', numeric: true }) * state.sortDir;
           }
@@ -4131,6 +4153,10 @@
       if (st.toLowerCase() === 'awaiting review') return 'Surveillance Audit';
       if (st.toLowerCase() === 'in progress') return 'Internal Audit';
       if (st.toLowerCase() === 'internal audit remediation') return 'Remediation';
+    } else if (type.toLowerCase().includes('assessment') || type.toLowerCase().includes('audit')) {
+      if (st.toLowerCase() === 'awaiting review') return 'Review';
+      if (st.toLowerCase() === 'in progress') return 'Internal Audit';
+      if (st.toLowerCase() === 'remediation') return 'Remediation';
     } else if (type.toLowerCase().includes('software') || type.toLowerCase().includes('artificial') || type.toLowerCase().includes('ai')) {
       if (st.toLowerCase() === 'awaiting review' || st.toLowerCase() === 'testing / quality assurance') return 'Testing & AI Validation';
       if (st.toLowerCase() === 'in progress') return 'Software Development & AI Model Build';

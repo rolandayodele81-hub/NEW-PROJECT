@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1789991631"/>
+<link rel="stylesheet" href="css/style.css?v=1791981676"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1789991631"></script>
+<script src="js/bundle.js?v=1791981676"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -239,6 +239,7 @@ const canSee = PDMS.canSeePrice && PDMS.canSeePrice(currentUser);
 const columns = viewParam === 'sales' ? [
   {key:'client',label:'Client',render:r=>`<div class="font-semi" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(r.id)}</div>`},
   {key:'type',label:'Project Type',render:r=>`<span class="text-sm">${PDMS.esc(PDMS.formatType ? PDMS.formatType(r.type) : (r.type||'\u2014'))}</span>`},
+  {key:'workstream',label:'Workstream',exportValue:r=>r.workstream||r.dept||'',render:r=>`<span class="text-sm text-muted">${PDMS.esc(r.workstream||r.dept||'\u2014')}</span>`},
   ...(canSee ? [
     {key:'opportunityValue',label:'Opportunity Value',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.opportunityValue || r.negotiatedPrice)) && Number(r.opportunityValue || r.negotiatedPrice) > 0 ? PDMS.currency(r.opportunityValue || r.negotiatedPrice, r.currency) : '\u2014'}</span>`},
     {key:'awardValue',label:'Award Value (excl. VAT)',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : ''))) && Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : '')) > 0 ? PDMS.currency(r.awardValue || r.negotiatedPrice, r.currency) : '\u2014'}</span>`}
@@ -271,6 +272,7 @@ const columns = viewParam === 'sales' ? [
 ] : [
   {key:'client',label:'Client',render:r=>`<div class="font-semi" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div>`},
   {key:'type',label:'Project Type',render:r=>`<span class="text-sm">${PDMS.esc(PDMS.formatType ? PDMS.formatType(r.type) : (r.type||'\u2014'))}</span>`},
+  {key:'workstream',label:'Workstream',exportValue:r=>r.workstream||r.dept||'',render:r=>`<span class="text-sm text-muted">${PDMS.esc(r.workstream||r.dept||'\u2014')}</span>`},
   {key:'status',label:'Status',render:r=> {
     if (r.status === 'Awaiting Sales Head Approval') {
       const stageName = r.requestedStatus || r.targetStatus || 'Lead';
@@ -342,7 +344,7 @@ function renderProjects(){
     isDeliveryTable: viewParam === 'delivery',
     defaultSortKey: viewParam === 'delivery' ? 'client' : null,
     defaultSortDir: 1,
-    searchKeys:['id','client','pm','status','type'],
+    searchKeys:['id','client','pm','status','type','workstream','dept'],
     filters: {
       ...(currentStatusFilter ? { status: currentStatusFilter } : {}),
       ...(currentTypeFilter ? { type: currentTypeFilter } : {})

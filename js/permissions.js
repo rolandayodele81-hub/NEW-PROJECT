@@ -381,6 +381,10 @@
       if (st.toLowerCase() === 'awaiting review') return 'Surveillance Audit';
       if (st.toLowerCase() === 'in progress') return 'Internal Audit';
       if (st.toLowerCase() === 'internal audit remediation') return 'Remediation';
+    } else if (type.toLowerCase().includes('assessment') || type.toLowerCase().includes('audit')) {
+      if (st.toLowerCase() === 'awaiting review') return 'Review';
+      if (st.toLowerCase() === 'in progress') return 'Internal Audit';
+      if (st.toLowerCase() === 'remediation') return 'Remediation';
     } else if (type.toLowerCase().includes('software') || type.toLowerCase().includes('artificial') || type.toLowerCase().includes('ai')) {
       if (st.toLowerCase() === 'awaiting review' || st.toLowerCase() === 'testing / quality assurance') return 'Testing & AI Validation';
       if (st.toLowerCase() === 'in progress') return 'Software Development & AI Model Build';

@@ -1099,7 +1099,11 @@
       });
       if(state.sortKey){
         arr.sort((a,b)=>{
-          const va=a[state.sortKey],vb=b[state.sortKey];
+          let va=a[state.sortKey],vb=b[state.sortKey];
+          if(state.sortKey==='workstream'){
+            va = va || a.dept || '';
+            vb = vb || b.dept || '';
+          }
           if (typeof va === 'string' || typeof vb === 'string') {
             return String(va||'').localeCompare(String(vb||''), undefined, { sensitivity: 'base', numeric: true }) * state.sortDir;
           }
