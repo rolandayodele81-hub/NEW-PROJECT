@@ -7,7 +7,7 @@
   <title>Delivery Dashboard — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1792505033" />
+  <link rel="stylesheet" href="css/style.css?v=1792511184" />
   <style>
     .htd-hero {
       display: grid;
@@ -263,7 +263,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1792505033"></script>
+  <script src="js/bundle.js?v=1792511184"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -299,12 +299,12 @@
       const isOngoingStatus = st => st && st !== 'Not Started' && st !== 'Completed' && !isClosedStatus(st) && st !== 'On Hold' && st !== 'Cancelled';
 
       const activeProjects = deliveryProjects.length;
-      const notStartedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Not Started' || p.status === 'Not Started').length;
+      const notStartedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Not Started').length;
       const ongoingProjects = deliveryProjects.filter(p => isOngoingStatus(getDeliveryStatus(p))).length;
-      const onHoldProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'On Hold' || p.status === 'On Hold').length;
+      const onHoldProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'On Hold').length;
       const completedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Completed').length;
       const closedProjects = deliveryProjects.filter(p => isClosedStatus(getDeliveryStatus(p))).length;
-      const cancelledProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Cancelled' || p.status === 'Cancelled').length;
+      const cancelledProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Cancelled').length;
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const in28 = new Date(today); in28.setDate(in28.getDate() + 28);
       const dueForCompletion = deliveryProjects.filter(p => {
@@ -546,10 +546,11 @@
       </div>
     </div>
     <div class="card" style="display:flex;flex-direction:column">
-      <div class="card-head"><div><div class="card-title">Project Progress</div><div class="card-sub">Ongoing vs completed</div></div></div>
+      <div class="card-head"><div><div class="card-title">Monthly Project Onboarding</div><div class="card-sub">Projects by start date · last 12 months</div></div></div>
       <div class="card-body" style="padding:16px 20px 24px;flex:1;display:flex;flex-direction:column;justify-content:center">
-        <div class="chart-wrap" style="height:210px;width:100%;margin:0 auto"><canvas id="htdDonut"></canvas></div>
-        <div id="htdDonutLegend" style="margin-top:16px;display:flex;flex-direction:column;gap:10px;padding:0 8px"></div>
+        <div class="chart-wrap" style="height:290px;width:100%;margin:0 auto"><canvas id="htdMonthlyChart" tabindex="0" role="button" aria-label="Monthly project onboarding chart. Select a month to view started projects." style="cursor:pointer"></canvas></div>
+        <div id="htdMonthlySummary" style="margin-top:8px;text-align:center;color:var(--text-muted);font-size:12px"></div>
+        <div id="htdMonthlyProjects" aria-live="polite" style="margin-top:14px"></div>
       </div>
     </div>
   </div>
@@ -935,35 +936,101 @@
       item.classList.toggle('open');
     };
 
-    function renderHtdDonut() {
-      const canvas = document.getElementById('htdDonut');
-      const legend = document.getElementById('htdDonutLegend');
-      if (!canvas || !legend) return;
+    const currentHtdDate = new Date();
+    let selectedHtdMonthKey = `${currentHtdDate.getFullYear()}-${String(currentHtdDate.getMonth() + 1).padStart(2, '0')}`;
+    function renderHtdMonthlyChart() {
+      const canvas = document.getElementById('htdMonthlyChart');
+      const summary = document.getElementById('htdMonthlySummary');
+      const projectList = document.getElementById('htdMonthlyProjects');
+      if (!canvas || !summary || !projectList) return;
       const lp = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
       const dp = lp.filter(isDeliveryProject);
-      const getDeliveryStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || 'Not Started');
-      const isOngoingStatus = st => st && st !== 'Not Started' && st !== 'Completed' && st !== 'Closure' && st !== 'Project Closure' && st !== 'Closed' && st !== 'On Hold' && st !== 'Cancelled';
-      const notStarted = dp.filter(p => getDeliveryStatus(p) === 'Not Started' || p.status === 'Not Started').length;
-      const ongoing = dp.filter(p => isOngoingStatus(getDeliveryStatus(p))).length;
-      const completed = dp.filter(p => getDeliveryStatus(p) === 'Completed' || getDeliveryStatus(p) === 'Closure' || getDeliveryStatus(p) === 'Project Closure').length;
-      const closed = dp.filter(p => getDeliveryStatus(p) === 'Closed').length;
-      const onHold = dp.filter(p => getDeliveryStatus(p) === 'On Hold' || p.status === 'On Hold').length;
-      const cancelled = dp.filter(p => getDeliveryStatus(p) === 'Cancelled' || p.status === 'Cancelled').length;
-      PDMS.charts.donut(canvas, [notStarted, ongoing, completed, closed, onHold, cancelled], ['#0ea5e9', '#f59e0b', '#10b981', '#64748b', '#d97706', '#ef4444']);
-      legend.innerHTML = [
-        ['#0ea5e9', 'Not Started', notStarted],
-        ['#f59e0b', 'Ongoing', ongoing],
-        ['#10b981', 'Completed', completed],
-        ['#64748b', 'Closed', closed],
-        ['#d97706', 'On Hold', onHold],
-        ['#ef4444', 'Cancelled', cancelled]
-      ].map(([c, l, v]) => `<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px">
-        <div style="display:flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:${c};flex-shrink:0"></span><span style="color:var(--text-muted)">${l}</span></div>
-        <span style="font-weight:700;color:var(--text)">${v}</span>
-      </div>`).join('');
+      const now = new Date();
+      const months = Array.from({ length: 12 }, (_, index) => new Date(now.getFullYear(), now.getMonth() - 11 + index, 1));
+      const monthKeys = months.map(month => `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`);
+      const monthProjects = new Map(monthKeys.map(key => [key, []]));
+      dp.forEach(project => {
+        if (!project.start) return;
+        const match = String(project.start).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        const startDate = match
+          ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+          : new Date(project.start);
+        if (Number.isNaN(startDate.getTime())) return;
+        const key = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
+        if (monthProjects.has(key)) monthProjects.get(key).push(project);
+      });
+      const counts = monthKeys.map(key => monthProjects.get(key).length);
+      const labels = months.map(month => `${month.toLocaleDateString('en', { month: 'short' })} '${String(month.getFullYear()).slice(-2)}`);
+      if (!monthKeys.includes(selectedHtdMonthKey)) {
+        const currentMonth = new Date();
+        selectedHtdMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+      }
+      const selectedIndex = monthKeys.indexOf(selectedHtdMonthKey);
+      const barColors = counts.map((_, index) => index === selectedIndex ? '#075985' : '#1685d1');
+      PDMS.charts.bar(canvas, counts, labels, barColors);
+      summary.textContent = `${counts.reduce((sum, count) => sum + count, 0)} projects started in the last 12 months`;
+
+      const renderSelectedMonth = index => {
+        if (index < 0 || index >= monthKeys.length) return;
+        selectedHtdMonthKey = monthKeys[index];
+        const monthProjectsForSelection = monthProjects.get(selectedHtdMonthKey);
+        const monthTitle = months[index].toLocaleDateString('en', { month: 'long', year: 'numeric' });
+        projectList.innerHTML = `
+          <div style="padding-top:14px;border-top:1px solid var(--border)">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px">
+              <strong style="font-size:13px;color:var(--text)">${monthTitle}</strong>
+              <span style="font-size:12px;color:var(--text-muted)">${monthProjectsForSelection.length} ${monthProjectsForSelection.length === 1 ? 'project' : 'projects'}</span>
+            </div>
+            ${monthProjectsForSelection.length ? `<div style="display:flex;flex-direction:column">
+              ${monthProjectsForSelection.map(project => `<a href="project-details.html#id=${encodeURIComponent(project.id)}" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 2px;border-top:1px solid var(--border);text-decoration:none">
+                <span style="min-width:0"><strong style="display:block;color:var(--primary);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(project.name || project.client || 'Project')}</strong><span style="display:block;color:var(--text-muted);font-size:11px">${PDMS.esc(project.client || '—')}</span></span>
+                <span style="flex-shrink:0;color:var(--text-muted);font-size:11px">${PDMS.esc(String(project.start).slice(0, 10))}</span>
+              </a>`).join('')}
+            </div>` : '<div style="padding:12px 0;color:var(--text-muted);font-size:12px">No projects started in this month.</div>'}
+          </div>`;
+        const nextColors = counts.map((_, barIndex) => barIndex === index ? '#075985' : '#1685d1');
+        PDMS.charts.bar(canvas, counts, labels, nextColors);
+      };
+
+      canvas.onclick = event => {
+        const rect = canvas.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+        const left = 36;
+        const right = 12;
+        const top = 18;
+        const bottom = 80;
+        const plotWidth = width - left - right;
+        const plotHeight = height - top - bottom;
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        if (x < left || x > width - right || y < top || y > height - bottom) return;
+        const index = Math.floor((x - left) / (plotWidth / monthKeys.length));
+        renderSelectedMonth(index);
+      };
+      canvas.onkeydown = event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(event.key)) return;
+        event.preventDefault();
+        const currentIndex = monthKeys.indexOf(selectedHtdMonthKey);
+        if (event.key === 'Enter' || event.key === ' ') {
+          renderSelectedMonth(currentIndex >= 0 ? currentIndex : monthKeys.length - 1);
+        } else {
+          const nextIndex = currentIndex < 0
+            ? monthKeys.length - 1
+            : Math.max(0, Math.min(monthKeys.length - 1, currentIndex + (event.key === 'ArrowRight' ? 1 : -1)));
+          renderSelectedMonth(nextIndex);
+        }
+      };
+      if (selectedIndex >= 0) {
+        const existingList = monthProjects.get(selectedHtdMonthKey);
+        const monthTitle = months[selectedIndex].toLocaleDateString('en', { month: 'long', year: 'numeric' });
+        projectList.innerHTML = `<div style="padding-top:14px;border-top:1px solid var(--border)"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px"><strong style="font-size:13px;color:var(--text)">${monthTitle}</strong><span style="font-size:12px;color:var(--text-muted)">${existingList.length} ${existingList.length === 1 ? 'project' : 'projects'}</span></div>${existingList.length ? `<div style="display:flex;flex-direction:column">${existingList.map(project => `<a href="project-details.html#id=${encodeURIComponent(project.id)}" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 2px;border-top:1px solid var(--border);text-decoration:none"><span style="min-width:0"><strong style="display:block;color:var(--primary);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(project.name || project.client || 'Project')}</strong><span style="display:block;color:var(--text-muted);font-size:11px">${PDMS.esc(project.client || '—')}</span></span><span style="flex-shrink:0;color:var(--text-muted);font-size:11px">${PDMS.esc(String(project.start).slice(0, 10))}</span></a>`).join('')}</div>` : '<div style="padding:12px 0;color:var(--text-muted);font-size:12px">No projects started in this month.</div>'}</div>`;
+      } else {
+        projectList.innerHTML = '<div style="padding-top:12px;border-top:1px solid var(--border);text-align:center;color:var(--text-muted);font-size:12px">Select a month on the chart to view its projects.</div>';
+      }
     }
 
-    function renderAll() { render(); setTimeout(renderHtdDonut, 50); }
+    function renderAll() { render(); setTimeout(renderHtdMonthlyChart, 50); }
     PDMS.onRefresh(renderAll);
   </script>
 </body>

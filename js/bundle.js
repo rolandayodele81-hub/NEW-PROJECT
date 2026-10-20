@@ -4436,6 +4436,9 @@
     const dStat = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus) || '').trim().toLowerCase();
     const s = String(p.status || '').trim().toLowerCase();
     const closedList = ['completed', 'closed', 'closure', 'project closure', 'cancelled', 'on hold', 'rejected', 'certification & post engagement'];
+    if (Array.isArray(p.projectSegments) && p.projectSegments.length > 1) {
+      return closedList.includes(dStat) || s === 'cancelled' || s === 'on hold';
+    }
     return closedList.includes(dStat) || closedList.includes(s);
   };
 
@@ -4648,6 +4651,40 @@
     const preAwardSales = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Awaiting Sales Head Approval', 'Awaiting Account Approval'];
     if (preAwardSales.includes(project.status) || (project.status === 'Cancelled' && project.stage === 'Sales' && !project.deliveryStatus)) {
       return null;
+    }
+    if (project.status === 'Cancelled' || project.status === 'On Hold') return project.status;
+    if (Array.isArray(project.projectSegments) && project.projectSegments.length > 1) {
+      const segmentStatuses = project.projectSegments.map(function (segment, index) {
+        segment = segment || {};
+        const segmentType = segment.type || project.type || project.projectType;
+        const segmentSequence = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(segmentType) : ((D && D.deliveryStatuses) || []);
+        const rawStatus = segment.status || segment.deliveryStatus || (index === 0
+          ? (project.deliveryStatus || project.status)
+          : (segmentSequence[0] || 'Not Started'));
+        const segmentProject = Object.assign({}, project, {
+          type: segmentType,
+          projectSegments: null,
+          status: rawStatus,
+          deliveryStatus: segment.deliveryStatus || (index === 0 ? project.deliveryStatus : '')
+        });
+        if (index > 0) {
+          segmentProject.timelineStages = null;
+          segmentProject.timeline_stages = null;
+          segmentProject.milestones = {};
+        }
+        return PDMS.deliveryStatusOf(segmentProject);
+      }).filter(Boolean);
+      if (segmentStatuses.length) {
+        const normalizedStatuses = segmentStatuses.map(function (status) { return String(status).trim().toLowerCase(); });
+        const closedStatuses = ['closed', 'closure', 'project closure'];
+        const completedStatuses = ['completed', 'certification & post engagement'];
+        if (normalizedStatuses.every(function (status) { return closedStatuses.indexOf(status) !== -1; })) return 'Closure';
+        const finishedStatuses = closedStatuses.concat(completedStatuses);
+        if (normalizedStatuses.every(function (status) { return finishedStatuses.indexOf(status) !== -1; })) return 'Completed';
+        if (segmentStatuses.length === project.projectSegments.length && segmentStatuses.every(function (status) { return status === segmentStatuses[0]; })) return segmentStatuses[0];
+        const firstUnfinishedIndex = normalizedStatuses.findIndex(function (status) { return finishedStatuses.indexOf(status) === -1; });
+        return firstUnfinishedIndex >= 0 ? segmentStatuses[firstUnfinishedIndex] : segmentStatuses[0];
+      }
     }
     const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure']);
     
