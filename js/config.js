@@ -99,7 +99,7 @@
   function normalizeProjectsData(data) {
     if (!data || typeof data !== 'object') return data;
     if (Array.isArray(data.projects)) {
-      var arrayJsonFields = ['consultants', 'privateTasks', 'documents', 'subStatuses'];
+      var arrayJsonFields = ['consultants', 'privateTasks', 'documents', 'subStatuses', 'projectSegments'];
       data.projects.forEach(function (p) {
         if (!p || typeof p !== 'object') return;
         arrayJsonFields.forEach(function (field) {

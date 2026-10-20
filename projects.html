@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1791981676"/>
+<link rel="stylesheet" href="css/style.css?v=1792505033"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1791981676"></script>
+<script src="js/bundle.js?v=1792505033"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -236,64 +236,83 @@ content.innerHTML = `
 `;
 
 const canSee = PDMS.canSeePrice && PDMS.canSeePrice(currentUser);
+function projectSegmentsFor(project) {
+  return Array.isArray(project.projectSegments) && project.projectSegments.length
+    ? project.projectSegments
+    : [{ type: project.type, workstream: project.workstream || project.dept, start: project.start, due: project.due, actualCompletion: project.actualCompletion }];
+}
+function projectSegmentCell(project, field, label) {
+  const segments = Array.isArray(project.projectSegments) && project.projectSegments.length
+    ? project.projectSegments
+    : projectSegmentsFor(project);
+  const formatType = type => PDMS.formatType ? PDMS.formatType(type) : (type || '\u2014');
+  const valueFor = (segment, index) => {
+    if (field === 'type') return formatType(segment.type);
+    const value = segment[field] || (field === 'workstream' ? segment.dept : '');
+    if (value) return value;
+    if (index === 0) return field === 'workstream' ? (project.workstream || project.dept || '\u2014') : (project[field] || (field === 'start' ? project.startDate : '') || '\u2014');
+    return '\u2014';
+  };
+  const additional = segments.slice(1);
+  return `<span class="text-sm${field === 'type' ? '' : ' text-muted'}">${PDMS.esc(valueFor(segments[0], 0))}</span>${additional.length ? `
+    <details class="project-type-details" onclick="event.stopPropagation()" style="margin-top:5px">
+      <summary style="width:max-content;max-width:100%;cursor:pointer;color:var(--primary);font-size:11px;font-weight:600">+${additional.length} more ${label.toLowerCase()}${additional.length > 1 ? ' values' : ''}</summary>
+      <div style="margin-top:7px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);min-width:170px;max-width:320px">
+        ${additional.map((segment, index) => `<div style="padding:8px 0;border-top:1px solid var(--border)"><div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px">${PDMS.esc(formatType(segment.type))}</div>${field === 'type' ? '' : `<div class="text-sm text-muted">${PDMS.esc(valueFor(segment, index + 1))}</div>`}</div>`).join('')}
+      </div>
+    </details>` : ''}`;
+}
+function projectStatusCell(project, isDelivery) {
+  let displayStatus;
+  let badgeHtml;
+  if (project.status === 'Awaiting Sales Head Approval') {
+    displayStatus = `${project.requestedStatus || project.targetStatus || 'Lead'} (Pending Approval)`;
+    badgeHtml = `<span class="badge" style="background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25);font-weight:600">${PDMS.esc(displayStatus)}</span>`;
+  } else if (project.status === 'Cancelled' && project.salesHeadRejectionNote) {
+    displayStatus = `${project.requestedStatus || project.targetStatus || 'Lead'} (Rejected)`;
+    badgeHtml = `<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">${PDMS.esc(displayStatus)}</span>`;
+  } else if (project.status === 'Awaiting Account Approval') {
+    displayStatus = 'Award/SLA (Pending Accounts)';
+    badgeHtml = `<span class="badge" style="background:rgba(124,58,237,.12);color:#7c3aed;border:1px solid rgba(124,58,237,.25);font-weight:600">${displayStatus}</span>`;
+  } else if ((project.accountsRejectionNote || project.rejectionNote) && project.status !== 'Cancelled' && !project.salesHeadRejectionNote) {
+    displayStatus = 'Award/SLA (Returned)';
+    badgeHtml = `<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">${displayStatus}</span>`;
+  } else {
+    displayStatus = isDelivery ? (PDMS.deliveryStatusOf(project) || project.status) : project.status;
+    if (!isDelivery && (project.status === 'Closed' || ((project.stage === 'Delivery' || (PDMS.stageOf && PDMS.stageOf(project) === 'Delivery')) && !['Cancelled', 'On Hold', 'Award/SLA', 'Awaiting Account Approval'].includes(project.status)))) {
+      displayStatus = 'Closed';
+    }
+    badgeHtml = `<span class="badge badge-${D.statusColors[displayStatus] || 'muted'}">${PDMS.esc(displayStatus || '\u2014')}</span>`;
+  }
+
+  const segments = projectSegmentsFor(project);
+  const additional = segments.slice(1);
+  if (!additional.length) return badgeHtml;
+  const statuses = additional.map(segment => {
+    const typeSequence = isDelivery && PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(segment.type) : [];
+    const segmentStatus = segment.status || segment.deliveryStatus || (isDelivery ? (typeSequence[0] || 'Not Started') : (displayStatus || '\u2014'));
+    const color = D.statusColors[segmentStatus] || 'muted';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--border)"><span style="font-size:11px;font-weight:600;color:var(--text)">${PDMS.esc(PDMS.formatType ? PDMS.formatType(segment.type) : (segment.type || 'Project type'))}</span><span class="badge badge-${color}">${PDMS.esc(segmentStatus)}</span></div>`;
+  }).join('');
+  return `${badgeHtml}<details class="project-type-details" onclick="event.stopPropagation()" style="margin-top:5px"><summary style="width:max-content;max-width:100%;cursor:pointer;color:var(--primary);font-size:11px;font-weight:600">+${additional.length} more ${additional.length === 1 ? 'status' : 'statuses'}</summary><div style="margin-top:7px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);min-width:210px;max-width:340px">${statuses}</div></details>`;
+}
 const columns = viewParam === 'sales' ? [
-  {key:'client',label:'Client',render:r=>`<div class="font-semi" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(r.id)}</div>`},
-  {key:'type',label:'Project Type',render:r=>`<span class="text-sm">${PDMS.esc(PDMS.formatType ? PDMS.formatType(r.type) : (r.type||'\u2014'))}</span>`},
-  {key:'workstream',label:'Workstream',exportValue:r=>r.workstream||r.dept||'',render:r=>`<span class="text-sm text-muted">${PDMS.esc(r.workstream||r.dept||'\u2014')}</span>`},
+  {key:'client',label:'Client',render:r=>`<div class="font-semi project-client-name" title="${PDMS.esc(r.client||r.name||'\u2014')}" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(r.id)}</div>`},
+  {key:'type',label:'Project Type',render:r=>projectSegmentCell(r,'type','Project Type')},
+  {key:'workstream',label:'Workstream',exportValue:r=>r.workstream||r.dept||'',render:r=>projectSegmentCell(r,'workstream','Workstream')},
   ...(canSee ? [
     {key:'opportunityValue',label:'Opportunity Value',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.opportunityValue || r.negotiatedPrice)) && Number(r.opportunityValue || r.negotiatedPrice) > 0 ? PDMS.currency(r.opportunityValue || r.negotiatedPrice, r.currency) : '\u2014'}</span>`},
     {key:'awardValue',label:'Award Value (excl. VAT)',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : ''))) && Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : '')) > 0 ? PDMS.currency(r.awardValue || r.negotiatedPrice, r.currency) : '\u2014'}</span>`}
   ] : []),
   {key:'sales',label:'Deal Owner',render:r=>`<span class="text-sm text-muted font-semi">${PDMS.esc(r.projectOwnerName||(r.sales&&r.sales!=='Sales Team'?r.sales:'')||r.sales||'\u2014')}</span>`},
-  {key:'status',label:'Status',render:r=> {
-    // Pending Sales Head Approval
-    if (r.status === 'Awaiting Sales Head Approval') {
-      const stageName = r.requestedStatus || r.targetStatus || 'Lead';
-      return `<span class="badge" style="background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25);font-weight:600">${PDMS.esc(stageName)} (Pending Approval)</span>`;
-    }
-    // Rejected by Sales Head
-    if (r.status === 'Cancelled' && r.salesHeadRejectionNote) {
-      const stageName = r.requestedStatus || r.targetStatus || 'Lead';
-      return `<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">${PDMS.esc(stageName)} (Rejected)</span>`;
-    }
-    // Pending Account Approval
-    if (r.status === 'Awaiting Account Approval') {
-      return `<span class="badge" style="background:rgba(124,58,237,.12);color:#7c3aed;border:1px solid rgba(124,58,237,.25);font-weight:600">Award/SLA (Pending Accounts)</span>`;
-    }
-    // Rejected / Returned by Accounts
-    const isAccountsRejected = (r.accountsRejectionNote || r.rejectionNote) && r.status !== 'Cancelled' && !r.salesHeadRejectionNote;
-    if (isAccountsRejected) {
-      return `<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">Award/SLA (Returned)</span>`;
-    }
-    const isClosedWon = (r.status === 'Closed' || ((r.stage === 'Delivery' || (PDMS.stageOf && PDMS.stageOf(r) === 'Delivery')) && r.status !== 'Cancelled' && r.status !== 'On Hold' && r.status !== 'Award/SLA' && r.status !== 'Awaiting Account Approval'));
-    const displayStatus = isClosedWon ? 'Closed' : r.status;
-    return `<span class="badge badge-${D.statusColors[displayStatus]||D.statusColors[r.status]||'muted'}">${displayStatus}</span>`;
-  }}
+  {key:'status',label:'Status',render:r=>projectStatusCell(r,false)}
 ] : [
-  {key:'client',label:'Client',render:r=>`<div class="font-semi" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div>`},
-  {key:'type',label:'Project Type',render:r=>`<span class="text-sm">${PDMS.esc(PDMS.formatType ? PDMS.formatType(r.type) : (r.type||'\u2014'))}</span>`},
-  {key:'workstream',label:'Workstream',exportValue:r=>r.workstream||r.dept||'',render:r=>`<span class="text-sm text-muted">${PDMS.esc(r.workstream||r.dept||'\u2014')}</span>`},
-  {key:'status',label:'Status',render:r=> {
-    if (r.status === 'Awaiting Sales Head Approval') {
-      const stageName = r.requestedStatus || r.targetStatus || 'Lead';
-      return `<span class="badge" style="background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25);font-weight:600">${PDMS.esc(stageName)} (Pending Approval)</span>`;
-    }
-    if (r.status === 'Cancelled' && r.salesHeadRejectionNote) {
-      const stageName = r.requestedStatus || r.targetStatus || 'Lead';
-      return `<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">${PDMS.esc(stageName)} (Rejected)</span>`;
-    }
-    if (r.status === 'Awaiting Account Approval') {
-      return `<span class="badge" style="background:rgba(124,58,237,.12);color:#7c3aed;border:1px solid rgba(124,58,237,.25);font-weight:600">Award/SLA (Pending Accounts)</span>`;
-    }
-    const isAccountsRejected = (r.accountsRejectionNote || r.rejectionNote) && r.status !== 'Cancelled' && !r.salesHeadRejectionNote;
-    if (isAccountsRejected) {
-      return `<span class="badge badge-danger" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600">Award/SLA (Returned)</span>`;
-    }
-    const dStatus = viewParam === 'delivery' ? PDMS.deliveryStatusOf(r) : r.status;
-    return `<span class="badge badge-${D.statusColors[dStatus]||'muted'}">${dStatus}</span>`;
-  }},
-  {key:'start',label:'Start Date',render:r=>`<span class="text-sm">${PDMS.esc(r.start||r.startDate||'\u2014')}</span>`},
-  {key:'due',label:'Due'}
+  {key:'client',label:'Client',render:r=>`<div class="font-semi project-client-name" title="${PDMS.esc(r.client||r.name||'\u2014')}" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div>`},
+  {key:'type',label:'Project Type',render:r=>projectSegmentCell(r,'type','Project Type')},
+  {key:'workstream',label:'Workstream',exportValue:r=>r.workstream||r.dept||'',render:r=>projectSegmentCell(r,'workstream','Workstream')},
+  {key:'status',label:'Status',render:r=>projectStatusCell(r,viewParam === 'delivery')},
+  {key:'start',label:'Start Date',render:r=>projectSegmentCell(r,'start','Start Date')},
+  {key:'due',label:'Due',render:r=>projectSegmentCell(r,'due','Due')}
 ];
 
 function selectStatTile(i) {
@@ -342,6 +361,7 @@ function renderProjects(){
   PDMS.renderTable(document.getElementById('listView'),{
     columns, rows,
     isDeliveryTable: viewParam === 'delivery',
+    noHorizontalScroll: viewParam === 'delivery',
     defaultSortKey: viewParam === 'delivery' ? 'client' : null,
     defaultSortDir: 1,
     searchKeys:['id','client','pm','status','type','workstream','dept'],
@@ -801,7 +821,7 @@ function editProject(id){
         </label>
       </div>` : ''}
     </div>
-  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveProjectChangesBtn">${I('check')} Save Changes</button>`, { hideCloseButton: true });
+  `,`<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveProjectChangesBtn">${I('check')} Save Changes</button>`, { hideCloseButton: true, modalClass: 'modal-project-form' });
 
   PDMS.initCurrencyInput(modal, 'editProjCurrency', 'editProjCustomCurrency');
 

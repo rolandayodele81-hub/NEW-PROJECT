@@ -5,6 +5,190 @@
   const roles = ['System Administrator', 'HR', 'COO', 'HTD', 'PM Head', 'PMO', 'Accounts', 'Sales', 'Sales Head', 'Consultant'];
   const types = ['ISO Management System', 'Regulatory / Compliance', 'Framework Adoption', 'Outsourcing / Governance', 'Technical / Security', 'Software Development', 'Artificial Intelligence', 'Technology Transformation', 'Surveillance / Recertification', 'Assessment / Audit'];
   const priorities = ['Critical', 'High', 'Medium', 'Low'];
+
+  // Issue Management Taxonomy & Lifecycle
+  const issueImpactLevels = ['Critical', 'High', 'Medium', 'Low'];
+  const issueUrgencyLevels = ['Immediate', 'High', 'Normal', 'Low'];
+  const issuePriorities = ['P1 - Critical', 'P2 - High', 'P3 - Medium', 'P4 - Low'];
+
+  const issueStatuses = [
+    'Reported',
+    'Triaged',
+    'Under Investigation',
+    'Action Plan Agreed',
+    'In Remediation',
+    'Resolved',
+    'Verified',
+    'Closed',
+    'Reopened',
+    'Cancelled'
+  ];
+
+  // 11 Core Enterprise Issue Categories & Subcategories
+  const issueCategories = [
+    {
+      name: 'Project Delivery & Milestones',
+      ownerRole: 'PMO',
+      subCategories: [
+        'Milestone Delay / Schedule Slip',
+        'Scope Creep / Unplanned Deliverables',
+        'Resource Allocation & Availability',
+        'Deliverable Quality Issue',
+        'Testing / QA Failure'
+      ]
+    },
+    {
+      name: 'Client & Account Relations',
+      ownerRole: 'PMO',
+      subCategories: [
+        'Client Unresponsiveness / Dependency',
+        'Stakeholder Disagreement / Misalignment',
+        'Expectation Mismatch',
+        'Contractual Scope Dispute',
+        'Communication Breakdown'
+      ]
+    },
+    {
+      name: 'Technical, Tools & Infrastructure',
+      ownerRole: 'HTD',
+      subCategories: [
+        'Server / Infrastructure Downtime',
+        'Software Bug / Code Defect',
+        'Tooling / License Expiry or Lack of Access',
+        'Integration / API Failure',
+        'Data Loss or Corruption Risk'
+      ]
+    },
+    {
+      name: 'Security, Privacy & Risk',
+      ownerRole: 'HTD',
+      subCategories: [
+        'Data Breach / Information Leak',
+        'Unauthorized System Access',
+        'Security Vulnerability Exploit',
+        'Phishing or Social Engineering Attempt',
+        'Physical Security Incident'
+      ]
+    },
+    {
+      name: 'Financial, Billing & Commercial',
+      ownerRole: 'Accounts',
+      subCategories: [
+        'Client Invoice Payment Delay',
+        'Consultant Rate / Payout Dispute',
+        'Project Budget Overrun',
+        'Expense Reimbursement Issue',
+        'Billing / Tax Discrepancy'
+      ]
+    },
+    {
+      name: 'Vendor & Third-Party Performance',
+      ownerRole: 'PMO',
+      subCategories: [
+        'Subcontractor Non-Performance',
+        'Third-Party SLA Breach',
+        'Supplier Quality Defect',
+        'Vendor Commercial Conflict'
+      ]
+    },
+    {
+      name: 'HR, People & Team Well-being',
+      ownerRole: 'HR',
+      subCategories: [
+        'Interpersonal / Team Conflict',
+        'Unfair Workload / Burnout',
+        'Harassment, Bullying or Discrimination',
+        'Workplace Safety & Ergonomics',
+        'Staff Grievance'
+      ]
+    },
+    {
+      name: 'Governance, Regulatory & Compliance',
+      ownerRole: 'COO',
+      subCategories: [
+        'Audit Non-Conformance (Major/Minor)',
+        'Statutory / Regulatory Breach',
+        'Policy Non-Compliance',
+        'Ethical Violation / Whistleblowing'
+      ]
+    },
+    {
+      name: 'Sales, Scoping & Pre-Delivery',
+      ownerRole: 'Sales Head',
+      subCategories: [
+        'Underestimated Effort / Mis-scoping',
+        'Commercial Terms Misalignment',
+        'Sales-to-Delivery Handover Gap',
+        'Client Feasibility Risk'
+      ]
+    },
+    {
+      name: 'Operational Processes & Tools',
+      ownerRole: 'COO',
+      subCategories: [
+        'Process Bottleneck / Approval Delay',
+        'Documentation Deficit',
+        'System Access / IAM Provisioning Failure',
+        'Internal Workflow Roadblock'
+      ]
+    },
+    {
+      name: 'General / Unclassified',
+      ownerRole: 'PMO',
+      subCategories: [
+        'General Feedback / Observation',
+        'Miscellaneous Roadblock'
+      ]
+    }
+  ];
+
+  // SLA Duration Policies (Hours)
+  const issueSLAPolicies = {
+    'P1 - Critical': { responseHours: 1, resolutionHours: 4, escalationTiers: ['PM Head', 'HTD', 'COO'] },
+    'P2 - High': { responseHours: 4, resolutionHours: 24, escalationTiers: ['PM Head', 'HTD'] },
+    'P3 - Medium': { responseHours: 24, resolutionHours: 120, escalationTiers: ['PMO'] }, // 5 business days
+    'P4 - Low': { responseHours: 48, resolutionHours: 240, escalationTiers: ['PMO'] } // 10 business days
+  };
+
+  // Root Cause Analysis Categories
+  const issueRootCauseCategories = [
+    'People / Competency / Training Deficit',
+    'Process / Workflow Inadequacy or Ambiguity',
+    'Technology / System / Hardware Failure',
+    'Requirements / Scope Specification Defect',
+    'Client / External Third-Party Dependency',
+    'Time / Resource Constraint',
+    'Communication Breakdown'
+  ];
+
+  // Calculate Deterministic Priority from Impact and Urgency (4x4 Matrix)
+  function calculateIssuePriority(impact, urgency) {
+    const imp = String(impact || 'Medium').trim();
+    const urg = String(urgency || 'Normal').trim();
+
+    if (imp === 'Critical') {
+      if (urg === 'Immediate' || urg === 'High') return 'P1 - Critical';
+      if (urg === 'Normal') return 'P2 - High';
+      return 'P3 - Medium';
+    }
+    if (imp === 'High') {
+      if (urg === 'Immediate') return 'P1 - Critical';
+      if (urg === 'High') return 'P2 - High';
+      if (urg === 'Normal') return 'P3 - Medium';
+      return 'P3 - Medium';
+    }
+    if (imp === 'Medium') {
+      if (urg === 'Immediate') return 'P2 - High';
+      if (urg === 'High') return 'P3 - Medium';
+      if (urg === 'Normal') return 'P3 - Medium';
+      return 'P4 - Low';
+    }
+    // Low Impact
+    if (urg === 'Immediate') return 'P3 - Medium';
+    if (urg === 'High') return 'P3 - Medium';
+    return 'P4 - Low';
+  }
+
   const workstreams = ['Cloud Engineering', 'Cybersecurity', 'Data Analytics', 'Digital Transformation', 'ERP Implementation', 'Infrastructure', 'Mobile Development', 'Software Development', 'Web Platform', 'Business Consulting', 'General'];
   const salesJourney = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed'];
   const salesStatusAliases = {
@@ -434,12 +618,21 @@
     departments, users, consultants, clients, projects,
     notifications, threads, activities, reviews, issues, complaints, leaveRequests,
     roles, types, priorities, workstreams, statuses, salesJourney, salesStatuses, salesStatusAliases, deliveryStatuses,
+    issueImpactLevels, issueUrgencyLevels, issuePriorities, issueStatuses, issueCategories, issueSLAPolicies, issueRootCauseCategories,
     deliveryStagesByType, deliverySequenceFor, salesSequenceFor,
     statusColors, prioColors,
     tasksFor
   };
   global.PDMS = global.PDMS || {};
   global.PDMS.normalizeStatus = normalizeStatus;
+  global.PDMS.calculateIssuePriority = calculateIssuePriority;
+  global.PDMS.issueCategories = issueCategories;
+  global.PDMS.issueSLAPolicies = issueSLAPolicies;
+  global.PDMS.issueStatuses = issueStatuses;
+  global.PDMS.issueImpactLevels = issueImpactLevels;
+  global.PDMS.issueUrgencyLevels = issueUrgencyLevels;
+  global.PDMS.issuePriorities = issuePriorities;
+  global.PDMS.issueRootCauseCategories = issueRootCauseCategories;
   global.PDMS.formatType = function (t) {
     if (!t) return '—';
     const s = String(t).trim();

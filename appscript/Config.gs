@@ -16,13 +16,18 @@ var ENTITIES = {
   users: { sheet: 'Users', idPrefix: 'U', publicExclude: ['passwordHash'], textFields: ['joined', 'birthday'] },
   consultants: { sheet: 'Consultants', idPrefix: 'C', textFields: ['joined'] },
   clients: { sheet: 'Clients', idPrefix: 'CL', textFields: ['createdAt'] },
-  projects: { sheet: 'Projects', idPrefix: 'PSE-', jsonFields: ['consultants', 'privateTasks', 'documents', 'milestones', 'subStatuses', 'timelineStages', 'timeline_stages'], textFields: ['start', 'due', 'completion', 'actualCompletion'] },
+  projects: { sheet: 'Projects', idPrefix: 'PSE-', jsonFields: ['consultants', 'privateTasks', 'documents', 'milestones', 'subStatuses', 'timelineStages', 'timeline_stages', 'projectSegments'], textFields: ['start', 'due', 'completion', 'actualCompletion'] },
   notifications: { sheet: 'Notifications', idPrefix: 'N' },
   threads: { sheet: 'Threads', idPrefix: 'T', jsonFields: ['user', 'messages'] },
   activities: { sheet: 'Activities', idPrefix: 'A' },
   reviews: { sheet: 'Reviews', idPrefix: 'RV', jsonFields: ['comments'] },
   issues: { sheet: 'Issues', idPrefix: 'IS', textFields: ['time'], jsonFields: [] },
-  complaints: { sheet: 'Complaints', idPrefix: 'CMP-', jsonFields: ['responses', 'attachment'], textFields: ['createdAt', 'updatedAt', 'resolvedAt'] },
+  complaints: {
+    sheet: 'Complaints',
+    idPrefix: 'CMP-',
+    jsonFields: ['responses', 'attachment'],
+    textFields: ['createdAt', 'updatedAt', 'slaInitialResponseDue', 'slaResolutionDue', 'respondedAt', 'resolvedAt', 'verifiedAt', 'closedAt']
+  },
   leaveRequests: { sheet: 'LeaveRequests', idPrefix: 'LV-', jsonFields: [], textFields: ['startDate', 'endDate', 'createdAt', 'reviewedAt'] }
 };
 

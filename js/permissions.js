@@ -222,10 +222,10 @@
     return !!user && ['Sales Head', 'System Administrator'].includes(user.role);
   };
 
-  // Help Center Complaints permissions:
-  // Visible to management: HR, PM Head, HTD, COO, System Administrator.
+  // Help Center / Issue Management permissions:
+  // Visible to management: HR, PM Head, HTD, COO, PMO, Accounts, System Administrator.
   // Regular users can only see complaints they submitted.
-  const COMPLAINT_MANAGEMENT_ROLES = ['hr', 'pm head', 'htd', 'coo', 'system administrator', 'general admin'];
+  const COMPLAINT_MANAGEMENT_ROLES = ['hr', 'pm head', 'htd', 'coo', 'pmo', 'accounts', 'sales head', 'system administrator', 'general admin'];
 
   PDMS.canManageComplaints = function (user) {
     user = user || PDMS.getUser();
@@ -234,6 +234,25 @@
     return COMPLAINT_MANAGEMENT_ROLES.includes(r);
   };
   PDMS.canViewAllComplaints = PDMS.canManageComplaints;
+
+  PDMS.canViewTicket = function (ticket, user) {
+    user = user || PDMS.getUser();
+    if (!ticket || !user) return false;
+    const r = String(user.role || '').trim().toLowerCase();
+    const isOwner = PDMS.complaintOwnedByUser(ticket, user);
+    if (isOwner) return true;
+
+    const isConfidential = ticket.isConfidential === true || String(ticket.isConfidential) === 'true';
+    const cat = String(ticket.category || '').toLowerCase();
+
+    // Confidential tickets or HR Grievances / Whistleblowing can ONLY be viewed by HR, COO, and System Administrator
+    if (isConfidential || cat.includes('hr') || cat.includes('well-being') || cat.includes('grievance') || cat.includes('whistleblowing')) {
+      return ['hr', 'coo', 'system administrator', 'general admin'].includes(r);
+    }
+
+    // Role-based visibility for regular tickets
+    return PDMS.canManageComplaints(user);
+  };
 
   PDMS.complaintOwnedByUser = function (complaint, user) {
     if (!complaint || !user) return false;

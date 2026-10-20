@@ -30,7 +30,7 @@ function initializeSheets() {
       rows: []
     },
     Projects: {
-      headers: ['id', 'name', 'client', 'type', 'dept', 'workstream', 'sales', 'pm', 'lead', 'consultants', 'priority', 'status', 'stage', 'createdByRole', 'projectOwnerId', 'projectOwnerName', 'progress', 'start', 'due', 'actualCompletion', 'completion', 'currency', 'opportunityValue', 'negotiatedPrice', 'awardValue', 'requestedNegotiatedPrice', 'requestedStatus', 'previousStatus', 'priceUpdatePending', 'description', 'files', 'remarks', 'privateTasks', 'documents', 'milestones', 'subStatus', 'subStatuses', 'timelineStages'],
+      headers: ['id', 'name', 'client', 'type', 'dept', 'workstream', 'sales', 'pm', 'lead', 'consultants', 'priority', 'status', 'stage', 'createdByRole', 'projectOwnerId', 'projectOwnerName', 'progress', 'start', 'due', 'actualCompletion', 'completion', 'currency', 'opportunityValue', 'negotiatedPrice', 'awardValue', 'requestedNegotiatedPrice', 'requestedStatus', 'previousStatus', 'priceUpdatePending', 'description', 'files', 'remarks', 'privateTasks', 'documents', 'milestones', 'subStatus', 'subStatuses', 'timelineStages', 'projectSegments'],
       textColumns: ['start', 'due', 'actualCompletion', 'completion', 'currency', 'negotiatedPrice', 'awardValue', 'requestedNegotiatedPrice', 'opportunityValue'],
       rows: []
     },
@@ -56,9 +56,19 @@ function initializeSheets() {
       rows: []
     },
     Complaints: {
-      headers: ['id', 'ticketNumber', 'subject', 'category', 'priority', 'status', 'description', 'submittedById', 'submittedByName', 'submittedByEmail', 'submittedByRole', 'createdAt', 'updatedAt', 'resolvedAt', 'assignedTo', 'responses', 'attachment'],
+      headers: [
+        'id', 'ticketNumber', 'subject', 'category', 'subCategory', 'affectedScope',
+        'impact', 'urgency', 'priority', 'status', 'description',
+        'projectId', 'projectName', 'clientId', 'clientName',
+        'isConfidential', 'submittedById', 'submittedByName', 'submittedByEmail', 'submittedByRole',
+        'assignedToId', 'assignedToName', 'triageOfficerId', 'triageOfficerName',
+        'slaInitialResponseDue', 'slaResolutionDue', 'respondedAt', 'resolvedAt', 'verifiedAt', 'closedAt',
+        'rootCauseCategory', 'rootCauseDetails', 'correctiveAction', 'preventiveAction',
+        'closureSignoffById', 'closureSignoffByName', 'closureNotes',
+        'createdAt', 'updatedAt', 'responses', 'attachment'
+      ],
       jsonColumns: ['responses', 'attachment'],
-      textColumns: ['createdAt', 'updatedAt', 'resolvedAt'],
+      textColumns: ['createdAt', 'updatedAt', 'slaInitialResponseDue', 'slaResolutionDue', 'respondedAt', 'resolvedAt', 'verifiedAt', 'closedAt'],
       rows: []
     },
     LeaveRequests: {

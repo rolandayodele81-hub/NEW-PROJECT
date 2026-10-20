@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Help Center &amp; Complaints — PSE PDMS</title>
-  <link rel="stylesheet" href="css/style.css?v=1791981676" />
+  <link rel="stylesheet" href="css/style.css?v=1792505033" />
   <style>
     .help-hero {
       background: linear-gradient(135deg, #090d16 0%, #1d3c88 45%, #6366f1 80%, #8b5cf6 100%);
@@ -61,6 +61,794 @@
       place-items: center;
       font-size: 20px;
       flex-shrink: 0;
+    }
+
+    .prio-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .prio-p1 { background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .prio-p2 { background: rgba(245, 158, 11, 0.12); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .prio-p3 { background: rgba(59, 130, 246, 0.12); color: #2563eb; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .prio-p4 { background: rgba(100, 116, 139, 0.12); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.25); }
+
+    .confidential-pill {
+      background: rgba(225, 29, 72, 0.12);
+      color: #e11d48;
+      border: 1px solid rgba(225, 29, 72, 0.3);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .sla-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--surface-2);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .sla-pill.sla-breached {
+      background: rgba(239, 68, 68, 0.1);
+      color: #dc2626;
+      border-color: rgba(239, 68, 68, 0.25);
+    }
+
+    /* ========================================================
+       Standard Modern Issue & Escalation Form
+       ======================================================== */
+    .modal.modal-issue-dialog {
+      max-width: 820px;
+      width: 95vw;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      box-shadow: 0 25px 60px -12px rgba(15, 23, 42, 0.3);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      max-height: 90vh;
+    }
+
+    .modal.modal-issue-dialog .modal-head {
+      padding: 18px 28px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .modal.modal-issue-dialog .modal-body {
+      padding: 26px 28px;
+      overflow-y: auto;
+      background: var(--surface);
+    }
+
+    .modal.modal-issue-dialog .modal-foot {
+      padding: 16px 28px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      position: sticky;
+      bottom: 0;
+      z-index: 20;
+    }
+
+    .issue-modal-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Subtle, Elegant Form Header */
+    .issue-form-header {
+      background: linear-gradient(135deg, rgba(29, 60, 136, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .issue-form-header-main {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      max-width: 530px;
+    }
+
+    .issue-form-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #1d3c88, #4f46e5);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 17px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
+    }
+
+    .issue-form-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.25;
+      margin-bottom: 2px;
+    }
+
+    .issue-form-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .issue-form-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .issue-sla-active-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.12);
+      color: #059669;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .sla-live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 6px #10b981;
+      animation: metaPulse 2s infinite ease-in-out;
+    }
+
+    @keyframes metaPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .issue-reporter-pill {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    /* Standard Form Field Structure with Airy Spacing */
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+    }
+
+    @media (max-width: 640px) {
+      .form-grid-2 {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+    }
+
+    .issue-field-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 0;
+    }
+
+    .issue-field-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 9px;
+      letter-spacing: -0.1px;
+      user-select: none;
+    }
+
+    .issue-field-label .req {
+      color: #e11d48;
+      font-weight: 800;
+      margin-left: 2px;
+    }
+
+    .issue-field-hint {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-soft);
+    }
+
+    /* Clean Modern Custom Dropdown Component */
+    .c-dropdown {
+      position: relative;
+      width: 100%;
+      user-select: none;
+    }
+    .c-dropdown-trigger {
+      width: 100%;
+      height: 44px;
+      padding: 0 14px;
+      font-size: 13.5px;
+      font-weight: 500;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+    }
+    .c-dropdown-sm .c-dropdown-trigger {
+      height: 40px;
+      font-size: 13px;
+      padding: 0 12px;
+    }
+    .c-dropdown-trigger:hover {
+      border-color: rgba(99, 102, 241, 0.45);
+      background: var(--surface);
+    }
+    .c-dropdown.open .c-dropdown-trigger,
+    .c-dropdown-trigger:focus-visible {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3.5px rgba(29, 60, 136, 0.12);
+      background: var(--surface);
+    }
+    .c-dropdown-label {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text);
+    }
+    .c-dropdown-label.placeholder {
+      color: var(--text-soft);
+      font-weight: 400;
+    }
+    .c-dropdown-chevron {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-soft);
+      transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s ease;
+      flex-shrink: 0;
+    }
+    .c-dropdown.open .c-dropdown-chevron {
+      transform: rotate(180deg);
+      color: var(--primary);
+    }
+    .c-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      z-index: 999;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 14px 34px -4px rgba(15, 23, 42, 0.16), 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+      padding: 6px;
+      max-height: 240px;
+      overflow-y: auto;
+      display: none;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      animation: cDropdownSlide .16s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .c-dropdown.open .c-dropdown-menu {
+      display: block;
+    }
+    .c-dropdown.drop-up .c-dropdown-menu {
+      top: auto;
+      bottom: calc(100% + 6px);
+      animation: cDropdownSlideUp .16s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes cDropdownSlide {
+      from { opacity: 0; transform: translateY(-5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes cDropdownSlideUp {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .c-dropdown-menu::-webkit-scrollbar {
+      width: 6px;
+    }
+    .c-dropdown-menu::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 999px;
+    }
+    .c-dropdown-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.12s ease, color 0.12s ease;
+      margin-bottom: 2px;
+    }
+    .c-dropdown-item:last-child {
+      margin-bottom: 0;
+    }
+    .c-dropdown-item:hover,
+    .c-dropdown-item.focused {
+      background: rgba(99, 102, 241, 0.08);
+      color: var(--primary);
+    }
+    .c-dropdown-item.selected {
+      background: var(--primary-50);
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .c-dropdown-item-text {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .c-dropdown-item-sub {
+      font-size: 11px;
+      color: var(--text-soft);
+      margin-left: 6px;
+      font-weight: 400;
+    }
+    .c-dropdown-item-check {
+      display: none;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+    .c-dropdown-item.selected .c-dropdown-item-check {
+      display: inline-flex;
+    }
+
+    .issue-input {
+      width: 100%;
+      height: 44px;
+      padding: 10px 14px;
+      font-size: 13.5px;
+      color: var(--text);
+      background-color: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 11px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+    }
+
+    .issue-input:hover {
+      border-color: rgba(99, 102, 241, 0.45);
+    }
+
+    .issue-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3.5px rgba(29, 60, 136, 0.12);
+    }
+
+    .issue-input.readonly-style {
+      background: var(--surface-2);
+      color: var(--text-muted);
+      cursor: not-allowed;
+      border-color: var(--border);
+    }
+
+    .issue-textarea {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: var(--text);
+      background-color: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 11px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+      resize: vertical;
+    }
+
+    .issue-textarea:hover {
+      border-color: rgba(99, 102, 241, 0.45);
+    }
+
+    .issue-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3.5px rgba(29, 60, 136, 0.12);
+    }
+
+    /* Redesigned Executive ITIL Priority & SLA System */
+    .priority-section-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .sla-live-card {
+      border-radius: 14px;
+      padding: 16px 20px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      background: var(--surface-2);
+      border: 1.5px solid var(--border);
+    }
+
+    .sla-live-card[data-priority="P1"] {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.09) 0%, rgba(220, 38, 38, 0.03) 100%);
+      border-color: rgba(239, 68, 68, 0.45);
+      box-shadow: 0 4px 18px rgba(239, 68, 68, 0.1);
+    }
+    .sla-live-card[data-priority="P2"] {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.09) 0%, rgba(217, 119, 6, 0.03) 100%);
+      border-color: rgba(245, 158, 11, 0.45);
+      box-shadow: 0 4px 18px rgba(245, 158, 11, 0.1);
+    }
+    .sla-live-card[data-priority="P3"] {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(37, 99, 235, 0.03) 100%);
+      border-color: rgba(59, 130, 246, 0.4);
+      box-shadow: 0 4px 18px rgba(59, 130, 246, 0.08);
+    }
+    .sla-live-card[data-priority="P4"] {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.03) 100%);
+      border-color: rgba(16, 185, 129, 0.4);
+      box-shadow: 0 4px 18px rgba(16, 185, 129, 0.08);
+    }
+
+    .sla-live-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .sla-live-title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .sla-engine-pill {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--primary);
+      background: rgba(29, 60, 136, 0.09);
+      border: 1px solid rgba(29, 60, 136, 0.18);
+      padding: 4px 10px;
+      border-radius: 7px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .sla-calc-arrow {
+      color: var(--text-soft);
+      font-size: 12px;
+    }
+
+    .sla-calculated-label {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-soft);
+    }
+
+    /* Segmented Priority Meter */
+    .sla-priority-meter {
+      display: inline-flex;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      padding: 3.5px;
+      gap: 3px;
+    }
+
+    .sla-meter-step {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 11px;
+      border-radius: 6px;
+      color: var(--text-soft);
+      transition: all 0.2s ease;
+      user-select: none;
+      line-height: 1.3;
+    }
+
+    .sla-meter-step[data-step="P4"].active {
+      background: #10b981;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+    }
+    .sla-meter-step[data-step="P3"].active {
+      background: #3b82f6;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+    }
+    .sla-meter-step[data-step="P2"].active {
+      background: #f59e0b;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+    }
+    .sla-meter-step[data-step="P1"].active {
+      background: #ef4444;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+      animation: pulseAlert 2s infinite;
+    }
+
+    @keyframes pulseAlert {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.82; }
+    }
+
+    .sla-live-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    @media (max-width: 640px) {
+      .sla-live-metrics {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+    }
+
+    .sla-metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    }
+
+    .sla-metric-icon {
+      font-size: 16px;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--surface-2);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .sla-metric-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .sla-metric-lbl {
+      font-size: 10.5px;
+      color: var(--text-soft);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .sla-metric-val {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Supporting Evidence Upload Box */
+    .form-dropzone {
+      border: 1.5px dashed var(--border);
+      border-radius: 13px;
+      padding: 22px 18px;
+      text-align: center;
+      background: var(--surface-2);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .form-dropzone:hover {
+      border-color: var(--primary);
+      background: rgba(29, 60, 136, 0.04);
+    }
+
+    .dropzone-icon {
+      font-size: 22px;
+      color: var(--primary);
+      margin-bottom: 2px;
+      display: inline-flex;
+    }
+
+    .dropzone-text {
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .dropzone-action {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .dropzone-hint {
+      font-size: 11.5px;
+      color: var(--text-soft);
+    }
+
+    /* Confidentiality & Whistleblower Card */
+    .confidential-row-toggle {
+      background: rgba(225, 29, 72, 0.04);
+      border: 1.5px solid rgba(225, 29, 72, 0.25);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .confidential-row-toggle:hover {
+      background: rgba(225, 29, 72, 0.07);
+      border-color: rgba(225, 29, 72, 0.4);
+    }
+
+    .confidential-row-toggle.active {
+      background: rgba(225, 29, 72, 0.1);
+      border-color: #e11d48;
+    }
+
+    .confidential-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .confidential-shield {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .confidential-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .confidential-badge {
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: rgba(225, 29, 72, 0.12);
+      color: #e11d48;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .confidential-sub {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .confidential-switch-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .confidential-status-text {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-soft);
+    }
+
+    /* Modern Switch Component */
+    .c-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .c-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .c-switch-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--border);
+      transition: .22s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 999px;
+    }
+
+    .c-switch-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .22s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    }
+
+    .c-switch input:checked + .c-switch-slider {
+      background-color: #e11d48;
+    }
+
+    .c-switch input:checked + .c-switch-slider:before {
+      transform: translateX(20px);
     }
 
     .help-tabs {
@@ -395,7 +1183,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1791981676"></script>
+  <script src="js/bundle.js?v=1792505033"></script>
   <script>
     PDMS.mountShell('help');
     const D = PDMS_DATA;
@@ -420,6 +1208,7 @@
     const STATUSES = ['Open', 'In Review', 'In Progress', 'Resolved'];
 
     function allComplaints() {
+      const user = PDMS.getUser();
       const live = (window.PDMS_REMOTE && window.PDMS_REMOTE.complaints) || D.complaints || [];
       const arr = Array.isArray(live) ? live : [];
       const seen = new Set();
@@ -429,6 +1218,11 @@
         if (!key) return true;
         if (seen.has(key)) return false;
         seen.add(key);
+
+        // Security / Confidentiality check
+        if (PDMS.canViewTicket && user) {
+          return PDMS.canViewTicket(item, user);
+        }
         return true;
       });
     }
@@ -571,6 +1365,22 @@
       return PDMS.esc(status || 'Open');
     }
 
+    function formatSlaCountdown(dueIso, resolvedIso) {
+      if (!dueIso) return '';
+      if (resolvedIso) return '<span class="sla-pill" style="color:#059669;border-color:rgba(16,185,129,0.3)">✓ SLA Met</span>';
+      const diffMs = new Date(dueIso).getTime() - Date.now();
+      const diffHrs = Math.round(diffMs / 3600000);
+      if (diffMs < 0) {
+        const breachHrs = Math.abs(diffHrs);
+        return `<span class="sla-pill sla-breached">⚠️ Breached by ${breachHrs}h</span>`;
+      }
+      if (diffHrs <= 4) {
+        return `<span class="sla-pill sla-breached" style="background:rgba(245,158,11,0.12);color:#d97706;border-color:rgba(245,158,11,0.3)">⏳ ${diffHrs}h remaining</span>`;
+      }
+      const days = Math.round(diffHrs / 24);
+      return `<span class="sla-pill">⏱ ${days > 1 ? days + 'd' : diffHrs + 'h'} SLA</span>`;
+    }
+
     function renderComplaintCard(c) {
       const user = PDMS.getUser();
       const responses = Array.isArray(c.responses) ? c.responses : [];
@@ -578,19 +1388,36 @@
       const statusKey = String(c.status || 'open').toLowerCase().replace(/\s+/g, '-');
       const canClose = PDMS.canCloseComplaint ? PDMS.canCloseComplaint(c, user) : false;
 
+      // Priority calculation / fallback
+      const prio = c.priority || (PDMS.calculateIssuePriority ? PDMS.calculateIssuePriority(c.impact, c.urgency) : 'P3 - Medium');
+      let prioCls = 'prio-p3';
+      if (prio.startsWith('P1')) prioCls = 'prio-p1';
+      else if (prio.startsWith('P2')) prioCls = 'prio-p2';
+      else if (prio.startsWith('P4')) prioCls = 'prio-p4';
+
+      const isConfidential = c.isConfidential === true || String(c.isConfidential) === 'true';
+
       return `
         <div class="review-card" id="ticket-${c.id}">
           <div class="review-head">
-            <div class="review-avatar">${PDMS.initials(c.submittedByName || '?')}</div>
+            <div class="review-avatar" style="${isConfidential ? 'background:linear-gradient(135deg, #e11d48, #9f1239)' : ''}">
+              ${isConfidential ? '🔒' : PDMS.initials(c.submittedByName || '?')}
+            </div>
             <div style="flex:1;min-width:0">
-              <div class="review-author-row">
+              <div class="review-author-row" style="gap:6px">
                 <span class="font-bold text-sm">${PDMS.esc(c.submittedByName || 'User')}</span>
                 <span class="review-role-chip">${PDMS.esc(c.submittedByRole || 'Staff')}</span>
+                <span class="prio-pill ${prioCls}">${PDMS.esc(prio)}</span>
+                ${isConfidential ? `<span class="confidential-pill">🔒 Confidential</span>` : ''}
+                ${c.ticketNumber ? `<span class="badge badge-secondary" style="font-size:10px;font-family:monospace;letter-spacing:0.5px">#${PDMS.esc(c.ticketNumber)}</span>` : ''}
               </div>
-              <div class="review-time">
+              <div class="review-time" style="flex-wrap:wrap;gap:6px;margin-top:4px">
                 <span>${timeAgo(c.createdAt)}</span>
                 <span>·</span>
-                <span>${PDMS.esc(c.category || 'General')}</span>
+                <span style="font-weight:600;color:var(--text)">${PDMS.esc(c.category || 'General')}</span>
+                ${c.subCategory ? `<span style="color:var(--text-soft)">› ${PDMS.esc(c.subCategory)}</span>` : ''}
+                ${c.projectName ? `<span class="badge badge-light" style="font-size:11px">${I('folder')} ${PDMS.esc(c.projectName)}</span>` : ''}
+                ${formatSlaCountdown(c.slaResolutionDue, c.resolvedAt)}
               </div>
             </div>
 
@@ -601,17 +1428,23 @@
                     ${getStatusLabel(c.status)} <span style="font-size:9px;opacity:0.7">▾</span>
                   </button>
                   <div id="statusMenu-${c.id}" class="status-popover-menu hidden">
-                    <button class="status-menu-item ${(c.status === 'Open' || !c.status) ? 'active' : ''}" onclick="setComplaintStatus('${c.id}', 'Open')">
-                      <span style="color:#f59e0b">●</span> Open
+                    <button class="status-menu-item ${(c.status === 'Reported' || c.status === 'Open' || !c.status) ? 'active' : ''}" onclick="setComplaintStatus('${c.id}', 'Reported')">
+                      <span style="color:#f59e0b">●</span> Reported
                     </button>
-                    <button class="status-menu-item ${c.status === 'In Review' ? 'active' : ''}" onclick="setComplaintStatus('${c.id}', 'In Review')">
-                      <span style="color:#7c3aed">⏳</span> In Review
+                    <button class="status-menu-item ${c.status === 'Triaged' ? 'active' : ''}" onclick="setComplaintStatus('${c.id}', 'Triaged')">
+                      <span style="color:#6366f1">🔍</span> Triaged
                     </button>
-                    <button class="status-menu-item ${c.status === 'In Progress' ? 'active' : ''}" onclick="setComplaintStatus('${c.id}', 'In Progress')">
-                      <span style="color:#1d4ed8">⚙️</span> In Progress
+                    <button class="status-menu-item ${(c.status === 'Under Investigation' || c.status === 'In Review') ? 'active' : ''}" onclick="setComplaintStatus('${c.id}', 'Under Investigation')">
+                      <span style="color:#7c3aed">⏳</span> Under Investigation
+                    </button>
+                    <button class="status-menu-item ${(c.status === 'In Remediation' || c.status === 'In Progress') ? 'active' : ''}" onclick="setComplaintStatus('${c.id}', 'In Remediation')">
+                      <span style="color:#1d4ed8">⚙️</span> In Remediation
                     </button>
                     <button class="status-menu-item ${c.status === 'Resolved' ? 'active' : ''}" onclick="setComplaintStatus('${c.id}', 'Resolved')">
                       <span style="color:#047857">✓</span> Resolved
+                    </button>
+                    <button class="status-menu-item ${c.status === 'Closed' ? 'active' : ''}" onclick="setComplaintStatus('${c.id}', 'Closed')">
+                      <span style="color:#10b981">🔒</span> Closed &amp; Verified
                     </button>
                     ${canClose ? `
                       <div class="status-menu-divider"></div>
@@ -636,8 +1469,14 @@
           </div>
 
           <div class="review-body">
-            ${c.subject ? `<div style="font-weight:700;color:var(--text);margin-bottom:4px">${PDMS.esc(c.subject)}</div>` : ''}
-            <div>${PDMS.esc(c.description || '')}</div>
+            ${c.subject ? `<div style="font-weight:700;color:var(--text);font-size:14.5px;margin-bottom:6px">${PDMS.esc(c.subject)}</div>` : ''}
+            <div style="color:var(--text);white-space:pre-wrap;line-height:1.6">${PDMS.esc(c.description || '')}</div>
+            ${c.rootCauseCategory ? `
+              <div style="margin-top:12px;background:var(--surface-2);border-left:3px solid var(--primary);padding:8px 12px;border-radius:6px;font-size:12.5px">
+                <span style="font-weight:700;color:var(--text)">Root Cause:</span> ${PDMS.esc(c.rootCauseCategory)}
+                ${c.correctiveAction ? `<div style="margin-top:4px"><span style="font-weight:700;color:var(--text)">CAPA:</span> ${PDMS.esc(c.correctiveAction)}</div>` : ''}
+              </div>
+            ` : ''}
             ${hasAttachment ? `
               <div style="margin-top:10px">
                 <a href="javascript:void(0)" onclick="PDMS.viewDoc('${PDMS.esc(c.attachment.url)}', '${PDMS.esc(c.attachment.name || 'document')}', '${PDMS.esc(c.attachment.fileType || '')}')" class="badge badge-secondary" style="font-size:12px;gap:6px;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center">
@@ -668,7 +1507,7 @@
           ` : ''}
 
           <div class="comment-form">
-            <input id="replyInput-${c.id}" placeholder="Write a reply..." onkeydown="if(event.key==='Enter') sendInlineReply('${c.id}', this)"/>
+            <input id="replyInput-${c.id}" placeholder="Write an investigation note or update..." onkeydown="if(event.key==='Enter') sendInlineReply('${c.id}', this)"/>
             <button class="btn btn-secondary btn-sm" onclick="sendInlineReply('${c.id}', this)">Reply</button>
           </div>
         </div>
@@ -686,6 +1525,107 @@
       }
     }
 
+    function promptForResolutionGate(c, targetStatus) {
+      const user = PDMS.getUser();
+      const rcaCategories = (PDMS.issueRootCauseCategories) || [
+        'People / Competency / Training Deficit',
+        'Process / Workflow Inadequacy or Ambiguity',
+        'Technology / System / Hardware Failure',
+        'Requirements / Scope Specification Defect',
+        'Client / External Third-Party Dependency',
+        'Time / Resource Constraint',
+        'Communication Breakdown'
+      ];
+
+      const bodyHtml = `
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;font-size:12.5px;color:var(--text-muted)">
+          Under the PSE Issue Governance Policy, closing or resolving an issue requires logging the primary Root Cause and Corrective/Preventive Actions (CAPA) to prevent recurrence.
+        </div>
+        <div class="issue-field-group">
+          <div class="issue-field-label">
+            <span>Root Cause Category <span class="req">*</span></span>
+          </div>
+          <div id="rcaCategoryWrap"></div>
+        </div>
+        <div class="issue-field-group">
+          <div class="issue-field-label">
+            <span>Corrective Action Taken <span class="req">*</span></span>
+            <span class="issue-field-hint">Immediate operational fix</span>
+          </div>
+          <textarea id="rcaCorrective" class="issue-textarea" rows="3" placeholder="What immediate fix was deployed to resolve the blocker?"></textarea>
+        </div>
+        <div class="issue-field-group" style="margin-bottom:6px">
+          <div class="issue-field-label">
+            <span>Preventive Action / Process Improvement</span>
+            <span class="issue-field-hint">Optional long-term safeguard</span>
+          </div>
+          <textarea id="rcaPreventive" class="issue-textarea" rows="2" placeholder="What long-term safeguards are put in place?"></textarea>
+        </div>
+      `;
+
+      const footHtml = `
+        <button class="btn btn-ghost" data-close>Cancel</button>
+        <button class="btn btn-primary" id="confirmResolveBtn">${I('check')} Sign-off &amp; ${targetStatus}</button>
+      `;
+
+      const modal = PDMS.modal(`Resolution Sign-Off Gate: #${c.ticketNumber || c.id}`, bodyHtml, footHtml, { modalClass: 'modal-md' });
+
+      if (PDMS.customDropdown) {
+        PDMS.customDropdown({
+          container: modal.querySelector('#rcaCategoryWrap'),
+          id: 'rcaCategory',
+          options: rcaCategories.map(r => ({ value: r, label: r })),
+          value: rcaCategories[0] || ''
+        });
+      }
+
+      modal.querySelector('#confirmResolveBtn').onclick = function() {
+        const rcaCategory = modal.querySelector('#rcaCategory').value;
+        const correctiveAction = modal.querySelector('#rcaCorrective').value.trim();
+        const preventiveAction = modal.querySelector('#rcaPreventive').value.trim();
+
+        if (!correctiveAction) {
+          PDMS.toast('Required Field Missing', 'Please state the corrective action taken to resolve this issue.', 'error');
+          return;
+        }
+
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Updating...');
+
+        const nowIso = new Date().toISOString();
+        const patch = {
+          status: targetStatus,
+          rootCauseCategory: rcaCategory,
+          correctiveAction: correctiveAction,
+          preventiveAction: preventiveAction,
+          closureSignoffById: user.id || '',
+          closureSignoffByName: user.name || '',
+          updatedAt: nowIso
+        };
+
+        if (targetStatus === 'Resolved') patch.resolvedAt = nowIso;
+        if (targetStatus === 'Closed') {
+          patch.closedAt = nowIso;
+          patch.verifiedAt = nowIso;
+        }
+
+        PDMS.api.update('complaints', c.id, patch)
+          .then(saved => {
+            Object.assign(c, patch, saved || {});
+            if (PDMS.notifyComplaintResponse) {
+              PDMS.notifyComplaintResponse(c, `Status transitioned to ${targetStatus} with CAPA sign-off by ${user.name}.`, user);
+            }
+            modal.remove();
+            PDMS.toast('Ticket Updated', `Issue marked as ${targetStatus} with governance sign-off.`, 'success');
+            render();
+          })
+          .catch(err => {
+            PDMS.setButtonLoading(btn, false);
+            PDMS.toast('Error', err.message || 'Could not update ticket', 'error');
+          });
+      };
+    }
+
     function setComplaintStatus(complaintId, newStatus) {
       document.querySelectorAll('.status-popover-menu').forEach(el => el.classList.add('hidden'));
       const user = PDMS.getUser();
@@ -693,13 +1633,15 @@
       const c = list.find(item => String(item.id) === String(complaintId));
       if (!c) return;
 
+      if (newStatus === 'Resolved' || newStatus === 'Closed') {
+        promptForResolutionGate(c, newStatus);
+        return;
+      }
+
       const patch = {
         status: newStatus,
         updatedAt: new Date().toISOString()
       };
-      if (newStatus === 'Resolved') {
-        patch.resolvedAt = new Date().toISOString();
-      }
 
       PDMS.api.update('complaints', c.id, patch)
         .then(saved => {
@@ -825,50 +1767,379 @@
       const user = PDMS.getUser();
       if (!user) return;
 
+      const issueCategories = (PDMS.issueCategories) || [
+        { name: 'Project Delivery & Milestones', subCategories: ['Milestone Delay / Schedule Slip', 'Scope Creep / Unplanned Deliverables', 'Resource Allocation & Availability', 'Deliverable Quality Issue', 'Testing / QA Failure'] },
+        { name: 'Client & Account Relations', subCategories: ['Client Unresponsiveness / Dependency', 'Stakeholder Disagreement / Misalignment', 'Expectation Mismatch', 'Contractual Scope Dispute', 'Communication Breakdown'] },
+        { name: 'Technical, Tools & Infrastructure', subCategories: ['Server / Infrastructure Downtime', 'Software Bug / Code Defect', 'Tooling / License Expiry or Lack of Access', 'Integration / API Failure', 'Data Loss or Corruption Risk'] },
+        { name: 'Security, Privacy & Risk', subCategories: ['Data Breach / Information Leak', 'Unauthorized System Access', 'Security Vulnerability Exploit', 'Phishing or Social Engineering Attempt', 'Physical Security Incident'] },
+        { name: 'Financial, Billing & Commercial', subCategories: ['Client Invoice Payment Delay', 'Consultant Rate / Payout Dispute', 'Project Budget Overrun', 'Expense Reimbursement Issue', 'Billing / Tax Discrepancy'] },
+        { name: 'Vendor & Third-Party Performance', subCategories: ['Subcontractor Non-Performance', 'Third-Party SLA Breach', 'Supplier Quality Defect', 'Vendor Commercial Conflict'] },
+        { name: 'HR, People & Team Well-being', subCategories: ['Interpersonal / Team Conflict', 'Unfair Workload / Burnout', 'Harassment, Bullying or Discrimination', 'Workplace Safety & Ergonomics', 'Staff Grievance'] },
+        { name: 'Governance, Regulatory & Compliance', subCategories: ['Audit Non-Conformance (Major/Minor)', 'Statutory / Regulatory Breach', 'Policy Non-Compliance', 'Ethical Violation / Whistleblowing'] },
+        { name: 'Sales, Scoping & Pre-Delivery', subCategories: ['Underestimated Effort / Mis-scoping', 'Commercial Terms Misalignment', 'Sales-to-Delivery Handover Gap', 'Client Feasibility Risk'] },
+        { name: 'Operational Processes & Tools', subCategories: ['Process Bottleneck / Approval Delay', 'Documentation Deficit', 'System Access / IAM Provisioning Failure', 'Internal Workflow Roadblock'] },
+        { name: 'General / Unclassified', subCategories: ['General Feedback / Observation', 'Miscellaneous Roadblock'] }
+      ];
+
+      const projectsList = (D.projects || []).slice().sort((a,b) => String(a.name||'').localeCompare(String(b.name||'')));
+
       let uploadedFile = null;
 
       const bodyHtml = `
-        <div class="form-row" style="margin-bottom:14px">
-          <label>Category <span style="color:var(--danger)">*</span></label>
-          <select id="cmpCategory" style="width:100%">
-            ${CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
-          </select>
-        </div>
-
-        <div class="form-row" style="margin-bottom:14px">
-          <label>Subject / Summary <span style="color:var(--danger)">*</span></label>
-          <input id="cmpSubject" placeholder="Brief summary of the issue or dispute" autocomplete="off" style="width:100%"/>
-        </div>
-
-        <div class="form-row" style="margin-bottom:14px">
-          <label>Detailed Description <span style="color:var(--danger)">*</span></label>
-          <textarea id="cmpDescription" rows="5" placeholder="Provide full details, background context, timeline, and parties involved..." style="width:100%"></textarea>
-        </div>
-
-        <div class="form-row" style="margin-bottom:6px">
-          <label>Supporting Document / Evidence (Optional)</label>
-          <div id="cmpDropzone" style="border:1.5px dashed var(--border);border-radius:10px;padding:16px;text-align:center;background:var(--surface-2);cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--text-muted);font-size:13px">
-            <span style="display:inline-flex;color:var(--primary);font-size:18px">${I('upload')}</span>
-            <span>Click to browse or drag file here (PDF, DOCX, XLSX, Images • max 10MB)</span>
-            <input type="file" id="cmpFileInput" style="display:none"/>
-          </div>
-          <div id="cmpSelectedFile" style="display:none;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;margin-top:8px">
-            <div style="display:flex;align-items:center;gap:8px;min-width:0">
-              <span style="display:inline-flex;color:var(--primary)">${I('file')}</span>
-              <span id="cmpSelectedFileName" style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-              <span id="cmpSelectedFileSize" style="font-size:11px;color:var(--text-soft)"></span>
+        <div class="issue-modal-wrap">
+          <!-- Form Fields Flow -->
+          <div class="form-grid-2">
+            <div class="issue-field-group">
+              <label class="issue-field-label">
+                <span>Primary Category <span class="req">*</span></span>
+                <span class="issue-field-hint">Functional area</span>
+              </label>
+              <div id="cmpCategoryWrap"></div>
             </div>
-            <button type="button" id="cmpRemoveFileBtn" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:2px 8px;font-size:12px">Remove</button>
+            <div class="issue-field-group">
+              <label class="issue-field-label">
+                <span>Sub-Category <span class="req">*</span></span>
+                <span class="issue-field-hint">Specific incident</span>
+              </label>
+              <div id="cmpSubCategoryWrap"></div>
+            </div>
           </div>
+
+          <div class="issue-field-group">
+            <label class="issue-field-label">
+              <span>Subject / 1-Line Summary <span class="req">*</span></span>
+              <span class="issue-field-hint">Concise, action-oriented title</span>
+            </label>
+            <input id="cmpSubject" class="issue-input" placeholder="e.g. Milestone 3 client UAT sign-off delay due to pending SSO integration" autocomplete="off"/>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="issue-field-group">
+              <label class="issue-field-label">
+                <span>Related Project</span>
+                <span class="issue-field-hint">Optional · Auto-associates team</span>
+              </label>
+              <div id="cmpProjectWrap"></div>
+            </div>
+            <div class="issue-field-group">
+              <label class="issue-field-label">
+                <span>Associated Client / Account</span>
+                <span class="issue-field-hint">Auto-detected</span>
+              </label>
+              <input id="cmpClientName" readonly class="issue-input readonly-style" placeholder="Auto-populated from project"/>
+            </div>
+          </div>
+
+          <!-- Priority & Urgency with Dynamic ITIL SLA Card -->
+          <div class="priority-section-wrap">
+            <div class="form-grid-2">
+              <div class="issue-field-group">
+                <label class="issue-field-label">
+                  <span>Business Impact <span class="req">*</span></span>
+                </label>
+                <div id="cmpImpactWrap"></div>
+              </div>
+              <div class="issue-field-group">
+                <label class="issue-field-label">
+                  <span>Urgency <span class="req">*</span></span>
+                </label>
+                <div id="cmpUrgencyWrap"></div>
+              </div>
+            </div>
+
+            <!-- ITIL SLA Dynamic Live Card -->
+            <div class="sla-live-card" id="cmpPriorityCard" data-priority="P3">
+              <div class="sla-live-header">
+                <div class="sla-live-title-group">
+                  <span class="sla-engine-pill">ITIL SLA Engine</span>
+                  <span class="sla-calc-arrow">→</span>
+                  <span class="sla-calculated-label">Calculated Priority:</span>
+                  <span id="cmpPriorityPreview" class="prio-pill prio-p3">P3 - Medium</span>
+                </div>
+                <div class="sla-priority-meter" id="cmpPriorityMeter">
+                  <span class="sla-meter-step" data-step="P4">Low</span>
+                  <span class="sla-meter-step active" data-step="P3">Medium</span>
+                  <span class="sla-meter-step" data-step="P2">High</span>
+                  <span class="sla-meter-step" data-step="P1">Critical</span>
+                </div>
+              </div>
+
+              <div class="sla-live-metrics">
+                <div class="sla-metric-card">
+                  <div class="sla-metric-icon">⚡</div>
+                  <div class="sla-metric-info">
+                    <span class="sla-metric-lbl">First Response</span>
+                    <span class="sla-metric-val" id="cmpSlaResponse">24 Hours</span>
+                  </div>
+                </div>
+                <div class="sla-metric-card">
+                  <div class="sla-metric-icon">🎯</div>
+                  <div class="sla-metric-info">
+                    <span class="sla-metric-lbl">Resolution SLA</span>
+                    <span class="sla-metric-val" id="cmpSlaResolution">5 Days</span>
+                  </div>
+                </div>
+                <div class="sla-metric-card">
+                  <div class="sla-metric-icon">👥</div>
+                  <div class="sla-metric-info">
+                    <span class="sla-metric-lbl">Escalation Routing</span>
+                    <span class="sla-metric-val" id="cmpSlaTiers">PMO</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="issue-field-group">
+            <label class="issue-field-label">
+              <span>Detailed Description &amp; Root Cause <span class="req">*</span></span>
+              <span class="issue-field-hint">Timeline, blockers &amp; parties involved</span>
+            </label>
+            <textarea id="cmpDescription" class="issue-textarea" rows="3" placeholder="• What occurred and when did it start?&#10;• What is the concrete business, operational, or delivery roadblock?&#10;• Who are the relevant parties, clients, or dependencies involved?"></textarea>
+          </div>
+
+          <!-- Attachment Dropzone -->
+          <div class="issue-field-group">
+            <label class="issue-field-label">
+              <span>Supporting Document / Evidence</span>
+              <span class="issue-field-hint">Optional · Max 10MB</span>
+            </label>
+            <div id="cmpDropzone" class="form-dropzone">
+              <div class="dropzone-icon">${I('upload')}</div>
+              <div class="dropzone-text">
+                <span class="dropzone-action">Click to upload</span> or drag and drop files here
+              </div>
+              <div class="dropzone-hint">PDF, DOCX, XLSX, PNG, JPG (up to 10MB)</div>
+              <input type="file" id="cmpFileInput" style="display:none"/>
+            </div>
+            <div id="cmpSelectedFile" style="display:none;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:var(--surface-2);border:1.5px solid var(--border);border-radius:11px;margin-top:10px">
+              <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                <span style="display:inline-flex;color:var(--primary);font-size:20px">${I('file')}</span>
+                <span id="cmpSelectedFileName" style="font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+                <span id="cmpSelectedFileSize" style="font-size:11.5px;color:var(--text-soft)"></span>
+              </div>
+              <button type="button" id="cmpRemoveFileBtn" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:4px 12px;font-size:12px;font-weight:700">Remove</button>
+            </div>
+          </div>
+
+          <!-- Confidentiality Card -->
+          <label class="confidential-row-toggle" id="cmpConfidentialCard" for="cmpConfidentialToggle">
+            <div class="confidential-left">
+              <span class="confidential-shield">🔒</span>
+              <div>
+                <div class="confidential-title">
+                  <span>Confidential / Whistleblower Protection</span>
+                  <span class="confidential-badge">Executive Level</span>
+                </div>
+                <div class="confidential-sub">Ticket will be hidden from project managers and routed strictly to HR &amp; Executive Leadership.</div>
+              </div>
+            </div>
+            <div class="confidential-switch-wrap">
+              <span id="cmpConfidentialStatus" class="confidential-status-text">Standard Routing</span>
+              <div class="c-switch">
+                <input type="checkbox" id="cmpConfidentialToggle"/>
+                <span class="c-switch-slider"></span>
+              </div>
+            </div>
+          </label>
         </div>
       `;
 
       const footHtml = `
-        <button class="btn btn-ghost" data-close>Cancel</button>
-        <button class="btn btn-primary" id="cmpSubmitBtn">${I('send')} Submit Ticket</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;gap:12px">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);font-weight:500">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(16,185,129,0.14);color:#10b981;font-size:11px">🛡️</span>
+            <span>SLA Monitored • Automated Compliance Audit</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <button class="btn btn-ghost" data-close style="border-radius:10px;font-weight:600;padding:10px 18px">Cancel</button>
+            <button class="btn btn-primary" id="cmpSubmitBtn" style="padding:10px 24px;font-weight:700;border-radius:10px;background:linear-gradient(135deg, #1d3c88 0%, #3b82f6 100%);box-shadow:0 4px 16px rgba(29,60,136,.3);border:none;display:inline-flex;align-items:center;gap:8px">
+              ${I('send')} Submit Issue Ticket
+            </button>
+          </div>
+        </div>
       `;
 
-      const modal = PDMS.modal('Submit Support Ticket / Complaint', bodyHtml, footHtml, { modalClass: 'modal-lg' });
+      const modalTitleHtml = `
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#1d3c88,#4f46e5);color:#fff;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(79,70,229,.3);font-size:16px">
+            ${I('shield')}
+          </div>
+          <div>
+            <div style="font-size:16px;font-weight:800;color:var(--text);line-height:1.2">Log Issue / Escalation Ticket</div>
+            <div style="font-size:11.5px;color:var(--text-soft);font-weight:500;margin-top:2px">ITIL SLA &amp; Enterprise Governance Intake</div>
+          </div>
+        </div>
+      `;
+
+      const modal = PDMS.modal(modalTitleHtml, bodyHtml, footHtml, { modalClass: 'modal-issue-dialog modal-lg' });
+
+      const clientInput = modal.querySelector('#cmpClientName');
+      const priorityPreview = modal.querySelector('#cmpPriorityPreview');
+
+      const createDrop = (cfg) => (PDMS.customDropdown ? PDMS.customDropdown(cfg) : null);
+
+      let subCatDropdown = null;
+
+      const catDropdown = createDrop({
+        container: modal.querySelector('#cmpCategoryWrap'),
+        id: 'cmpCategory',
+        options: issueCategories.map(c => ({ value: c.name, label: c.name })),
+        value: issueCategories[0]?.name || '',
+        onChange: (catName) => {
+          const selectedCat = issueCategories.find(c => c.name === catName);
+          const subs = (selectedCat && selectedCat.subCategories) || ['General Issue'];
+          if (subCatDropdown) {
+            subCatDropdown.setOptions(subs.map(s => ({ value: s, label: s })), subs[0]);
+          }
+        }
+      });
+
+      const initialSubs = (issueCategories[0]?.subCategories) || ['General Issue'];
+      subCatDropdown = createDrop({
+        container: modal.querySelector('#cmpSubCategoryWrap'),
+        id: 'cmpSubCategory',
+        options: initialSubs.map(s => ({ value: s, label: s })),
+        value: initialSubs[0] || ''
+      });
+
+      const projectOptions = [
+        { value: '', label: '— Non-Project / Organization-wide —', client: '', name: '' },
+        ...projectsList.map(p => ({
+          value: String(p.id),
+          label: `${p.name} (${p.client || 'Internal'})`,
+          client: p.client || '',
+          name: p.name || ''
+        }))
+      ];
+
+      const projDropdown = createDrop({
+        container: modal.querySelector('#cmpProjectWrap'),
+        id: 'cmpProjectSelect',
+        options: projectOptions,
+        value: '',
+        onChange: (projId, matched) => {
+          const meta = (matched && matched.meta) || {};
+          clientInput.value = meta.client || '';
+        }
+      });
+
+      function updatePriorityPreview() {
+        const imp = impactDropdown ? impactDropdown.getValue() : (modal.querySelector('#cmpImpact')?.value || 'Medium');
+        const urg = urgencyDropdown ? urgencyDropdown.getValue() : (modal.querySelector('#cmpUrgency')?.value || 'Normal');
+        const prio = PDMS.calculateIssuePriority ? PDMS.calculateIssuePriority(imp, urg) : 'P3 - Medium';
+        let cls = 'prio-p3';
+        let dotColor = '#3b82f6';
+        if (prio.startsWith('P1')) { cls = 'prio-p1'; dotColor = '#ef4444'; }
+        else if (prio.startsWith('P2')) { cls = 'prio-p2'; dotColor = '#f59e0b'; }
+        else if (prio.startsWith('P4')) { cls = 'prio-p4'; dotColor = '#10b981'; }
+
+        if (priorityPreview) {
+          priorityPreview.className = 'prio-pill ' + cls;
+          priorityPreview.innerHTML = `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dotColor}"></span> ${prio}`;
+        }
+
+        const slaPolicy = (PDMS.issueSLAPolicies && PDMS.issueSLAPolicies[prio]) || {
+          'P1 - Critical': { responseHours: 1, resolutionHours: 4, escalationTiers: ['PM Head', 'HTD', 'COO'] },
+          'P2 - High': { responseHours: 4, resolutionHours: 24, escalationTiers: ['PM Head', 'HTD'] },
+          'P3 - Medium': { responseHours: 24, resolutionHours: 120, escalationTiers: ['PMO'] },
+          'P4 - Low': { responseHours: 48, resolutionHours: 240, escalationTiers: ['PMO'] }
+        }[prio] || { responseHours: 24, resolutionHours: 120, escalationTiers: ['PMO'] };
+
+        const respBox = modal.querySelector('#cmpSlaResponse');
+        const resBox = modal.querySelector('#cmpSlaResolution');
+        const tiersBox = modal.querySelector('#cmpSlaTiers');
+        const cardBox = modal.querySelector('#cmpPriorityCard');
+
+        if (respBox) {
+          respBox.textContent = slaPolicy.responseHours < 24 ? `${slaPolicy.responseHours} Hour${slaPolicy.responseHours > 1 ? 's' : ''}` : `${Math.round(slaPolicy.responseHours / 24)} Day${Math.round(slaPolicy.responseHours / 24) > 1 ? 's' : ''}`;
+        }
+        if (resBox) {
+          const days = Math.round(slaPolicy.resolutionHours / 24);
+          resBox.textContent = slaPolicy.resolutionHours < 24 ? `${slaPolicy.resolutionHours} Hour${slaPolicy.resolutionHours > 1 ? 's' : ''}` : `${days} Day${days > 1 ? 's' : ''}`;
+        }
+        if (tiersBox) {
+          tiersBox.textContent = (slaPolicy.escalationTiers || ['PMO']).join(' → ');
+        }
+        if (cardBox) {
+          cardBox.setAttribute('data-priority', prio.slice(0, 2));
+        }
+
+        const prioCode = prio.slice(0, 2);
+        modal.querySelectorAll('.sla-meter-step').forEach(st => {
+          if (st.getAttribute('data-step') === prioCode) {
+            st.classList.add('active');
+          } else {
+            st.classList.remove('active');
+          }
+        });
+
+        const impDesc = modal.querySelector('#cmpImpactDesc');
+        const urgDesc = modal.querySelector('#cmpUrgencyDesc');
+        if (impDesc) {
+          const map = {
+            'Critical': 'Halts project delivery / Client outage',
+            'High': 'Substantial risk to delivery milestones',
+            'Medium': 'Moderate operational or schedule friction',
+            'Low': 'Minor inconvenience or observation'
+          };
+          impDesc.textContent = map[imp] || '';
+        }
+        if (urgDesc) {
+          const map = {
+            'Immediate': 'Emergency action required immediately',
+            'High': 'Expedited action required within hours',
+            'Normal': 'Standard triage queue processing',
+            'Low': 'Can wait for scheduled review'
+          };
+          urgDesc.textContent = map[urg] || '';
+        }
+      }
+
+      const impactDropdown = createDrop({
+        container: modal.querySelector('#cmpImpactWrap'),
+        id: 'cmpImpact',
+        options: [
+          { value: 'Critical', label: 'Critical (Halts delivery)' },
+          { value: 'High', label: 'High (Substantial risk)' },
+          { value: 'Medium', label: 'Medium (Moderate friction)' },
+          { value: 'Low', label: 'Low (Minor inconvenience)' }
+        ],
+        value: 'Medium',
+        isSmall: true,
+        onChange: () => updatePriorityPreview()
+      });
+
+      const urgencyDropdown = createDrop({
+        container: modal.querySelector('#cmpUrgencyWrap'),
+        id: 'cmpUrgency',
+        options: [
+          { value: 'Immediate', label: 'Immediate (Crisis action)' },
+          { value: 'High', label: 'High (Prompt action)' },
+          { value: 'Normal', label: 'Normal (Standard queue)' },
+          { value: 'Low', label: 'Low (Can wait)' }
+        ],
+        value: 'Normal',
+        isSmall: true,
+        onChange: () => updatePriorityPreview()
+      });
+
+      updatePriorityPreview();
+
+      const confToggle = modal.querySelector('#cmpConfidentialToggle');
+      const confCard = modal.querySelector('#cmpConfidentialCard');
+      const confStatus = modal.querySelector('#cmpConfidentialStatus');
+      if (confToggle && confCard) {
+        confToggle.onchange = () => {
+          if (confToggle.checked) {
+            confCard.classList.add('active');
+            if (confStatus) confStatus.innerHTML = '<span style="color:#e11d48;font-weight:700">🔒 Confidential Mode Active</span>';
+          } else {
+            confCard.classList.remove('active');
+            if (confStatus) confStatus.innerHTML = '<span style="color:var(--text-soft)">Standard Routing</span>';
+          }
+        };
+      }
 
       const dropzone = modal.querySelector('#cmpDropzone');
       const fileInput = modal.querySelector('#cmpFileInput');
@@ -888,7 +2159,6 @@
 
       if (dropzone && fileInput) {
         dropzone.onclick = () => fileInput.click();
-        
         dropzone.ondragover = (e) => {
           e.preventDefault();
           dropzone.style.borderColor = 'var(--primary)';
@@ -905,7 +2175,6 @@
           const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
           handleSelectedFile(file);
         };
-
         fileInput.onchange = (e) => {
           const file = e.target.files && e.target.files[0];
           handleSelectedFile(file);
@@ -924,33 +2193,63 @@
       const submitBtn = modal.querySelector('#cmpSubmitBtn');
       if (submitBtn) {
         submitBtn.onclick = function () {
-          const category = modal.querySelector('#cmpCategory').value;
+          const category = catDropdown ? catDropdown.getValue() : (modal.querySelector('#cmpCategory')?.value || '');
+          const subCategory = subCatDropdown ? subCatDropdown.getValue() : (modal.querySelector('#cmpSubCategory')?.value || '');
           const subject = modal.querySelector('#cmpSubject').value.trim();
           const description = modal.querySelector('#cmpDescription').value.trim();
+          const projectId = projDropdown ? projDropdown.getValue() : (modal.querySelector('#cmpProjectSelect')?.value || '');
+          const selectedProj = projectsList.find(p => String(p.id) === String(projectId));
+          const projectName = selectedProj ? (selectedProj.name || '') : '';
+          const clientName = clientInput.value || (selectedProj ? (selectedProj.client || '') : '');
+          const impact = impactDropdown ? impactDropdown.getValue() : 'Medium';
+          const urgency = urgencyDropdown ? urgencyDropdown.getValue() : 'Normal';
+          const priority = PDMS.calculateIssuePriority ? PDMS.calculateIssuePriority(impact, urgency) : 'P3 - Medium';
+          const isConfidential = modal.querySelector('#cmpConfidentialToggle').checked;
 
           if (!subject || !description) {
-            PDMS.toast('Required Fields Missing', 'Please provide a subject and description.', 'error');
+            PDMS.toast('Required Fields Missing', 'Please provide a 1-line subject and detailed description.', 'error');
             return;
           }
+
+          // Calculate SLA Deadlines
+          const slaPolicy = (PDMS.issueSLAPolicies && PDMS.issueSLAPolicies[priority]) || { responseHours: 24, resolutionHours: 120 };
+          const now = new Date();
+          const initialResponseDue = new Date(now.getTime() + (slaPolicy.responseHours * 3600000)).toISOString();
+          const resolutionDue = new Date(now.getTime() + (slaPolicy.resolutionHours * 3600000)).toISOString();
 
           const btn = this;
           PDMS.setButtonLoading(btn, true, 'Submitting...');
 
           const doSave = (attachmentObj) => {
-            const ticketNumber = 'TKT-' + Math.floor(1000 + Math.random() * 9000);
+            const currentYear = new Date().getFullYear();
+            const randomSerial = String(Math.floor(10000 + Math.random() * 90000));
+            const ticketNumber = `ISS-${currentYear}-${randomSerial}`;
+
             const record = {
               id: 'CMP-' + Date.now(),
               ticketNumber: ticketNumber,
               subject: subject,
               category: category,
-              status: 'Open',
+              subCategory: subCategory,
+              affectedScope: projectId ? 'Project' : 'Organization',
+              impact: impact,
+              urgency: urgency,
+              priority: priority,
+              status: 'Reported',
               description: description,
+              projectId: projectId,
+              projectName: projectName,
+              clientId: '',
+              clientName: clientName,
+              isConfidential: isConfidential,
               submittedById: String(user.id || ''),
               submittedByName: String(user.name || ''),
               submittedByEmail: String(user.email || ''),
               submittedByRole: String(user.role || ''),
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
+              slaInitialResponseDue: initialResponseDue,
+              slaResolutionDue: resolutionDue,
+              createdAt: now.toISOString(),
+              updatedAt: now.toISOString(),
               responses: [],
               attachment: attachmentObj || null
             };
@@ -958,15 +2257,12 @@
             PDMS.api.create('complaints', record)
               .then(saved => {
                 const finalObj = Object.assign({}, record, saved || {});
-                
+
                 const syncTo = (arr) => {
                   if (!Array.isArray(arr)) return;
                   const idx = arr.findIndex(x => x && (String(x.id) === String(finalObj.id) || (record.id && String(x.id) === String(record.id))));
-                  if (idx >= 0) {
-                    arr[idx] = finalObj;
-                  } else {
-                    arr.unshift(finalObj);
-                  }
+                  if (idx >= 0) arr[idx] = finalObj;
+                  else arr.unshift(finalObj);
                 };
                 if (window.PDMS_DATA && window.PDMS_DATA.complaints) syncTo(window.PDMS_DATA.complaints);
                 if (window.PDMS_REMOTE && window.PDMS_REMOTE.complaints) syncTo(window.PDMS_REMOTE.complaints);
@@ -976,13 +2272,13 @@
                 }
 
                 modal.remove();
-                PDMS.toast('Complaint Submitted', `Ticket #${ticketNumber} has been delivered to HR, HTD, COO, and PM Head.`, 'success');
+                PDMS.toast('Issue Ticket Submitted', `Ticket #${ticketNumber} [${priority}] logged successfully.`, 'success');
                 activeTab = canManageAll ? 'all' : 'my';
                 render();
               })
               .catch(err => {
                 PDMS.setButtonLoading(btn, false);
-                PDMS.toast('Submission Failed', err.message || 'Could not submit complaint', 'error');
+                PDMS.toast('Submission Failed', err.message || 'Could not submit issue', 'error');
               });
           };
 

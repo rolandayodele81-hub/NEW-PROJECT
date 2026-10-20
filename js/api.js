@@ -179,11 +179,21 @@
       if (isLocalMode) return localPost(action, payload);
       return Promise.reject(new Error('Set PDMS_API_URL in js/config.js first'));
     }
+    const remotePayload = Object.assign({}, payload);
+    if (payload.resource === 'projects') {
+      const recordKey = action === 'update' ? 'patch' : 'record';
+      const record = remotePayload[recordKey];
+      if (record && Array.isArray(record.projectSegments)) {
+        remotePayload[recordKey] = Object.assign({}, record, {
+          projectSegments: JSON.stringify(record.projectSegments)
+        });
+      }
+    }
     return fetchWithRetry(global.PDMS_API_URL, {
       method: 'POST',
       redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids a CORS preflight against Apps Script
-      body: JSON.stringify(Object.assign({ action }, payload))
+      body: JSON.stringify(Object.assign({ action }, remotePayload))
     })
       .then(res => {
         if (!res.ok) {
@@ -193,6 +203,14 @@
       })
       .then(json => {
         if (!json.ok) throw new Error(json.error || 'Request failed');
+        if (payload.resource === 'projects' && json.data && typeof json.data.projectSegments === 'string') {
+          try {
+            const segments = JSON.parse(json.data.projectSegments);
+            json.data.projectSegments = Array.isArray(segments) ? segments : [];
+          } catch (_) {
+            json.data.projectSegments = [];
+          }
+        }
         try {
           const resKey = payload.resource;
           if (resKey) {

@@ -7,7 +7,7 @@
   <title>PMO Dashboard — PSE PDMS</title>
   
   
-  <link rel="stylesheet" href="css/style.css?v=1791981676"/>
+  <link rel="stylesheet" href="css/style.css?v=1792505033"/>
   <style>
     .pmo-hero {
       display: grid;
@@ -62,7 +62,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1791981676"></script>
+  <script src="js/bundle.js?v=1792505033"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -228,6 +228,84 @@
         <div class="chart-wrap" style="height:210px;width:100%;margin:0 auto"><canvas id="pmoDonut"></canvas></div>
         <div id="pmoDonutLegend" style="margin-top:16px;display:flex;flex-direction:column;gap:10px;padding:0 8px"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Issues & SLA Governance Overview -->
+  <div class="card mb-4" style="background:var(--surface);border-radius:18px;border:1px solid var(--border)">
+    <div class="card-head" style="padding:18px 22px;border-bottom:1px solid var(--border)">
+      <div>
+        <div class="card-title" style="display:flex;align-items:center;gap:8px">
+          ${I('alert-triangle')} Active Issues &amp; Escalation Oversight
+        </div>
+        <div class="card-sub">Real-time issue tickets, severity breakdown, and SLA resolution tracking</div>
+      </div>
+      <a href="help.html" class="btn btn-secondary btn-sm" style="font-size:12px;padding:6px 14px;font-weight:700">Open Issue Desk →</a>
+    </div>
+    <div class="card-body" style="padding:20px 22px">
+      ${(() => {
+        const liveIssues = (window.PDMS_REMOTE && window.PDMS_REMOTE.complaints) || D.complaints || [];
+        const openIssues = liveIssues.filter(i => !['Resolved', 'Closed', 'Cancelled'].includes(i.status));
+        const p1Count = openIssues.filter(i => String(i.priority||'').startsWith('P1')).length;
+        const p2Count = openIssues.filter(i => String(i.priority||'').startsWith('P2')).length;
+        const p3Count = openIssues.filter(i => String(i.priority||'').startsWith('P3') || !i.priority).length;
+        const p4Count = openIssues.filter(i => String(i.priority||'').startsWith('P4')).length;
+
+        const breachedCount = openIssues.filter(i => {
+          if (!i.slaResolutionDue) return false;
+          return new Date(i.slaResolutionDue).getTime() < Date.now();
+        }).length;
+
+        return `
+        <div class="grid grid-4" style="gap:14px;margin-bottom:18px">
+          <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:12px;padding:14px">
+            <div style="font-size:11px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:0.5px">P1 - Critical</div>
+            <div style="font-size:24px;font-weight:800;color:#ef4444;margin:4px 0">${p1Count}</div>
+            <div style="font-size:11.5px;color:var(--text-muted)">4h Resolution SLA</div>
+          </div>
+          <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:14px">
+            <div style="font-size:11px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:0.5px">P2 - High</div>
+            <div style="font-size:24px;font-weight:800;color:#d97706;margin:4px 0">${p2Count}</div>
+            <div style="font-size:11.5px;color:var(--text-muted)">24h Resolution SLA</div>
+          </div>
+          <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:12px;padding:14px">
+            <div style="font-size:11px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:0.5px">P3 - Medium</div>
+            <div style="font-size:24px;font-weight:800;color:#2563eb;margin:4px 0">${p3Count}</div>
+            <div style="font-size:11.5px;color:var(--text-muted)">5-Day SLA Target</div>
+          </div>
+          <div style="background:${breachedCount > 0 ? 'rgba(239,68,68,0.12)' : 'var(--surface-2)'};border:1px solid ${breachedCount > 0 ? '#ef4444' : 'var(--border)'};border-radius:12px;padding:14px">
+            <div style="font-size:11px;font-weight:700;color:${breachedCount > 0 ? '#ef4444' : 'var(--text-soft)'};text-transform:uppercase;letter-spacing:0.5px">SLA Breaches</div>
+            <div style="font-size:24px;font-weight:800;color:${breachedCount > 0 ? '#ef4444' : 'var(--text)'};margin:4px 0">${breachedCount}</div>
+            <div style="font-size:11.5px;color:var(--text-muted)">${breachedCount > 0 ? 'Immediate Escalation' : 'All within target'}</div>
+          </div>
+        </div>
+
+        ${openIssues.length ? `
+          <div style="display:flex;flex-direction:column;gap:8px">
+            ${openIssues.slice(0, 3).map(iss => {
+              const prio = iss.priority || 'P3 - Medium';
+              let prioCls = 'prio-p3';
+              if (prio.startsWith('P1')) prioCls = 'prio-p1';
+              else if (prio.startsWith('P2')) prioCls = 'prio-p2';
+              else if (prio.startsWith('P4')) prioCls = 'prio-p4';
+              return `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface-2);border-radius:10px;gap:12px">
+                  <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                    <span class="prio-pill ${prioCls}" style="font-size:10px">${prio.split(' - ')[0]}</span>
+                    <span style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(iss.subject || 'Untitled Issue')}</span>
+                    ${iss.projectName ? `<span class="badge badge-light" style="font-size:10.5px">${PDMS.esc(iss.projectName)}</span>` : ''}
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                    <span class="badge badge-warn" style="font-size:11px">${PDMS.esc(iss.status || 'Reported')}</span>
+                    <a href="help.html#ticket=${iss.id}" class="btn btn-ghost btn-sm" style="font-size:11.5px;padding:2px 8px">Inspect →</a>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        ` : `<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:12px 0">No open issue escalations across your project portfolio.</div>`}
+      `;
+      })()}
     </div>
   </div>
 

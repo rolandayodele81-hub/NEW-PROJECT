@@ -490,18 +490,35 @@
     });
   };
 
-  // Notify management when a complaint is submitted
+  // Notify management when an issue / complaint is submitted
   PDMS.notifyComplaintSubmitted = function(complaint, user) {
     if (!complaint) return;
-    const managementRoles = ['HR', 'PM Head', 'HTD', 'COO', 'System Administrator'];
     const nowIso = new Date().toISOString();
     const actorName = (user && user.name) || complaint.submittedByName || 'User';
     const actorRole = (user && user.role) || complaint.submittedByRole || 'Member';
 
-    managementRoles.forEach(role => {
+    // Route confidential tickets or HR/Compliance strictly to authorized departments
+    const isConfidential = complaint.isConfidential === true || String(complaint.isConfidential) === 'true';
+    const cat = String(complaint.category || '').toLowerCase();
+    let targetRoles = [];
+
+    if (isConfidential || cat.includes('hr') || cat.includes('well-being') || cat.includes('grievance') || cat.includes('whistleblowing')) {
+      targetRoles = ['HR', 'COO', 'System Administrator'];
+    } else if (cat.includes('financial') || cat.includes('billing')) {
+      targetRoles = ['Accounts', 'COO', 'PM Head'];
+    } else if (cat.includes('technical') || cat.includes('security') || cat.includes('tools')) {
+      targetRoles = ['HTD', 'System Administrator', 'COO'];
+    } else if (cat.includes('sales')) {
+      targetRoles = ['Sales Head', 'COO', 'PM Head'];
+    } else {
+      // General, Project Delivery, Vendor, Operational Process
+      targetRoles = ['PMO', 'PM Head', 'HTD', 'COO', 'System Administrator'];
+    }
+
+    targetRoles.forEach(role => {
       postNotification({
-        title: `New Complaint: ${complaint.subject || 'Support Ticket'}`,
-        msg: `${actorName} (${actorRole}) submitted a ${complaint.priority || 'Normal'} priority complaint (${complaint.category || 'General'}).`,
+        title: `[${complaint.priority || 'P3'}] Issue: ${complaint.subject || 'New Ticket'}`,
+        msg: `${actorName} (${actorRole}) logged ${complaint.priority || 'P3'} issue under ${complaint.category || 'General'}.${complaint.projectName ? ` Project: ${complaint.projectName}` : ''}`,
         icon: 'alert-triangle',
         link: `help.html#ticket=${complaint.id}`,
         actor: actorName,
@@ -511,8 +528,8 @@
         recipientRole: role,
         kind: 'action',
         event: 'complaint.submitted',
-        projectId: '',
-        projectName: '',
+        projectId: complaint.projectId || '',
+        projectName: complaint.projectName || '',
         dedupeKey: `complaint.submitted:${complaint.id}:${role}`
       });
     });
@@ -1114,6 +1131,7 @@
     }
 
     function render(focusSel){
+      const existingSearchInput = container.querySelector('.tt-search-input');
       const caret = focusSel ? ((container.querySelector(focusSel)||{}).selectionStart ?? null) : null;
       const arr = filtered();
       const totalPages = shouldPaginate ? Math.max(1,Math.ceil(arr.length/pageSize)) : 1;
@@ -1165,7 +1183,7 @@
             '</div>'+
           '</div>'+
         '</div>'+
-        '<div style="overflow-x:auto"><table class="data"><thead><tr>'+
+        '<div class="'+(opts.noHorizontalScroll?'tt-table-no-scroll':'')+'" style="overflow-x:'+(opts.noHorizontalScroll?'hidden':'auto')+'"><table class="data'+(opts.noHorizontalScroll?' tt-table-fit':'')+'"><thead><tr>'+
         opts.columns.map(c=>'<th data-key="'+c.key+'">'+c.label+(state.sortKey===c.key?(state.sortDir>0?' ▲':' ▼'):'')+'</th>').join('')+
         '</tr></thead><tbody>'+
         (slice.length?slice.map(r=>{
@@ -1176,8 +1194,16 @@
         '</tbody></table></div>'+
         paginationHtml;
 
+      const replacementSearchInput = container.querySelector('.tt-search-input');
+      if(existingSearchInput && replacementSearchInput){
+        existingSearchInput.value = state.filter;
+        replacementSearchInput.replaceWith(existingSearchInput);
+      }
       const searchInput = container.querySelector('.tt-search-input');
-      if(searchInput) searchInput.addEventListener('input',e=>{state.filter=e.target.value;state.page=1;render('.tt-search-input');});
+      if(searchInput && !searchInput.dataset.searchBound){
+        searchInput.dataset.searchBound = 'true';
+        searchInput.addEventListener('input',e=>{state.filter=e.target.value;state.page=1;render('.tt-search-input');});
+      }
       const searchClearBtn = container.querySelector('[data-act="clear-search"]');
       if(searchClearBtn) searchClearBtn.addEventListener('click',()=>{state.filter='';state.page=1;render();});
       const dFrom = container.querySelector('.tt-date-from');
@@ -1282,7 +1308,7 @@
       clientMode: null, // 'new' or 'existing'
       selectedClient: null, // { name, industry, email, phone, address, workedBefore }
       newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
-      projForm: { type: (D.types && D.types[0]) || 'ISO Management System', workstream: '', status: (D.salesStatuses && D.salesStatuses[0]) || 'Lead', currency: '₦', awardCurrency: '₦', price: '', awardVal: '', desc: '' }
+      projForm: { type: (D.types && D.types[0]) || 'ISO Management System', workstream: '', segments: [{ type: (D.types && D.types[0]) || 'ISO Management System', workstream: '' }], status: (D.salesStatuses && D.salesStatuses[0]) || 'Lead', currency: '₦', awardCurrency: '₦', price: '', awardVal: '', desc: '' }
     };
 
     function renderModal() {
@@ -1435,15 +1461,22 @@
                 <span>${wizardState.clientMode === 'new' ? (isPrior ? 'New Client (Worked with before)' : 'New Client') : 'Existing Client'}</span>
               </div>
             </div>
-            <div class="form-row">
-              <label>Project Type</label>
-              <select id="swProjType">
-                ${(D.types || []).map(t => `<option${t === wizardState.projForm.type ? ' selected' : ''}>${t}</option>`).join('')}
-              </select>
-            </div>
-            <div class="form-row">
-              <label>Workstream</label>
-              <input id="swProjDept" type="text" value="${PDMS.esc(wizardState.projForm.workstream || '')}" placeholder="e.g. QMS, FSMS, ISO..." />
+            <div class="form-row" style="grid-column:1/-1">
+              <label>Project Types &amp; Workstreams</label>
+              <div id="swProjectSegments" style="display:flex;flex-direction:column;gap:10px">
+                ${(wizardState.projForm.segments || [{ type: wizardState.projForm.type, workstream: wizardState.projForm.workstream }]).map((segment, index) => `
+                  <div class="sw-project-segment" data-segment-index="${index}" style="padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:12px;font-weight:700;color:var(--text)">
+                      <span>Project Type &amp; Workstream${index ? ` ${index + 1}` : ''}</span>
+                      ${index ? `<button type="button" class="sw-remove-segment btn btn-ghost btn-sm" aria-label="Remove project type" title="Remove project type">${I('trash')}</button>` : ''}
+                    </div>
+                    <div class="form-grid">
+                      <div class="form-row"><label>Project Type</label><select class="sw-segment-type">${index ? '<option value="" selected>Select project type</option>' : ''}${(D.types || []).map(t => `<option value="${PDMS.esc(t)}"${t === segment.type ? ' selected' : ''}>${PDMS.esc(t)}</option>`).join('')}</select></div>
+                      <div class="form-row"><label>Workstream</label><input class="sw-segment-workstream" value="${PDMS.esc(segment.workstream || '')}" placeholder="e.g. QMS, FSMS, ISO..." /></div>
+                    </div>
+                  </div>`).join('')}
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="swAddSegmentBtn" style="margin-top:10px;display:inline-flex;align-items:center;gap:6px">${I('plus')} Add another project type</button>
             </div>
             <div class="form-row">
               <label>Initial Stage / Status</label>
@@ -1484,7 +1517,7 @@
         `;
       }
 
-      modalRef = PDMS.modal(title, bodyHtml, footHtml);
+      modalRef = PDMS.modal(title, bodyHtml, footHtml, { modalClass: 'modal-project-form' });
 
       // Attach event handlers based on step
       if (wizardState.step === 1) {
@@ -1626,20 +1659,37 @@
         const changeClientBtn = modalRef.querySelector('#swChangeClientBtn');
         const submitBtn = modalRef.querySelector('#swFinalSubmitBtn');
 
+        const segmentsContainer = modalRef.querySelector('#swProjectSegments');
+        let nextSegmentIndex = (wizardState.projForm.segments || []).length;
+        modalRef.querySelector('#swAddSegmentBtn').onclick = () => {
+          const index = nextSegmentIndex++;
+          segmentsContainer.insertAdjacentHTML('beforeend', `<div class="sw-project-segment" data-segment-index="${index}" style="padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:12px;font-weight:700;color:var(--text)"><span>Project Type &amp; Workstream ${index + 1}</span><button type="button" class="sw-remove-segment btn btn-ghost btn-sm" aria-label="Remove project type" title="Remove project type">${I('trash')}</button></div>
+            <div class="form-grid"><div class="form-row"><label>Project Type</label><select class="sw-segment-type"><option value="" selected>Select project type</option>${(D.types || []).map(t => `<option value="${PDMS.esc(t)}">${PDMS.esc(t)}</option>`).join('')}</select></div><div class="form-row"><label>Workstream</label><input class="sw-segment-workstream" placeholder="e.g. QMS, FSMS, ISO..." /></div></div>
+          </div>`);
+        };
+        segmentsContainer.onclick = event => {
+          const removeButton = event.target.closest('.sw-remove-segment');
+          if (removeButton) removeButton.closest('.sw-project-segment').remove();
+        };
+
         PDMS.initCurrencyInput(modalRef, 'swProjCurrency', 'swProjCustomCurrency');
         PDMS.initCurrencyInput(modalRef, 'swProjAwardCurrency', 'swProjCustomAwardCurrency');
 
         const goBackToStep2 = () => {
-          const typeInput = modalRef.querySelector('#swProjType');
-          const deptInput = modalRef.querySelector('#swProjDept');
+          const segments = Array.from(segmentsContainer.querySelectorAll('.sw-project-segment')).map(row => ({
+            type: row.querySelector('.sw-segment-type').value,
+            workstream: row.querySelector('.sw-segment-workstream').value.trim()
+          }));
           const statusInput = modalRef.querySelector('#swProjStatus');
           const priceInput = modalRef.querySelector('#swProjPrice');
           const awardInput = modalRef.querySelector('#swProjAward');
           const descInput = modalRef.querySelector('#swProjDesc');
           const oppCurr = PDMS.getCurrencyInputValue(modalRef, 'swProjCurrency', 'swProjCustomCurrency');
           const awardCurr = PDMS.getCurrencyInputValue(modalRef, 'swProjAwardCurrency', 'swProjCustomAwardCurrency');
-          if (typeInput) wizardState.projForm.type = typeInput.value.trim();
-          if (deptInput) wizardState.projForm.workstream = deptInput.value.trim();
+          wizardState.projForm.segments = segments;
+          wizardState.projForm.type = segments[0] ? segments[0].type : '';
+          wizardState.projForm.workstream = segments[0] ? segments[0].workstream : '';
           if (statusInput) wizardState.projForm.status = statusInput.value;
           if (priceInput) wizardState.projForm.price = priceInput.value.trim();
           if (awardInput) wizardState.projForm.awardVal = awardInput.value.trim();
@@ -1677,8 +1727,18 @@
             renderModal();
             return;
           }
-          const type = modalRef.querySelector('#swProjType').value.trim();
-          const workstream = modalRef.querySelector('#swProjDept').value.trim();
+          const projectSegments = Array.from(segmentsContainer.querySelectorAll('.sw-project-segment')).map(row => ({
+            type: row.querySelector('.sw-segment-type').value.trim(),
+            workstream: row.querySelector('.sw-segment-workstream').value.trim(),
+            start: '', due: '', actualCompletion: ''
+          }));
+          if (!projectSegments.length || projectSegments.some(segment => !segment.type)) {
+            PDMS.toast('Required', 'Select a project type for each group or remove any empty groups.', 'error');
+            return;
+          }
+          wizardState.projForm.segments = projectSegments;
+          const type = projectSegments[0].type;
+          const workstream = projectSegments[0].workstream;
           const status = modalRef.querySelector('#swProjStatus').value;
           const currency = PDMS.getCurrencyInputValue(modalRef, 'swProjCurrency', 'swProjCustomCurrency');
           const negotiatedPriceRaw = modalRef.querySelector('#swProjPrice').value.trim();
@@ -1711,7 +1771,7 @@
           const clientStatus = wizardState.clientMode === 'new' ? (isPrior ? 'New Client (Worked with before)' : 'New Client') : 'Existing Client';
 
           const record = {
-            name: client, client, type, workstream, dept: workstream, sales: (currentUser && currentUser.name) || 'Sales Team', pm: '', lead: '', consultants: [],
+            name: client, client, type, workstream, dept: workstream, projectSegments, sales: (currentUser && currentUser.name) || 'Sales Team', pm: '', lead: '', consultants: [],
             status: initialStatus, stage: initialStage, requestedStatus: status, createdByRole: currentUser.role, projectOwnerId: '', projectOwnerName: '', progress: 0, start: '', due: '', completion: null,
             currency: currency || '₦',
             negotiatedPrice: Number.isFinite(negotiatedPrice) ? negotiatedPrice : '',
@@ -1813,7 +1873,7 @@
       clientMode: null, // 'new' or 'existing'
       selectedClient: null, // { name, industry, email, phone, address, workedBefore }
       newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
-      projForm: { type: (D.types && D.types[0]) || 'ISO Management System', workstream: '', status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'ISO Management System')) || ['Not Started'])[0] || 'Not Started', start: '', due: '', actualCompletion: '', desc: '' }
+      projForm: { type: (D.types && D.types[0]) || 'ISO Management System', workstream: '', segments: [{ type: (D.types && D.types[0]) || 'ISO Management System', workstream: '', start: '', due: '', actualCompletion: '' }], status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'ISO Management System')) || ['Not Started'])[0] || 'Not Started', start: '', due: '', actualCompletion: '', desc: '' }
     };
 
     function renderModal() {
@@ -1966,31 +2026,29 @@
                 <span>${wizardState.clientMode === 'new' ? (isPrior ? 'New Client (Worked with before)' : 'New Client') : 'Existing Client'}</span>
               </div>
             </div>
-            <div class="form-row">
-              <label>Project Type</label>
-              <select id="dwProjType">
-                ${(D.types || []).map(t => `<option${t === wizardState.projForm.type ? ' selected' : ''}>${t}</option>`).join('')}
-              </select>
-            </div>
-            <div class="form-row">
-              <label>Workstream</label>
-              <input id="dwProjDept" type="text" value="${PDMS.esc(wizardState.projForm.workstream || '')}" placeholder="e.g. QMS, FSMS, ISO, IT..." />
+            <div class="form-row" style="grid-column:1/-1">
+              <label>Project Types, Workstreams &amp; Timelines</label>
+              <div id="dwProjectSegments" style="display:flex;flex-direction:column;gap:10px">
+                ${(wizardState.projForm.segments || [{ type: wizardState.projForm.type, workstream: wizardState.projForm.workstream, start: wizardState.projForm.start, due: wizardState.projForm.due, actualCompletion: wizardState.projForm.actualCompletion }]).map((segment, index) => `
+                  <div class="dw-project-segment" data-segment-index="${index}" style="padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:12px;font-weight:700;color:var(--text)">
+                      <span>Project Type &amp; Workstream${index ? ` ${index + 1}` : ''}</span>
+                      ${index ? `<button type="button" class="dw-remove-segment btn btn-ghost btn-sm" aria-label="Remove project type" title="Remove project type">${I('trash')}</button>` : ''}
+                    </div>
+                    <div class="form-grid">
+                      <div class="form-row"><label>Project Type</label><select class="dw-segment-type">${index ? '<option value="" selected>Select project type</option>' : ''}${(D.types || []).map(t => `<option value="${PDMS.esc(t)}"${t === segment.type ? ' selected' : ''}>${PDMS.esc(t)}</option>`).join('')}</select></div>
+                      <div class="form-row"><label>Workstream</label><input class="dw-segment-workstream" value="${PDMS.esc(segment.workstream || '')}" placeholder="e.g. QMS, FSMS, ISO, IT..." /></div>
+                      <div class="form-row"><label>Start Date</label><input class="dw-segment-start" type="date" value="${PDMS.esc(segment.start || '')}" /></div>
+                      <div class="form-row"><label>Planned Completion</label><input class="dw-segment-due" type="date" value="${PDMS.esc(segment.due || '')}" /></div>
+                      <div class="form-row" style="grid-column:1/-1"><label>Actual Completion</label><input class="dw-segment-actual" type="date" value="${PDMS.esc(segment.actualCompletion || '')}" /></div>
+                    </div>
+                  </div>`).join('')}
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="dwAddSegmentBtn" style="margin-top:10px;display:inline-flex;align-items:center;gap:6px">${I('plus')} Add another project type</button>
             </div>
             <div class="form-row">
               <label>Delivery Status</label>
               <select id="dwProjStatus">${statusOptions.map(s => `<option${s === wizardState.projForm.status ? ' selected' : ''}>${s}</option>`).join('')}</select>
-            </div>
-            <div class="form-row">
-              <label>Start Date</label>
-              <input id="dwProjStart" type="date" value="${PDMS.esc(wizardState.projForm.start || '')}" />
-            </div>
-            <div class="form-row">
-              <label>Planned Completion</label>
-              <input id="dwProjDue" type="date" value="${PDMS.esc(wizardState.projForm.due || '')}" />
-            </div>
-            <div class="form-row" style="grid-column:1/-1">
-              <label>Actual Completion</label>
-              <input id="dwProjActual" type="date" value="${PDMS.esc(wizardState.projForm.actualCompletion || '')}" />
             </div>
           </div>
           <div class="form-row" style="margin-top:12px">
@@ -2005,7 +2063,7 @@
         `;
       }
 
-      modalRef = PDMS.modal(title, bodyHtml, footHtml);
+      modalRef = PDMS.modal(title, bodyHtml, footHtml, { modalClass: 'modal-project-form' });
 
       // Attach event handlers based on step
       if (wizardState.step === 1) {
@@ -2146,21 +2204,39 @@
         const backBtn = modalRef.querySelector('#dwBackBtn');
         const changeClientBtn = modalRef.querySelector('#dwChangeClientBtn');
         const submitBtn = modalRef.querySelector('#dwFinalSubmitBtn');
+        const segmentsContainer = modalRef.querySelector('#dwProjectSegments');
+        let nextSegmentIndex = (wizardState.projForm.segments || []).length;
+        modalRef.querySelector('#dwAddSegmentBtn').onclick = () => {
+          const index = nextSegmentIndex++;
+          segmentsContainer.insertAdjacentHTML('beforeend', `<div class="dw-project-segment" data-segment-index="${index}" style="padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:12px;font-weight:700;color:var(--text)"><span>Project Type &amp; Workstream ${index + 1}</span><button type="button" class="dw-remove-segment btn btn-ghost btn-sm" aria-label="Remove project type" title="Remove project type">${I('trash')}</button></div>
+            <div class="form-grid"><div class="form-row"><label>Project Type</label><select class="dw-segment-type"><option value="" selected>Select project type</option>${(D.types || []).map(t => `<option value="${PDMS.esc(t)}">${PDMS.esc(t)}</option>`).join('')}</select></div><div class="form-row"><label>Workstream</label><input class="dw-segment-workstream" placeholder="e.g. QMS, FSMS, ISO, IT..." /></div><div class="form-row"><label>Start Date</label><input class="dw-segment-start" type="date" /></div><div class="form-row"><label>Planned Completion</label><input class="dw-segment-due" type="date" /></div><div class="form-row" style="grid-column:1/-1"><label>Actual Completion</label><input class="dw-segment-actual" type="date" /></div></div>
+          </div>`);
+        };
+        segmentsContainer.onclick = event => {
+          const removeButton = event.target.closest('.dw-remove-segment');
+          if (removeButton) removeButton.closest('.dw-project-segment').remove();
+        };
 
         const goBackToStep2 = () => {
-          const typeInput = modalRef.querySelector('#dwProjType');
-          const deptInput = modalRef.querySelector('#dwProjDept');
           const statusInput = modalRef.querySelector('#dwProjStatus');
-          const startInput = modalRef.querySelector('#dwProjStart');
-          const dueInput = modalRef.querySelector('#dwProjDue');
-          const actualInput = modalRef.querySelector('#dwProjActual');
           const descInput = modalRef.querySelector('#dwProjDesc');
-          if (typeInput) wizardState.projForm.type = typeInput.value.trim();
-          if (deptInput) wizardState.projForm.workstream = deptInput.value.trim();
+          const segments = Array.from(segmentsContainer.querySelectorAll('.dw-project-segment')).map(row => ({
+            type: row.querySelector('.dw-segment-type').value,
+            workstream: row.querySelector('.dw-segment-workstream').value.trim(),
+            start: row.querySelector('.dw-segment-start').value,
+            due: row.querySelector('.dw-segment-due').value,
+            actualCompletion: row.querySelector('.dw-segment-actual').value
+          }));
+          wizardState.projForm.segments = segments;
+          wizardState.projForm.type = segments[0] ? segments[0].type : '';
+          wizardState.projForm.workstream = segments[0] ? segments[0].workstream : '';
           if (statusInput) wizardState.projForm.status = statusInput.value;
-          if (startInput) wizardState.projForm.start = startInput.value;
-          if (dueInput) wizardState.projForm.due = dueInput.value;
-          if (actualInput) wizardState.projForm.actualCompletion = actualInput.value;
+          if (segments[0]) {
+            wizardState.projForm.start = segments[0].start;
+            wizardState.projForm.due = segments[0].due;
+            wizardState.projForm.actualCompletion = segments[0].actualCompletion;
+          }
           if (descInput) wizardState.projForm.desc = descInput.value.trim();
 
           wizardState.step = 2;
@@ -2175,7 +2251,7 @@
           renderModal();
         };
 
-        const typeInput = modalRef.querySelector('#dwProjType');
+        const typeInput = segmentsContainer.querySelector('.dw-segment-type');
         const statusInput = modalRef.querySelector('#dwProjStatus');
         if (typeInput && statusInput) {
           typeInput.onchange = () => {
@@ -2195,12 +2271,25 @@
             renderModal();
             return;
           }
-          const type = modalRef.querySelector('#dwProjType').value.trim();
-          const workstream = modalRef.querySelector('#dwProjDept').value.trim();
+          const projectSegments = Array.from(segmentsContainer.querySelectorAll('.dw-project-segment')).map(row => ({
+            type: row.querySelector('.dw-segment-type').value.trim(),
+            workstream: row.querySelector('.dw-segment-workstream').value.trim(),
+            start: row.querySelector('.dw-segment-start').value,
+            due: row.querySelector('.dw-segment-due').value,
+            actualCompletion: row.querySelector('.dw-segment-actual').value
+          }));
+          if (!projectSegments.length || projectSegments.some(segment => !segment.type)) {
+            PDMS.toast('Required', 'Select a project type for each group or remove any empty groups.', 'error');
+            return;
+          }
+          const firstSegment = projectSegments[0];
+          wizardState.projForm.segments = projectSegments;
+          const type = firstSegment.type;
+          const workstream = firstSegment.workstream;
           const status = modalRef.querySelector('#dwProjStatus').value;
-          const start = modalRef.querySelector('#dwProjStart').value;
-          const due = modalRef.querySelector('#dwProjDue').value;
-          const actualCompletion = modalRef.querySelector('#dwProjActual').value;
+          const start = firstSegment.start;
+          const due = firstSegment.due;
+          const actualCompletion = firstSegment.actualCompletion;
           const desc = modalRef.querySelector('#dwProjDesc').value.trim();
 
           const btn = this;
@@ -2210,7 +2299,7 @@
           const clientStatus = wizardState.clientMode === 'new' ? (isPrior ? 'New Client (Worked with before)' : 'New Client') : 'Existing Client';
 
           const record = {
-            name: client, client, type, workstream, dept: workstream,
+            name: client, client, type, workstream, dept: workstream, projectSegments,
             sales: '', pm: '', lead: '', consultants: [],
             status, stage: 'Delivery', deliveryStatus: status,
             createdByRole: (currentUser && currentUser.role) || 'HTD',
@@ -2728,6 +2817,236 @@
     }
 
     triggerDownload(url, filename);
+  };
+
+  PDMS.customDropdown = function (config) {
+    const {
+      container,
+      id,
+      name,
+      options = [],
+      value = '',
+      placeholder = 'Select an option...',
+      isSmall = false,
+      onChange = null
+    } = config || {};
+
+    function normalizeOptions(list) {
+      return (list || []).map(o => {
+        if (o === null || o === undefined) return { value: '', label: '' };
+        if (typeof o === 'object') {
+          return {
+            value: String(o.value ?? ''),
+            label: String(o.label ?? o.name ?? o.value ?? ''),
+            subtext: o.subtext || '',
+            meta: o.meta || o
+          };
+        }
+        return { value: String(o), label: String(o), meta: null };
+      });
+    }
+
+    let opts = normalizeOptions(options);
+    let curVal = value !== undefined && value !== null && value !== '' ? String(value) : (opts[0] ? opts[0].value : '');
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'c-dropdown' + (isSmall ? ' c-dropdown-sm' : '');
+    if (id) wrapper.id = `${id}_c_dropdown`;
+
+    const hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    if (id) hiddenInput.id = id;
+    if (name || id) hiddenInput.name = name || id;
+    hiddenInput.value = curVal;
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'c-dropdown-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'c-dropdown-label';
+
+    const chevronSpan = document.createElement('span');
+    chevronSpan.className = 'c-dropdown-chevron';
+    chevronSpan.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+
+    trigger.appendChild(labelSpan);
+    trigger.appendChild(chevronSpan);
+
+    const menu = document.createElement('div');
+    menu.className = 'c-dropdown-menu';
+    menu.setAttribute('role', 'listbox');
+
+    wrapper.appendChild(hiddenInput);
+    wrapper.appendChild(trigger);
+    wrapper.appendChild(menu);
+
+    function renderMenu() {
+      menu.innerHTML = '';
+      if (!opts.length) {
+        menu.innerHTML = '<div class="c-dropdown-empty" style="padding:10px 12px;text-align:center;color:var(--text-soft);font-size:12.5px">No options available</div>';
+        return;
+      }
+      opts.forEach(opt => {
+        const itemEl = document.createElement('div');
+        const isSel = String(opt.value) === String(curVal);
+        itemEl.className = 'c-dropdown-item' + (isSel ? ' selected' : '');
+        itemEl.setAttribute('role', 'option');
+        itemEl.setAttribute('aria-selected', isSel ? 'true' : 'false');
+        itemEl.dataset.value = opt.value;
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'c-dropdown-item-text';
+        textSpan.textContent = opt.label;
+
+        if (opt.subtext) {
+          const sub = document.createElement('span');
+          sub.className = 'c-dropdown-item-sub';
+          sub.textContent = opt.subtext;
+          textSpan.appendChild(sub);
+        }
+
+        const checkSpan = document.createElement('span');
+        checkSpan.className = 'c-dropdown-item-check';
+        checkSpan.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+        itemEl.appendChild(textSpan);
+        itemEl.appendChild(checkSpan);
+
+        itemEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectValue(opt.value, true);
+          close();
+        });
+
+        menu.appendChild(itemEl);
+      });
+    }
+
+    function updateTriggerLabel() {
+      const matched = opts.find(o => String(o.value) === String(curVal));
+      if (matched && matched.label) {
+        labelSpan.textContent = matched.label;
+        labelSpan.classList.remove('placeholder');
+      } else if (placeholder) {
+        labelSpan.textContent = placeholder;
+        labelSpan.classList.add('placeholder');
+      } else {
+        labelSpan.textContent = '';
+      }
+    }
+
+    function selectValue(newVal, triggerCallback = false) {
+      curVal = String(newVal);
+      hiddenInput.value = curVal;
+      updateTriggerLabel();
+
+      menu.querySelectorAll('.c-dropdown-item').forEach(it => {
+        const isSel = String(it.dataset.value) === String(curVal);
+        it.classList.toggle('selected', isSel);
+        it.setAttribute('aria-selected', isSel ? 'true' : 'false');
+      });
+
+      if (triggerCallback && typeof onChange === 'function') {
+        const matched = opts.find(o => String(o.value) === String(curVal));
+        onChange(curVal, matched, api);
+      }
+      hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function open() {
+      document.querySelectorAll('.c-dropdown.open').forEach(d => {
+        if (d !== wrapper) d.classList.remove('open');
+      });
+
+      wrapper.classList.add('open');
+      trigger.setAttribute('aria-expanded', 'true');
+
+      const rect = trigger.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 230 && rect.top > 230) {
+        wrapper.classList.add('drop-up');
+      } else {
+        wrapper.classList.remove('drop-up');
+      }
+
+      const sel = menu.querySelector('.c-dropdown-item.selected');
+      if (sel) {
+        sel.scrollIntoView({ block: 'nearest' });
+      }
+    }
+
+    function close() {
+      wrapper.classList.remove('open');
+      trigger.setAttribute('aria-expanded', 'false');
+    }
+
+    function toggle() {
+      if (wrapper.classList.contains('open')) {
+        close();
+      } else {
+        open();
+      }
+    }
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggle();
+    });
+
+    const onDocClick = (e) => {
+      if (!wrapper.contains(e.target)) {
+        close();
+      }
+    };
+    document.addEventListener('click', onDocClick);
+
+    const observer = new MutationObserver(() => {
+      if (!document.body.contains(wrapper)) {
+        document.removeEventListener('click', onDocClick);
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    renderMenu();
+    updateTriggerLabel();
+
+    if (container) {
+      container.innerHTML = '';
+      container.appendChild(wrapper);
+    }
+
+    const api = {
+      wrapper,
+      hiddenInput,
+      trigger,
+      menu,
+      getValue: () => curVal,
+      getSelectedOption: () => opts.find(o => String(o.value) === String(curVal)),
+      setValue: (val, triggerCb = false) => selectValue(val, triggerCb),
+      setOptions: (newOptions, newSelectedVal, triggerCb = false) => {
+        opts = normalizeOptions(newOptions);
+        if (newSelectedVal !== undefined) {
+          curVal = String(newSelectedVal);
+        } else if (!opts.find(o => String(o.value) === String(curVal))) {
+          curVal = opts[0] ? opts[0].value : '';
+        }
+        hiddenInput.value = curVal;
+        renderMenu();
+        updateTriggerLabel();
+        if (triggerCb && typeof onChange === 'function') {
+          const matched = opts.find(o => String(o.value) === String(curVal));
+          onChange(curVal, matched, api);
+        }
+      },
+      open,
+      close
+    };
+
+    return api;
   };
 
   PDMS.togglePasswordVisibility = function (inputId, btnEl) {
