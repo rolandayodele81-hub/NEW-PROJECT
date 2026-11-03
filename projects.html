@@ -3,14 +3,14 @@
 <title>Projects — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1792511184"/>
+<link rel="stylesheet" href="css/style.css?v=1793649402"/>
 <style>
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .sh-pending-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 2s infinite }
 .locked-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25); }
 </style>
 </head><body>
-<script src="js/bundle.js?v=1792511184"></script>
+<script src="js/bundle.js?v=1793649402"></script>
 <script>
 // A hash (not a query string) survives any host's clean-URL rewriting untouched,
 // since it's never sent to the server — unlike ?view=, which some static hosts strip.
@@ -21,6 +21,9 @@ let initialStatusParam = hashParams.get('status') || searchParams.get('status') 
 let initialTypeParam = hashParams.get('type') || searchParams.get('type') || '';
 let initialFilterParam = hashParams.get('filter') || searchParams.get('filter') || '';
 let initialTaskFilterParam = hashParams.get('taskFilter') || searchParams.get('taskFilter') || '';
+let initialDateKeyParam = hashParams.get('dateKey') || searchParams.get('dateKey') || '';
+let initialDateFromParam = hashParams.get('dateFrom') || searchParams.get('dateFrom') || '';
+let initialDateToParam = hashParams.get('dateTo') || searchParams.get('dateTo') || '';
 
 window.addEventListener('hashchange', ()=>location.reload());
 
@@ -131,13 +134,13 @@ const statTiles = viewParam==='sales'
   : viewParam==='delivery'
   ? [
       {label:'Total', match:()=>true, filterStatus:null, color:'primary', icon:'folder'},
-      {label:'New Projects', filterStatus:'Not Started', match:p=>{
+      {label:'New Projects', filterStatus:'Kickoff', match:p=>{
         const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
-        return s === 'Not Started' || p.status === 'Not Started';
+        return s === 'Kickoff' || s === 'Not Started' || p.status === 'Kickoff' || p.status === 'Not Started';
       }, color:'info', icon:'clock'},
       {label:'Ongoing', filterStatus:'Ongoing', match:p=>{
         const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
-        return !!s && !['Not Started','Completed','Closure','Project Closure','Closed','On Hold','Cancelled'].includes(s);
+        return !!s && !['Kickoff','Not Started','Completed','Closure','Project Closure','Closed','On Hold','Cancelled'].includes(s);
       }, color:'success', icon:'activity'},
       {label:'On Hold', filterStatus:'On Hold', match:p=>{
         const s = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
@@ -235,6 +238,18 @@ content.innerHTML = `
   <div id="kanbanView" class="${defaultToTable ? 'hidden' : ''}"></div>
 `;
 
+function isClosedFilterActive() {
+  const isClosedF = f => f && ['closed', 'closure', 'project closure', 'completed'].includes(String(f).toLowerCase());
+  if (isClosedF(currentStatusFilter)) return true;
+  if (selectedTileIndex !== null && statTiles[selectedTileIndex]) {
+    const tile = statTiles[selectedTileIndex];
+    if (tile.label === 'Closed' || tile.label === 'Completed' || tile.label === 'Closed Deals' || tile.label === 'Tasks Completed') return true;
+    if (tile.filterStatus && isClosedF(tile.filterStatus)) return true;
+  }
+  return false;
+}
+let currentDateFilterKey = initialDateKeyParam || '';
+
 const canSee = PDMS.canSeePrice && PDMS.canSeePrice(currentUser);
 function projectSegmentsFor(project) {
   return Array.isArray(project.projectSegments) && project.projectSegments.length
@@ -246,19 +261,39 @@ function projectSegmentCell(project, field, label) {
     ? project.projectSegments
     : projectSegmentsFor(project);
   const formatType = type => PDMS.formatType ? PDMS.formatType(type) : (type || '\u2014');
+  const isProjClosed = PDMS.isClosedProject ? PDMS.isClosedProject(project) : ['completed','closed','closure','project closure'].includes(String(project.status||'').toLowerCase());
+
   const valueFor = (segment, index) => {
     if (field === 'type') return formatType(segment.type);
+    if (field === 'due') {
+      if (isProjClosed) {
+        const actual = (segment && segment.actualCompletion) || (index === 0 ? (project.actualCompletion || project.completion) : '') || '';
+        return actual || (segment && segment.due) || (index === 0 ? project.due : '') || '\u2014';
+      }
+      return (segment && segment.due) || (index === 0 ? project.due : '') || '\u2014';
+    }
     const value = segment[field] || (field === 'workstream' ? segment.dept : '');
     if (value) return value;
     if (index === 0) return field === 'workstream' ? (project.workstream || project.dept || '\u2014') : (project[field] || (field === 'start' ? project.startDate : '') || '\u2014');
     return '\u2014';
   };
   const additional = segments.slice(1);
-  return `<span class="text-sm${field === 'type' ? '' : ' text-muted'}">${PDMS.esc(valueFor(segments[0], 0))}</span>${additional.length ? `
+  const firstVal = valueFor(segments[0], 0);
+  const hasActualDate = field === 'due' && isProjClosed && firstVal !== '\u2014';
+
+  const mainDisplay = hasActualDate
+    ? `<span class="text-sm font-medium" style="color:var(--text)" title="Actual Completion Date: ${PDMS.esc(firstVal)}"><span style="color:var(--success,#10b981);font-weight:700;margin-right:3px">✓</span>${PDMS.esc(firstVal)}</span>`
+    : `<span class="text-sm${field === 'type' ? '' : ' text-muted'}" title="${field === 'due' ? 'Planned Completion Date: ' + PDMS.esc(firstVal) : ''}">${PDMS.esc(firstVal)}</span>`;
+
+  return `${mainDisplay}${additional.length ? `
     <details class="project-type-details" onclick="event.stopPropagation()" style="margin-top:5px">
       <summary style="width:max-content;max-width:100%;cursor:pointer;color:var(--primary);font-size:11px;font-weight:600">+${additional.length} more ${label.toLowerCase()}${additional.length > 1 ? ' values' : ''}</summary>
       <div style="margin-top:7px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);min-width:170px;max-width:320px">
-        ${additional.map((segment, index) => `<div style="padding:8px 0;border-top:1px solid var(--border)"><div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px">${PDMS.esc(formatType(segment.type))}</div>${field === 'type' ? '' : `<div class="text-sm text-muted">${PDMS.esc(valueFor(segment, index + 1))}</div>`}</div>`).join('')}
+        ${additional.map((segment, index) => {
+          const segVal = valueFor(segment, index + 1);
+          const hasSubActual = field === 'due' && isProjClosed && segVal !== '\u2014';
+          return `<div style="padding:8px 0;border-top:1px solid var(--border)"><div style="font-size:10px;font-weight:700;color:var(--text-soft);margin-bottom:3px">${PDMS.esc(formatType(segment.type))}</div>${field === 'type' ? '' : `<div class="text-sm text-muted">${hasSubActual ? '<span style="color:var(--success,#10b981);font-weight:700;margin-right:3px">✓</span>' : ''}${PDMS.esc(segVal)}</div>`}</div>`;
+        }).join('')}
       </div>
     </details>` : ''}`;
 }
@@ -290,30 +325,44 @@ function projectStatusCell(project, isDelivery) {
   if (!additional.length) return badgeHtml;
   const statuses = additional.map(segment => {
     const typeSequence = isDelivery && PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(segment.type) : [];
-    const segmentStatus = segment.status || segment.deliveryStatus || (isDelivery ? (typeSequence[0] || 'Not Started') : (displayStatus || '\u2014'));
+    const segmentStatus = segment.status || segment.deliveryStatus || (isDelivery ? (typeSequence[0] || 'Kickoff') : (displayStatus || '\u2014'));
     const color = D.statusColors[segmentStatus] || 'muted';
     return `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--border)"><span style="font-size:11px;font-weight:600;color:var(--text)">${PDMS.esc(PDMS.formatType ? PDMS.formatType(segment.type) : (segment.type || 'Project type'))}</span><span class="badge badge-${color}">${PDMS.esc(segmentStatus)}</span></div>`;
   }).join('');
   return `${badgeHtml}<details class="project-type-details" onclick="event.stopPropagation()" style="margin-top:5px"><summary style="width:max-content;max-width:100%;cursor:pointer;color:var(--primary);font-size:11px;font-weight:600">+${additional.length} more ${additional.length === 1 ? 'status' : 'statuses'}</summary><div style="margin-top:7px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);min-width:210px;max-width:340px">${statuses}</div></details>`;
 }
-const columns = viewParam === 'sales' ? [
-  {key:'client',label:'Client',render:r=>`<div class="font-semi project-client-name" title="${PDMS.esc(r.client||r.name||'\u2014')}" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(r.id)}</div>`},
-  {key:'type',label:'Project Type',render:r=>projectSegmentCell(r,'type','Project Type')},
-  {key:'workstream',label:'Workstream',exportValue:r=>r.workstream||r.dept||'',render:r=>projectSegmentCell(r,'workstream','Workstream')},
-  ...(canSee ? [
-    {key:'opportunityValue',label:'Opportunity Value',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.opportunityValue || r.negotiatedPrice)) && Number(r.opportunityValue || r.negotiatedPrice) > 0 ? PDMS.currency(r.opportunityValue || r.negotiatedPrice, r.currency) : '\u2014'}</span>`},
-    {key:'awardValue',label:'Award Value (excl. VAT)',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : ''))) && Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : '')) > 0 ? PDMS.currency(r.awardValue || r.negotiatedPrice, r.currency) : '\u2014'}</span>`}
-  ] : []),
-  {key:'sales',label:'Deal Owner',render:r=>`<span class="text-sm text-muted font-semi">${PDMS.esc(r.projectOwnerName||(r.sales&&r.sales!=='Sales Team'?r.sales:'')||r.sales||'\u2014')}</span>`},
-  {key:'status',label:'Status',render:r=>projectStatusCell(r,false)}
-] : [
-  {key:'client',label:'Client',render:r=>`<div class="font-semi project-client-name" title="${PDMS.esc(r.client||r.name||'\u2014')}" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div>`},
-  {key:'type',label:'Project Type',render:r=>projectSegmentCell(r,'type','Project Type')},
-  {key:'workstream',label:'Workstream',exportValue:r=>r.workstream||r.dept||'',render:r=>projectSegmentCell(r,'workstream','Workstream')},
-  {key:'status',label:'Status',render:r=>projectStatusCell(r,viewParam === 'delivery')},
-  {key:'start',label:'Start Date',render:r=>projectSegmentCell(r,'start','Start Date')},
-  {key:'due',label:'Due',render:r=>projectSegmentCell(r,'due','Due')}
-];
+
+function getColumns(closedActive) {
+  const dateColLabel = closedActive ? 'Actual Completion Date' : 'Planned Completion Date';
+  return viewParam === 'sales' ? [
+    {key:'client',label:'Client',render:r=>`<div class="font-semi project-client-name" title="${PDMS.esc(r.client||r.name||'\u2014')}" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div><div style="font-size:11px;color:var(--text-soft)">${PDMS.esc(r.id)}</div>`},
+    {key:'type',label:'Project Type',render:r=>projectSegmentCell(r,'type','Project Type')},
+    {key:'workstream',label:'Workstream',exportValue:r=>r.workstream||r.dept||'',render:r=>projectSegmentCell(r,'workstream','Workstream')},
+    ...(canSee ? [
+      {key:'opportunityValue',label:'Opportunity Value',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.opportunityValue || r.negotiatedPrice)) && Number(r.opportunityValue || r.negotiatedPrice) > 0 ? PDMS.currency(r.opportunityValue || r.negotiatedPrice, r.currency) : '\u2014'}</span>`},
+      {key:'awardValue',label:'Award Value (excl. VAT)',render:r=>`<span class="font-semi" style="color:var(--text)">${Number.isFinite(Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : ''))) && Number(r.awardValue || (r.stage === 'Delivery' ? r.negotiatedPrice : '')) > 0 ? PDMS.currency(r.awardValue || r.negotiatedPrice, r.currency) : '\u2014'}</span>`}
+    ] : []),
+    {key:'sales',label:'Deal Owner',render:r=>`<span class="text-sm text-muted font-semi">${PDMS.esc(r.projectOwnerName||(r.sales&&r.sales!=='Sales Team'?r.sales:'')||r.sales||'\u2014')}</span>`},
+    {key:'status',label:'Status',render:r=>projectStatusCell(r,false)}
+  ] : [
+    {key:'client',label:'Client',render:r=>`<div class="font-semi project-client-name" title="${PDMS.esc(r.client||r.name||'\u2014')}" style="color:var(--primary)">${PDMS.esc(r.client||r.name||'\u2014')}</div>`},
+    {key:'type',label:'Project Type',render:r=>projectSegmentCell(r,'type','Project Type')},
+    {key:'workstream',label:'Workstream',exportValue:r=>r.workstream||r.dept||'',render:r=>projectSegmentCell(r,'workstream','Workstream')},
+    {key:'status',label:'Status',render:r=>projectStatusCell(r,viewParam === 'delivery')},
+    {key:'start',label:'Start Date',render:r=>projectSegmentCell(r,'start','Start Date')},
+    {
+      key: closedActive ? 'actualCompletion' : 'due',
+      label: dateColLabel,
+      exportValue: r => {
+        if (PDMS.isClosedProject && PDMS.isClosedProject(r)) {
+          return (PDMS.getActualCompletionDate ? PDMS.getActualCompletionDate(r) : (r.actualCompletion || r.completion)) || r.due || '';
+        }
+        return r.due || (PDMS.getActualCompletionDate ? PDMS.getActualCompletionDate(r) : '') || '';
+      },
+      render: r => projectSegmentCell(r, 'due', dateColLabel)
+    }
+  ];
+}
 
 function selectStatTile(i) {
   if (selectedTileIndex === i || i === 0) {
@@ -358,23 +407,42 @@ function renderProjects(){
   const rows = scopedProjects();
   renderStats(rows);
 
+  const closedActive = isClosedFilterActive();
+  const columns = getColumns(closedActive);
+
   PDMS.renderTable(document.getElementById('listView'),{
     columns, rows,
     isDeliveryTable: viewParam === 'delivery',
     noHorizontalScroll: viewParam === 'delivery',
     defaultSortKey: viewParam === 'delivery' ? 'client' : null,
     defaultSortDir: 1,
+    searchPlaceholder: 'Search projects…',
     searchKeys:['id','client','pm','status','type','workstream','dept'],
     filters: {
       ...(currentStatusFilter ? { status: currentStatusFilter } : {}),
       ...(currentTypeFilter ? { type: currentTypeFilter } : {})
     },
     customFilter: currentCustomFilter,
+    dateFrom: initialDateFromParam,
+    dateTo: initialDateToParam,
+    dateKey: currentDateFilterKey,
+    dateFilter: {
+      key: currentDateFilterKey,
+      label: 'Date Range',
+      options: [
+        { key: 'due', label: 'Planned Completion Date' },
+        { key: 'actualCompletion', label: 'Actual Completion Date' },
+        { key: 'start', label: 'Start Date' }
+      ]
+    },
+    onDateKeyChange: (newKey) => {
+      currentDateFilterKey = newKey;
+    },
     onFilterChange: (newFilters) => {
       currentStatusFilter = newFilters.status || '';
       currentTypeFilter = newFilters.type || '';
       currentCustomFilter = null;
-      const isClosedF = f => f && (f.toLowerCase() === 'closed' || f.toLowerCase() === 'closure' || f.toLowerCase() === 'project closure');
+      const isClosedF = f => f && (f.toLowerCase() === 'closed' || f.toLowerCase() === 'closure' || f.toLowerCase() === 'project closure' || f.toLowerCase() === 'completed');
       const matchedIdx = statTiles.findIndex((t, idx) => idx > 0 && t.filterStatus && (
         t.filterStatus.toLowerCase() === currentStatusFilter.toLowerCase() ||
         (isClosedF(t.filterStatus) && isClosedF(currentStatusFilter))
@@ -386,8 +454,7 @@ function renderProjects(){
     filterOptions:[
       {key:'status',label:'Status',options:bucketStatuses},
       {key:'type',label:'Project Type',options:D.types||[]}
-    ],
-    dateFilter: (viewParam==='sales' || viewParam==='delivery') ? { key:'start', label:'Start date' } : null
+    ]
   });
 
   document.getElementById('kanbanView').innerHTML = `<div class="kanban">${kanbanStatuses.map(s=>{
@@ -400,7 +467,7 @@ function renderProjects(){
           if (p.status === 'Awaiting Sales Head Approval' || p.status === 'Awaiting Account Approval' || p.status === 'Closed' || p.stage === 'Delivery' || p.status === 'Cancelled' || p.status === 'On Hold') return false;
         } else if (currentStatusFilter === 'Ongoing') {
           const dS = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
-          if (!dS || ['Not Started','Completed','Closure','Project Closure','Closed','On Hold','Cancelled'].includes(dS)) return false;
+          if (!dS || ['Kickoff','Not Started','Completed','Closure','Project Closure','Closed','On Hold','Cancelled'].includes(dS)) return false;
         } else if (currentStatusFilter === 'Completed') {
           const dS = PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
           if (dS !== 'Completed') return false;
@@ -453,9 +520,18 @@ function renderProjects(){
         } else {
           badgeHtml = `<span class="badge badge-${D.statusColors[p.status]||'muted'}">${PDMS.esc(p.status)}</span>`;
         }
+        const isClosedProj = PDMS.isClosedProject ? PDMS.isClosedProject(p) : ['completed','closed','closure','project closure'].includes(String(p.status||'').toLowerCase());
+        const actualDate = PDMS.getActualCompletionDate ? PDMS.getActualCompletionDate(p) : (p.actualCompletion || p.completion || '');
+        const dueDate = p.due || '—';
+        const cardDate = isClosedProj ? (actualDate || dueDate || '—') : dueDate;
+        const cardDateTitle = isClosedProj ? `Actual Completion Date: ${cardDate}` : `Planned Completion Date: ${cardDate}`;
+        const cardDateHtml = isClosedProj && cardDate !== '—'
+          ? `<span title="${PDMS.esc(cardDateTitle)}" style="color:var(--success,#10b981);font-weight:600"><span style="margin-right:2px">✓</span>${PDMS.esc(cardDate)}</span>`
+          : `<span title="${PDMS.esc(cardDateTitle)}">${PDMS.esc(cardDate)}</span>`;
+
         return `<div class="kb-card" draggable="true" data-id="${p.id}" ondragstart="handleKbDragStart(event, '${p.id}')" ondragend="handleKbDragEnd(event)" onclick="handleKbCardClick(event, '${p.id}')" title="Drag to change status, or click to view details">
         <div class="t">${PDMS.esc(p.client||p.name||'—')}</div>
-        <div class="m"><span class="text-muted" style="font-size:11px">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type||'—'))}</span><span>${p.due||'—'}</span></div>
+        <div class="m"><span class="text-muted" style="font-size:11px">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type||'—'))}</span>${cardDateHtml}</div>
         <div class="mt-2">${badgeHtml}</div>
       </div>`;
       }).join('')}
@@ -567,11 +643,11 @@ function handleKbDrop(e, targetStatus) {
 
     ${isClosureStage ? `
       <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--text)">
-        ✓ This will mark the project as <strong>Completed</strong> (${PDMS.esc(targetStatus)}). No stage target due date is required.
+        ✓ This will mark the project as <strong>Completed</strong> (${PDMS.esc(targetStatus)}). No stage target planned completion date is required.
       </div>
     ` : `
       <div class="form-row">
-        <label>Stage Target Due Date</label>
+        <label>Stage Planned Completion Date</label>
         <input type="date" id="kbStageDueDate" value="${PDMS.esc(currentDueDate)}" style="width:100%" />
       </div>
     `}

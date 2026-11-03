@@ -7,7 +7,7 @@
   <title>HR Dashboard — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1792511184"/>
+<link rel="stylesheet" href="css/style.css?v=1793649402"/>
   <style>
     .hr-hero {
       display: grid;
@@ -75,7 +75,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1792511184"></script>
+  <script src="js/bundle.js?v=1793649402"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -217,8 +217,11 @@
             <div class="text-sm text-muted mb-1">Client: ${PDMS.esc(p.client || 'TBD')}</div>
             <div class="text-sm text-muted mb-1">Workstream: ${PDMS.esc(p.workstream||p.dept||'—')}</div>
             <div class="text-sm text-muted">Start Date: ${p.start || 'TBD'}</div>
-            <div class="text-sm text-muted">Planned Completion: ${p.due || 'TBD'}</div>
-            <div class="text-sm text-muted mb-3">Actual Completion: ${p.actualCompletion || '—'}</div>
+            ${(PDMS.isClosedProject ? PDMS.isClosedProject(p) : ['Completed','Closed','Closure','Project Closure'].includes(p.status)) ? `
+            <div class="text-sm font-semi mb-3" style="color:var(--success)"><span style="margin-right:2px">✓</span>Actual Completion: ${PDMS.getActualCompletionDate ? PDMS.getActualCompletionDate(p) : (p.actualCompletion || p.completion || '—')}</div>
+            ` : `
+            <div class="text-sm text-muted mb-3">Planned Completion: ${p.due || 'TBD'}</div>
+            `}
             <a href="project-details.html#id=${p.id}" class="text-sm font-semi" style="color:var(--primary)">View Details →</a>
           </div>
         </div>`).join('') || `<div class="text-muted" style="padding:24px;text-align:center;grid-column:1/-1">${PDMS.emptyOrLoading('No projects in delivery yet')}</div>`}

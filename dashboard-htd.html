@@ -7,7 +7,7 @@
   <title>Delivery Dashboard — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1792511184" />
+  <link rel="stylesheet" href="css/style.css?v=1793649402" />
   <style>
     .htd-hero {
       display: grid;
@@ -263,7 +263,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1792511184"></script>
+  <script src="js/bundle.js?v=1793649402"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -293,13 +293,13 @@
         })
         : allDelivery;
       const deliveryProjects = PDMS.sortNewestFirst ? PDMS.sortNewestFirst(rawDelivery.slice()) : rawDelivery;
-      const getDeliveryStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status || 'Not Started');
+      const getDeliveryStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status || 'Kickoff');
 
       const isClosedStatus = st => ['Closure', 'Project Closure'].includes(st);
-      const isOngoingStatus = st => st && st !== 'Not Started' && st !== 'Completed' && !isClosedStatus(st) && st !== 'On Hold' && st !== 'Cancelled';
+      const isOngoingStatus = st => st && st !== 'Kickoff' && st !== 'Not Started' && st !== 'Completed' && !isClosedStatus(st) && st !== 'On Hold' && st !== 'Cancelled';
 
       const activeProjects = deliveryProjects.length;
-      const notStartedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Not Started').length;
+      const notStartedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Kickoff' || getDeliveryStatus(p) === 'Not Started').length;
       const ongoingProjects = deliveryProjects.filter(p => isOngoingStatus(getDeliveryStatus(p))).length;
       const onHoldProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'On Hold').length;
       const completedProjects = deliveryProjects.filter(p => getDeliveryStatus(p) === 'Completed').length;
@@ -345,7 +345,7 @@
       <div class="delta up">All delivery projects</div>
       <div class="icon-wrap">${I('folder')}</div>
     </a>
-    <a class="stat i-info" href="projects.html#view=delivery&status=Not Started" style="background:var(--surface)" title="Filter new / not started delivery projects">
+    <a class="stat i-info" href="projects.html#view=delivery&status=Kickoff" style="background:var(--surface)" title="Filter new / kickoff delivery projects">
       <div class="label">New Projects</div>
       <div class="value" style="color:#0284c7">${notStartedProjects}</div>
       <div class="delta" style="color:#0284c7">Awaiting kickoff</div>
@@ -403,7 +403,7 @@
       </div>
       <div class="card-body" style="padding:14px 18px 20px;flex:1;max-height:480px;overflow-y:auto">
         ${(() => {
-          const sc = { 'Not Started':'#0ea5e9','Gap Assessment':'#0ea5e9','Risk Assessment':'#f59e0b','Design & Documentation/Implementation':'#8b5cf6','Management System Design & Documentation/Implementation':'#8b5cf6','VAPT':'#8b5cf6','Training & Awareness':'#6366f1','Internal Audit & Management Review':'#06b6d4','Remediation & Certification Readiness':'#f59e0b','Certification Audit':'#8b5cf6','Certification & Post Engagement':'#6366f1','Certification & Post engagement':'#6366f1','Post Engagement':'#6366f1','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Training':'#6366f1','Awareness':'#6366f1','Awareness & VAPT':'#8b5cf6','Testing':'#8b5cf6','Implementation':'#8b5cf6','Internal Testing':'#0ea5e9','Penetration Testing':'#8b5cf6','Report Submission':'#6366f1','Review':'#f59e0b','Requirements Gathering':'#0ea5e9','Configuration & Design':'#6366f1','Data Preparation & Migration':'#8b5cf6','Integration':'#6366f1','User Acceptance Testing (UAT)':'#f59e0b','Go-Live':'#10b981','Previous Findings Closure':'#0ea5e9','Management Review':'#8b5cf6','Readiness Assessment':'#0ea5e9','Remediation':'#f59e0b','Surveillance Audit':'#8b5cf6','Assess':'#0ea5e9','Target State':'#6366f1','GAP':'#f59e0b','Roadmap':'#06b6d4','Tailor/Design':'#8b5cf6','Implement':'#8b5cf6','Capability Building':'#6366f1','Post-Implementation Assess':'#0ea5e9','Institutionalise':'#10b981','Institutionalize':'#10b981','Strategy':'#6366f1','Governance':'#8b5cf6','Design':'#8b5cf6','Select/Contract':'#f59e0b','Transition':'#0ea5e9','Operate':'#6366f1','Monitor':'#06b6d4','Improve':'#10b981' };
+          const sc = { 'Kickoff':'#0ea5e9','Kick-off':'#0ea5e9','Not Started':'#0ea5e9','Gap Assessment':'#0ea5e9','Risk Assessment':'#f59e0b','Design & Documentation/Implementation':'#8b5cf6','Management System Design & Documentation/Implementation':'#8b5cf6','VAPT':'#8b5cf6','Training & Awareness':'#6366f1','Internal Audit & Management Review':'#06b6d4','Remediation & Certification Readiness':'#f59e0b','Certification Audit':'#8b5cf6','Certification & Post Engagement':'#6366f1','Certification & Post engagement':'#6366f1','Post Engagement':'#6366f1','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Training':'#6366f1','Awareness':'#6366f1','Awareness & VAPT':'#8b5cf6','Testing':'#8b5cf6','Implementation':'#8b5cf6','Internal Testing':'#0ea5e9','Penetration Testing':'#8b5cf6','Report Submission':'#6366f1','Review':'#f59e0b','Requirements Gathering':'#0ea5e9','Configuration & Design':'#6366f1','Data Preparation & Migration':'#8b5cf6','Integration':'#6366f1','User Acceptance Testing (UAT)':'#f59e0b','Go-Live':'#10b981','Previous Findings Closure':'#0ea5e9','Management Review':'#8b5cf6','Readiness Assessment':'#0ea5e9','Remediation':'#f59e0b','Surveillance Audit':'#8b5cf6','Assess':'#0ea5e9','Target State':'#6366f1','GAP':'#f59e0b','Roadmap':'#06b6d4','Tailor/Design':'#8b5cf6','Implement':'#8b5cf6','Capability Building':'#6366f1','Post-Implementation Assess':'#0ea5e9','Institutionalise':'#10b981','Institutionalize':'#10b981','Strategy':'#6366f1','Governance':'#8b5cf6','Design':'#8b5cf6','Select/Contract':'#f59e0b','Transition':'#0ea5e9','Operate':'#6366f1','Monitor':'#06b6d4','Improve':'#10b981' };
 
           const typeColors = {
             'ISO Management System': '#0284c7',
@@ -420,7 +420,7 @@
             'General': '#64748b'
           };
 
-          const isExcludedStatus = st => ['Not Started', 'Closure', 'Project Closure', 'Closed', 'On Hold', 'Completed', 'Cancelled'].includes(st);
+          const isExcludedStatus = st => ['Kickoff', 'Not Started', 'Closure', 'Project Closure', 'Closed', 'On Hold', 'Completed', 'Cancelled'].includes(st);
 
           const normType = t => {
             const s = String(t || '').trim();
@@ -707,7 +707,7 @@
     <div class="card-body" style="padding:0">
       <div style="overflow-x:auto">
         <table class="data">
-          <thead><tr><th>Client</th><th>Project Type</th><th>Workstream</th><th>Status</th><th>Start Date</th><th>Due Date</th></tr></thead>
+          <thead><tr><th>Client</th><th>Project Type</th><th>Workstream</th><th>Status</th><th>Start Date</th><th>Planned Completion Date</th></tr></thead>
           <tbody>
             ${(() => {
           const lp = ((window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects).filter(isDeliveryProject);

@@ -162,7 +162,11 @@
         }
 
         if (Array.isArray(tList) && tList.length >= 2) {
-          var cleanedStages = tList.map(function (s) { return s === 'Project Closure' ? 'Closure' : s; });
+          var cleanedStages = tList.map(function (s) {
+            if (s === 'Project Closure') return 'Closure';
+            if (s === 'Not Started' || s === 'not-started') return 'Kickoff';
+            return s;
+          });
           p.timelineStages = cleanedStages;
           p.timeline_stages = cleanedStages;
           if (p.milestones && typeof p.milestones === 'object' && !Array.isArray(p.milestones)) {
@@ -175,6 +179,21 @@
             delete p.milestones._timelineStages;
             delete p.milestones.timelineStages;
           }
+        }
+
+        if (p.status === 'Not Started' || p.status === 'not-started') {
+          p.status = 'Kickoff';
+        }
+        if (p.deliveryStatus === 'Not Started' || p.deliveryStatus === 'not-started') {
+          p.deliveryStatus = 'Kickoff';
+        }
+        if (Array.isArray(p.projectSegments)) {
+          p.projectSegments.forEach(function (seg) {
+            if (seg) {
+              if (seg.status === 'Not Started' || seg.status === 'not-started') seg.status = 'Kickoff';
+              if (seg.deliveryStatus === 'Not Started' || seg.deliveryStatus === 'not-started') seg.deliveryStatus = 'Kickoff';
+            }
+          });
         }
       });
     }
@@ -488,7 +507,7 @@
   const salesStatuses = [...salesJourney, 'On Hold', 'Cancelled'];
 
   const managementSystemStages = [
-    'Not Started',
+    'Kickoff',
     'Gap Assessment',
     'Risk Assessment',
     'Design & Documentation/Implementation',
@@ -503,7 +522,7 @@
   ];
 
   const frameworkAdoptionStages = [
-    'Not Started',
+    'Kickoff',
     'Assess',
     'Target State',
     'GAP',
@@ -518,7 +537,7 @@
   ];
 
   const outsourcingGovernanceStages = [
-    'Not Started',
+    'Kickoff',
     'Assess',
     'Strategy',
     'Governance',
@@ -533,7 +552,7 @@
   ];
 
   const vaptStages = [
-    'Not Started',
+    'Kickoff',
     'Gap Assessment',
     'Internal Testing',
     'Penetration Testing',
@@ -544,7 +563,7 @@
   ];
 
   const softwareAndAiStages = [
-    'Not Started',
+    'Kickoff',
     'Project Initiation & Business Case',
     'Requirements & Use-Case Definition',
     'Architecture & Solution Design',
@@ -561,7 +580,7 @@
   ];
 
   const erpStages = [
-    'Not Started',
+    'Kickoff',
     'Requirements Gathering',
     'Configuration & Design',
     'Data Preparation & Migration',
@@ -575,7 +594,7 @@
   ];
 
   const surveillanceStages = [
-    'Not Started',
+    'Kickoff',
     'Previous Findings Closure',
     'Awareness',
     'VAPT',
@@ -589,7 +608,7 @@
   ];
 
   const assessmentAuditStages = [
-    'Not Started',
+    'Kickoff',
     'Gap Assessment',
     'Risk Assessment',
     'Internal Audit',
@@ -673,6 +692,8 @@
     'In Progress': 'success',
 
     // Delivery
+    'Kickoff': 'info',
+    'Kick-off': 'info',
     'Not Started': 'info',
     'Completed': 'info',
     'Closure': 'info',
@@ -797,7 +818,11 @@
     }
     // A valid custom stage sequence must have at least 2 stages
     return (Array.isArray(stg) && stg.length >= 2)
-      ? stg.map(function (s) { return s === 'Project Closure' ? 'Closure' : s; })
+      ? stg.map(function (s) {
+          if (s === 'Project Closure') return 'Closure';
+          if (s === 'Not Started' || s === 'not-started') return 'Kickoff';
+          return s;
+        })
       : null;
   }
 
@@ -1554,6 +1579,19 @@
       const cons = rawCons.map(x => String(x).trim().toLowerCase());
       if(cons.includes(uname) || (uid && cons.includes(uid)) || (uemail && cons.includes(uemail))) return true;
 
+      // Check segment PM, Lead, and Consultants
+      if (Array.isArray(proj.projectSegments)) {
+        for (const seg of proj.projectSegments) {
+          if (!seg) continue;
+          const sPm = String(seg.pm || '').trim().toLowerCase();
+          const sLead = String(seg.lead || '').trim().toLowerCase();
+          if (sPm && (sPm === uname || sPm === uid || sPm === uemail)) return true;
+          if (sLead && (sLead === uname || sLead === uid || sLead === uemail)) return true;
+          const sCons = (Array.isArray(seg.consultants) ? seg.consultants : []).map(x => String(x).trim().toLowerCase());
+          if (sCons.includes(uname) || (uid && sCons.includes(uid)) || (uemail && sCons.includes(uemail))) return true;
+        }
+      }
+
       // 4. Private tasks assigned to this user
       const tasks = PDMS.getPrivateTasks ? PDMS.getPrivateTasks(proj) : (Array.isArray(proj.privateTasks) ? proj.privateTasks : []);
       if(tasks.some(t => t && ((t.ownerName && t.ownerName.trim().toLowerCase() === uname) || (t.ownerId && t.ownerId.trim().toLowerCase() === uid) || (t.ownerEmail && t.ownerEmail.trim().toLowerCase() === uemail)))) return true;
@@ -1972,8 +2010,12 @@
   // Table renderer
   PDMS.renderTable = function(container, opts){
     // opts: {columns, rows, pageSize, searchKeys, filterOptions,
-    //        dateFilter:{key,label}  ← adds a From/To date range on that row field}
-    const state = { page:1, sortKey:opts.defaultSortKey||opts.sortKey||null, sortDir:opts.defaultSortDir||1, filter:'', filters:opts.filters||{}, dateFrom:'', dateTo:'' };
+    //        dateFilter:{key,label,options:[{key,label}],defaultKey}  ← adds a From/To date range}
+    const hasDateOptions = Boolean(opts.dateFilter && Array.isArray(opts.dateFilter.options) && opts.dateFilter.options.length > 1);
+    const initialDateKey = opts.dateKey !== undefined
+      ? (opts.dateKey || '')
+      : (opts.dateFilter && (opts.dateFilter.defaultKey || (!hasDateOptions ? (opts.dateFilter.key || (opts.dateFilter.options && opts.dateFilter.options[0] && opts.dateFilter.options[0].key)) : ''))) || '';
+    const state = { page:1, sortKey:opts.defaultSortKey||opts.sortKey||null, sortDir:opts.defaultSortDir||1, filter:'', filters:opts.filters||{}, dateFrom:opts.dateFrom||'', dateTo:opts.dateTo||'', dateKey:initialDateKey };
     const shouldPaginate = Boolean(opts.paginate && opts.pageSize);
     const pageSize = opts.pageSize || 20;
 
@@ -1998,14 +2040,48 @@
           return raw.includes(q) || (normQ && normRaw.includes(normQ));
         }));
       }
-      if(opts.dateFilter && (state.dateFrom || state.dateTo)){
-        const dk = opts.dateFilter.key;
+      if(opts.dateFilter && (state.dateFrom || state.dateTo) && (!hasDateOptions || state.dateKey)){
+        const dk = state.dateKey || opts.dateFilter.key || 'start';
         arr = arr.filter(r=>{
-          const raw = String(r[dk]||'').slice(0,10);
-          if(!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return false;
-          if(state.dateFrom && raw < state.dateFrom) return false;
-          if(state.dateTo && raw > state.dateTo) return false;
-          return true;
+          let dateVals = [];
+          if (dk === 'actualCompletion' || dk === 'completion') {
+            if (r.actualCompletion) dateVals.push(r.actualCompletion);
+            if (r.completion) dateVals.push(r.completion);
+            if (Array.isArray(r.projectSegments)) {
+              r.projectSegments.forEach(seg => {
+                if (seg && seg.actualCompletion) dateVals.push(seg.actualCompletion);
+              });
+            }
+          } else if (dk === 'due') {
+            if (r.due) dateVals.push(r.due);
+            if (r.dueDate) dateVals.push(r.dueDate);
+            if (Array.isArray(r.projectSegments)) {
+              r.projectSegments.forEach(seg => {
+                if (seg && seg.due) dateVals.push(seg.due);
+              });
+            }
+            if (dateVals.length === 0 && (PDMS.isClosedProject ? PDMS.isClosedProject(r) : false)) {
+              if (r.actualCompletion) dateVals.push(r.actualCompletion);
+              if (r.completion) dateVals.push(r.completion);
+            }
+          } else {
+            if (r[dk]) dateVals.push(r[dk]);
+            if (dk === 'start' && r.startDate) dateVals.push(r.startDate);
+            if (Array.isArray(r.projectSegments)) {
+              r.projectSegments.forEach(seg => {
+                if (seg && seg[dk]) dateVals.push(seg[dk]);
+              });
+            }
+          }
+
+          if (dateVals.length === 0) return false;
+          return dateVals.some(val => {
+            const raw = String(val || '').slice(0, 10);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return false;
+            if (state.dateFrom && raw < state.dateFrom) return false;
+            if (state.dateTo && raw > state.dateTo) return false;
+            return true;
+          });
         });
       }
       if (typeof opts.customFilter === 'function') {
@@ -2019,14 +2095,14 @@
             if (k === 'status') {
               const isDelivery = (PDMS.stageOf ? PDMS.stageOf(r) === 'Delivery' : r.stage === 'Delivery') || (opts && opts.isDeliveryTable);
               const isSalesTable = !isDelivery && (PDMS.stageOf ? PDMS.stageOf(r) === 'Sales' : r.stage === 'Sales');
-              const dStat = isDelivery ? (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : (r.deliveryStatus || 'Not Started')) : (r.deliveryStatus || v);
+              const dStat = isDelivery ? (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(r) : (r.deliveryStatus || 'Kickoff')) : (r.deliveryStatus || v);
 
               if (filterVal === 'In Pipeline' || filterVal === 'Active Pipeline' || filterVal === 'pipeline') {
                 const norm = PDMS.normalizeStatus ? PDMS.normalizeStatus(v) : v;
                 return ['Lead','Opportunity','Initial Proposal','Negotiation','Invoicing'].includes(norm) && r.status!=='Awaiting Sales Head Approval' && r.status!=='Awaiting Account Approval' && r.status!=='Cancelled' && r.status!=='On Hold' && r.status!=='Closed' && !isDelivery;
               }
               if (filterVal === 'Ongoing') {
-                return !!dStat && !['Not Started','Completed','Closure','Project Closure','Closed','On Hold','Cancelled'].includes(dStat);
+                return !!dStat && !['Kickoff','Not Started','Completed','Closure','Project Closure','Closed','On Hold','Cancelled'].includes(dStat);
               }
               if (filterVal === 'Award/SLA') {
                 return v === 'Award/SLA' || v === 'Awaiting Account Approval';
@@ -2061,6 +2137,13 @@
             va = va || a.dept || '';
             vb = vb || b.dept || '';
           }
+          if(state.sortKey==='actualCompletion'){
+            va = (PDMS.getActualCompletionDate ? PDMS.getActualCompletionDate(a) : (a.actualCompletion || a.completion)) || '';
+            vb = (PDMS.getActualCompletionDate ? PDMS.getActualCompletionDate(b) : (b.actualCompletion || b.completion)) || '';
+          } else if(state.sortKey==='due'){
+            va = (PDMS.getProjectDueDate ? PDMS.getProjectDueDate(a) : (a.due || a.actualCompletion)) || '';
+            vb = (PDMS.getProjectDueDate ? PDMS.getProjectDueDate(b) : (b.due || b.actualCompletion)) || '';
+          }
           if (typeof va === 'string' || typeof vb === 'string') {
             return String(va||'').localeCompare(String(vb||''), undefined, { sensitivity: 'base', numeric: true }) * state.sortDir;
           }
@@ -2081,18 +2164,41 @@
         const opts2 = ['<option value="">All '+f.label+'</option>'].concat(f.options.map(o=>'<option value="'+PDMS.esc(o)+'"'+(state.filters[f.key]===o?' selected':'')+'>'+PDMS.esc(o)+'</option>'));
         return '<div class="form-group tt-filter-group"><label>'+PDMS.esc(f.label)+'</label><select class="select tt-select" data-filter="'+f.key+'">'+opts2.join('')+'</select></div>';
       }).join('');
-      const dateHtml = opts.dateFilter ? (
-        '<div class="form-group tt-date-group">'+
-          '<label>'+PDMS.esc(opts.dateFilter.label||'Start Date')+' Range</label>'+
-          '<div class="tt-date-range">'+
-            '<svg class="tt-cal-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'+
-            '<input type="date" class="tt-date-from" value="'+PDMS.esc(state.dateFrom)+'" title="Start date from" aria-label="From date">'+
-            '<span class="tt-date-arrow">➔</span>'+
-            '<input type="date" class="tt-date-to" value="'+PDMS.esc(state.dateTo)+'" title="End date to" aria-label="To date">'+
-          '</div>'+
-        '</div>'
-      ) : '';
-      const hasActiveFilter = state.filter || state.dateFrom || state.dateTo || Object.keys(state.filters).some(k=>state.filters[k]);
+      let dateHtml = '';
+      if (opts.dateFilter) {
+        const hasOptions = Array.isArray(opts.dateFilter.options) && opts.dateFilter.options.length > 1;
+        const currentOption = hasOptions
+          ? (opts.dateFilter.options.find(o => o.key === state.dateKey) || null)
+          : { key: opts.dateFilter.key || 'start', label: opts.dateFilter.label || 'Start Date' };
+
+        const dateSelectHtml = hasOptions ? (
+          '<div class="form-group tt-filter-group">'+
+            '<label>Filter Date</label>'+
+            '<select class="select tt-select tt-date-key-select" title="Select date field to filter by">'+
+              '<option value=""'+(!state.dateKey ? ' selected' : '')+'>Select Date Option</option>'+
+              opts.dateFilter.options.map(opt => '<option value="'+PDMS.esc(opt.key)+'"'+(state.dateKey === opt.key ? ' selected' : '')+'>'+PDMS.esc(opt.label)+'</option>').join('')+
+            '</select>'+
+          '</div>'
+        ) : '';
+
+        const showDateRange = hasOptions ? Boolean(state.dateKey) : true;
+        const dateLabel = currentOption ? currentOption.label : 'Date';
+
+        const dateRangeHtml = showDateRange ? (
+          '<div class="form-group tt-date-group">'+
+            '<label>Date Range</label>'+
+            '<div class="tt-date-range">'+
+              '<svg class="tt-cal-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'+
+              '<input type="date" class="tt-date-from" value="'+PDMS.esc(state.dateFrom)+'" title="'+PDMS.esc(dateLabel)+' from" aria-label="From date">'+
+              '<span class="tt-date-arrow">➔</span>'+
+              '<input type="date" class="tt-date-to" value="'+PDMS.esc(state.dateTo)+'" title="'+PDMS.esc(dateLabel)+' to" aria-label="To date">'+
+            '</div>'+
+          '</div>'
+        ) : '';
+
+        dateHtml = dateSelectHtml + dateRangeHtml;
+      }
+      const hasActiveFilter = Boolean(state.filter || state.dateFrom || state.dateTo || (hasDateOptions && state.dateKey) || Object.keys(state.filters).some(k=>state.filters[k]));
       const paginationHtml = shouldPaginate ? (
         '<div class="pagination"><div>Showing '+((state.page-1)*pageSize+1)+'-'+Math.min(state.page*pageSize,arr.length)+' of '+arr.length+'</div><div class="pages">'+
         '<button class="page-btn" data-p="prev">‹</button>'+
@@ -2108,7 +2214,7 @@
             '<div class="form-group tt-search"><label>Search</label>'+
               '<div class="tt-search-box">'+
                 '<svg class="tt-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'+
-                '<input class="tt-search-input" placeholder="Search projects, clients…" value="'+PDMS.esc(state.filter)+'">'+
+                '<input class="tt-search-input" placeholder="'+PDMS.esc(opts.searchPlaceholder || 'Search…')+'" value="'+PDMS.esc(state.filter)+'">'+
                 (state.filter ? '<button class="tt-search-clear" data-act="clear-search" title="Clear search">✕</button>' : '')+
               '</div>'+
             '</div>'+
@@ -2116,7 +2222,7 @@
             dateHtml+
           '</div>'+
           '<div class="tt-actions">'+
-            (hasActiveFilter ? '<button class="btn btn-clear-filters" data-act="clear" title="Reset all active filters"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Reset Filters</button>' : '')+
+            (hasActiveFilter ? '<button class="btn btn-clear-filters" data-act="clear" title="Reset all active filters"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Reset</button>' : '')+
             '<div class="tt-btn-group">'+
               '<button class="btn btn-action" data-act="export" title="Export as CSV"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV</button>'+
               '<button class="btn btn-action" data-act="print" title="Print table"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print</button>'+
@@ -2146,6 +2252,17 @@
       }
       const searchClearBtn = container.querySelector('[data-act="clear-search"]');
       if(searchClearBtn) searchClearBtn.addEventListener('click',()=>{state.filter='';state.page=1;render();});
+      const dKeySelect = container.querySelector('.tt-date-key-select');
+      if(dKeySelect) dKeySelect.addEventListener('change',e=>{
+        state.dateKey=e.target.value;
+        if (!state.dateKey) {
+          state.dateFrom = '';
+          state.dateTo = '';
+        }
+        state.page=1;
+        if(typeof opts.onDateKeyChange === 'function') opts.onDateKeyChange(state.dateKey);
+        render();
+      });
       const dFrom = container.querySelector('.tt-date-from');
       if(dFrom) dFrom.addEventListener('change',e=>{state.dateFrom=e.target.value;state.page=1;render();});
       const dTo = container.querySelector('.tt-date-to');
@@ -2153,6 +2270,8 @@
       const clearBtn = container.querySelector('[data-act="clear"]');
       if(clearBtn) clearBtn.addEventListener('click',()=>{
         state.filter=''; state.dateFrom=''; state.dateTo=''; state.filters={}; state.page=1;
+        if (hasDateOptions) state.dateKey = '';
+        if(typeof opts.onDateKeyChange === 'function' && hasDateOptions) opts.onDateKeyChange('');
         if(typeof opts.onFilterChange === 'function') opts.onFilterChange(state.filters);
         render();
       });
@@ -2813,7 +2932,7 @@
       clientMode: null, // 'new' or 'existing'
       selectedClient: null, // { name, industry, email, phone, address, workedBefore }
       newClientForm: { name: '', industry: '', email: '', phone: '', address: '', workedBefore: false },
-      projForm: { type: (D.types && D.types[0]) || 'ISO Management System', workstream: '', segments: [{ type: (D.types && D.types[0]) || 'ISO Management System', workstream: '', start: '', due: '', actualCompletion: '' }], status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'ISO Management System')) || ['Not Started'])[0] || 'Not Started', start: '', due: '', actualCompletion: '', desc: '' }
+      projForm: { type: (D.types && D.types[0]) || 'ISO Management System', workstream: '', segments: [{ type: (D.types && D.types[0]) || 'ISO Management System', workstream: '', start: '', due: '', actualCompletion: '' }], status: ((PDMS.deliverySequenceFor && PDMS.deliverySequenceFor((D.types && D.types[0]) || 'ISO Management System')) || ['Kickoff'])[0] || 'Kickoff', start: '', due: '', actualCompletion: '', desc: '' }
     };
 
     function renderModal() {
@@ -3199,7 +3318,7 @@
             const opts = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(newType) : (D.deliveryStatuses || []);
             statusInput.innerHTML = opts.map(s => `<option value="${PDMS.esc(s)}">${PDMS.esc(s)}</option>`).join('');
             wizardState.projForm.type = newType;
-            wizardState.projForm.status = opts[0] || 'Not Started';
+            wizardState.projForm.status = opts[0] || 'Kickoff';
           };
         }
 
@@ -3245,7 +3364,7 @@
             createdByRole: (currentUser && currentUser.role) || 'HTD',
             projectOwnerId: String((currentUser && currentUser.id) || ''),
             projectOwnerName: String((currentUser && currentUser.name) || ''),
-            progress: (status === 'Completed' || status === 'Closed') ? 100 : (status === 'Not Started' ? 0 : 25),
+            progress: (status === 'Completed' || status === 'Closed') ? 100 : (status === 'Kickoff' || status === 'Not Started' ? 0 : 25),
             start: start || '', due: due || '', actualCompletion: actualCompletion || '', completion: null,
             negotiatedPrice: '', opportunityValue: '', awardValue: '',
             description: desc, files: 0, remarks: 0,
@@ -4391,15 +4510,15 @@
       if (project.stage === 'Delivery' || !!project.deliveryStatus) return 'Delivery';
       const prev = project.previousStatus || project.heldAtStatus;
       const D = window.PDMS_DATA;
-      const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure'];
-      if (prev && allDelivery.includes(prev)) return 'Delivery';
+      const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Kickoff', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure'];
+      if (prev && (allDelivery.includes(prev) || prev === 'Not Started')) return 'Delivery';
       if (project.stage === 'Sales') return 'Sales';
       return 'Sales';
     }
 
     const D = window.PDMS_DATA;
-    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure'];
-    if (allDelivery.includes(normalized) || allDelivery.includes(project.status)) return 'Delivery';
+    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Kickoff', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure'];
+    if (allDelivery.includes(normalized) || allDelivery.includes(project.status) || normalized === 'Not Started' || project.status === 'Not Started') return 'Delivery';
 
     if (project.status === 'Closed') return 'Delivery';
     if (project.stage === 'Delivery') return 'Delivery';
@@ -4440,6 +4559,60 @@
       return closedList.includes(dStat) || s === 'cancelled' || s === 'on hold';
     }
     return closedList.includes(dStat) || closedList.includes(s);
+  };
+
+  PDMS.isClosedProject = function (projectOrStatus) {
+    if (!projectOrStatus) return false;
+    if (typeof projectOrStatus === 'string') {
+      const s = projectOrStatus.trim().toLowerCase();
+      return ['completed', 'closed', 'closure', 'project closure'].includes(s);
+    }
+    const p = projectOrStatus;
+    const dStat = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus) || '').trim().toLowerCase();
+    const s = String(p.status || '').trim().toLowerCase();
+    const closedList = ['completed', 'closed', 'closure', 'project closure'];
+    if (Array.isArray(p.projectSegments) && p.projectSegments.length > 1) {
+      return closedList.includes(dStat) || closedList.includes(s);
+    }
+    return closedList.includes(dStat) || closedList.includes(s);
+  };
+
+  PDMS.getActualCompletionDate = function (project, segmentIndex) {
+    if (!project) return '';
+    if (typeof segmentIndex === 'number' && Array.isArray(project.projectSegments) && project.projectSegments[segmentIndex]) {
+      const seg = project.projectSegments[segmentIndex];
+      if (seg && seg.actualCompletion) return seg.actualCompletion;
+    }
+    if (project.actualCompletion) return project.actualCompletion;
+    if (project.completion) return String(project.completion).slice(0, 10);
+    if (Array.isArray(project.projectSegments) && project.projectSegments.length) {
+      for (const seg of project.projectSegments) {
+        if (seg && seg.actualCompletion) return seg.actualCompletion;
+      }
+    }
+    return '';
+  };
+
+  PDMS.getProjectDueDate = function (project, segmentIndex) {
+    if (!project) return '';
+    // For closed projects, actual completion date is key and should be reflected instead of planned completion date
+    if (PDMS.isClosedProject(project)) {
+      const actual = PDMS.getActualCompletionDate(project, segmentIndex);
+      if (actual) return actual;
+    }
+    // For active/open projects, return the planned completion date
+    if (typeof segmentIndex === 'number' && Array.isArray(project.projectSegments) && project.projectSegments[segmentIndex]) {
+      const seg = project.projectSegments[segmentIndex];
+      if (seg && seg.due) return seg.due;
+    }
+    if (project.due) return project.due;
+    if (project.dueDate) return project.dueDate;
+    if (Array.isArray(project.projectSegments) && project.projectSegments.length) {
+      for (const seg of project.projectSegments) {
+        if (seg && seg.due) return seg.due;
+      }
+    }
+    return '';
   };
 
   PDMS.isSalesOrigin = function (project) {
@@ -4686,11 +4859,12 @@
         return firstUnfinishedIndex >= 0 ? segmentStatuses[firstUnfinishedIndex] : segmentStatuses[0];
       }
     }
-    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure']);
+    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Kickoff', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure']);
     
     // 1. Check explicit deliveryStatus field
     const delivRaw = String(project.deliveryStatus || '').trim();
     if (delivRaw) {
+      if (delivRaw.toLowerCase() === 'not started' || delivRaw.toLowerCase() === 'not-started') return seq[0] || 'Kickoff';
       const matchInSeq = seq.find(s => s.toLowerCase() === delivRaw.toLowerCase());
       if (matchInSeq) return matchInSeq;
       if (delivRaw.toLowerCase() === 'management system design & documentation/implementation' || delivRaw.toLowerCase() === 'management system design and documentation/implementation' || delivRaw.toLowerCase() === 'design and documentation/implement' || delivRaw.toLowerCase() === 'design & documentation/implement') {
@@ -4705,6 +4879,7 @@
 
     // 2. Check project.status directly against this project's pipeline sequence
     const st = String(project.status || '').trim();
+    if (st.toLowerCase() === 'not started' || st.toLowerCase() === 'not-started') return seq[0] || 'Kickoff';
     const matchStatusInSeq = seq.find(s => s.toLowerCase() === st.toLowerCase());
     if (matchStatusInSeq) return matchStatusInSeq;
 
@@ -4755,7 +4930,7 @@
     }
 
     // Default to the first stage of this project type's sequence
-    return seq[0] || 'Gap Assessment';
+    return seq[0] || 'Kickoff';
   };
   PDMS.projectBucket = function (project) {
     if (project.status === 'Awaiting Account Approval' || project.status === 'Awaiting Sales Head Approval') return 'Sales';

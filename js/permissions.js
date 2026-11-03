@@ -89,15 +89,15 @@
       if (project.stage === 'Delivery' || !!project.deliveryStatus) return 'Delivery';
       const prev = project.previousStatus || project.heldAtStatus;
       const D = window.PDMS_DATA;
-      const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure'];
-      if (prev && allDelivery.includes(prev)) return 'Delivery';
+      const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Kickoff', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure'];
+      if (prev && (allDelivery.includes(prev) || prev === 'Not Started')) return 'Delivery';
       if (project.stage === 'Sales') return 'Sales';
       return 'Sales';
     }
 
     const D = window.PDMS_DATA;
-    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure'];
-    if (allDelivery.includes(normalized) || allDelivery.includes(project.status)) return 'Delivery';
+    const allDelivery = (D && D.deliveryStatuses) ? D.deliveryStatuses : ['Kickoff', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure'];
+    if (allDelivery.includes(normalized) || allDelivery.includes(project.status) || normalized === 'Not Started' || project.status === 'Not Started') return 'Delivery';
 
     if (project.status === 'Closed') return 'Delivery';
     if (project.stage === 'Delivery') return 'Delivery';
@@ -138,6 +138,60 @@
       return closedList.includes(dStat) || s === 'cancelled' || s === 'on hold';
     }
     return closedList.includes(dStat) || closedList.includes(s);
+  };
+
+  PDMS.isClosedProject = function (projectOrStatus) {
+    if (!projectOrStatus) return false;
+    if (typeof projectOrStatus === 'string') {
+      const s = projectOrStatus.trim().toLowerCase();
+      return ['completed', 'closed', 'closure', 'project closure'].includes(s);
+    }
+    const p = projectOrStatus;
+    const dStat = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus) || '').trim().toLowerCase();
+    const s = String(p.status || '').trim().toLowerCase();
+    const closedList = ['completed', 'closed', 'closure', 'project closure'];
+    if (Array.isArray(p.projectSegments) && p.projectSegments.length > 1) {
+      return closedList.includes(dStat) || closedList.includes(s);
+    }
+    return closedList.includes(dStat) || closedList.includes(s);
+  };
+
+  PDMS.getActualCompletionDate = function (project, segmentIndex) {
+    if (!project) return '';
+    if (typeof segmentIndex === 'number' && Array.isArray(project.projectSegments) && project.projectSegments[segmentIndex]) {
+      const seg = project.projectSegments[segmentIndex];
+      if (seg && seg.actualCompletion) return seg.actualCompletion;
+    }
+    if (project.actualCompletion) return project.actualCompletion;
+    if (project.completion) return String(project.completion).slice(0, 10);
+    if (Array.isArray(project.projectSegments) && project.projectSegments.length) {
+      for (const seg of project.projectSegments) {
+        if (seg && seg.actualCompletion) return seg.actualCompletion;
+      }
+    }
+    return '';
+  };
+
+  PDMS.getProjectDueDate = function (project, segmentIndex) {
+    if (!project) return '';
+    // For closed projects, actual completion date is key and should be reflected instead of planned completion date
+    if (PDMS.isClosedProject(project)) {
+      const actual = PDMS.getActualCompletionDate(project, segmentIndex);
+      if (actual) return actual;
+    }
+    // For active/open projects, return the planned completion date
+    if (typeof segmentIndex === 'number' && Array.isArray(project.projectSegments) && project.projectSegments[segmentIndex]) {
+      const seg = project.projectSegments[segmentIndex];
+      if (seg && seg.due) return seg.due;
+    }
+    if (project.due) return project.due;
+    if (project.dueDate) return project.dueDate;
+    if (Array.isArray(project.projectSegments) && project.projectSegments.length) {
+      for (const seg of project.projectSegments) {
+        if (seg && seg.due) return seg.due;
+      }
+    }
+    return '';
   };
 
   PDMS.isSalesOrigin = function (project) {
@@ -384,11 +438,12 @@
         return firstUnfinishedIndex >= 0 ? segmentStatuses[firstUnfinishedIndex] : segmentStatuses[0];
       }
     }
-    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure']);
+    const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(project) : (D && D.deliveryStatuses ? D.deliveryStatuses : ['Kickoff', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure']);
     
     // 1. Check explicit deliveryStatus field
     const delivRaw = String(project.deliveryStatus || '').trim();
     if (delivRaw) {
+      if (delivRaw.toLowerCase() === 'not started' || delivRaw.toLowerCase() === 'not-started') return seq[0] || 'Kickoff';
       const matchInSeq = seq.find(s => s.toLowerCase() === delivRaw.toLowerCase());
       if (matchInSeq) return matchInSeq;
       if (delivRaw.toLowerCase() === 'management system design & documentation/implementation' || delivRaw.toLowerCase() === 'management system design and documentation/implementation' || delivRaw.toLowerCase() === 'design and documentation/implement' || delivRaw.toLowerCase() === 'design & documentation/implement') {
@@ -403,6 +458,7 @@
 
     // 2. Check project.status directly against this project's pipeline sequence
     const st = String(project.status || '').trim();
+    if (st.toLowerCase() === 'not started' || st.toLowerCase() === 'not-started') return seq[0] || 'Kickoff';
     const matchStatusInSeq = seq.find(s => s.toLowerCase() === st.toLowerCase());
     if (matchStatusInSeq) return matchStatusInSeq;
 
@@ -453,7 +509,7 @@
     }
 
     // Default to the first stage of this project type's sequence
-    return seq[0] || 'Gap Assessment';
+    return seq[0] || 'Kickoff';
   };
   PDMS.projectBucket = function (project) {
     if (project.status === 'Awaiting Account Approval' || project.status === 'Awaiting Sales Head Approval') return 'Sales';

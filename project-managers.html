@@ -6,11 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Project Managers — PSE PDMS</title>
   
-  <link rel="stylesheet" href="css/style.css?v=1792511184"/>
+  <link rel="stylesheet" href="css/style.css?v=1793649402"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1792511184"></script>
+  <script src="js/bundle.js?v=1793649402"></script>
   <script>
     PDMS.mountShell('project-managers');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -39,7 +39,7 @@
       const s = String(p.status || '').trim();
 
       if (isDelivery) {
-        const activeDeliveryStatuses = ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Internal Testing', 'Penetration Testing', 'Report Submission', 'Review', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Ongoing', 'In Progress', 'Assess', 'Target State', 'GAP', 'Roadmap', 'Tailor/Design', 'Implement', 'Capability Building', 'Post-Implementation Assess', 'Strategy', 'Governance', 'Design', 'Select/Contract', 'Transition', 'Operate', 'Monitor', 'Improve', 'Previous Findings Closure', 'Awareness', 'Management Review', 'Readiness Assessment', 'Remediation', 'Surveillance Audit', 'Requirements Gathering', 'Configuration & Design', 'Data Preparation & Migration', 'Integration', 'Testing', 'User Acceptance Testing (UAT)', 'Go-Live', 'Project Initiation & Business Case', 'Requirements & Use-Case Definition', 'Architecture & Solution Design', 'Data Readiness & Preparation', 'PoC / Prototype', 'Software Development & AI Model Build', 'System Integration', 'Testing & AI Validation', 'UAT & Business Acceptance', 'Production Deployment & Go-Live', 'Hypercare & Operational Handover', 'On Hold'];
+        const activeDeliveryStatuses = ['Kickoff', 'Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Internal Testing', 'Penetration Testing', 'Report Submission', 'Review', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Ongoing', 'In Progress', 'Assess', 'Target State', 'GAP', 'Roadmap', 'Tailor/Design', 'Implement', 'Capability Building', 'Post-Implementation Assess', 'Strategy', 'Governance', 'Design', 'Select/Contract', 'Transition', 'Operate', 'Monitor', 'Improve', 'Previous Findings Closure', 'Awareness', 'Management Review', 'Readiness Assessment', 'Remediation', 'Surveillance Audit', 'Requirements Gathering', 'Configuration & Design', 'Data Preparation & Migration', 'Integration', 'Testing', 'User Acceptance Testing (UAT)', 'Go-Live', 'Project Initiation & Business Case', 'Requirements & Use-Case Definition', 'Architecture & Solution Design', 'Data Readiness & Preparation', 'PoC / Prototype', 'Software Development & AI Model Build', 'System Integration', 'Testing & AI Validation', 'UAT & Business Acceptance', 'Production Deployment & Go-Live', 'Hypercare & Operational Handover', 'On Hold'];
         if (activeDeliveryStatuses.some(a => a.toLowerCase() === dStat.toLowerCase())) {
           return true;
         }

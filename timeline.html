@@ -3,8 +3,8 @@
 <title>Project Overview — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1792511184"/></head><body>
-<script src="js/bundle.js?v=1792511184"></script>
+<link rel="stylesheet" href="css/style.css?v=1793649402"/></head><body>
+<script src="js/bundle.js?v=1793649402"></script>
 <script>
 PDMS.mountShell('timeline');
 const D = PDMS_DATA;
@@ -137,14 +137,18 @@ function render() {
 
   // ── Section C: Delivery Milestones ────────────────────────────────────
   const withDue = allProjects
-    .filter(p => p.due)
-    .map(p => ({ ...p, _du: daysUntil(p.due) }))
+    .map(p => {
+      const isCompleted = PDMS.isClosedProject ? PDMS.isClosedProject(p) : ['Completed', 'Closure', 'Closed'].includes(p.status);
+      const effectiveDate = (PDMS.getActualCompletionDate ? PDMS.getActualCompletionDate(p) : (p.actualCompletion || p.completion)) || (isCompleted ? '' : p.due);
+      return { ...p, _isCompleted: isCompleted, _effectiveDate: effectiveDate, _du: effectiveDate ? daysUntil(effectiveDate) : null };
+    })
+    .filter(p => p._effectiveDate)
     .sort((a, b) => (a._du || 0) - (b._du || 0));
 
   // Group by month
   const grouped = {};
   withDue.forEach(p => {
-    const d = new Date(p.due);
+    const d = new Date(p._effectiveDate);
     if (isNaN(d)) return;
     const key = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     if (!grouped[key]) grouped[key] = [];
@@ -158,7 +162,7 @@ function render() {
           <div style="display:flex;flex-direction:column;gap:8px">
             ${projects.map(p => {
               const du = p._du;
-              const isCompleted = ['Completed', 'Closure', 'Closed'].includes(p.status);
+              const isCompleted = p._isCompleted;
               const duLabel = isCompleted ? 'Completed' : (du < 0 ? `${Math.abs(du)}d overdue` : du === 0 ? 'Due today' : `${du}d`);
               const duColor = isCompleted ? 'var(--success)' : (du < 0 ? 'var(--danger)' : du <= 7 ? '#f97316' : 'var(--success)');
               return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface-2);border-radius:10px;border-left:3px solid ${priorityColor(p.priority)}">
@@ -168,13 +172,13 @@ function render() {
                 </div>
                 <div style="text-align:right;flex-shrink:0">
                   ${statusBadge(p.status)}
-                  <div style="font-size:11px;font-weight:700;color:${duColor};margin-top:4px">${new Date(p.due).toLocaleDateString('en-US',{month:'short',day:'numeric'})} · ${duLabel}</div>
+                  <div style="font-size:11px;font-weight:700;color:${duColor};margin-top:4px" title="${isCompleted ? 'Actual Completion Date: ' + PDMS.esc(p._effectiveDate) : 'Planned Completion Date: ' + PDMS.esc(p._effectiveDate)}">${new Date(p._effectiveDate).toLocaleDateString('en-US',{month:'short',day:'numeric'})} · ${duLabel}</div>
                 </div>
               </div>`;
             }).join('')}
           </div>
         </div>`).join('')
-    : `<div class="text-muted text-sm" style="padding:24px">No projects with due dates found.</div>`;
+    : `<div class="text-muted text-sm" style="padding:24px">No projects with planned completion dates found.</div>`;
 
   document.getElementById('content').innerHTML = `
     <div class="page-head">
@@ -230,7 +234,7 @@ function render() {
         <div style="width:4px;height:24px;background:#f97316;border-radius:2px"></div>
         <div>
           <div class="font-semi" style="font-size:17px">Delivery Milestones</div>
-          <div class="text-sm text-muted">Upcoming project due dates sorted chronologically</div>
+          <div class="text-sm text-muted">Upcoming project planned completion dates sorted chronologically</div>
         </div>
       </div>
       ${milestoneHtml}

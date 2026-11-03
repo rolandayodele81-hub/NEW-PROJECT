@@ -7,7 +7,7 @@
   <title>Project Details — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1792511184" />
+  <link rel="stylesheet" href="css/style.css?v=1793649402" />
   <style>
     .project-meta-strip{overflow:hidden}
     .project-meta-row{display:grid;grid-template-columns:repeat(var(--meta-columns),minmax(0,1fr))}
@@ -44,7 +44,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1792511184"></script>
+  <script src="js/bundle.js?v=1793649402"></script>
   <script>
     // A hash survives any host's clean-URL rewriting untouched, since it's never
     // sent to the server — unlike ?id=, which some static hosts strip on redirect.
@@ -83,7 +83,7 @@
       const dStat = isSales ? proj.status : (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(proj) : (proj.deliveryStatus || proj.status));
 
       if (dStat === 'Completed' || dStat === 'Closure' || dStat === 'Project Closure') return { label: 'Completed', cls: 'badge-success' };
-      if (dStat === 'Not Started') return { label: 'Not Started', cls: 'badge-muted' };
+      if (dStat === 'Kickoff' || dStat === 'Not Started') return { label: 'Kickoff', cls: 'badge-info' };
       if (proj.status === 'Cancelled' || dStat === 'Cancelled') return { label: 'Cancelled', cls: 'badge-danger' };
       if (proj.status === 'On Hold' || dStat === 'On Hold') return { label: 'On Hold', cls: 'badge-muted' };
       if (isSales && proj.status === 'Closed') return { label: 'Closed', cls: 'badge-primary' };
@@ -769,7 +769,7 @@
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Client</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(p.client || '—')}</div></div>
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Deal Owner</div><div style="font-weight:700;color:var(--text)">${PDMS.esc(dealOwner)}</div></div>
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Type</div><div style="color:var(--text)">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type || '—'))}</div></div>
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Delivery Status</div><div style="color:var(--text)"><span class="badge badge-${D.statusColors[PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Not Started') : (p.deliveryStatus || 'Not Started')] || 'muted'}">${PDMS.esc(PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Not Started') : (p.deliveryStatus || 'Not Started'))}</span></div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);margin-bottom:4px">Delivery Status</div><div style="color:var(--text)"><span class="badge badge-${D.statusColors[PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Kickoff') : (p.deliveryStatus || 'Kickoff')] || 'muted'}">${PDMS.esc(PDMS.deliveryStatusOf ? (PDMS.deliveryStatusOf(p) || 'Kickoff') : (p.deliveryStatus || 'Kickoff'))}</span></div></div>
       </div>
     </div>
     <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
@@ -854,7 +854,7 @@
         const segmentSequence = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(selectedSegment.type || p.type) : [];
         const selectedSegmentStatus = selectedSegment.status || selectedSegment.deliveryStatus || (selectedSegmentIndex === 0
           ? (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.status)
-          : (segmentSequence[0] || 'Not Started'));
+          : (segmentSequence[0] || 'Kickoff'));
         const timelineProject = Object.assign({}, p, {
           type: selectedSegment.type || p.type,
           status: selectedSegmentStatus,
@@ -883,20 +883,31 @@
           (t.ownerName || '').toLowerCase() === (user.name || '').toLowerCase() ||
           (t.ownerId || '') === (user.id || '')
         ) : [];
+        const allSegmentPms = Array.isArray(p.projectSegments) ? p.projectSegments.map(s => (s.pm || '').toLowerCase()).filter(Boolean) : [];
+        const allSegmentLeads = Array.isArray(p.projectSegments) ? p.projectSegments.map(s => (s.lead || '').toLowerCase()).filter(Boolean) : [];
+        const allSegmentConsultants = Array.isArray(p.projectSegments)
+          ? p.projectSegments.flatMap(s => Array.isArray(s.consultants) ? s.consultants.map(c => String(c).toLowerCase()) : []).filter(Boolean)
+          : [];
         const isAssignedConsultant = isConsultant && (
           myTasks.length > 0 ||
-          (Array.isArray(p.consultants) && p.consultants.map(n => String(n).toLowerCase()).includes((user.name || '').toLowerCase()))
+          (Array.isArray(p.consultants) && p.consultants.map(n => String(n).toLowerCase()).includes((user.name || '').toLowerCase())) ||
+          allSegmentConsultants.includes((user.name || '').toLowerCase())
         );
         const isPMO = user && user.role === 'PMO';
         const isAssignedPMO = isPMO && (
           (p.pm || '').toLowerCase() === myName ||
           (p.lead || '').toLowerCase() === myName ||
+          allSegmentPms.includes(myName) ||
+          allSegmentLeads.includes(myName) ||
           (Array.isArray(p.consultants) && p.consultants.map(n => n.toLowerCase()).includes(myName)) ||
+          allSegmentConsultants.includes(myName) ||
           (PDMS.projectOwnedByUser && PDMS.projectOwnedByUser(p, user))
         );
         const isDeliveryTeam = ['HTD', 'COO', 'PM Head', 'General Admin', 'System Administrator'].includes(user?.role) ||
           (p.pm && p.pm.toLowerCase() === myName) ||
-          (p.lead && p.lead.toLowerCase() === myName);
+          (p.lead && p.lead.toLowerCase() === myName) ||
+          allSegmentPms.includes(myName) ||
+          allSegmentLeads.includes(myName);
         const canViewTasks = isAssignedConsultant || isDeliveryTeam || (isPMO && isAssignedPMO);
         const canAssignTask = isAssignedConsultant || isDeliveryTeam || (isPMO && isAssignedPMO);
         const displayedTasks = isConsultant ? myTasks : validTasks;
@@ -1018,8 +1029,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             { label: `Project Type${suffix}`, value: PDMS.formatType ? PDMS.formatType(segment.type) : (segment.type || '—') },
             { label: `Workstream${suffix}`, value: segment.workstream || '—' },
             { label: `Start Date${suffix}`, value: segment.start || 'TBD' },
-            { label: `Planned Completion${suffix}`, value: segment.due || 'TBD' },
-            { label: `Actual Completion${suffix}`, value: segment.actualCompletion || '—' }
+            { label: `Planned Completion${suffix}`, value: segment.due || (index === 0 ? (p.due || 'TBD') : 'TBD') },
+            { label: `Actual Completion${suffix}`, value: segment.actualCompletion || (index === 0 ? (p.actualCompletion || '—') : '—') }
           ];
           const selectedClass = index === selectedSegmentIndex ? ' is-selected' : '';
           const isSelected = index === selectedSegmentIndex;
@@ -1057,7 +1068,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             <div class="timeline">
               ${stages.map(s => {
                 const isClickable = canManageStatus && p.status !== 'Cancelled' && p.status !== 'On Hold';
-                const clickAttr = isClickable ? `onclick="openMilestoneScheduleModal('${PDMS.esc(s.label)}')" title="Click circle/stage to set Due Date, mark Due, or change status"` : '';
+                const clickAttr = isClickable ? `onclick="openMilestoneScheduleModal('${PDMS.esc(s.label)}')" title="Click circle/stage to set Planned Completion Date, mark Due, or change status"` : '';
                 return `
                 <div class="tl-item ${s.state} ${isClickable ? 'selectable' : ''}" ${clickAttr}>
                   <div class="tl-title" style="display:flex;align-items:center;justify-content:space-between">
@@ -1108,7 +1119,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
               <tr>
                 ${!isConsultant ? '<th>Consultant</th>' : ''}
                 <th>Activity</th>
-                <th>Due Date</th>
+                <th>Planned Completion Date</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -1183,7 +1194,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
     </div>
 
     <div class="flex flex-col gap-4">
-      <div class="card"><div class="card-head"><div class="card-title">Project Team</div></div>
+      <div class="card"><div class="card-head" style="display:flex;align-items:center;justify-content:space-between"><div class="card-title" style="display:flex;align-items:center;gap:8px">Project Team${detailSegments.length > 1 ? `<span class="badge badge-purple" style="font-size:11px;font-weight:600;padding:2px 8px">${PDMS.esc(selectedSegment.type || ('Type ' + (selectedSegmentIndex + 1)))}</span>` : ''}</div></div>
         <div class="card-body">
           ${(() => {
             function safeArr(v) { if (Array.isArray(v)) return v; if (typeof v === 'string' && v.trim().startsWith('[')) { try { const r = JSON.parse(v); return Array.isArray(r) ? r : []; } catch (e) { } } return []; }
@@ -1200,8 +1211,12 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
               }
               return '';
             }
-            const pm = safeStr(p.pm); const lead = safeStr(p.lead); const cons = safeArr(p.consultants);
-            const salesOwner = p.projectOwnerName || p.sales || '';
+            const seg = selectedSegment || {};
+            const pm = safeStr(seg.pm !== undefined && seg.pm !== null && String(seg.pm).trim() !== '' ? seg.pm : (selectedSegmentIndex === 0 ? p.pm : ''));
+            const lead = safeStr(seg.lead !== undefined && seg.lead !== null && String(seg.lead).trim() !== '' ? seg.lead : (selectedSegmentIndex === 0 ? p.lead : ''));
+            const cons = safeArr(Array.isArray(seg.consultants) ? seg.consultants : (selectedSegmentIndex === 0 ? p.consultants : []));
+            const roles = (seg.consultantRoles && typeof seg.consultantRoles === 'object') ? seg.consultantRoles : (selectedSegmentIndex === 0 ? (p.consultantRoles || {}) : {});
+            const salesOwner = seg.sales || p.projectOwnerName || p.sales || '';
             return `
           <div class="mb-3">
             <div style="display:flex;align-items:center;justify-content:space-between">
@@ -1227,7 +1242,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           <div>
             <div class="text-sm text-muted mb-2">Assigned Consultants (${cons.length})</div>
             ${cons.map(c => {
-              const skill = (p.consultantRoles || {})[c] || '';
+              const skill = roles[c] || (p.consultantRoles || {})[c] || '';
               return `
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
                   <div class="avatar avatar-sm">${PDMS.initials(c)}</div>
@@ -1241,7 +1256,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             }).join('') || '<div class="text-muted text-sm">None assigned</div>'}
           </div>`;
           })()}
-          ${canAssign ? `<button class="btn btn-secondary w-full mt-2" style="justify-content:center" onclick="assignTeam()">${I('user-plus')} Assign Team</button>` : ''}
+          ${canAssign ? `<button class="btn btn-secondary w-full mt-2" style="justify-content:center" onclick="assignTeam()">${I('user-plus')} Assign Team${detailSegments.length > 1 ? ` (${PDMS.esc(selectedSegment.type || ('Type ' + (selectedSegmentIndex + 1)))})` : ''}</button>` : ''}
         </div>
       </div>
       <div class="card"><div class="card-head"><div class="card-title">Documents</div>${canUploadDoc ? `<button class="btn btn-secondary btn-sm" onclick="uploadDoc()">${I('upload')} Upload</button>` : ''}</div>
@@ -1277,7 +1292,17 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
     function addConsultantTask() {
       const user = PDMS.getUser();
       const isConsultant = user && user.role === 'Consultant';
-      const assignedConsultants = Array.isArray(p.consultants) ? p.consultants.filter(Boolean) : [];
+      const allCons = [];
+      const seenCons = new Set();
+      (Array.isArray(p.consultants) ? p.consultants : []).forEach(c => { if (c && !seenCons.has(c)) { seenCons.add(c); allCons.push(c); } });
+      if (Array.isArray(p.projectSegments)) {
+        p.projectSegments.forEach(s => {
+          if (Array.isArray(s.consultants)) {
+            s.consultants.forEach(c => { if (c && !seenCons.has(c)) { seenCons.add(c); allCons.push(c); } });
+          }
+        });
+      }
+      const assignedConsultants = allCons;
 
       if (!isConsultant && assignedConsultants.length === 0) {
         PDMS.modal(
@@ -1321,7 +1346,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         ${assigneeOptions}
         <div class="form-row"><label>Activity <span style="color:var(--danger)">*</span></label><input id="ctActivity" placeholder="e.g. Requirements analysis & architecture design"/></div>
         <div class="form-row"><label>Deliverable <span style="color:var(--danger)">*</span></label><input id="ctDeliverable" placeholder="e.g. Architecture document v1.0"/></div>
-        <div class="form-row"><label>Due Date <span style="color:var(--danger)">*</span></label><input id="ctDueDate" type="date"/></div>
+        <div class="form-row"><label>Planned Completion Date <span style="color:var(--danger)">*</span></label><input id="ctDueDate" type="date"/></div>
       `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="ctSaveBtn">${isConsultant ? 'Save Task' : 'Assign Task'}</button>`);
 
       modal.querySelector('#ctSaveBtn').onclick = function () {
@@ -1333,7 +1358,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         const assigneeName = assigneeSelect ? assigneeSelect.value : (user?.name || '');
 
         if (!activity || !deliverable || !dueDate) {
-          PDMS.toast('Missing fields', 'Please fill in the activity, deliverable, and due date', 'error');
+          PDMS.toast('Missing fields', 'Please fill in the activity, deliverable, and planned completion date', 'error');
           return;
         }
 
@@ -1378,7 +1403,17 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       if (!task) return;
       const user = PDMS.getUser();
       const isConsultant = user && user.role === 'Consultant';
-      const assignedConsultants = Array.isArray(p.consultants) ? p.consultants.filter(Boolean) : [];
+      const allCons = [];
+      const seenCons = new Set();
+      (Array.isArray(p.consultants) ? p.consultants : []).forEach(c => { if (c && !seenCons.has(c)) { seenCons.add(c); allCons.push(c); } });
+      if (Array.isArray(p.projectSegments)) {
+        p.projectSegments.forEach(s => {
+          if (Array.isArray(s.consultants)) {
+            s.consultants.forEach(c => { if (c && !seenCons.has(c)) { seenCons.add(c); allCons.push(c); } });
+          }
+        });
+      }
+      const assignedConsultants = allCons;
 
       let assigneeOptions = '';
       if (!isConsultant && assignedConsultants.length > 0) {
@@ -1396,7 +1431,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         ${assigneeOptions}
         <div class="form-row"><label>Activity</label><input id="etActivity" value="${PDMS.esc(task.activity || '')}"/></div>
         <div class="form-row"><label>Deliverable</label><input id="etDeliverable" value="${PDMS.esc(task.deliverable || '')}"/></div>
-        <div class="form-row"><label>Due Date</label><input id="etDueDate" type="date" value="${PDMS.esc(task.dueDate || task.date || '')}"/></div>
+        <div class="form-row"><label>Planned Completion Date</label><input id="etDueDate" type="date" value="${PDMS.esc(task.dueDate || task.date || '')}"/></div>
       `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="etSaveBtn">Save Changes</button>`);
 
       modal.querySelector('#etSaveBtn').onclick = function () {
@@ -1484,11 +1519,11 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)">
         <div style="padding:14px 18px;border-right:1px solid var(--border)">
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-soft);margin-bottom:5px">Due Date</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-soft);margin-bottom:5px">Planned Completion Date</div>
           <div style="font-size:14px;font-weight:600;${isOverdue ? 'color:var(--danger)' : 'color:var(--text)'}">${PDMS.esc(task.dueDate || task.date || '—')}</div>
         </div>
         <div style="padding:14px 18px">
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-soft);margin-bottom:5px">Completion Date</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-soft);margin-bottom:5px">Actual Completion Date</div>
           <div style="font-size:14px;font-weight:600;${done ? 'color:var(--success)' : 'color:var(--text-soft)'}">${done && task.completedAt ? PDMS.esc(task.completedAt) : '—'}</div>
         </div>
       </div>
@@ -1622,7 +1657,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         <span style="font-size:13px;color:var(--danger)">This task was due on <strong>${PDMS.esc(task.dueDate)}</strong> — <strong>${daysLate} day${daysLate !== 1 ? 's' : ''} late</strong>.</span>
       </div>
-      <p style="font-size:13px;color:var(--text-soft);margin:0 0 14px">Please explain why the task was delivered after its due date. This note will be logged under the project's Issues &amp; Remarks.</p>
+      <p style="font-size:13px;color:var(--text-soft);margin:0 0 14px">Please explain why the task was delivered after its planned completion date. This note will be logged under the project's Issues &amp; Remarks.</p>
       <div class="form-row"><label>Reason for Late Delivery</label><textarea id="lateReason" rows="3" placeholder="e.g. Client feedback required additional revision cycles..."></textarea></div>
     `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="lateConfirmBtn" style="background:var(--danger);border-color:var(--danger)">Submit &amp; Mark Done</button>`);
 
@@ -1678,10 +1713,23 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       PDMS.notify('Project Issue', `${record.author} raised an issue on "${p.name}"`, 'message', 'project-details.html#id=' + p.id, '', '', p.id);
     }
     function assignTeam() {
+      const detailSegments = Array.isArray(p.projectSegments) && p.projectSegments.length
+        ? p.projectSegments
+        : [{ type: p.type || '', workstream: p.workstream || p.dept || '', start: p.start || '', due: p.due || '', actualCompletion: p.actualCompletion || '' }];
+      const seg = detailSegments[selectedSegmentIndex] || detailSegments[0] || {};
+      const segPm = (seg.pm !== undefined && seg.pm !== null) ? seg.pm : (selectedSegmentIndex === 0 ? (p.pm || '') : '');
+      const segLead = (seg.lead !== undefined && seg.lead !== null) ? seg.lead : (selectedSegmentIndex === 0 ? (p.lead || '') : '');
+      const segConsultants = Array.isArray(seg.consultants)
+        ? seg.consultants
+        : (selectedSegmentIndex === 0 && Array.isArray(p.consultants) ? p.consultants : []);
+      const segRoles = (seg.consultantRoles && typeof seg.consultantRoles === 'object')
+        ? seg.consultantRoles
+        : (selectedSegmentIndex === 0 ? (p.consultantRoles || {}) : {});
+
       const state = {
-        pm: p.pm || '',
-        lead: p.lead || '',
-        consultantMap: (p.consultants || []).map(name => ({ name, role: (p.consultantRoles || {})[name] || '' }))
+        pm: segPm,
+        lead: segLead,
+        consultantMap: segConsultants.map(name => ({ name, role: segRoles[name] || (p.consultantRoles || {})[name] || '' }))
       };
       const allUsers = D.users;
 
@@ -1725,7 +1773,10 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       </div>`;
       }
 
-      const modal = PDMS.modal('Assign Team', buildModal(),
+      const modalTitle = detailSegments.length > 1
+        ? `Assign Team — ${seg.type || ('Project Type ' + (selectedSegmentIndex + 1))}`
+        : 'Assign Team';
+      const modal = PDMS.modal(modalTitle, buildModal(),
         `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveAssignBtn">Save Assignment</button>`);
 
       function acItem(name, role) {
@@ -1787,23 +1838,92 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
 
       modal.querySelector('#saveAssignBtn').onclick = function () {
         syncRolesFromDOM();
-        state.pm = pmInput.value.trim() || state.pm;
-        state.lead = leadInput.value.trim() || state.lead;
+        state.pm = pmInput.value.trim();
+        state.lead = leadInput.value.trim();
         const consultants = state.consultantMap.map(e => e.name);
         const consultantRoles = {};
         state.consultantMap.forEach(e => { if (e.role) consultantRoles[e.name] = e.role; });
         const btn = this;
         PDMS.setButtonLoading(btn, true, 'Saving…');
-        PDMS.api.update('projects', p.id, { pm: state.pm, lead: state.lead, consultants, consultantRoles }).then(saved => {
+
+        const updatedSegments = (Array.isArray(p.projectSegments) && p.projectSegments.length
+          ? p.projectSegments
+          : [{
+              type: p.type || '',
+              workstream: p.workstream || p.dept || '',
+              start: p.start || '',
+              due: p.due || '',
+              actualCompletion: p.actualCompletion || ''
+            }]).map(s => Object.assign({}, s));
+
+        while (updatedSegments.length <= selectedSegmentIndex) {
+          updatedSegments.push({});
+        }
+
+        updatedSegments[selectedSegmentIndex] = Object.assign({}, updatedSegments[selectedSegmentIndex], {
+          pm: state.pm,
+          lead: state.lead,
+          consultants: consultants,
+          consultantRoles: consultantRoles
+        });
+
+        // Collect union of all consultants across all segments
+        const cleanUnion = [];
+        const seen = new Set();
+        updatedSegments.forEach(s => {
+          if (Array.isArray(s.consultants)) {
+            s.consultants.forEach(c => {
+              if (c && !seen.has(c)) {
+                seen.add(c);
+                cleanUnion.push(c);
+              }
+            });
+          }
+        });
+
+        const patch = {
+          projectSegments: updatedSegments
+        };
+
+        if (selectedSegmentIndex === 0) {
+          patch.pm = state.pm;
+          patch.lead = state.lead;
+        } else {
+          if (!p.pm && state.pm) patch.pm = state.pm;
+          if (!p.lead && state.lead) patch.lead = state.lead;
+        }
+
+        const mergedRoles = Object.assign({}, p.consultantRoles || {});
+        Object.assign(mergedRoles, consultantRoles);
+        patch.consultantRoles = mergedRoles;
+        patch.consultants = cleanUnion.length ? cleanUnion : (selectedSegmentIndex === 0 ? consultants : (p.consultants || []));
+
+        PDMS.api.update('projects', p.id, patch).then(saved => {
           Object.assign(p, saved);
+          p.projectSegments = updatedSegments;
+          if (patch.pm !== undefined) p.pm = patch.pm;
+          if (patch.lead !== undefined) p.lead = patch.lead;
+          if (patch.consultants !== undefined) p.consultants = patch.consultants;
+          if (patch.consultantRoles !== undefined) p.consultantRoles = patch.consultantRoles;
+
+          if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects)) {
+            const rp = window.PDMS_REMOTE.projects.find(x => x.id === p.id);
+            if (rp) Object.assign(rp, p);
+          }
+          if (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.projects)) {
+            const dp = window.PDMS_DATA.projects.find(x => x.id === p.id);
+            if (dp) Object.assign(dp, p);
+          }
+
           modal.remove();
-          PDMS.toast('Team updated', 'Assignment saved', 'success');
+          PDMS.toast('Team updated', 'Assignment saved for ' + (seg.type || 'this project type'), 'success');
           const assignUser = PDMS.getUser();
           const parts = [];
           if (state.pm) parts.push('PM: ' + state.pm);
           if (state.lead) parts.push('Lead: ' + state.lead);
           if (consultants.length) parts.push(consultants.length + ' consultant(s)');
-          PDMS.notify('Team Assigned', `${assignUser.name} (${assignUser.role}) assigned team on "${p.name}" — ${parts.join(', ')}`, 'users', 'project-details.html#id=' + p.id, '', '', p.id);
+          const segName = seg.type ? ` (${seg.type})` : '';
+          PDMS.notify('Team Assigned', `${assignUser.name} (${assignUser.role}) assigned team${segName} on "${p.name}" — ${parts.join(', ')}`, 'users', 'project-details.html#id=' + p.id, '', '', p.id);
           render();
         }).catch(err => { PDMS.setButtonLoading(btn, false); PDMS.toast('Error', err.message || 'Could not update assignment', 'error'); });
       };
@@ -2184,13 +2304,13 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         const clientVal = modal.querySelector('#ed-client') ? modal.querySelector('#ed-client').value.trim() : (p.client || p.name);
         const segments = Array.from(modal.querySelectorAll('.ed-project-segment')).map((row, index) => {
           const existing = projectSegments[Number(row.dataset.segmentIndex)] || {};
-          return {
+          return Object.assign({}, existing, {
             type: row.querySelector('.ed-segment-type').value,
             workstream: row.querySelector('.ed-segment-workstream').value.trim(),
             start: row.querySelector('.ed-segment-start') ? row.querySelector('.ed-segment-start').value : (existing.start || ''),
             due: row.querySelector('.ed-segment-due') ? row.querySelector('.ed-segment-due').value : (existing.due || ''),
             actualCompletion: row.querySelector('.ed-segment-actual') ? row.querySelector('.ed-segment-actual').value : (existing.actualCompletion || '')
-          };
+          });
         });
         if (!segments.length || !segments[0].type) {
           PDMS.toast('Required', 'Select a project type for the first group.', 'error');
@@ -2871,6 +2991,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         const isDeliveryStatus = isDeliveryProject && (PDMS.isDeliveryStatus
           ? PDMS.isDeliveryStatus(newStatus)
           : ['Completed', 'Closed', 'Closure', 'Project Closure'].includes(newStatus));
+        const isClosedStage = ['Completed', 'Closed', 'Closure', 'Project Closure'].includes(newStatus);
         if (isDeliveryStatus) {
           const segments = Array.isArray(p.projectSegments) && p.projectSegments.length
             ? p.projectSegments.map(segment => Object.assign({}, segment))
@@ -2878,8 +2999,14 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           const segment = segments[selectedSegmentIndex] || segments[0];
           segment.status = newStatus;
           segment.deliveryStatus = newStatus;
+          if (isClosedStage) {
+            segment.actualCompletion = segment.actualCompletion || p.actualCompletion || new Date().toISOString().slice(0, 10);
+            if (selectedSegmentIndex === 0) patch.actualCompletion = segment.actualCompletion;
+          }
           patch.projectSegments = segments;
           if (selectedSegmentIndex === 0) patch.deliveryStatus = newStatus;
+        } else if (isClosedStage) {
+          patch.actualCompletion = p.actualCompletion || new Date().toISOString().slice(0, 10);
         }
         if (newStatus === 'On Hold' && selectedSegmentIndex === 0) {
           patch.previousStatus = p.status !== 'On Hold' ? p.status : (p.previousStatus || 'Lead');
@@ -2899,8 +3026,8 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       };
     }
     function startDelivery() {
-      const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(p) : ['Not Started'];
-      const initialStatus = seq[0] || 'Not Started';
+      const seq = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(p) : ['Kickoff'];
+      const initialStatus = seq[0] || 'Kickoff';
       const modal = PDMS.modal('Start Delivery', `
     <p class="text-sm text-muted" style="margin-bottom:16px">This moves ${PDMS.esc(p.name)} from the Sales pipeline into delivery, starting at "${PDMS.esc(initialStatus)}". You can assign a Project Manager and Lead now or later.</p>
     <style>
@@ -2968,7 +3095,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       const segmentSequence = PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(segment.type || p.type) : [];
       const segmentCurrentStatus = segment.status || segment.deliveryStatus || (selectedSegmentIndex === 0
         ? (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.status)
-        : (segmentSequence[0] || 'Not Started'));
+        : (segmentSequence[0] || 'Kickoff'));
       if (segmentCurrentStatus === stageLabel) {
         return;
       }
@@ -3026,7 +3153,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       const type = p.type || p.projectType || (isSales ? 'Sales Pipeline' : 'ISO Management System');
       const allDefaultStages = isSales
         ? ['Lead', 'Opportunity', 'Initial Proposal', 'Presentation', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed']
-        : ((PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(type) : null) || (window.PDMS_DATA && window.PDMS_DATA.deliveryStagesByType && (window.PDMS_DATA.deliveryStagesByType[type] || window.PDMS_DATA.deliveryStagesByType['ISO Management System'])) || ['Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure']);
+        : ((PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(type) : null) || (window.PDMS_DATA && window.PDMS_DATA.deliveryStagesByType && (window.PDMS_DATA.deliveryStagesByType[type] || window.PDMS_DATA.deliveryStagesByType['ISO Management System'])) || ['Kickoff', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure']);
       
       const rawCurrent = isSales
         ? (PDMS.salesSequenceFor ? PDMS.salesSequenceFor(p) : allDefaultStages)
@@ -3282,11 +3409,11 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
 
         ${isClosureStage ? `
           <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--text)">
-            ✓ This will mark the project stage as <strong>Completed</strong> (${PDMS.esc(stageLabel)}). No stage target due date is required.
+            ✓ This will mark the project stage as <strong>Completed</strong> (${PDMS.esc(stageLabel)}). No stage planned completion date is required.
           </div>
         ` : `
           <div class="form-row">
-            <label>Stage Target Due Date</label>
+            <label>Stage Planned Completion Date</label>
             <input type="date" id="mStageDueDate" value="${PDMS.esc(currentDueDate)}" style="width:100%" />
           </div>
         `}
@@ -3573,7 +3700,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
 
     function approveProjectInline() {
       const modal = PDMS.modal('Approve Project (Accounts)', `
-        <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">You are about to approve <strong>${PDMS.esc(p.name)}</strong>. The project will be moved to Delivery (Not Started).</p>
+        <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">You are about to approve <strong>${PDMS.esc(p.name)}</strong>. The project will be moved to Delivery (Kickoff).</p>
         <div class="form-row">
           <label>Approval Comment / Remarks</label>
           <textarea id="accApproveComment" rows="3" placeholder="Enter approval comment or remarks (e.g. Terms and financials verified)..."></textarea>
@@ -3584,7 +3711,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         const comment = modal.querySelector('#accApproveComment').value.trim();
         const btn2 = this;
         PDMS.setButtonLoading(btn2, true, 'Approving...');
-        PDMS.api.update('projects', p.id, { status: 'Not Started', stage: 'Delivery' })
+        PDMS.api.update('projects', p.id, { status: 'Kickoff', stage: 'Delivery' })
           .then(saved => {
             Object.assign(p, saved);
             if (comment) {
@@ -3593,7 +3720,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
               pushIssueOptimistic(record);
             }
             modal.remove();
-            PDMS.toast('Approved', `"${p.name}" has been approved and moved to Not Started in delivery.`, 'success');
+            PDMS.toast('Approved', `"${p.name}" has been approved and moved to Kickoff in delivery.`, 'success');
             PDMS.workflowNotify('award.approved', p);
             render();
           })

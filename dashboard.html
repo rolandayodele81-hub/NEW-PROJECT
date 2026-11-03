@@ -4,10 +4,10 @@
 <title>Dashboard — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1792511184"/>
+<link rel="stylesheet" href="css/style.css?v=1793649402"/>
 </head>
 <body>
-<script src="js/bundle.js?v=1792511184"></script>
+<script src="js/bundle.js?v=1793649402"></script>
 <script>
 PDMS.mountShell('dashboard');
 
@@ -225,7 +225,7 @@ requestAnimationFrame(() => {
             <div class="ring" style="--p:${p.progress};--sz:44px;--th:5px"><span class="ring-val" style="font-size:11px">${p.progress}%</span></div>
             <div style="flex:1;min-width:0">
               <div class="font-semi text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(p.name)}</div>
-              <div class="text-sm text-muted">${PDMS.esc(p.client)} • Due ${p.due}</div>
+              <div class="text-sm text-muted">${PDMS.esc(p.client)} • Planned Completion: ${p.due}</div>
             </div>
             <span class="badge ${D.prioColors[p.priority]}">${p.priority}</span>
           </div>`).join('')

@@ -204,7 +204,7 @@
   const salesStatuses = [...salesJourney, 'On Hold', 'Cancelled'];
 
   const managementSystemStages = [
-    'Not Started',
+    'Kickoff',
     'Gap Assessment',
     'Risk Assessment',
     'Design & Documentation/Implementation',
@@ -219,7 +219,7 @@
   ];
 
   const frameworkAdoptionStages = [
-    'Not Started',
+    'Kickoff',
     'Assess',
     'Target State',
     'GAP',
@@ -234,7 +234,7 @@
   ];
 
   const outsourcingGovernanceStages = [
-    'Not Started',
+    'Kickoff',
     'Assess',
     'Strategy',
     'Governance',
@@ -249,7 +249,7 @@
   ];
 
   const vaptStages = [
-    'Not Started',
+    'Kickoff',
     'Gap Assessment',
     'Internal Testing',
     'Penetration Testing',
@@ -260,7 +260,7 @@
   ];
 
   const softwareAndAiStages = [
-    'Not Started',
+    'Kickoff',
     'Project Initiation & Business Case',
     'Requirements & Use-Case Definition',
     'Architecture & Solution Design',
@@ -277,7 +277,7 @@
   ];
 
   const erpStages = [
-    'Not Started',
+    'Kickoff',
     'Requirements Gathering',
     'Configuration & Design',
     'Data Preparation & Migration',
@@ -291,7 +291,7 @@
   ];
 
   const surveillanceStages = [
-    'Not Started',
+    'Kickoff',
     'Previous Findings Closure',
     'Awareness',
     'VAPT',
@@ -305,7 +305,7 @@
   ];
 
   const assessmentAuditStages = [
-    'Not Started',
+    'Kickoff',
     'Gap Assessment',
     'Risk Assessment',
     'Internal Audit',
@@ -389,6 +389,8 @@
     'In Progress': 'success',
 
     // Delivery
+    'Kickoff': 'info',
+    'Kick-off': 'info',
     'Not Started': 'info',
     'Completed': 'info',
     'Closure': 'info',
@@ -513,7 +515,11 @@
     }
     // A valid custom stage sequence must have at least 2 stages
     return (Array.isArray(stg) && stg.length >= 2)
-      ? stg.map(function (s) { return s === 'Project Closure' ? 'Closure' : s; })
+      ? stg.map(function (s) {
+          if (s === 'Project Closure') return 'Closure';
+          if (s === 'Not Started' || s === 'not-started') return 'Kickoff';
+          return s;
+        })
       : null;
   }
 

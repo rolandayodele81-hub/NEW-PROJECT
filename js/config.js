@@ -162,7 +162,11 @@
         }
 
         if (Array.isArray(tList) && tList.length >= 2) {
-          var cleanedStages = tList.map(function (s) { return s === 'Project Closure' ? 'Closure' : s; });
+          var cleanedStages = tList.map(function (s) {
+            if (s === 'Project Closure') return 'Closure';
+            if (s === 'Not Started' || s === 'not-started') return 'Kickoff';
+            return s;
+          });
           p.timelineStages = cleanedStages;
           p.timeline_stages = cleanedStages;
           if (p.milestones && typeof p.milestones === 'object' && !Array.isArray(p.milestones)) {
@@ -175,6 +179,21 @@
             delete p.milestones._timelineStages;
             delete p.milestones.timelineStages;
           }
+        }
+
+        if (p.status === 'Not Started' || p.status === 'not-started') {
+          p.status = 'Kickoff';
+        }
+        if (p.deliveryStatus === 'Not Started' || p.deliveryStatus === 'not-started') {
+          p.deliveryStatus = 'Kickoff';
+        }
+        if (Array.isArray(p.projectSegments)) {
+          p.projectSegments.forEach(function (seg) {
+            if (seg) {
+              if (seg.status === 'Not Started' || seg.status === 'not-started') seg.status = 'Kickoff';
+              if (seg.deliveryStatus === 'Not Started' || seg.deliveryStatus === 'not-started') seg.deliveryStatus = 'Kickoff';
+            }
+          });
         }
       });
     }

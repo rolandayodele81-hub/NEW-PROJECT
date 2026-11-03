@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Accounts Dashboard — PSE PDMS</title>
-  <link rel="stylesheet" href="css/style.css?v=1792511184"/>
+  <link rel="stylesheet" href="css/style.css?v=1793649402"/>
   <style>
     .accounts-hero {
       display: grid;
@@ -59,7 +59,7 @@
   </style>
 </head>
 <body>
-<script src="js/bundle.js?v=1792511184"></script>
+<script src="js/bundle.js?v=1793649402"></script>
 <script>
   PDMS.mountShell('dashboard');
   const D = PDMS_DATA; const I = PDMS.icon;
@@ -140,7 +140,7 @@
             <span class="pending-dot"></span>
             Projects Awaiting Approval
           </div>
-          <div class="card-sub">Click any row to view project details. Approved projects move to "Not Started".</div>
+          <div class="card-sub">Click any row to view project details. Approved projects move to "Kickoff".</div>
         </div>
         <span class="pending-badge"><span class="pending-dot"></span>${pending.length} pending</span>
       </div>
@@ -233,7 +233,7 @@
     if (!p) { PDMS.toast('Error', 'Project not found', 'error'); return; }
 
     const modal = PDMS.modal('Approve Project (Accounts)', `
-      <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">You are approving <strong>${PDMS.esc(p.name)}</strong> to move into Delivery (Not Started).</p>
+      <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">You are approving <strong>${PDMS.esc(p.name)}</strong> to move into Delivery (Kickoff).</p>
       <div class="form-row">
         <label>Approval Comment / Remarks</label>
         <textarea id="accApprComment" rows="3" placeholder="Enter approval remarks or comments (e.g. Financial terms verified)..."></textarea>
@@ -246,16 +246,16 @@
       PDMS.setButtonLoading(btn2, true, 'Approving...');
       const user = PDMS.getUser();
 
-      PDMS.api.update('projects', id, { status: 'Not Started', stage: 'Delivery' })
+      PDMS.api.update('projects', id, { status: 'Kickoff', stage: 'Delivery' })
         .then(() => {
-          p.status = 'Not Started'; p.stage = 'Delivery';
+          p.status = 'Kickoff'; p.stage = 'Delivery';
           if (comment) {
             const record = { id: 'tmp-' + Date.now(), author: user ? user.name : 'Accounts', authorRole: user ? user.role : 'Accounts', projectId: p.id, projectName: p.name, message: `[Approval Remarks] ${comment}`, time: new Date().toISOString() };
             PDMS.api.create('issues', record).catch(()=>{});
             if (D.issues) D.issues.unshift(record);
           }
           modal.remove();
-          PDMS.toast('Approved', `"${p.name}" has been approved and moved to Not Started in delivery.`, 'success');
+          PDMS.toast('Approved', `"${p.name}" has been approved and moved to Kickoff in delivery.`, 'success');
           PDMS.workflowNotify('award.approved', p);
           render();
         })
