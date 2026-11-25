@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Staff Leaves — PSE PDMS</title>
+  <link rel="stylesheet" href="css/style.css?v=1795626479" />
+  <style>
+    /* Modern Interactive Leave Calendar Filter */
+    .cal-filter-card {
+      background: var(--surface, #ffffff);
+      border: 1px solid var(--border, #e5e9f2);
+      border-radius: 16px;
+      padding: 20px 22px;
+      margin-bottom: 22px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+      position: relative;
+      transition: all 0.2s ease;
+    }
+
+    .cal-filter-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .cal-filter-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .cal-month-nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--surface-2, #f8fafc);
+      border: 1px solid var(--border, #e5e9f2);
+      border-radius: 10px;
+      padding: 3px 6px;
+    }
+
+    .cal-month-title {
+      font-weight: 700;
+      font-size: 14px;
+      min-width: 140px;
+      text-align: center;
+      color: var(--text, #0f172a);
+    }
+
+    .cal-active-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(29, 60, 136, 0.06);
+      border: 1px solid rgba(29, 60, 136, 0.18);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+
+    .cal-grid-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .cal-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .cal-weekday {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted, #64748b);
+      padding: 4px;
+    }
+
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .cal-day-cell {
+      position: relative;
+      min-height: 58px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      background: var(--surface-2, #f8fafc);
+      border: 1.5px solid transparent;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease, transform 0.1s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .cal-day-cell:hover {
+      border-color: var(--primary, #1d3c88);
+      background: rgba(29, 60, 136, 0.05);
+    }
+
+    .cal-day-cell.empty {
+      background: transparent;
+      border: none;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .cal-day-cell.is-today {
+      border-color: rgba(29, 60, 136, 0.5);
+      box-shadow: inset 0 0 0 1px var(--primary, #1d3c88);
+    }
+
+    .cal-today-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--primary, #1d3c88);
+      display: inline-block;
+    }
+
+    .cal-day-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .cal-day-num {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text, #0f172a);
+    }
+
+    .cal-day-content {
+      margin-top: 4px;
+    }
+
+    .cal-day-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(245, 158, 11, 0.15);
+      color: #b45309;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      white-space: nowrap;
+    }
+
+    .cal-badge-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: #f59e0b;
+      display: inline-block;
+    }
+
+    .cal-day-free {
+      font-size: 10px;
+      color: var(--text-muted, #94a3b8);
+      opacity: 0.5;
+    }
+
+    /* Selected Range Styling */
+    .cal-day-cell.range-start {
+      background: linear-gradient(135deg, #1d3c88 0%, #3b82f6 100%) !important;
+      color: #ffffff !important;
+      border-top-left-radius: 10px !important;
+      border-bottom-left-radius: 10px !important;
+      box-shadow: 0 4px 14px rgba(29, 60, 136, 0.35);
+      z-index: 2;
+    }
+
+    .cal-day-cell.range-end {
+      background: linear-gradient(135deg, #3b82f6 0%, #1d3c88 100%) !important;
+      color: #ffffff !important;
+      border-top-right-radius: 10px !important;
+      border-bottom-right-radius: 10px !important;
+      box-shadow: 0 4px 14px rgba(29, 60, 136, 0.35);
+      z-index: 2;
+    }
+
+    .cal-day-cell.range-start.range-end {
+      border-radius: 10px !important;
+    }
+
+    .cal-day-cell.range-start .cal-day-num,
+    .cal-day-cell.range-end .cal-day-num {
+      color: #ffffff !important;
+      font-weight: 800;
+    }
+
+    .cal-day-cell.range-start .cal-day-badge,
+    .cal-day-cell.range-end .cal-day-badge {
+      background: rgba(255, 255, 255, 0.25) !important;
+      color: #ffffff !important;
+      border-color: rgba(255, 255, 255, 0.4) !important;
+    }
+
+    .cal-day-cell.range-start .cal-badge-dot,
+    .cal-day-cell.range-end .cal-badge-dot {
+      background: #ffffff !important;
+    }
+
+    .cal-day-cell.range-start .cal-day-free,
+    .cal-day-cell.range-end .cal-day-free {
+      color: rgba(255, 255, 255, 0.8) !important;
+      opacity: 0.9;
+    }
+
+    .cal-day-cell.range-start .cal-today-dot,
+    .cal-day-cell.range-end .cal-today-dot {
+      background: #ffffff !important;
+    }
+
+    .cal-day-cell.in-range {
+      background: rgba(29, 60, 136, 0.12) !important;
+      border-radius: 0 !important;
+      border-top: 1.5px solid rgba(29, 60, 136, 0.3);
+      border-bottom: 1.5px solid rgba(29, 60, 136, 0.3);
+    }
+
+    .cal-day-cell.in-range .cal-day-num {
+      color: var(--primary, #1d3c88);
+      font-weight: 700;
+    }
+
+    [data-theme="dark"] .cal-day-cell.in-range {
+      background: rgba(92, 126, 224, 0.22) !important;
+      border-color: rgba(92, 126, 224, 0.4);
+    }
+
+    [data-theme="dark"] .cal-day-cell.in-range .cal-day-num {
+      color: #93c5fd;
+    }
+
+    [data-theme="dark"] .cal-day-badge {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+  <style>
+    /* Modern Interactive Leave Calendar Filter */
+    .cal-filter-card {
+      background: var(--surface, #ffffff);
+      border: 1px solid var(--border, #e5e9f2);
+      border-radius: 16px;
+      padding: 20px 22px;
+      margin-bottom: 22px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+      position: relative;
+      transition: all 0.2s ease;
+    }
+
+    .cal-filter-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .cal-filter-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .cal-month-nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--surface-2, #f8fafc);
+      border: 1px solid var(--border, #e5e9f2);
+      border-radius: 10px;
+      padding: 3px 6px;
+    }
+
+    .cal-month-title {
+      font-weight: 700;
+      font-size: 14px;
+      min-width: 140px;
+      text-align: center;
+      color: var(--text, #0f172a);
+    }
+
+    .cal-active-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(29, 60, 136, 0.06);
+      border: 1px solid rgba(29, 60, 136, 0.18);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+
+    .cal-grid-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .cal-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .cal-weekday {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted, #64748b);
+      padding: 4px;
+    }
+
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .cal-day-cell {
+      position: relative;
+      min-height: 58px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      background: var(--surface-2, #f8fafc);
+      border: 1.5px solid transparent;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease, transform 0.1s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .cal-day-cell:hover {
+      border-color: var(--primary, #1d3c88);
+      background: rgba(29, 60, 136, 0.05);
+    }
+
+    .cal-day-cell.empty {
+      background: transparent;
+      border: none;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .cal-day-cell.is-today {
+      border-color: rgba(29, 60, 136, 0.5);
+      box-shadow: inset 0 0 0 1px var(--primary, #1d3c88);
+    }
+
+    .cal-today-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--primary, #1d3c88);
+      display: inline-block;
+    }
+
+    .cal-day-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .cal-day-num {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text, #0f172a);
+    }
+
+    .cal-day-content {
+      margin-top: 4px;
+    }
+
+    .cal-day-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(245, 158, 11, 0.15);
+      color: #b45309;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      white-space: nowrap;
+    }
+
+    .cal-badge-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: #f59e0b;
+      display: inline-block;
+    }
+
+    .cal-day-free {
+      font-size: 10px;
+      color: var(--text-muted, #94a3b8);
+      opacity: 0.5;
+    }
+
+    /* Selected Range Styling */
+    .cal-day-cell.range-start {
+      background: linear-gradient(135deg, #1d3c88 0%, #3b82f6 100%) !important;
+      color: #ffffff !important;
+      border-top-left-radius: 10px !important;
+      border-bottom-left-radius: 10px !important;
+      box-shadow: 0 4px 14px rgba(29, 60, 136, 0.35);
+      z-index: 2;
+    }
+
+    .cal-day-cell.range-end {
+      background: linear-gradient(135deg, #3b82f6 0%, #1d3c88 100%) !important;
+      color: #ffffff !important;
+      border-top-right-radius: 10px !important;
+      border-bottom-right-radius: 10px !important;
+      box-shadow: 0 4px 14px rgba(29, 60, 136, 0.35);
+      z-index: 2;
+    }
+
+    .cal-day-cell.range-start.range-end {
+      border-radius: 10px !important;
+    }
+
+    .cal-day-cell.range-start .cal-day-num,
+    .cal-day-cell.range-end .cal-day-num {
+      color: #ffffff !important;
+      font-weight: 800;
+    }
+
+    .cal-day-cell.range-start .cal-day-badge,
+    .cal-day-cell.range-end .cal-day-badge {
+      background: rgba(255, 255, 255, 0.25) !important;
+      color: #ffffff !important;
+      border-color: rgba(255, 255, 255, 0.4) !important;
+    }
+
+    .cal-day-cell.range-start .cal-badge-dot,
+    .cal-day-cell.range-end .cal-badge-dot {
+      background: #ffffff !important;
+    }
+
+    .cal-day-cell.range-start .cal-day-free,
+    .cal-day-cell.range-end .cal-day-free {
+      color: rgba(255, 255, 255, 0.8) !important;
+      opacity: 0.9;
+    }
+
+    .cal-day-cell.range-start .cal-today-dot,
+    .cal-day-cell.range-end .cal-today-dot {
+      background: #ffffff !important;
+    }
+
+    .cal-day-cell.in-range {
+      background: rgba(29, 60, 136, 0.12) !important;
+      border-radius: 0 !important;
+      border-top: 1.5px solid rgba(29, 60, 136, 0.3);
+      border-bottom: 1.5px solid rgba(29, 60, 136, 0.3);
+    }
+
+    .cal-day-cell.in-range .cal-day-num {
+      color: var(--primary, #1d3c88);
+      font-weight: 700;
+    }
+
+    [data-theme="dark"] .cal-day-cell.in-range {
+      background: rgba(92, 126, 224, 0.22) !important;
+      border-color: rgba(92, 126, 224, 0.4);
+    }
+
+    [data-theme="dark"] .cal-day-cell.in-range .cal-day-num {
+      color: #93c5fd;
+    }
+
+    [data-theme="dark"] .cal-day-badge {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <script src="js/bundle.js?v=1795626479"></script>
+  <script>
+    PDMS.mountShell('leaves');
+    const D = PDMS_DATA;
+    const I = PDMS.icon;
+
+    let currentTab = 'all';
+    let selectedRoleFilter = '';
+    let searchQuery = '';
+
+    // Calendar Filter State
+    let calViewDate = new Date();
+    let calRangeStart = null;
+    let calRangeEnd = null;
+    let isDragging = false;
+    let dragAnchorDate = null;
+    let dragHoverDate = null;
+    let calendarExpanded = false;
+
+    function initFilterFromUrl() {
+      const hashParams = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+      const searchParams = new URLSearchParams(location.search || '');
+      const tab = hashParams.get('tab') || searchParams.get('tab') || '';
+      const role = hashParams.get('role') || searchParams.get('role') || '';
+      const q = hashParams.get('q') || searchParams.get('q') || '';
+      const cStart = hashParams.get('calStart') || searchParams.get('calStart') || '';
+      const cEnd = hashParams.get('calEnd') || searchParams.get('calEnd') || '';
+      if (tab && ['all', 'active', 'upcoming', 'pending', 'approved', 'rejected', 'history'].includes(tab)) {
+        currentTab = tab === 'history' ? 'approved' : tab;
+      }
+      if (role) selectedRoleFilter = role;
+      if (q) searchQuery = q;
+      if (cStart && cEnd) {
+        calRangeStart = cStart;
+        calRangeEnd = cEnd;
+      }
+    }
+    initFilterFromUrl();
+
+    // Global mouseup handler to finalize date range selection
+    window.addEventListener('mouseup', function () {
+      if (!isDragging) return;
+      isDragging = false;
+      if (!dragAnchorDate || !dragHoverDate) return;
+      const d1 = dragAnchorDate < dragHoverDate ? dragAnchorDate : dragHoverDate;
+      const d2 = dragAnchorDate < dragHoverDate ? dragHoverDate : dragAnchorDate;
+      calRangeStart = d1;
+      calRangeEnd = d2;
+      const hashParams = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+      hashParams.set('calStart', calRangeStart);
+      hashParams.set('calEnd', calRangeEnd);
+      location.hash = hashParams.toString();
+      render();
+    });
+
+    window.handleCalMouseDown = function (dateStr, e) {
+      if (e && e.button !== 0) return;
+      isDragging = true;
+      dragAnchorDate = dateStr;
+      dragHoverDate = dateStr;
+      updateCalendarHighlights(dragAnchorDate, dragHoverDate);
+    };
+
+    window.handleCalMouseEnter = function (dateStr, e) {
+      if (!isDragging) return;
+      dragHoverDate = dateStr;
+      updateCalendarHighlights(dragAnchorDate, dragHoverDate);
+    };
+
+    function updateCalendarHighlights(d1, d2) {
+      const start = d1 < d2 ? d1 : d2;
+      const end = d1 < d2 ? d2 : d1;
+      const grid = document.getElementById('cal-days-grid');
+      if (!grid) return;
+      const cells = grid.querySelectorAll('.cal-day-cell:not(.empty)');
+      cells.forEach(cell => {
+        const d = cell.dataset.date;
+        if (!d) return;
+        const isStart = d === start;
+        const isEnd = d === end;
+        const inRange = d >= start && d <= end;
+        cell.classList.toggle('range-start', isStart);
+        cell.classList.toggle('range-end', isEnd);
+        cell.classList.toggle('in-range', inRange && !isStart && !isEnd);
+      });
+    }
+
+    window.calPrevMonth = function () {
+      calViewDate.setMonth(calViewDate.getMonth() - 1);
+      render();
+    };
+
+    window.calNextMonth = function () {
+      calViewDate.setMonth(calViewDate.getMonth() + 1);
+      render();
+    };
+
+    window.calChangeMonth = function (val) {
+      if (!val) return;
+      const parts = val.split('-');
+      const yr = parseInt(parts[0], 10);
+      const mo = parseInt(parts[1], 10) - 1;
+      calViewDate = new Date(yr, mo, 1);
+      render();
+    };
+
+    window.calClearRange = function () {
+      calRangeStart = null;
+      calRangeEnd = null;
+      const hashParams = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+      hashParams.delete('calStart');
+      hashParams.delete('calEnd');
+      location.hash = hashParams.toString();
+      render();
+    };
+
+    window.toggleCalendarView = function () {
+      calendarExpanded = !calendarExpanded;
+      render();
+    };
+
+    function setTab(tab) {
+      currentTab = tab;
+      const hashParams = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+      hashParams.set('tab', tab);
+      location.hash = hashParams.toString();
+      render();
+    }
+    window.setTab = setTab;
+
+    function formatDate(dStr) {
+      if (!dStr) return '—';
+      try {
+        const parts = String(dStr).split('T')[0].split('-');
+        if (parts.length === 3) {
+          const y = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10) - 1;
+          const d = parseInt(parts[2], 10);
+          const dt = new Date(y, m, d);
+          return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+        const d = new Date(dStr);
+        if (isNaN(d.getTime())) return dStr;
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      } catch (e) {
+        return dStr;
+      }
+    }
+
+    function render() {
+      const user = PDMS.getUser();
+      const allLeaves = (PDMS.getAllLeaveRequests ? PDMS.getAllLeaveRequests() : (D.leaveRequests || [])).slice();
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      // Status categorizations
+      const activeLeaves = allLeaves.filter(l => {
+        const st = String(l.status || '').toLowerCase();
+        if (st !== 'approved') return false;
+        const s = String(l.startDate || '').slice(0, 10);
+        const e = String(l.endDate || l.startDate || '').slice(0, 10);
+        return todayStr >= s && todayStr <= e;
+      });
+
+      const upcomingLeaves = allLeaves.filter(l => {
+        const st = String(l.status || '').toLowerCase();
+        if (st !== 'approved') return false;
+        const s = String(l.startDate || '').slice(0, 10);
+        return s > todayStr;
+      });
+
+      const pendingLeaves = allLeaves.filter(l => {
+        const st = String(l.status || 'Pending Approval').toLowerCase();
+        return st === 'pending approval' || st === 'pending';
+      });
+
+      const approvedLeaves = allLeaves.filter(l => {
+        const st = String(l.status || '').toLowerCase();
+        return st === 'approved';
+      });
+
+      const rejectedLeaves = allLeaves.filter(l => {
+        const st = String(l.status || '').toLowerCase();
+        return st === 'rejected';
+      });
+
+      const pastLeaves = allLeaves.filter(l => {
+        const st = String(l.status || '').toLowerCase();
+        if (st !== 'approved') return false;
+        const e = String(l.endDate || l.startDate || '').slice(0, 10);
+        return e < todayStr;
+      });
+
+      const canManageLeaves = PDMS.canManageLeaveRequests ? PDMS.canManageLeaveRequests(user) : (user && ['HR', 'System Administrator', 'General Admin'].includes(user.role));
+
+      document.getElementById('content').innerHTML = `
+        <div class="page-head">
+          <div>
+            <div class="breadcrumbs"><span>Home</span><span>Management</span><span>Leave</span></div>
+            <h1 class="page-title">Staff Leaves &amp; Time Off</h1>
+            <div class="page-sub">Comprehensive tracking of employee leaves, schedules, active absences, and resource availability</div>
+          </div>
+          <div class="flex gap-2">
+            ${canManageLeaves ? `<a class="btn btn-secondary" href="leave-approvals.html">${I('check-circle')} Time Off Approvals ${pendingLeaves.length > 0 ? `<span class="badge badge-warn" style="margin-left:4px">${pendingLeaves.length}</span>` : ''}</a>` : ''}
+            <a class="btn btn-secondary" href="users.html">${I('users')} Staff Directory</a>
+            <button class="btn ${calendarExpanded ? 'btn-primary' : 'btn-secondary'}" onclick="toggleCalendarView()" style="display:inline-flex;align-items:center;gap:6px">
+              ${I('calendar')} ${calendarExpanded ? 'Hide Calendar' : 'Calendar Filter'}
+              ${calRangeStart && calRangeEnd ? `<span class="badge badge-warn" style="font-size:10px;padding:2px 6px">Active</span>` : ''}
+            </button>
+            <button class="btn btn-primary" onclick="requestTimeOffModal()">${I('calendar')} Request Time Off</button>
+          </div>
+        </div>
+
+        <!-- Metric Stat Cards (Click to Filter) -->
+        <div class="grid grid-6 mb-4">
+          <div class="stat i-primary ${currentTab === 'all' ? 'active-filter' : ''}" onclick="setTab('all')" style="cursor:pointer" title="Click to view all records">
+            <div class="label">Total</div>
+            <div class="value">${allLeaves.length}</div>
+            <div class="delta">${approvedLeaves.length} approved</div>
+            <div class="icon-wrap">${I('folder')}</div>
+          </div>
+          <div class="stat ${activeLeaves.length > 0 ? 'i-warn' : 'i-success'} ${currentTab === 'active' ? 'active-filter' : ''}" onclick="setTab('active')" style="cursor:pointer" title="Click to view staff currently away">
+            <div class="label">On Leave Today</div>
+            <div class="value" style="${activeLeaves.length > 0 ? 'color:var(--warn,#f59e0b)' : ''}">${activeLeaves.length}</div>
+            <div class="delta">${activeLeaves.length === 1 ? '1 team member off' : `${activeLeaves.length} team members off`}</div>
+            <div class="icon-wrap">${I('calendar')}</div>
+          </div>
+          <div class="stat i-purple ${currentTab === 'upcoming' ? 'active-filter' : ''}" onclick="setTab('upcoming')" style="cursor:pointer" title="Click to view scheduled upcoming leaves">
+            <div class="label">Upcoming Leave</div>
+            <div class="value">${upcomingLeaves.length}</div>
+            <div class="delta">Scheduled time off</div>
+            <div class="icon-wrap">${I('clock')}</div>
+          </div>
+          <div class="stat ${pendingLeaves.length > 0 ? 'i-warn' : 'i-primary'} ${currentTab === 'pending' ? 'active-filter' : ''}" onclick="setTab('pending')" style="cursor:pointer;${pendingLeaves.length > 0 ? 'border:1.5px solid rgba(245,158,11,.4);box-shadow:0 4px 14px rgba(245,158,11,.1)' : ''}" title="Click to view pending requests">
+            <div class="label">Pending Requests</div>
+            <div class="value">${pendingLeaves.length}</div>
+            <div class="delta">${pendingLeaves.length > 0 ? 'Awaiting review' : 'All up to date'}</div>
+            <div class="icon-wrap">${I('alert-triangle')}</div>
+          </div>
+          <div class="stat i-success ${currentTab === 'approved' ? 'active-filter' : ''}" onclick="setTab('approved')" style="cursor:pointer" title="Click to view approved leaves">
+            <div class="label">Approved</div>
+            <div class="value" style="color:var(--success,#10b981)">${approvedLeaves.length}</div>
+            <div class="delta">Confirmed leaves</div>
+            <div class="icon-wrap">${I('check')}</div>
+          </div>
+          <div class="stat i-danger ${currentTab === 'rejected' ? 'active-filter' : ''}" onclick="setTab('rejected')" style="cursor:pointer" title="Click to view rejected leaves">
+            <div class="label">Rejected</div>
+            <div class="value" style="color:var(--danger,#ef4444)">${rejectedLeaves.length}</div>
+            <div class="delta">Declined requests</div>
+            <div class="icon-wrap">${I('close')}</div>
+          </div>
+        </div>
+
+        <!-- Calendar Filter Action Strip -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+          <div style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            ${calRangeStart && calRangeEnd ? `
+              <span class="badge badge-primary" style="font-weight:700">Date Range Active</span>
+              <span style="font-weight:600;color:var(--text)">${formatDate(calRangeStart)} – ${formatDate(calRangeEnd)}</span>
+              <button class="btn btn-sm" onclick="calClearRange()" style="padding:3px 10px;font-size:12px;font-weight:700;color:#ef4444 !important;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:4px" title="Clear date range filter">✕ Clear Range</button>
+            ` : `
+              <span>Click any card above to filter by status, or open the calendar to filter by date duration.</span>
+            `}
+          </div>
+          <button class="btn btn-sm ${calendarExpanded ? 'btn-primary' : 'btn-secondary'}" onclick="toggleCalendarView()" style="border-radius:8px;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 14px">
+            ${I('calendar')} ${calendarExpanded ? 'Hide Calendar' : 'Open Calendar Filter'}
+            ${calRangeStart && calRangeEnd ? `<span class="badge badge-warn" style="font-size:10px;padding:2px 6px">Active</span>` : ''}
+          </button>
+        </div>
+
+        <div id="cal-container" style="${calendarExpanded ? '' : 'display:none;'}"></div>
+
+        <div id="tbl" class="table-wrap"></div>
+      `;
+
+      if (calendarExpanded) {
+        renderCalendar(allLeaves);
+      }
+
+      renderLeavesTable(allLeaves, { activeLeaves, upcomingLeaves, pendingLeaves, approvedLeaves, rejectedLeaves, pastLeaves, todayStr });
+    }
+
+    function renderCalendar(allLeaves) {
+      const container = document.getElementById('cal-container');
+      if (!container) return;
+
+      const y = calViewDate.getFullYear();
+      const m = calViewDate.getMonth();
+      const monthName = calViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      // First day index (0 = Sun, 1 = Mon, ..., 6 = Sat)
+      const firstDayIndex = new Date(y, m, 1).getDay();
+      const totalDays = new Date(y, m + 1, 0).getDate();
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      // Build daily leave roster for this month
+      const leavesMap = {};
+      (allLeaves || []).forEach(l => {
+        const st = String(l.status || '').toLowerCase();
+        if (st !== 'approved') return;
+        const s = String(l.startDate || '').slice(0, 10);
+        const e = String(l.endDate || l.startDate || '').slice(0, 10);
+        if (!s) return;
+
+        for (let day = 1; day <= totalDays; day++) {
+          const dStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          if (dStr >= s && dStr <= e) {
+            leavesMap[dStr] = leavesMap[dStr] || [];
+            leavesMap[dStr].push(l.userName || l.name || 'Staff');
+          }
+        }
+      });
+
+      let cellsHtml = '';
+      for (let i = 0; i < firstDayIndex; i++) {
+        cellsHtml += `<div class="cal-day-cell empty"></div>`;
+      }
+
+      const activeStart = isDragging ? (dragAnchorDate < dragHoverDate ? dragAnchorDate : dragHoverDate) : calRangeStart;
+      const activeEnd = isDragging ? (dragAnchorDate < dragHoverDate ? dragHoverDate : dragAnchorDate) : calRangeEnd;
+
+      for (let day = 1; day <= totalDays; day++) {
+        const dStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const staffAway = leavesMap[dStr] || [];
+        const count = staffAway.length;
+        const isToday = dStr === todayStr;
+
+        const isStart = activeStart && dStr === activeStart;
+        const isEnd = activeEnd && dStr === activeEnd;
+        const inRange = activeStart && activeEnd && dStr >= activeStart && dStr <= activeEnd;
+
+        let classes = ['cal-day-cell'];
+        if (isToday) classes.push('is-today');
+        if (isStart) classes.push('range-start');
+        if (isEnd) classes.push('range-end');
+        if (inRange && !isStart && !isEnd) classes.push('in-range');
+
+        const tooltip = count > 0
+          ? `${count} on leave on ${dStr}: ${staffAway.slice(0, 4).join(', ')}${count > 4 ? ` +${count - 4} more` : ''}`
+          : `${dStr}: All available`;
+
+        cellsHtml += `
+          <div class="${classes.join(' ')}" 
+               data-date="${dStr}" 
+               title="${PDMS.esc(tooltip)}"
+               onmousedown="handleCalMouseDown('${dStr}', event)"
+               onmouseenter="handleCalMouseEnter('${dStr}', event)">
+            <div class="cal-day-header">
+              <span class="cal-day-num">${day}</span>
+              ${isToday ? `<span class="cal-today-dot" title="Today"></span>` : ''}
+            </div>
+            <div class="cal-day-content">
+              ${count > 0 ? `
+                <span class="cal-day-badge" title="${PDMS.esc(tooltip)}">
+                  <span class="cal-badge-dot"></span>${count} off
+                </span>
+              ` : `
+                <span class="cal-day-free">Available</span>
+              `}
+            </div>
+          </div>
+        `;
+      }
+
+      // Generate month options for dropdown
+      const baseYear = new Date().getFullYear();
+      const monthsList = [];
+      for (let yr = baseYear - 1; yr <= baseYear + 1; yr++) {
+        for (let mo = 0; mo < 12; mo++) {
+          const d = new Date(yr, mo, 1);
+          const val = `${yr}-${String(mo + 1).padStart(2, '0')}`;
+          const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+          const selected = (yr === y && mo === m) ? 'selected' : '';
+          monthsList.push(`<option value="${val}" ${selected}>${label}</option>`);
+        }
+      }
+
+      container.innerHTML = `
+        <div class="cal-filter-card">
+          <div class="cal-filter-header">
+            <div class="cal-filter-title">
+              <div style="width:36px;height:36px;border-radius:10px;background:rgba(29,60,136,0.1);display:flex;align-items:center;justify-content:center;color:var(--primary)">
+                ${I('calendar')}
+              </div>
+              <div>
+                <div style="font-size:15px;font-weight:700;color:var(--text)">Interactive Leave Calendar</div>
+                <div style="font-size:12px;color:var(--text-muted)">Click &amp; drag with your mouse across dates (e.g. 1st to 30th) to filter staff on leave</div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:8px">
+              <select id="calMonthDropdown" onchange="calChangeMonth(this.value)" style="font-size:13px;font-weight:700;padding:7px 14px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);cursor:pointer;outline:none;box-shadow:0 1px 2px rgba(15,23,42,0.05)">
+                ${monthsList.join('')}
+              </select>
+            </div>
+          </div>
+
+          <div class="cal-grid-wrap">
+            <div class="cal-weekdays">
+              <div class="cal-weekday">Sun</div>
+              <div class="cal-weekday">Mon</div>
+              <div class="cal-weekday">Tue</div>
+              <div class="cal-weekday">Wed</div>
+              <div class="cal-weekday">Thu</div>
+              <div class="cal-weekday">Fri</div>
+              <div class="cal-weekday">Sat</div>
+            </div>
+            <div class="cal-grid" id="cal-days-grid">
+              ${cellsHtml}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderLeavesTable(allLeaves, data) {
+      let filtered = allLeaves.slice();
+
+      if (currentTab === 'active') {
+        filtered = data.activeLeaves;
+      } else if (currentTab === 'upcoming') {
+        filtered = data.upcomingLeaves;
+      } else if (currentTab === 'pending') {
+        filtered = data.pendingLeaves;
+      } else if (currentTab === 'approved') {
+        filtered = data.approvedLeaves;
+      } else if (currentTab === 'rejected') {
+        filtered = data.rejectedLeaves;
+      } else if (currentTab === 'history') {
+        filtered = data.pastLeaves;
+      }
+
+      // Filter by calendar date range if selected
+      if (calRangeStart && calRangeEnd) {
+        filtered = filtered.filter(l => {
+          const s = String(l.startDate || '').slice(0, 10);
+          const e = String(l.endDate || l.startDate || '').slice(0, 10);
+          if (!s) return false;
+          return s <= calRangeEnd && e >= calRangeStart;
+        });
+      }
+
+      // Sort by startDate descending by default
+      filtered.sort((a, b) => {
+        if (currentTab === 'active' || currentTab === 'upcoming') {
+          return String(a.startDate || '').localeCompare(String(b.startDate || ''));
+        }
+        return String(b.startDate || b.createdAt || '').localeCompare(String(a.startDate || a.createdAt || ''));
+      });
+
+      const container = document.getElementById('tbl');
+      if (!container) return;
+      container.innerHTML = '';
+
+      PDMS.renderTable(container, {
+        columns: [
+          {
+            key: 'userName',
+            label: 'Name',
+            render: r => {
+              const name = r.userName || r.name || 'Staff Member';
+              const email = r.userEmail || r.email || '';
+              const role = r.userRole || r.role || r.dept || '';
+              return `
+                <div class="flex items-center gap-2">
+                  <div class="avatar avatar-sm">${PDMS.initials(name)}</div>
+                  <div>
+                    <div class="font-semi" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
+                      ${PDMS.esc(name)}
+                    </div>
+                    <div class="text-sm text-muted">${PDMS.esc(email || role || 'Staff')}</div>
+                  </div>
+                </div>`;
+            }
+          },
+          {
+            key: 'startDate',
+            label: 'Start Date',
+            render: r => {
+              const d = formatDate(r.startDate);
+              return `<div style="font-weight:600;display:inline-flex;align-items:center;gap:6px">
+                <span style="color:var(--text-muted);font-size:13px">${I('calendar')}</span>
+                <span>${PDMS.esc(d)}</span>
+              </div>`;
+            }
+          },
+          {
+            key: 'endDate',
+            label: 'End Date',
+            render: r => {
+              const d = formatDate(r.endDate || r.startDate);
+              return `<div style="font-weight:600;display:inline-flex;align-items:center;gap:6px">
+                <span style="color:var(--text-muted);font-size:13px">${I('calendar')}</span>
+                <span>${PDMS.esc(d)}</span>
+              </div>`;
+            }
+          },
+          {
+            key: 'daysCount',
+            label: 'Duration',
+            render: r => {
+              const count = parseInt(r.daysCount, 10) || 1;
+              return `<span class="badge badge-secondary" style="font-weight:600;font-size:12px;padding:3px 8px">${count} day${count !== 1 ? 's' : ''}</span>`;
+            }
+          },
+          {
+            key: 'status',
+            label: 'Status',
+            render: r => {
+              const todayStr = new Date().toISOString().slice(0, 10);
+              const st = String(r.status || 'Pending Approval').trim();
+              const s = String(r.startDate || '').slice(0, 10);
+              const e = String(r.endDate || r.startDate || '').slice(0, 10);
+
+              if (st.toLowerCase() === 'approved') {
+                if (todayStr >= s && todayStr <= e) {
+                  return `<span class="badge badge-warn" style="font-weight:700">● On Leave Today</span>`;
+                }
+                if (s > todayStr) {
+                  return `<span class="badge badge-purple" style="font-weight:600">Upcoming Leave</span>`;
+                }
+                return `<span class="badge badge-success">Approved / Completed</span>`;
+              }
+              if (st.toLowerCase() === 'pending' || st.toLowerCase() === 'pending approval') {
+                return `<span class="badge badge-warn" style="background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.3)">Pending Approval</span>`;
+              }
+              if (st.toLowerCase() === 'rejected') {
+                return `<span class="badge badge-danger">Rejected</span>`;
+              }
+              return `<span class="badge badge-primary">${PDMS.esc(st)}</span>`;
+            }
+          },
+          {
+            key: 'type',
+            label: 'Type',
+            render: r => `<span style="font-size:13px;color:var(--text)">${PDMS.esc(r.type || r.category || 'Leave')}</span>`
+          },
+          {
+            key: 'actions',
+            label: '',
+            render: r => `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();viewLeaveDetails('${PDMS.esc(r.id)}')" style="font-size:12px;padding:4px 8px">Details</button>`
+          }
+        ],
+        rows: filtered,
+        searchKeys: ['userName', 'userEmail', 'userRole', 'dept', 'startDate', 'endDate', 'type', 'reason', 'status'],
+        defaultSortKey: 'startDate',
+        defaultSortDir: -1,
+        rowHref: r => (r.userId ? 'user-details.html#id=' + encodeURIComponent(r.userId) : (r.userEmail ? 'user-details.html#email=' + encodeURIComponent(r.userEmail) : '')),
+        filterOptions: [
+          {
+            key: 'type',
+            label: 'Leave Type',
+            options: ['Annual Leave', 'Sick / Medical Leave', 'Casual Leave', 'Maternity / Paternity', 'Compassionate', 'Exam / Study', 'Unpaid Leave', 'Other']
+          }
+        ]
+      });
+    }
+
+    window.viewLeaveDetails = function (leaveId) {
+      const allLeaves = PDMS.getAllLeaveRequests ? PDMS.getAllLeaveRequests() : (D.leaveRequests || []);
+      const lv = allLeaves.find(l => String(l.id) === String(leaveId));
+      if (!lv) return;
+
+      const user = PDMS.getUser();
+      const canManageLeaves = PDMS.canManageLeaveRequests ? PDMS.canManageLeaveRequests(user) : (user && ['HR', 'System Administrator', 'General Admin'].includes(user.role));
+      const isPending = String(lv.status || '').toLowerCase().includes('pending');
+
+      const modal = PDMS.modal('Leave Record Details', `
+        <div style="display:flex;flex-direction:column;gap:16px;padding:6px 0">
+          <div style="display:flex;align-items:center;gap:12px;background:var(--surface-2);padding:12px 16px;border-radius:12px;border:1px solid var(--border)">
+            <div class="avatar avatar-md" style="width:40px;height:40px;font-size:15px;font-weight:700">${PDMS.initials(lv.userName || 'Staff')}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:15px">${PDMS.esc(lv.userName || 'Staff Member')}</div>
+              <div style="font-size:12px;color:var(--text-muted)">${PDMS.esc(lv.userEmail || '')} • <span style="font-weight:600">${PDMS.esc(lv.userRole || lv.dept || '')}</span></div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div style="background:var(--surface-2);padding:12px;border-radius:10px;border:1px solid var(--border)">
+              <div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;margin-bottom:4px">Start Date</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">${formatDate(lv.startDate)}</div>
+            </div>
+            <div style="background:var(--surface-2);padding:12px;border-radius:10px;border:1px solid var(--border)">
+              <div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;margin-bottom:4px">End Date</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">${formatDate(lv.endDate || lv.startDate)}</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;margin-bottom:4px">Leave Type</div>
+              <div style="font-size:13px;font-weight:600">${PDMS.esc(lv.type || lv.category || 'Leave')}</div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;margin-bottom:4px">Total Duration</div>
+              <div style="font-size:13px;font-weight:600">${lv.daysCount || 1} day${(lv.daysCount || 1) !== 1 ? 's' : ''}</div>
+            </div>
+          </div>
+
+          ${lv.reason ? `
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;margin-bottom:4px">Reason / Remarks</div>
+              <div style="font-size:13px;color:var(--text);line-height:1.5;background:var(--surface-2);padding:10px 14px;border-radius:8px">${PDMS.esc(lv.reason)}</div>
+            </div>` : ''}
+
+          ${lv.reviewerName ? `
+            <div style="border-top:1px solid var(--border);padding-top:12px;font-size:12px;color:var(--text-muted)">
+              Reviewed by <strong>${PDMS.esc(lv.reviewerName)}</strong> (${PDMS.esc(lv.reviewerRole || 'HR')})
+              ${lv.reviewNote ? `<div style="margin-top:4px;font-style:italic">"${PDMS.esc(lv.reviewNote)}"</div>` : ''}
+            </div>` : ''}
+        </div>
+      `, `
+        <button class="btn btn-ghost" data-close>Close</button>
+        ${canManageLeaves && isPending ? `<a class="btn btn-primary" href="leave-approvals.html#tab=pending">Review in Approvals Desk</a>` : ''}
+      `);
+    };
+
+    window.requestTimeOffModal = function () {
+      const u = PDMS.getUser();
+      if (!u) {
+        PDMS.toast('Error', 'Please log in to submit a time-off request', 'error');
+        return;
+      }
+      const today = new Date().toISOString().slice(0, 10);
+      const modal = PDMS.modal('Request Time-Off', `
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Leave Type</label>
+            <select id="modalLeaveType">
+              <option value="Annual Leave">Annual Leave</option>
+              <option value="Casual Leave">Casual Leave</option>
+              <option value="Sick / Medical Leave">Sick / Medical Leave</option>
+              <option value="Maternity / Paternity">Maternity / Paternity</option>
+              <option value="Compassionate">Compassionate</option>
+              <option value="Exam / Study">Exam / Study</option>
+              <option value="Unpaid Leave">Unpaid Leave</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Start Date</label>
+            <input type="date" id="modalLeaveStart" value="${today}" min="${today}" />
+          </div>
+          <div class="form-row">
+            <label>End Date (Inclusive)</label>
+            <input type="date" id="modalLeaveEnd" value="${today}" min="${today}" />
+          </div>
+          <div class="form-row">
+            <label>Number of Off-Days</label>
+            <input type="number" id="modalLeaveDays" value="1" min="1" max="90" />
+          </div>
+          <div class="form-row">
+            <label>Reason / Handover Notes</label>
+            <textarea id="modalLeaveReason" rows="3" placeholder="Brief explanation or handover notes..."></textarea>
+          </div>
+        </div>
+      `, `
+        <button class="btn btn-ghost" data-close>Cancel</button>
+        <button class="btn btn-primary" id="submitTimeOffBtn">Submit Request</button>
+      `);
+
+      const sInp = modal.querySelector('#modalLeaveStart');
+      const eInp = modal.querySelector('#modalLeaveEnd');
+      const dInp = modal.querySelector('#modalLeaveDays');
+
+      function recalcDays() {
+        if (!sInp.value || !eInp.value) return;
+        const s = new Date(sInp.value);
+        const e = new Date(eInp.value);
+        if (e >= s) {
+          const diff = Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
+          dInp.value = Math.max(1, diff);
+        }
+      }
+      sInp.onchange = () => { if (eInp.value < sInp.value) eInp.value = sInp.value; recalcDays(); };
+      eInp.onchange = recalcDays;
+
+      modal.querySelector('#submitTimeOffBtn').onclick = function () {
+        const btn = this;
+        const type = modal.querySelector('#modalLeaveType').value;
+        const startDate = sInp.value;
+        const endDate = eInp.value;
+        const daysCount = parseInt(dInp.value, 10) || 1;
+        const reason = modal.querySelector('#modalLeaveReason').value.trim();
+
+        if (!startDate || !endDate) {
+          PDMS.toast('Error', 'Please select start and end dates', 'error');
+          return;
+        }
+
+        const userEmail = String(u.email || (D.users && (D.users.find(x => String(x.id) === String(u.id)) || {}).email) || '');
+        const hrUsers = (D.users || []).filter(x => x && (String(x.role || '').toLowerCase() === 'hr' || String(x.role || '').toLowerCase() === 'system administrator'));
+        const hrEmails = hrUsers.map(x => (x.email || '').trim()).filter(Boolean);
+
+        PDMS.setButtonLoading(btn, true, 'Submitting...');
+
+        const record = {
+          id: 'LV-' + Date.now(),
+          userId: String(u.id || ''),
+          userName: String(u.name || ''),
+          userEmail: userEmail,
+          userRole: String(u.role || ''),
+          dept: String(u.dept || ''),
+          startDate: startDate,
+          endDate: endDate,
+          daysCount: daysCount,
+          type: type,
+          reason: reason,
+          status: 'Pending Approval',
+          createdAt: new Date().toISOString(),
+          reviewerId: '',
+          reviewerName: '',
+          reviewerRole: '',
+          reviewNote: '',
+          reviewedAt: ''
+        };
+
+        PDMS.api.create('leaveRequests', record, {
+          hrEmails: hrEmails
+        }).then(saved => {
+          const finalObj = Object.assign({}, record, saved || {});
+          const syncTo = (arr) => {
+            if (!Array.isArray(arr)) return;
+            const idx = arr.findIndex(x => x && (String(x.id) === String(finalObj.id) || (record.id && String(x.id) === String(record.id))));
+            if (idx >= 0) arr[idx] = finalObj;
+            else arr.unshift(finalObj);
+          };
+          if (window.PDMS_DATA && window.PDMS_DATA.leaveRequests) syncTo(window.PDMS_DATA.leaveRequests);
+          if (window.PDMS_REMOTE && window.PDMS_REMOTE.leaveRequests) syncTo(window.PDMS_REMOTE.leaveRequests);
+
+          PDMS.notify('New Time-Off Request', `${u.name} requested ${daysCount} off-day(s) (${startDate} to ${endDate}) for ${type}`, 'calendar', 'leave-approvals.html', 'HR,System Administrator');
+
+          modal.remove();
+          if (saved && saved._emailError) {
+            PDMS.toast('Request Submitted (Email Issue)', `Request saved, but HR email could not be sent: ${saved._emailError}`, 'warn');
+          } else if (saved && saved._sentEmails && saved._sentEmails.length) {
+            PDMS.toast('Request Submitted', `Time off request submitted. Email sent to HR: ${saved._sentEmails.join(', ')}`, 'success');
+          } else {
+            PDMS.toast('Request Submitted', `Time off request (${daysCount} day${daysCount === 1 ? '' : 's'}) submitted to HR.`, 'success');
+          }
+          render();
+          if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+        }).catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not submit time off request', 'error');
+        });
+      };
+    };
+
+    PDMS.onRefresh(render);
+  </script>
+</body>
+
+</html>

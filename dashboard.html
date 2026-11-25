@@ -4,10 +4,10 @@
 <title>Dashboard — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1793649402"/>
+<link rel="stylesheet" href="css/style.css?v=1795626479"/>
 </head>
 <body>
-<script src="js/bundle.js?v=1793649402"></script>
+<script src="js/bundle.js?v=1795626479"></script>
 <script>
 PDMS.mountShell('dashboard');
 
@@ -35,8 +35,11 @@ requestAnimationFrame(() => {
       const delayed = D.projects.filter(p=>p.due && p.due<today && !(PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(p) : ['Completed','Closed','Closure','Project Closure','Cancelled','On Hold'].includes(p.deliveryStatus || p.status))).length;
       const dueToday = D.projects.filter(p=>p.due===today && !(PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(p) : ['Completed','Closed','Closure','Project Closure','Cancelled','On Hold'].includes(p.deliveryStatus || p.status))).length;
       const dueWeek = D.projects.filter(p=>p.due && p.due>=today && p.due<=week && !(PDMS.isClosedOrCompleted ? PDMS.isClosedOrCompleted(p) : ['Completed','Closed','Closure','Project Closure','Cancelled','On Hold'].includes(p.deliveryStatus || p.status))).length;
-      const avail = D.consultants.filter(c=>c.availability==='Available').length;
-      const busy = D.consultants.length - avail;
+      const liveConsultants = (window.PDMS_REMOTE && window.PDMS_REMOTE.users || D.users || []).filter(u => u.role === 'Consultant');
+      const busyConsultants = liveConsultants.filter(c => PDMS.isConsultantActivelyStaffed ? PDMS.isConsultantActivelyStaffed(c, liveProjects) : false);
+      const availConsultants = liveConsultants.filter(c => (!PDMS.isUserOnLeave || !PDMS.isUserOnLeave(c)) && !busyConsultants.includes(c));
+      const avail = availConsultants.length;
+      const busy = busyConsultants.length;
       const isConsultant = user && user.role === 'Consultant';
       const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects;
       const consultantProjects = isConsultant ? liveProjects.filter(p => {

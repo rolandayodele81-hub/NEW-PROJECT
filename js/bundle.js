@@ -5,9 +5,47 @@
 
   global.PDMS_API_URL = 'https://script.google.com/macros/s/AKfycbzCX2HlT7jSxaBVIo2mdXZu7mcwIUbff0EVdtjHi3jNVTQRyMRrE9ftaum1NprQS8Fp/exec';
 
-
   var CACHE_KEY = 'pdms-cache';
   var CACHE_TS_KEY = 'pdms-cache-ts';
+
+  // Storage layer resilient against QuotaExceededError and private-browsing restrictions
+  var memoryStorage = {};
+  global.PDMS_STORAGE = {
+    get: function (key) {
+      try {
+        var v = localStorage.getItem(key);
+        if (v !== null) return v;
+      } catch (_) {}
+      try {
+        var sv = sessionStorage.getItem(key);
+        if (sv !== null) return sv;
+      } catch (_) {}
+      return memoryStorage[key] !== undefined ? memoryStorage[key] : null;
+    },
+    set: function (key, val) {
+      memoryStorage[key] = String(val);
+      try {
+        localStorage.setItem(key, val);
+      } catch (err) {
+        // If quota exceeded, immediately evict large volatile caches to protect essential keys (like pdms-user)
+        try {
+          localStorage.removeItem(CACHE_KEY);
+          localStorage.removeItem(CACHE_TS_KEY);
+          localStorage.removeItem('pdms_local_db');
+          localStorage.setItem(key, val);
+          return;
+        } catch (_) {}
+        try {
+          sessionStorage.setItem(key, val);
+        } catch (_) {}
+      }
+    },
+    remove: function (key) {
+      delete memoryStorage[key];
+      try { localStorage.removeItem(key); } catch (_) {}
+      try { sessionStorage.removeItem(key); } catch (_) {}
+    }
+  };
 
   global.PDMS_DATA_LOADED = false;
   global.PDMS_IS_LOADING = true;
@@ -50,10 +88,10 @@
             Object.assign(target, patch);
             if (resKey === 'users') {
               try {
-                var currUser = JSON.parse(localStorage.getItem('pdms-user') || 'null');
+                var currUser = JSON.parse(global.PDMS_STORAGE.get('pdms-user') || 'null');
                 if (currUser && (String(currUser.id) === String(target.id) || String(currUser.email || '').toLowerCase() === String(target.email || '').toLowerCase())) {
                   Object.assign(currUser, patch);
-                  localStorage.setItem('pdms-user', JSON.stringify(currUser));
+                  global.PDMS_STORAGE.set('pdms-user', JSON.stringify(currUser));
                 }
               } catch (_) {}
             }
@@ -113,12 +151,53 @@
                 p[field] = Array.isArray(parsed) ? parsed : [];
               } catch (e) {
                 p[field] = [];
+                if (field === 'consultants' && str) {
+                  p[field] = str.includes(',') ? str.split(',').map(function (s) { return s.trim(); }).filter(Boolean) : [str];
+                } else {
+                  p[field] = [];
+                }
               }
             }
           } else if (!Array.isArray(p[field])) {
             p[field] = [];
           }
         });
+
+        if (Array.isArray(p.projectSegments)) {
+          p.projectSegments.forEach(function (seg) {
+            if (!seg || typeof seg !== 'object') return;
+            if (typeof seg.consultants === 'string') {
+              var cStr = seg.consultants.trim();
+              if (!cStr) {
+                seg.consultants = [];
+              } else {
+                try {
+                  var cParsed = JSON.parse(cStr);
+                  seg.consultants = Array.isArray(cParsed) ? cParsed : [cStr];
+                } catch (_) {
+                  seg.consultants = cStr.includes(',') ? cStr.split(',').map(function (s) { return s.trim(); }).filter(Boolean) : [cStr];
+                }
+              }
+            } else if (!Array.isArray(seg.consultants)) {
+              seg.consultants = seg.consultants ? [seg.consultants] : [];
+            }
+            if (typeof seg.consultantRoles === 'string') {
+              try {
+                seg.consultantRoles = JSON.parse(seg.consultantRoles) || {};
+              } catch (_) {
+                seg.consultantRoles = {};
+              }
+            }
+          });
+        }
+
+        if (typeof p.consultantRoles === 'string') {
+          try {
+            p.consultantRoles = JSON.parse(p.consultantRoles) || {};
+          } catch (_) {
+            p.consultantRoles = {};
+          }
+        }
 
         // Normalize milestones (supports both stage map object and legacy array)
         if (typeof p.milestones === 'string') {
@@ -257,16 +336,46 @@
       } catch (_) { }
     }
 
+    function safeCacheBootstrap(data) {
+      if (!data || typeof data !== 'object') return;
+      try {
+        var cacheData = {};
+        Object.keys(data).forEach(function (k) {
+          var val = data[k];
+          if (Array.isArray(val)) {
+            // Keep localStorage cache lean (max 100 entries for bulky logs); memory global.PDMS_REMOTE holds full dataset
+            if (val.length > 100 && (k === 'activities' || k === 'notifications' || k === 'auditLogs')) {
+              cacheData[k] = val.slice(0, 100);
+            } else {
+              cacheData[k] = val;
+            }
+          } else {
+            cacheData[k] = val;
+          }
+        });
+        var str = JSON.stringify(cacheData);
+        // Only cache locally if below 2.5MB to preserve browser quota and prevent QuotaExceededError
+        if (str.length < 2500000) {
+          localStorage.setItem(CACHE_KEY, str);
+          localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+        } else {
+          localStorage.removeItem(CACHE_KEY);
+        }
+      } catch (e) {
+        try {
+          localStorage.removeItem(CACHE_KEY);
+          localStorage.removeItem(CACHE_TS_KEY);
+        } catch (_) {}
+      }
+    }
+
     fetchWithRetry(global.PDMS_API_URL + '?action=bootstrap')
       .then(function (res) { return res.json(); })
       .then(function (json) {
         mergeRecentCreates(json.data);
         mergeRecentUpdates(json.data);
         sortAllDataNewestFirst(json.data);
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(json.data));
-          localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
-        } catch (_) { }
+        safeCacheBootstrap(json.data);
         global.PDMS_REMOTE = json.data;
         global.PDMS_DATA_LOADED = true;
         global.PDMS_IS_LOADING = false;
@@ -964,55 +1073,55 @@
   global.PDMS.salesSequenceFor = salesSequenceFor;
   global.PDMS.deliveryStagesByType = deliveryStagesByType;
 })(window);/* PDMS Utils */
-(function(g){
+(function (g) {
   const PDMS = g.PDMS = g.PDMS || {};
 
   // Feather-like inline SVG icons
   const ICONS = {
-    dashboard:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>',
-    folder:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
-    users:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
-    building:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/></svg>',
-    briefcase:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
-    chart:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
-    bell:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
-    message:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
-    settings:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
-    user:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
-    activity:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
-    search:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
-    menu:'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>',
-    moon:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
-    sun:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
-    plus:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
-    check:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-    clock:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
-    trending:'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
-    logout:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
-    close:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-    upload:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
-    download:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
-    refresh:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
-    'user-plus':'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>',
-    'user-check':'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>',
-    calendar:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
-    filter:'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>',
-    file:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
-    shield:'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
-    globe:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
-    send:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
-    zap:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
-    mail:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>',
-    phone:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
-    eye:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
-    'help-circle':'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-    'life-buoy':'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></svg>',
-    'alert-triangle':'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+    dashboard: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>',
+    folder: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+    users: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    building: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/></svg>',
+    briefcase: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
+    chart: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+    bell: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+    message: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+    settings: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+    user: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    activity: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+    search: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    menu: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>',
+    moon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+    sun: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
+    plus: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+    check: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    clock: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    trending: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
+    logout: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+    close: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    upload: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
+    download: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+    refresh: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
+    'user-plus': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>',
+    'user-check': '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>',
+    calendar: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+    filter: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>',
+    file: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+    shield: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+    globe: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+    send: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
+    zap: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+    mail: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>',
+    phone: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+    eye: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+    'help-circle': '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    'life-buoy': '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></svg>',
+    'alert-triangle': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
   };
 
-  PDMS.icon = function(name){ return ICONS[name]||''; };
+  PDMS.icon = function (name) { return ICONS[name] || ''; };
 
-  PDMS.asArray = function(val) {
+  PDMS.asArray = function (val) {
     if (!val) return [];
     if (Array.isArray(val)) return val;
     if (typeof val === 'string') {
@@ -1021,41 +1130,419 @@
       try {
         var parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
+      } catch (e) { }
+      if (trimmed.includes(',')) {
+        return trimmed.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+      }
+      return [trimmed];
     }
     return [];
   };
 
-  PDMS.getPrivateTasks = function(project) {
+  PDMS.getPrivateTasks = function (project) {
     return project ? PDMS.asArray(project.privateTasks) : [];
   };
 
-  // Theme
-  PDMS.applyTheme = function(){
-    const t = localStorage.getItem('pdms-theme')||'light';
-    document.documentElement.setAttribute('data-theme',t);
+  PDMS.isUserOnProject = function (user, project) {
+    if (!user || !project) return false;
+    var uObj = null;
+    if (typeof user === 'string') {
+      var q = user.trim().toLowerCase();
+      var allUsers = (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.users)) ? window.PDMS_REMOTE.users : ((window.PDMS_DATA && Array.isArray(window.PDMS_DATA.users)) ? window.PDMS_DATA.users : (PDMS.getUsers ? PDMS.getUsers() : []));
+      uObj = allUsers.find(function (x) {
+        return x && (String(x.name || '').trim().toLowerCase() === q || String(x.email || '').trim().toLowerCase() === q || String(x.id || '').trim().toLowerCase() === q);
+      });
+    } else if (typeof user === 'object') {
+      uObj = user;
+    }
+
+    var uid = String((uObj && uObj.id) || (typeof user === 'string' ? user : '')).trim().toLowerCase();
+    var uemail = String((uObj && uObj.email) || (typeof user === 'string' ? user : '')).trim().toLowerCase();
+    var uname = String((uObj && uObj.name) || (typeof user === 'string' ? user : '')).trim().toLowerCase();
+
+    function matchesUser(val) {
+      if (!val) return false;
+      if (typeof val === 'object') {
+        var vName = String(val.name || val.userName || val.fullName || '').trim().toLowerCase();
+        var vEmail = String(val.email || val.userEmail || '').trim().toLowerCase();
+        var vId = String(val.id || val.userId || '').trim().toLowerCase();
+        if (uname && (vName === uname || vEmail === uname || vId === uname)) return true;
+        if (uemail && (vName === uemail || vEmail === uemail || vId === uemail)) return true;
+        if (uid && (vName === uid || vEmail === uid || vId === uid)) return true;
+        return false;
+      }
+      var s = String(val).trim().toLowerCase();
+      if (!s) return false;
+      if (uname && s === uname) return true;
+      if (uemail && s === uemail) return true;
+      if (uname && (s === uname || s.includes(uname) || uname.includes(s))) return true;
+      if (uemail && (s === uemail || s.includes(uemail))) return true;
+      if (uid && s === uid) return true;
+      return false;
+    }
+
+    // 1. Sales / Deal owner / Creator
+    if (PDMS.projectOwnedByUser && uObj && PDMS.projectOwnedByUser(project, uObj)) return true;
+    var owners = [
+      project.projectOwnerId, project.projectOwnerName,
+      project.salesOwnerId, project.salesOwnerName,
+      project.onboardedById, project.onboardedByName,
+      project.createdByUserId, project.createdByUserName,
+      project.sales, project.dealOwner, project.salesLead
+    ];
+    if (owners.some(matchesUser)) return true;
+
+    // 2. Project Manager & Lead
+    if (matchesUser(project.pm) || matchesUser(project.lead)) return true;
+
+    // 3. Root consultants
+    var cons = PDMS.asArray(project.consultants);
+    // 3. Root consultants & singular consultant & team & resources
+    var cons = PDMS.asArray(project.consultants)
+      .concat(PDMS.asArray(project.consultant))
+      .concat(PDMS.asArray(project.team))
+      .concat(PDMS.asArray(project.resources));
+    if (cons.some(matchesUser)) return true;
+
+    // 4. Consultant roles object
+    if (project.consultantRoles && typeof project.consultantRoles === 'object') {
+      if (Object.keys(project.consultantRoles).some(matchesUser)) return true;
+    }
+
+    // 5. Segments
+    var segments = Array.isArray(project.projectSegments)
+      ? project.projectSegments
+      : PDMS.asArray(project.projectSegments);
+    for (var i = 0; i < segments.length; i++) {
+      var seg = segments[i];
+      if (!seg) continue;
+      if (matchesUser(seg.pm) || matchesUser(seg.lead) || matchesUser(seg.sales)) return true;
+      var segCons = PDMS.asArray(seg.consultants);
+      var segCons = PDMS.asArray(seg.consultants)
+        .concat(PDMS.asArray(seg.consultant))
+        .concat(PDMS.asArray(seg.team))
+        .concat(PDMS.asArray(seg.resources));
+      if (segCons.some(matchesUser)) return true;
+      if (seg.consultantRoles && typeof seg.consultantRoles === 'object') {
+        if (Object.keys(seg.consultantRoles).some(matchesUser)) return true;
+      }
+    }
+
+    // 6. Private Tasks
+    var tasks = PDMS.getPrivateTasks ? PDMS.getPrivateTasks(project) : (Array.isArray(project.privateTasks) ? project.privateTasks : []);
+    for (var j = 0; j < tasks.length; j++) {
+      var t = tasks[j];
+      if (!t) continue;
+      if (matchesUser(t.ownerName) || matchesUser(t.ownerId) || matchesUser(t.ownerEmail) || matchesUser(t.assignee) || matchesUser(t.assignedTo)) return true;
+    }
+
+    // 7. Timeline Stages
+    var stages = Array.isArray(project.timelineStages) ? project.timelineStages : (Array.isArray(project.timeline_stages) ? project.timeline_stages : []);
+    for (var k = 0; k < stages.length; k++) {
+      var st = stages[k];
+      if (!st) continue;
+      if (matchesUser(st.owner) || matchesUser(st.assignee) || matchesUser(st.lead) || matchesUser(st.resource)) return true;
+      if (st.resources && PDMS.asArray(st.resources).some(matchesUser)) return true;
+    }
+
+    return false;
   };
-  PDMS.toggleTheme = function(){
-    const cur = localStorage.getItem('pdms-theme')||'light';
-    const next = cur==='light'?'dark':'light';
-    localStorage.setItem('pdms-theme',next);
-    document.documentElement.setAttribute('data-theme',next);
-    const btn=document.getElementById('themeToggle');
-    if(btn) btn.innerHTML = PDMS.icon(next==='light'?'moon':'sun');
+
+  PDMS.isUserOnSegment = function (user, seg, project, idx) {
+    if (!user || !seg) return false;
+    var uid = String(user.id || '').trim().toLowerCase();
+    var uemail = String(user.email || '').trim().toLowerCase();
+    var uname = String(user.name || '').trim().toLowerCase();
+    function matchesUser(val) {
+      if (!val) return false;
+      if (typeof val === 'object') {
+        var vName = String(val.name || val.userName || '').trim().toLowerCase();
+        var vEmail = String(val.email || val.userEmail || '').trim().toLowerCase();
+        var vId = String(val.id || val.userId || '').trim().toLowerCase();
+        return (uname && (vName === uname || vEmail === uname || vId === uname)) ||
+          (uemail && (vName === uemail || vEmail === uemail || vId === uemail)) ||
+          (uid && (vName === uid || vEmail === uid || vId === uid));
+      }
+      var s = String(val).trim().toLowerCase();
+      return (uname && s === uname) || (uemail && s === uemail) || (uid && s === uid);
+    }
+    if (matchesUser(seg.pm) || matchesUser(seg.lead) || matchesUser(seg.sales)) return true;
+    var segCons = PDMS.asArray ? PDMS.asArray(seg.consultants) : (Array.isArray(seg.consultants) ? seg.consultants : (seg.consultants ? [seg.consultants] : []));
+    if (segCons.some(matchesUser)) return true;
+    if (seg.consultantRoles && typeof seg.consultantRoles === 'object') {
+      if (Object.keys(seg.consultantRoles).some(matchesUser)) return true;
+    }
+
+    // Check project-level inheritance for segment 0
+    var isSeg0 = (idx === 0) || (project && Array.isArray(project.projectSegments) && project.projectSegments[0] === seg);
+    if (isSeg0 && project) {
+      if (!seg.pm && matchesUser(project.pm)) return true;
+      if (!seg.lead && matchesUser(project.lead)) return true;
+      if (!seg.sales && (matchesUser(project.sales) || matchesUser(project.projectOwnerName))) return true;
+      var rootCons = PDMS.asArray ? PDMS.asArray(project.consultants) : (Array.isArray(project.consultants) ? project.consultants : (project.consultants ? [project.consultants] : []));
+      if (rootCons.some(matchesUser)) return true;
+      if (project.consultantRoles && typeof project.consultantRoles === 'object') {
+        if (Object.keys(project.consultantRoles).some(matchesUser)) return true;
+      }
+    }
+
+    return false;
+  };
+
+  PDMS.getUserProjectRole = function (user, project) {
+    if (!user || !project) return 'Consultant';
+    var uObj = (typeof user === 'object') ? user : null;
+    var uid = String((uObj && uObj.id) || (typeof user === 'string' ? user : '')).trim().toLowerCase();
+    var uemail = String((uObj && uObj.email) || (typeof user === 'string' ? user : '')).trim().toLowerCase();
+    var uname = String((uObj && uObj.name) || (typeof user === 'string' ? user : '')).trim().toLowerCase();
+
+    function matchesUser(val) {
+      if (!val) return false;
+      if (typeof val === 'object') {
+        var vName = String(val.name || val.userName || '').trim().toLowerCase();
+        var vEmail = String(val.email || val.userEmail || '').trim().toLowerCase();
+        var vId = String(val.id || val.userId || '').trim().toLowerCase();
+        return (uname && (vName === uname || vEmail === uname || vId === uname)) ||
+          (uemail && (vName === uemail || vEmail === uemail || vId === uemail)) ||
+          (uid && (vName === uid || vEmail === uid || vId === uid));
+      }
+      var s = String(val).trim().toLowerCase();
+      return (uname && s === uname) || (uemail && s === uemail) || (uid && s === uid);
+    }
+
+    // Check PM
+    if (matchesUser(project.pm)) return 'Project Manager';
+    var segments = Array.isArray(project.projectSegments) ? project.projectSegments : PDMS.asArray(project.projectSegments);
+    for (var i = 0; i < segments.length; i++) {
+      var seg = segments[i];
+      if (seg && matchesUser(seg.pm)) return 'Project Manager';
+    }
+
+    // Check Lead
+    if (matchesUser(project.lead)) return 'Project Lead';
+    for (var j = 0; j < segments.length; j++) {
+      var seg2 = segments[j];
+      if (seg2 && matchesUser(seg2.lead)) return 'Project Lead';
+    }
+
+    // Check Deal Owner / Sales
+    if (matchesUser(project.projectOwnerId) || matchesUser(project.projectOwnerName) || matchesUser(project.sales) || matchesUser(project.salesLead) || matchesUser(project.dealOwner)) {
+      return 'Deal Owner';
+    }
+
+    // Check specific consultant role
+    for (var k = 0; k < segments.length; k++) {
+      var seg3 = segments[k];
+      if (seg3 && seg3.consultantRoles && typeof seg3.consultantRoles === 'object') {
+        var keys = Object.keys(seg3.consultantRoles);
+        for (var l = 0; l < keys.length; l++) {
+          if (matchesUser(keys[l]) && seg3.consultantRoles[keys[l]]) return seg3.consultantRoles[keys[l]];
+        }
+      }
+    }
+    if (project.consultantRoles && typeof project.consultantRoles === 'object') {
+      var pKeys = Object.keys(project.consultantRoles);
+      for (var m = 0; m < pKeys.length; m++) {
+        if (matchesUser(pKeys[m]) && project.consultantRoles[pKeys[m]]) return project.consultantRoles[pKeys[m]];
+      }
+    }
+
+    return 'Consultant';
+  };
+
+  PDMS.getProjectConsultants = function (project) {
+    if (!project) return [];
+    var list = [];
+    var seen = new Set();
+    function add(val) {
+      if (!val) return;
+      var arr = PDMS.asArray ? PDMS.asArray(val) : (Array.isArray(val) ? val : [val]);
+      for (var i = 0; i < arr.length; i++) {
+        var item = arr[i];
+        if (!item) continue;
+        var name = '';
+        if (typeof item === 'string') {
+          name = item.trim();
+        } else if (typeof item === 'object') {
+          name = String(item.name || item.userName || item.user || item.email || '').trim();
+        }
+        if (name && !seen.has(name.toLowerCase())) {
+          seen.add(name.toLowerCase());
+          list.push(name);
+        }
+      }
+    }
+    add(project.consultants);
+    add(project.consultant);
+    add(project.team);
+    add(project.resources);
+    if (project.consultantRoles && typeof project.consultantRoles === 'object') {
+      Object.keys(project.consultantRoles).forEach(add);
+    }
+    var segments = Array.isArray(project.projectSegments) ? project.projectSegments : (PDMS.asArray ? PDMS.asArray(project.projectSegments) : []);
+    for (var j = 0; j < segments.length; j++) {
+      var seg = segments[j];
+      if (!seg) continue;
+      add(seg.consultants);
+      add(seg.consultant);
+      add(seg.team);
+      add(seg.resources);
+      if (seg.consultantRoles && typeof seg.consultantRoles === 'object') {
+        Object.keys(seg.consultantRoles).forEach(add);
+      }
+    }
+    return list;
+  };
+
+  PDMS.getSegmentConsultants = function (project, segmentIndexOrObj) {
+    if (!project) return [];
+    var seg = (typeof segmentIndexOrObj === 'number')
+      ? ((Array.isArray(project.projectSegments) && project.projectSegments[segmentIndexOrObj]) || null)
+      : (segmentIndexOrObj && typeof segmentIndexOrObj === 'object' ? segmentIndexOrObj : null);
+    var list = [];
+    var seen = new Set();
+    function add(val) {
+      if (!val) return;
+      var arr = PDMS.asArray ? PDMS.asArray(val) : (Array.isArray(val) ? val : [val]);
+      for (var i = 0; i < arr.length; i++) {
+        var item = arr[i];
+        if (!item) continue;
+        var name = '';
+        if (typeof item === 'string') {
+          name = item.trim();
+        } else if (typeof item === 'object') {
+          name = String(item.name || item.userName || item.user || item.email || '').trim();
+        }
+        if (name && !seen.has(name.toLowerCase())) {
+          seen.add(name.toLowerCase());
+          list.push(name);
+        }
+      }
+    }
+    if (seg) {
+      add(seg.consultants);
+      add(seg.consultant);
+      add(seg.team);
+      add(seg.resources);
+      if (seg.consultantRoles && typeof seg.consultantRoles === 'object') {
+        Object.keys(seg.consultantRoles).forEach(add);
+      }
+    }
+    if (list.length > 0) return list;
+    return PDMS.getProjectConsultants(project);
+  };
+
+  PDMS.isProjectActive = function (p) {
+    if (!p) return false;
+    if (PDMS.isClosedProject && PDMS.isClosedProject(p)) return false;
+    var s = String(p.status || '').trim().toLowerCase();
+    var dStat = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus) || '').trim().toLowerCase();
+    var inactiveList = ['completed', 'closure', 'project closure', 'certification & post engagement', 'closed', 'cancelled', 'rejected', 'on hold'];
+    if (inactiveList.indexOf(s) !== -1 || inactiveList.indexOf(dStat) !== -1) return false;
+    return true;
+  };
+
+  PDMS.isConsultantActivelyStaffed = function (consultant, projectsList) {
+    if (!consultant) return false;
+    // Consultants who are on leave should not be counted as active till leave is over
+    if (PDMS.isUserOnLeave && PDMS.isUserOnLeave(consultant)) return false;
+
+    var list = Array.isArray(projectsList)
+      ? projectsList
+      : ((window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects) && window.PDMS_REMOTE.projects.length)
+        ? window.PDMS_REMOTE.projects
+        : ((window.PDMS_DATA && Array.isArray(window.PDMS_DATA.projects) && window.PDMS_DATA.projects.length)
+          ? window.PDMS_DATA.projects
+          : []));
+
+    return (list || []).some(function (p) {
+      if (PDMS.isProjectActiveForUser) {
+        return PDMS.isProjectActiveForUser(consultant, p);
+      }
+      if (!PDMS.isProjectActive(p)) return false;
+      return PDMS.isUserOnProject ? PDMS.isUserOnProject(consultant, p) : false;
+    });
+  };
+
+  PDMS.getProjectsForUser = function (user, projectsList) {
+    if (!user) return [];
+    var list = Array.isArray(projectsList)
+      ? projectsList
+      : ((window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects) && window.PDMS_REMOTE.projects.length)
+        ? window.PDMS_REMOTE.projects
+        : ((window.PDMS_DATA && Array.isArray(window.PDMS_DATA.projects) && window.PDMS_DATA.projects.length)
+          ? window.PDMS_DATA.projects
+          : ((typeof PDMS_DATA !== 'undefined' && PDMS_DATA && Array.isArray(PDMS_DATA.projects)) ? PDMS_DATA.projects : [])));
+    return (list || []).filter(function (p) {
+      return PDMS.isUserOnProject(user, p);
+    });
+  };
+
+  // Storage layer resilient against QuotaExceededError and private-browsing restrictions
+  var _memStore = {};
+  PDMS.storage = (typeof window !== 'undefined' && window.PDMS_STORAGE) ? window.PDMS_STORAGE : {
+    get: function (k) {
+      try { var v = localStorage.getItem(k); if (v !== null) return v; } catch (_) {}
+      try { var sv = sessionStorage.getItem(k); if (sv !== null) return sv; } catch (_) {}
+      return _memStore[k] !== undefined ? _memStore[k] : null;
+    },
+    set: function (k, v) {
+      _memStore[k] = String(v);
+      try {
+        localStorage.setItem(k, v);
+      } catch (e) {
+        try {
+          localStorage.removeItem('pdms-cache');
+          localStorage.removeItem('pdms-cache-ts');
+          localStorage.removeItem('pdms_local_db');
+          localStorage.setItem(k, v);
+          return;
+        } catch (_) {}
+        try { sessionStorage.setItem(k, v); } catch (_) {}
+      }
+    },
+    remove: function (k) {
+      delete _memStore[k];
+      try { localStorage.removeItem(k); } catch (_) {}
+      try { sessionStorage.removeItem(k); } catch (_) {}
+    }
+  };
+
+  // Theme
+  PDMS.applyTheme = function () {
+    const t = PDMS.storage.get('pdms-theme') || 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  };
+  PDMS.toggleTheme = function () {
+    const cur = PDMS.storage.get('pdms-theme') || 'light';
+    const next = cur === 'light' ? 'dark' : 'light';
+    PDMS.storage.set('pdms-theme', next);
+    document.documentElement.setAttribute('data-theme', next);
+    const btn = document.getElementById('themeToggle');
+    if (btn) btn.innerHTML = PDMS.icon(next === 'light' ? 'moon' : 'sun');
   };
   PDMS.applyTheme();
 
   // Auth
   // Current session only — the shared dataset (including Users) lives in
   // Google Sheets via PDMS.api; this is just "who's logged in on this browser".
-  PDMS.getUser = function(){
-    try{ return JSON.parse(localStorage.getItem('pdms-user'))||null; }catch(e){return null;}
+  PDMS.getUser = function () {
+    try {
+      const raw = PDMS.storage.get('pdms-user');
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
   };
-  PDMS.setUser = function(u){
-    localStorage.setItem('pdms-user',JSON.stringify(u));
-    try{ sessionStorage.removeItem('pdms-unread-popup-shown'); }catch(e){} // fresh login re-shows the unread popup
+  PDMS.setUser = function (u) {
+    try {
+      PDMS.storage.set('pdms-user', JSON.stringify(u));
+    } catch (e) {
+      console.warn('Could not persist pdms-user:', e);
+    }
+    try { sessionStorage.removeItem('pdms-unread-popup-shown'); } catch (e) { } // fresh login re-shows the unread popup
   };
-  PDMS.getLocalAuthUsers = function(){
+  PDMS.getLocalAuthUsers = function () {
     const base = [];
     const persisted = (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.users)) ? window.PDMS_DATA.users.filter(u => u._localPassword).map(u => Object.assign({}, u)) : [];
     const emails = new Set(persisted.map(u => String(u.email || '').trim().toLowerCase()));
@@ -1067,39 +1554,39 @@
   const isLocalFile = location.protocol === 'file:';
   const isLocalHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(location.hostname);
   const isLocalMode = isLocalFile || isLocalHost;
-  PDMS.getUsers = function(){
+  PDMS.getUsers = function () {
     const users = (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.users)) ? window.PDMS_DATA.users.slice() : [];
     if (isLocalMode) {
       const local = PDMS.getLocalAuthUsers();
-      const emails = new Set(users.map(u => String(u.email||'').trim().toLowerCase()));
+      const emails = new Set(users.map(u => String(u.email || '').trim().toLowerCase()));
       local.forEach(u => {
-        if (!emails.has(String(u.email||'').trim().toLowerCase())) users.push(u);
+        if (!emails.has(String(u.email || '').trim().toLowerCase())) users.push(u);
       });
       return users;
     }
     const remote = users;
     const local = PDMS.getLocalAuthUsers();
-    const emails = new Set(remote.map(u => String(u.email||'').trim().toLowerCase()));
+    const emails = new Set(remote.map(u => String(u.email || '').trim().toLowerCase()));
     local.forEach(u => {
-      if (!emails.has(String(u.email||'').trim().toLowerCase())) remote.push(u);
+      if (!emails.has(String(u.email || '').trim().toLowerCase())) remote.push(u);
     });
     return remote;
   };
-  PDMS.findUserByEmail = function(email){
-    const e = String(email||'').trim().toLowerCase();
-    return PDMS.getUsers().find(u => String(u.email||'').trim().toLowerCase() === e);
+  PDMS.findUserByEmail = function (email) {
+    const e = String(email || '').trim().toLowerCase();
+    return PDMS.getUsers().find(u => String(u.email || '').trim().toLowerCase() === e);
   };
-  PDMS.findLocalAuthUser = function(email,password){
-    const e = String(email||'').trim().toLowerCase();
+  PDMS.findLocalAuthUser = function (email, password) {
+    const e = String(email || '').trim().toLowerCase();
     return PDMS.getLocalAuthUsers().find(u =>
-      String(u.email||'').trim().toLowerCase() === e && String(u._localPassword||'') === String(password)
+      String(u.email || '').trim().toLowerCase() === e && String(u._localPassword || '') === String(password)
     );
   };
   // Both return Promises — the backend hashes/verifies passwords, the client never sees a hash.
-  PDMS.authenticate = function(email,password){
-    return PDMS.api.login(email,password).catch(function(err){
-      const user = PDMS.findLocalAuthUser(email,password);
-      if(user){
+  PDMS.authenticate = function (email, password) {
+    return PDMS.api.login(email, password).catch(function (err) {
+      const user = PDMS.findLocalAuthUser(email, password);
+      if (user) {
         const fallback = Object.assign({}, user);
         delete fallback._localPassword;
         return Promise.resolve(fallback);
@@ -1107,19 +1594,23 @@
       return Promise.reject(err);
     });
   };
-  PDMS.registerUser = function(account){ return PDMS.api.register(account); };
-  PDMS.isAdmin = function(){ const user = PDMS.getUser(); return user && user.role==='System Administrator'; };
-  PDMS.requireAdmin = function(){ if(!PDMS.isAdmin()) location.href='dashboard.html'; };
-  PDMS.requireRole = function(role){ const user = PDMS.getUser(); if(!user || user.role !== role){ location.href = PDMS.dashboardFor(user); return null; } return user; };
-  PDMS.logout = function(){ localStorage.removeItem('pdms-user'); try{ sessionStorage.removeItem('pdms-unread-popup-shown'); }catch(e){} location.href='index.html'; };
-  PDMS.requireAuth = function(){
+  PDMS.isValidEmail = function (email) {
+    if (!email || typeof email !== 'string') return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  };
+  PDMS.registerUser = function (account) { return PDMS.api.register(account); };
+  PDMS.isAdmin = function () { const user = PDMS.getUser(); return user && user.role === 'System Administrator'; };
+  PDMS.requireAdmin = function () { if (!PDMS.isAdmin()) location.href = 'dashboard.html'; };
+  PDMS.requireRole = function (role) { const user = PDMS.getUser(); if (!user || user.role !== role) { location.href = PDMS.dashboardFor(user); return null; } return user; };
+  PDMS.logout = function () { try { PDMS.storage.remove('pdms-user'); } catch (_) {} try { sessionStorage.removeItem('pdms-unread-popup-shown'); } catch (e) { } location.href = 'index.html'; };
+  PDMS.requireAuth = function () {
     const user = PDMS.getUser();
-    if(!user){ location.href='index.html'; return null; }
+    if (!user) { location.href = 'index.html'; return null; }
     return user;
   };
 
   // Workspace Splash Loader (Slack-inspired rolling loader)
-  PDMS.ensureSplashLoader = function(){
+  PDMS.ensureSplashLoader = function () {
     let loader = document.getElementById('pdmsSplashLoader');
     if (!loader && document.body) {
       loader = document.createElement('div');
@@ -1139,7 +1630,7 @@
     return loader;
   };
 
-  PDMS.showSplashLoader = function(title, subtitle){
+  PDMS.showSplashLoader = function (title, subtitle) {
     const loader = PDMS.ensureSplashLoader();
     if (loader) {
       if (title) {
@@ -1154,7 +1645,7 @@
     }
   };
 
-  PDMS.hideSplashLoader = function(){
+  PDMS.hideSplashLoader = function () {
     const loader = document.getElementById('pdmsSplashLoader');
     if (loader) {
       loader.classList.add('hidden');
@@ -1165,10 +1656,10 @@
   // fresh data has landed (pages re-render off pdms:refresh). Use right after a
   // create so the user waits on the loader instead of a stale list, then sees
   // their new record when it clears.
-  PDMS.awaitFreshData = function(title, subtitle){
+  PDMS.awaitFreshData = function (title, subtitle) {
     if (typeof g.PDMS_REFRESH !== 'function') return;
     PDMS.showSplashLoader(title || 'Saving...', subtitle || 'Getting the latest data');
-    const done = function(){
+    const done = function () {
       document.removeEventListener('pdms:loading-end', done);
       clearTimeout(timer);
       setTimeout(PDMS.hideSplashLoader, 150);
@@ -1180,12 +1671,12 @@
 
   // Renders when data is ready. Shows splash screen while loading data so that
   // incomplete or empty states are never displayed before database retrieval finishes.
-  PDMS.onRefresh = function(renderFn){
+  PDMS.onRefresh = function (renderFn) {
     if (!g.PDMS_DATA_LOADED && !g.PDMS_REMOTE) {
       PDMS.showSplashLoader('Loading your workspace...', 'Retrieving project data from database');
     }
     const safeRender = () => {
-      try { renderFn(); } catch(e){ console.error('Render error:', e); }
+      try { renderFn(); } catch (e) { console.error('Render error:', e); }
       if (g.PDMS_DATA_LOADED || g.PDMS_REMOTE) {
         setTimeout(PDMS.hideSplashLoader, 180);
       }
@@ -1199,28 +1690,28 @@
   };
 
   // Toast
-  PDMS.toast = function(title,msg,type){
-    let box=document.querySelector('.toasts');
-    if(!box){ box=document.createElement('div'); box.className='toasts'; document.body.appendChild(box); }
-    const t=document.createElement('div');
-    t.className='toast '+(type||'');
-    const icon = type==='success'?'check':type==='error'?'close':type==='warn'?'bell':'zap';
-    t.innerHTML = '<div class="t-icon">'+ICONS[icon]+'</div><div><div class="t-title">'+title+'</div><div class="t-msg">'+(msg||'')+'</div></div>';
+  PDMS.toast = function (title, msg, type) {
+    let box = document.querySelector('.toasts');
+    if (!box) { box = document.createElement('div'); box.className = 'toasts'; document.body.appendChild(box); }
+    const t = document.createElement('div');
+    t.className = 'toast ' + (type || '');
+    const icon = type === 'success' ? 'check' : type === 'error' ? 'close' : type === 'warn' ? 'bell' : 'zap';
+    t.innerHTML = '<div class="t-icon">' + ICONS[icon] + '</div><div><div class="t-title">' + title + '</div><div class="t-msg">' + (msg || '') + '</div></div>';
     box.appendChild(t);
-    setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateX(20px)'; setTimeout(()=>t.remove(),300); },3500);
+    setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(20px)'; setTimeout(() => t.remove(), 300); }, 3500);
   };
 
   // Disables a button and swaps its label while an async action is in
   // flight, so a slow request can't be triggered twice by repeated clicks.
-  PDMS.setButtonLoading = function(btn, isLoading, label){
-    if(!btn) return;
-    if(isLoading){
-      if(btn.dataset.originalHtml===undefined) btn.dataset.originalHtml = btn.innerHTML;
+  PDMS.setButtonLoading = function (btn, isLoading, label) {
+    if (!btn) return;
+    if (isLoading) {
+      if (btn.dataset.originalHtml === undefined) btn.dataset.originalHtml = btn.innerHTML;
       btn.disabled = true;
       btn.innerHTML = label || 'Loading...';
     } else {
       btn.disabled = false;
-      if(btn.dataset.originalHtml!==undefined){ btn.innerHTML = btn.dataset.originalHtml; delete btn.dataset.originalHtml; }
+      if (btn.dataset.originalHtml !== undefined) { btn.innerHTML = btn.dataset.originalHtml; delete btn.dataset.originalHtml; }
     }
   };
 
@@ -1228,7 +1719,7 @@
   // background fetch in config.js resolves) — an empty array at this point means
   // "still loading", not "genuinely nothing here". Every "No X yet" empty state
   // should route through this so it doesn't misrepresent one as the other.
-  PDMS.emptyOrLoading = function(emptyMessage){
+  PDMS.emptyOrLoading = function (emptyMessage) {
     return g.PDMS_REMOTE ? emptyMessage : '<span class="pdms-spinner" style="margin-right:8px;vertical-align:-2px"></span>Loading...';
   };
 
@@ -1238,7 +1729,7 @@
   // recipientId: optional target user id or email
   // projectId: optional project ID to scope to project members
   // recipientName: optional recipient user name
-  PDMS.notify = function(title, msg, icon, link, recipientRole, recipientId, projectId, recipientName){
+  PDMS.notify = function (title, msg, icon, link, recipientRole, recipientId, projectId, recipientName) {
     const user = PDMS.getUser();
     let rRole = recipientRole || '';
     let rId = recipientId || '';
@@ -1246,7 +1737,7 @@
     let pId = projectId || '';
 
     // If recipientRole is actually a user email or ID or single user name (not a system role)
-    const knownRoles = ['system administrator','general admin','sales','sales head','accounts','coo','htd','pm head','pmo','hr','consultant','lead','pm','*'];
+    const knownRoles = ['system administrator', 'general admin', 'sales', 'sales head', 'accounts', 'coo', 'htd', 'pm head', 'pmo', 'hr', 'consultant', 'lead', 'pm', '*'];
     if (rRole && !rId && !rRole.includes(',')) {
       const trimmed = rRole.trim().toLowerCase();
       if (!knownRoles.includes(trimmed)) {
@@ -1279,15 +1770,15 @@
       recipientName: rName,
       projectId: pId
     };
-    PDMS.api.create('notifications', record).then(saved=>{
-      if(window.PDMS_DATA && Array.isArray(window.PDMS_DATA.notifications)){
+    PDMS.api.create('notifications', record).then(saved => {
+      if (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.notifications)) {
         window.PDMS_DATA.notifications.unshift(saved);
       }
-      if(window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.notifications) && window.PDMS_REMOTE.notifications !== window.PDMS_DATA.notifications){
+      if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.notifications) && window.PDMS_REMOTE.notifications !== window.PDMS_DATA.notifications) {
         window.PDMS_REMOTE.notifications.unshift(saved);
       }
       document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
-    }).catch(()=>{}); // silent — notifications are best-effort
+    }).catch(() => { }); // silent — notifications are best-effort
   };
 
   // ------------------------------------------------------------------
@@ -1296,30 +1787,30 @@
   // carry recipient metadata (role and/or user). On login the shell shows a
   // single generic "you have unread notifications" sticky (see js/app.js).
   // ------------------------------------------------------------------
-  function liveList(key){
+  function liveList(key) {
     return (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE[key]) && window.PDMS_REMOTE[key])
-        || (window.PDMS_DATA && Array.isArray(window.PDMS_DATA[key]) && window.PDMS_DATA[key])
-        || [];
+      || (window.PDMS_DATA && Array.isArray(window.PDMS_DATA[key]) && window.PDMS_DATA[key])
+      || [];
   }
 
   // Resolve the lead owner from the project record itself — never assume it is
   // the currently logged-in user (the owner acts at only some workflow stages).
-  PDMS.leadOwnerOf = function(project){
-    if(!project) return { id:'', name:'' };
-    const idFields = ['projectOwnerId','salesOwnerId','onboardedById','createdByUserId'];
-    const nameFields = ['projectOwnerName','salesOwnerName','onboardedByName','createdByUserName','sales'];
+  PDMS.leadOwnerOf = function (project) {
+    if (!project) return { id: '', name: '' };
+    const idFields = ['projectOwnerId', 'salesOwnerId', 'onboardedById', 'createdByUserId'];
+    const nameFields = ['projectOwnerName', 'salesOwnerName', 'onboardedByName', 'createdByUserName', 'sales'];
     let id = '';
-    for(const f of idFields){ if(project[f]){ id = String(project[f]); break; } }
+    for (const f of idFields) { if (project[f]) { id = String(project[f]); break; } }
     let name = '';
-    for(const f of nameFields){ if(project[f] && project[f] !== 'Sales Team'){ name = String(project[f]); break; } }
+    for (const f of nameFields) { if (project[f] && project[f] !== 'Sales Team') { name = String(project[f]); break; } }
     const users = PDMS.getUsers();
-    if(id && !name){
+    if (id && !name) {
       const u = users.find(x => String(x.id) === id);
-      if(u) name = u.name;
+      if (u) name = u.name;
     }
-    if(!id && name){
+    if (!id && name) {
       const u = users.find(x => String(x.name || '').trim().toLowerCase() === name.trim().toLowerCase());
-      if(u) id = String(u.id);
+      if (u) id = String(u.id);
     }
     return { id, name };
   };
@@ -1360,15 +1851,21 @@
       msg: `Lead "${ctx.project.name}" (${ctx.project.client || ctx.project.name}) has been awarded (Award/SLA) by ${ctx.actor} and is awaiting your approval.`
     }],
     'award.approved': ctx => [
-      { owner: true, kind: 'info', icon: 'check',
+      {
+        owner: true, kind: 'info', icon: 'check',
         title: 'Award Approved by Accounts',
-        msg: `Your lead "${ctx.project.name}" has been awarded and approved by Accounts (${ctx.actor}).` },
-      { recipientRole: 'Sales Head', kind: 'info', icon: 'check',
+        msg: `Your lead "${ctx.project.name}" has been awarded and approved by Accounts (${ctx.actor}).`
+      },
+      {
+        recipientRole: 'Sales Head', kind: 'info', icon: 'check',
         title: 'Award Approved by Accounts',
-        msg: `The lead "${ctx.project.name}" has been awarded and approved by Accounts (${ctx.actor}).` },
-      { recipientRole: DELIVERY_TEAM_ROLES, kind: 'info', icon: 'folder',
+        msg: `The lead "${ctx.project.name}" has been awarded and approved by Accounts (${ctx.actor}).`
+      },
+      {
+        recipientRole: DELIVERY_TEAM_ROLES, kind: 'info', icon: 'folder',
         title: 'Lead Ready for Delivery',
-        msg: `Lead "${ctx.project.name}" has been awarded and approved by Accounts. It is now ready for the delivery process.` }
+        msg: `Lead "${ctx.project.name}" has been awarded and approved by Accounts. It is now ready for the delivery process.`
+      }
     ],
     'award.rejected': ctx => [{
       owner: true, kind: 'info',
@@ -1378,27 +1875,27 @@
     }]
   };
 
-  function dedupeExists(key){
-    if(!key) return false;
+  function dedupeExists(key) {
+    if (!key) return false;
     return liveList('notifications').some(n => n.dedupeKey === key);
   }
 
-  function postNotification(rec){
+  function postNotification(rec) {
     // Optimistic insert so the sticky bar / bell update immediately and the
     // dedupe check sees this record synchronously (guards double-clicks).
     const optimistic = Object.assign({ id: 'tmp-' + Math.random().toString(36).slice(2), _optimistic: true }, rec);
     const dataArr = (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.notifications)) ? window.PDMS_DATA.notifications : null;
     const remoteArr = (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.notifications)) ? window.PDMS_REMOTE.notifications : null;
-    if(dataArr) dataArr.unshift(optimistic);
-    if(remoteArr && remoteArr !== dataArr) remoteArr.unshift(optimistic);
+    if (dataArr) dataArr.unshift(optimistic);
+    if (remoteArr && remoteArr !== dataArr) remoteArr.unshift(optimistic);
     document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
-    PDMS.api.create('notifications', rec).then(saved=>{
+    PDMS.api.create('notifications', rec).then(saved => {
       Object.assign(optimistic, saved);
       delete optimistic._optimistic;
       document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
-    }).catch(()=>{
-      if(dataArr){ const i = dataArr.indexOf(optimistic); if(i>-1) dataArr.splice(i,1); }
-      if(remoteArr && remoteArr !== dataArr){ const j = remoteArr.indexOf(optimistic); if(j>-1) remoteArr.splice(j,1); }
+    }).catch(() => {
+      if (dataArr) { const i = dataArr.indexOf(optimistic); if (i > -1) dataArr.splice(i, 1); }
+      if (remoteArr && remoteArr !== dataArr) { const j = remoteArr.indexOf(optimistic); if (j > -1) remoteArr.splice(j, 1); }
       document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
     });
   }
@@ -1407,10 +1904,10 @@
   // Duplicate-safe: keyed on event + project + submissionCount, so repeated
   // saves / refreshes never create a second copy, but a genuine resubmission
   // (which bumps submissionCount) does.
-  PDMS.workflowNotify = function(event, project, opts){
+  PDMS.workflowNotify = function (event, project, opts) {
     opts = opts || {};
     const build = WORKFLOW_EVENTS[event];
-    if(!build || !project) return;
+    if (!build || !project) return;
     const user = PDMS.getUser();
     const ctx = {
       project,
@@ -1424,14 +1921,14 @@
     build(ctx).forEach(part => {
       const rRole = part.recipientRole || '';
       const isOwner = !!part.owner;
-      if(!isOwner && !rRole) return; // nothing to target
+      if (!isOwner && !rRole) return; // nothing to target
       // For owner notifications we always create the record and resolve the
       // recipient live (by id/name OR project ownership) — so even a legacy lead
       // with no owner id recorded still reaches whoever owns it.
       const rId = isOwner ? (ctx.owner.id || '') : '';
       const rName = isOwner ? (ctx.owner.name || '') : '';
       const dedupeKey = `${event}:${project.id}:${submissionCount}:${rRole || 'owner'}`;
-      if(dedupeExists(dedupeKey)) return;
+      if (dedupeExists(dedupeKey)) return;
       postNotification({
         title: part.title,
         msg: part.msg,
@@ -1456,7 +1953,7 @@
   };
 
   // Notify management when an issue / complaint is submitted
-  PDMS.notifyComplaintSubmitted = function(complaint, user) {
+  PDMS.notifyComplaintSubmitted = function (complaint, user) {
     if (!complaint) return;
     const nowIso = new Date().toISOString();
     const actorName = (user && user.name) || complaint.submittedByName || 'User';
@@ -1501,11 +1998,11 @@
   };
 
   // Notify submitter when complaint status is updated or replied to
-  PDMS.notifyComplaintResponse = function(complaint, responseMsg, actor) {
+  PDMS.notifyComplaintResponse = function (complaint, responseMsg, actor) {
     if (!complaint) return;
     const nowIso = new Date().toISOString();
     const actorUser = actor || PDMS.getUser() || { name: 'Support Team', role: 'Management' };
-    
+
     postNotification({
       title: `Update on Ticket #${complaint.ticketNumber || complaint.id}`,
       msg: `${actorUser.name} (${actorUser.role}): ${responseMsg || `Status updated to ${complaint.status}`}`,
@@ -1537,10 +2034,10 @@
   // - Time-off requests only visible to HR/Admin, responses only to the requester and HR/Admin
   // - PMOs, Consultants, and HR only see notifications for projects/leads they belong to and their own leave requests
   // - Generic system announcements only for Admins & Executive Leadership (COO)
-  PDMS.notificationsFor = function(user, opts){
+  PDMS.notificationsFor = function (user, opts) {
     opts = opts || {};
     user = user || PDMS.getUser();
-    if(!user) return [];
+    if (!user) return [];
     const all = liveList('notifications');
     const projectsAll = liveList('projects');
     const role = String(user.role || '').trim();
@@ -1555,59 +2052,23 @@
     const isAdmin = ['system administrator', 'general admin'].includes(roleLower);
     const isDeliveryLead = ['coo', 'htd', 'pm head'].includes(roleLower);
 
-    const isProjectMember = function(projectId, projObj){
-      if(!projectId && !projObj) return false;
+    const isProjectMember = function (projectId, projObj) {
+      if (!projectId && !projObj) return false;
       const pIdStr = String(projectId || (projObj && projObj.id) || '').trim().toLowerCase();
       const proj = projObj || projectsAll.find(p => p && String(p.id).trim().toLowerCase() === pIdStr);
-      if(!proj) return false;
-
-      // 1. Lead / Deal owner
-      if(PDMS.projectOwnedByUser && PDMS.projectOwnedByUser(proj, user)) return true;
-      const ownerId = String(proj.projectOwnerId || proj.salesOwnerId || proj.onboardedById || proj.createdByUserId || '').trim().toLowerCase();
-      const ownerName = String(proj.projectOwnerName || proj.salesOwnerName || proj.onboardedByName || proj.createdByUserName || proj.sales || '').trim().toLowerCase();
-      if(ownerId && (ownerId === uid || ownerId === uemail)) return true;
-      if(ownerName && ownerName !== 'sales team' && (ownerName === uname || ownerName === uemail)) return true;
-
-      // 2. PM or Lead
-      const pm = String(proj.pm || '').trim().toLowerCase();
-      const lead = String(proj.lead || '').trim().toLowerCase();
-      if(pm && (pm === uname || pm === uid || pm === uemail)) return true;
-      if(lead && (lead === uname || lead === uid || lead === uemail)) return true;
-
-      // 3. Assigned consultants list
-      const rawCons = PDMS.asArray ? PDMS.asArray(proj.consultants) : (Array.isArray(proj.consultants) ? proj.consultants : []);
-      const cons = rawCons.map(x => String(x).trim().toLowerCase());
-      if(cons.includes(uname) || (uid && cons.includes(uid)) || (uemail && cons.includes(uemail))) return true;
-
-      // Check segment PM, Lead, and Consultants
-      if (Array.isArray(proj.projectSegments)) {
-        for (const seg of proj.projectSegments) {
-          if (!seg) continue;
-          const sPm = String(seg.pm || '').trim().toLowerCase();
-          const sLead = String(seg.lead || '').trim().toLowerCase();
-          if (sPm && (sPm === uname || sPm === uid || sPm === uemail)) return true;
-          if (sLead && (sLead === uname || sLead === uid || sLead === uemail)) return true;
-          const sCons = (Array.isArray(seg.consultants) ? seg.consultants : []).map(x => String(x).trim().toLowerCase());
-          if (sCons.includes(uname) || (uid && sCons.includes(uid)) || (uemail && sCons.includes(uemail))) return true;
-        }
-      }
-
-      // 4. Private tasks assigned to this user
-      const tasks = PDMS.getPrivateTasks ? PDMS.getPrivateTasks(proj) : (Array.isArray(proj.privateTasks) ? proj.privateTasks : []);
-      if(tasks.some(t => t && ((t.ownerName && t.ownerName.trim().toLowerCase() === uname) || (t.ownerId && t.ownerId.trim().toLowerCase() === uid) || (t.ownerEmail && t.ownerEmail.trim().toLowerCase() === uemail)))) return true;
-
-      return false;
+      if (!proj) return false;
+      return PDMS.isUserOnProject(user, proj);
     };
 
-    const ownsProject = function(projectId){
-      if(!projectId) return false;
+    const ownsProject = function (projectId) {
+      if (!projectId) return false;
       const pIdStr = String(projectId).trim().toLowerCase();
       const proj = projectsAll.find(p => p && String(p.id).trim().toLowerCase() === pIdStr);
       return !!proj && isProjectMember(projectId, proj);
     };
 
     const filtered = all.filter(n => {
-      if(!n) return false;
+      if (!n) return false;
       if (!opts.includeCleared && PDMS.isNotificationCleared && PDMS.isNotificationCleared(n, user)) {
         return false;
       }
@@ -1724,7 +2185,7 @@
     return filtered.slice().sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
   };
 
-  PDMS.isNotificationCleared = function(n, user){
+  PDMS.isNotificationCleared = function (n, user) {
     if (!n) return true;
     user = user || PDMS.getUser();
     if (!user) return n.unread === false;
@@ -1756,7 +2217,7 @@
         if (Array.isArray(userReadSet) && userReadSet.includes(String(n.id))) {
           return true;
         }
-      } catch(_) {}
+      } catch (_) { }
     }
 
     // Direct single-recipient notification marked unread: false
@@ -1767,18 +2228,18 @@
     return false;
   };
 
-  PDMS.isNotificationUnread = function(n, user){
+  PDMS.isNotificationUnread = function (n, user) {
     return !PDMS.isNotificationCleared(n, user);
   };
 
   // Count of active/unread notifications for this user
-  PDMS.unreadCountFor = function(user){
+  PDMS.unreadCountFor = function (user) {
     user = user || PDMS.getUser();
-    if(!user) return 0;
+    if (!user) return 0;
     return PDMS.notificationsFor(user).length;
   };
 
-  PDMS.dismissNotification = function(id, e){
+  PDMS.dismissNotification = function (id, e) {
     if (e) {
       if (typeof e.stopPropagation === 'function') e.stopPropagation();
       if (typeof e.preventDefault === 'function') e.preventDefault();
@@ -1799,11 +2260,11 @@
         try {
           const dKey = 'pdms_user_dismissed_notifs_' + userKey;
           const rKey = 'pdms_user_read_notifs_' + userKey;
-          const dSet = JSON.parse(localStorage.getItem(dKey) || '[]');
-          const rSet = JSON.parse(localStorage.getItem(rKey) || '[]');
-          if (!dSet.includes(String(id))) { dSet.push(String(id)); localStorage.setItem(dKey, JSON.stringify(dSet)); }
-          if (!rSet.includes(String(id))) { rSet.push(String(id)); localStorage.setItem(rKey, JSON.stringify(rSet)); }
-        } catch(_) {}
+          const dSet = JSON.parse(PDMS.storage.get(dKey) || '[]');
+          const rSet = JSON.parse(PDMS.storage.get(rKey) || '[]');
+          if (!dSet.includes(String(id))) { dSet.push(String(id)); PDMS.storage.set(dKey, JSON.stringify(dSet)); }
+          if (!rSet.includes(String(id))) { rSet.push(String(id)); PDMS.storage.set(rKey, JSON.stringify(rSet)); }
+        } catch (_) { }
       }
       if (!target.recipientRole && (target.recipientId || target.recipientOwner)) {
         target.unread = false;
@@ -1812,19 +2273,19 @@
         readBy: target.readBy,
         dismissedBy: target.dismissedBy,
         unread: target.unread
-      }).catch(() => {});
+      }).catch(() => { });
       document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
     }
   };
 
-  PDMS.markNotificationAsRead = function(id, link){
+  PDMS.markNotificationAsRead = function (id, link) {
     PDMS.dismissNotification(id);
     if (link) {
       location.href = link;
     }
   };
 
-  PDMS.markAllNotificationsRead = function(user){
+  PDMS.markAllNotificationsRead = function (user) {
     user = user || PDMS.getUser();
     const userKey = user ? String(user.id || user.email || user.name || '').trim().toLowerCase() : '';
     const liveNotifs = liveList('notifications');
@@ -1835,15 +2296,15 @@
       try {
         const dKey = 'pdms_user_dismissed_notifs_' + userKey;
         const rKey = 'pdms_user_read_notifs_' + userKey;
-        const dSet = JSON.parse(localStorage.getItem(dKey) || '[]');
-        const rSet = JSON.parse(localStorage.getItem(rKey) || '[]');
+        const dSet = JSON.parse(PDMS.storage.get(dKey) || '[]');
+        const rSet = JSON.parse(PDMS.storage.get(rKey) || '[]');
         visible.forEach(n => {
           if (!dSet.includes(String(n.id))) dSet.push(String(n.id));
           if (!rSet.includes(String(n.id))) rSet.push(String(n.id));
         });
-        localStorage.setItem(dKey, JSON.stringify(dSet));
-        localStorage.setItem(rKey, JSON.stringify(rSet));
-      } catch(_) {}
+        PDMS.storage.set(dKey, JSON.stringify(dSet));
+        PDMS.storage.set(rKey, JSON.stringify(rSet));
+      } catch (_) { }
     }
 
     visible.forEach(n => {
@@ -1867,7 +2328,7 @@
       readBy: n.readBy,
       dismissedBy: n.dismissedBy,
       unread: n.unread
-    }).catch(() => {}));
+    }).catch(() => { }));
 
     return Promise.all(updates).then(() => {
       document.dispatchEvent(new CustomEvent('pdms:notifications-changed'));
@@ -1878,8 +2339,8 @@
   PDMS.clearAllNotifications = PDMS.markAllNotificationsRead;
 
   // Money & date fmt
-  PDMS.money = n => '$'+Number(n).toLocaleString();
-  PDMS.currency = function(val, symbol = '₦'){
+  PDMS.money = n => '$' + Number(n).toLocaleString();
+  PDMS.currency = function (val, symbol = '₦') {
     if (val === null || val === undefined || val === '') return '—';
     const n = Number(val);
     if (!Number.isFinite(n)) return String(val);
@@ -1904,7 +2365,7 @@
     { symbol: 'custom', label: 'Custom…' }
   ];
 
-  PDMS.renderCurrencyInput = function(opts) {
+  PDMS.renderCurrencyInput = function (opts) {
     opts = opts || {};
     const selectId = opts.selectId || 'currencySelect';
     const customId = opts.customId || 'customCurrencyInput';
@@ -1931,7 +2392,7 @@
     `;
   };
 
-  PDMS.initCurrencyInput = function(containerOrModal, selectId, customId) {
+  PDMS.initCurrencyInput = function (containerOrModal, selectId, customId) {
     const root = containerOrModal || document;
     const sel = root.querySelector('#' + selectId);
     const cust = root.querySelector('#' + customId);
@@ -1947,7 +2408,7 @@
     };
   };
 
-  PDMS.getCurrencyInputValue = function(containerOrModal, selectId, customId) {
+  PDMS.getCurrencyInputValue = function (containerOrModal, selectId, customId) {
     const root = containerOrModal || document;
     const sel = root.querySelector('#' + selectId);
     const cust = root.querySelector('#' + customId);
@@ -1958,7 +2419,7 @@
     }
     return sel.value || '₦';
   };
-  PDMS.timeAgo = function(iso){
+  PDMS.timeAgo = function (iso) {
     if (!iso) return '';
     const diffMs = Date.now() - new Date(iso).getTime();
     const mins = Math.round(diffMs / 60000);
@@ -1969,7 +2430,261 @@
     return Math.round(hrs / 24) + 'd ago';
   };
   PDMS.relativeTime = PDMS.timeAgo;
-  PDMS.initials = name => (name||'').split(' ').filter(Boolean).map(p=>p[0]).slice(0,2).join('').toUpperCase();
+  PDMS.initials = name => (name || '').split(' ').filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase();
+
+  // Generates a cryptographically strong, human-readable temporary password
+  PDMS.generatePassword = function (len) {
+    len = len || 12;
+    var upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    var lower = 'abcdefghijkmnopqrstuvwxyz';
+    var digits = '23456789';
+    var specials = '!@#$%&*';
+    var all = upper + lower + digits + specials;
+    var pwd = [
+      upper[Math.floor(Math.random() * upper.length)],
+      lower[Math.floor(Math.random() * lower.length)],
+      digits[Math.floor(Math.random() * digits.length)],
+      specials[Math.floor(Math.random() * specials.length)]
+    ];
+    for (var i = 4; i < len; i++) {
+      pwd.push(all[Math.floor(Math.random() * all.length)]);
+    }
+    for (var i = pwd.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var temp = pwd[i];
+      pwd[i] = pwd[j];
+      pwd[j] = temp;
+    }
+    return pwd.join('');
+  };
+
+  // Prepares the default Welcome Email draft for user onboarding
+  PDMS.buildWelcomeEmail = function (user, plainPassword, appUrl) {
+    var portalUrl = appUrl || (location.origin + location.pathname.replace(/\/[^\/]*$/, '/index.html'));
+    var subject = "Welcome to PSE PDMS - Your Account Details";
+    var body = "Hello " + (user.name || "Team Member") + ",\n\n" +
+      "Your account has been successfully created on the PSE PDMS portal as a " + (user.role || "Team Member") + ".\n\n" +
+      "Here are your login credentials:\n" +
+      "• Email: " + user.email + "\n" +
+      "• Initial Password: " + (plainPassword || "[Provided Separately]") + "\n\n" +
+      "You can sign in to the portal here:\n" +
+      portalUrl + "\n\n" +
+      "Please log in and update your password from your Profile page as soon as possible.\n\n" +
+      "Best regards,\n" +
+      "PSE HR Team";
+    return { subject: subject, body: body };
+  };
+
+  // Prepares the default Profile Update Email draft when updating user details
+  PDMS.buildUpdateEmail = function (originalUser, updatedFields, plainPassword, editorName, appUrl) {
+    var portalUrl = appUrl || (location.origin + location.pathname.replace(/\/[^\/]*$/, '/index.html'));
+    var fieldLabels = {
+      name: 'Full Name',
+      email: 'Work Email',
+      role: 'Role',
+      dept: 'Designation / Department',
+      phone: 'Phone Number',
+      birthday: 'Date of Birth',
+      dateOfEntry: 'Date of Entry'
+    };
+
+    var changeLines = [];
+    for (var key in fieldLabels) {
+      var oldVal = originalUser[key] != null ? String(originalUser[key]).trim() : '';
+      var newVal = updatedFields[key] != null ? String(updatedFields[key]).trim() : '';
+      if (newVal !== oldVal) {
+        if (oldVal && newVal) {
+          changeLines.push("• " + fieldLabels[key] + ": " + newVal + " (previously: " + oldVal + ")");
+        } else if (newVal) {
+          changeLines.push("• " + fieldLabels[key] + ": " + newVal);
+        } else if (oldVal) {
+          changeLines.push("• " + fieldLabels[key] + ": [Cleared] (previously: " + oldVal + ")");
+        }
+      }
+    }
+
+    var targetEmail = updatedFields.email || originalUser.email || '';
+    var userName = updatedFields.name || originalUser.name || 'User';
+    var editor = editorName || 'HR Team';
+
+    var subject = "PSE PDMS - Your Profile Details Have Been Updated";
+    var body = "";
+
+    if (plainPassword && changeLines.length === 0) {
+      subject = "PSE PDMS - Your Account Password Has Been Updated";
+      body = "Hello " + userName + ",\n\n" +
+        "Your PSE PDMS account password has been updated by " + editor + ".\n\n" +
+        "Here are your new login credentials:\n" +
+        "• Email: " + targetEmail + "\n" +
+        "• New Password: " + plainPassword + "\n\n" +
+        "You can sign in to the portal here:\n" +
+        portalUrl + "\n\n" +
+        "For security, please log in and update your password from your Profile page as soon as possible.\n\n" +
+        "If you did not request or expect this change, please contact the HR / People Operations team immediately.\n\n" +
+        "Best regards,\n" +
+        "PSE HR Team";
+    } else if (plainPassword && changeLines.length > 0) {
+      subject = "PSE PDMS - Your Profile & Login Details Have Been Updated";
+      body = "Hello " + userName + ",\n\n" +
+        "Your profile details and password on the PSE PDMS portal have been updated by " + editor + ".\n\n" +
+        "Here are your new login credentials:\n" +
+        "• Email: " + targetEmail + "\n" +
+        "• New Password: " + plainPassword + "\n\n" +
+        "Summary of Profile Changes:\n" +
+        changeLines.join("\n") + "\n\n" +
+        "You can sign in to the portal and view your profile here:\n" +
+        portalUrl + "\n\n" +
+        "If you did not request or expect these changes, please contact the HR / People Operations team.\n\n" +
+        "Best regards,\n" +
+        "PSE HR Team";
+    } else {
+      subject = "PSE PDMS - Your Profile Details Have Been Updated";
+      body = "Hello " + userName + ",\n\n" +
+        "Your profile details on the PSE PDMS portal have been updated by " + editor + ".\n\n" +
+        "Summary of Changes:\n" +
+        (changeLines.length > 0 ? changeLines.join("\n") : "• Profile information updated") + "\n\n" +
+        "You can sign in to the portal and view your profile here:\n" +
+        portalUrl + "\n\n" +
+        "If you did not request or expect these changes, please contact the HR / People Operations team.\n\n" +
+        "Best regards,\n" +
+        "PSE HR Team";
+    }
+
+    return { subject: subject, body: body, changeLines: changeLines };
+  };
+
+  // Prepares the default Leave Request Email draft when an employee submits time-off
+  PDMS.buildLeaveRequestEmail = function (user, leaveDetails, appUrl) {
+    var portalUrl = appUrl || (location.origin + location.pathname.replace(/\/[^\/]*$/, '/leave-approvals.html'));
+    var dates = (!leaveDetails.endDate || leaveDetails.startDate === leaveDetails.endDate)
+      ? leaveDetails.startDate
+      : (leaveDetails.startDate + ' to ' + leaveDetails.endDate);
+    var subject = "New Time-Off Request: " + (user.name || "Employee") + " (" + dates + ")";
+    var body = "Hello HR Team,\n\n" +
+      (user.name || "An employee") + " (" + (user.email || "") + (user.dept ? (", " + user.dept) : "") + ") has submitted a new time-off request.\n\n" +
+      "• Leave Category: " + (leaveDetails.type || "Time-Off") + "\n" +
+      "• Duration: " + (leaveDetails.daysCount || 1) + " day(s)\n" +
+      "• Date Range: " + dates + "\n" +
+      "• Reason / Handover Notes:\n" + (leaveDetails.reason || "None provided") + "\n\n" +
+      "You can review and approve or reject this request on the PDMS portal here:\n" +
+      portalUrl + "\n\n" +
+      "Best regards,\n" +
+      (user.name || "PSE Team Member");
+    return { subject: subject, body: body };
+  };
+
+  // Prepares the default Leave Approval Email draft when HR approves a request
+  PDMS.buildLeaveApprovalEmail = function (candidate, leave, reviewerName, reviewNote, appUrl) {
+    var portalUrl = appUrl || (location.origin + location.pathname.replace(/\/[^\/]*$/, '/profile.html'));
+    var dates = (!leave.endDate || leave.startDate === leave.endDate)
+      ? leave.startDate
+      : (leave.startDate + ' to ' + leave.endDate);
+    var candidateName = (candidate && candidate.name) || leave.userName || "Team Member";
+    var subject = "PSE PDMS - Time-Off Request Approved (" + dates + ")";
+    var body = "Hello " + candidateName + ",\n\n" +
+      "Good news! Your time-off request has been APPROVED by " + (reviewerName || "HR Team") + ".\n\n" +
+      "• Leave Category: " + (leave.type || "Time-Off") + "\n" +
+      "• Duration: " + (leave.daysCount || 1) + " day(s)\n" +
+      "• Date Range: " + dates + "\n" +
+      (reviewNote ? ("• Note from HR: " + reviewNote + "\n") : "") +
+      "• Reviewed At: " + new Date().toLocaleDateString() + "\n\n" +
+      "You can view your updated leave balance and history on your Profile page:\n" +
+      portalUrl + "\n\n" +
+      "Best regards,\n" +
+      "PSE HR Team";
+    return { subject: subject, body: body };
+  };
+
+  // Prepares the default Leave Rejection Email draft when HR rejects a request
+  PDMS.buildLeaveRejectionEmail = function (candidate, leave, reviewerName, reviewNote, appUrl) {
+    var portalUrl = appUrl || (location.origin + location.pathname.replace(/\/[^\/]*$/, '/profile.html'));
+    var dates = (!leave.endDate || leave.startDate === leave.endDate)
+      ? leave.startDate
+      : (leave.startDate + ' to ' + leave.endDate);
+    var candidateName = (candidate && candidate.name) || leave.userName || "Team Member";
+    var subject = "PSE PDMS - Time-Off Request Update (" + dates + ")";
+    var body = "Hello " + candidateName + ",\n\n" +
+      "Your time-off request for " + dates + " has been reviewed by " + (reviewerName || "HR Team") + " and was NOT approved.\n\n" +
+      "• Leave Category: " + (leave.type || "Time-Off") + "\n" +
+      "• Duration: " + (leave.daysCount || 1) + " day(s)\n" +
+      "• Date Range: " + dates + "\n" +
+      "• Reason / Note: " + (reviewNote || "Not approved by HR") + "\n" +
+      "• Reviewed At: " + new Date().toLocaleDateString() + "\n\n" +
+      "If you have questions regarding this decision, please speak directly with your HR representative or manager.\n\n" +
+      "Best regards,\n" +
+      "PSE HR Team";
+    return { subject: subject, body: body };
+  };
+
+  // Interactive modal allowing HR to review, preview, and edit email content before sending
+  PDMS.showEmailPreviewModal = function (opts) {
+    var title = opts.title || 'Review Email Before Sending';
+    var to = opts.to || '';
+    var subject = opts.subject || '';
+    var body = opts.body || '';
+    var submitLabel = opts.submitLabel || 'Send Mail';
+
+    var modal = PDMS.modal(title, `
+      <div style="display:flex;flex-direction:column;gap:14px;padding:4px 0">
+        <div style="background:rgba(29,60,136,0.06);border:1px solid rgba(29,60,136,0.18);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+          <div style="color:var(--primary);display:flex;align-items:center">${PDMS.icon('mail')}</div>
+          <div style="font-size:13px;color:var(--text);flex:1">
+            Review and edit the email message below before sending it to <b>${PDMS.esc(to)}</b>.
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label style="font-weight:600;font-size:12px;color:var(--text-muted)">To (Recipient):</label>
+          <input id="previewEmailTo" type="text" value="${PDMS.esc(to)}" readonly style="background:var(--surface-2);font-weight:600;cursor:not-allowed"/>
+        </div>
+
+        <div class="form-row">
+          <label style="font-weight:600;font-size:12px;color:var(--text-muted)">Subject Line:</label>
+          <input id="previewEmailSubject" type="text" value="${PDMS.esc(subject)}" placeholder="Enter email subject" style="font-weight:600"/>
+        </div>
+
+        <div class="form-row">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <label style="font-weight:600;font-size:12px;color:var(--text-muted);margin:0">Message Body (Editable):</label>
+            <span style="font-size:11px;color:var(--text-soft)">You can edit this message freely</span>
+          </div>
+          <textarea id="previewEmailBody" rows="11" style="width:100%;font-family:inherit;font-size:13px;line-height:1.55;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);resize:vertical">${PDMS.esc(body)}</textarea>
+        </div>
+      </div>
+    `, `
+      <button class="btn btn-ghost" id="previewEmailCancelBtn">Back to Form</button>
+      ${opts.onSkip ? `<button class="btn btn-secondary" id="previewEmailSkipBtn">Save Without Email</button>` : ''}
+      <button class="btn btn-primary" id="previewEmailSendBtn">${PDMS.icon('send')} ${submitLabel}</button>
+    `);
+
+    modal.querySelector('#previewEmailCancelBtn').onclick = function () {
+      modal.remove();
+      if (opts.onCancel) opts.onCancel();
+    };
+
+    if (opts.onSkip && modal.querySelector('#previewEmailSkipBtn')) {
+      modal.querySelector('#previewEmailSkipBtn').onclick = function () {
+        var btn = this;
+        opts.onSkip(modal, btn);
+      };
+    }
+
+    modal.querySelector('#previewEmailSendBtn').onclick = function () {
+      var btn = this;
+      var finalSubject = modal.querySelector('#previewEmailSubject').value.trim();
+      var finalBody = modal.querySelector('#previewEmailBody').value.trim();
+      if (!finalSubject) {
+        PDMS.toast('Subject required', 'Please provide an email subject', 'error');
+        return;
+      }
+      if (!finalBody) {
+        PDMS.toast('Message required', 'Please provide message content', 'error');
+        return;
+      }
+      opts.onSend({ subject: finalSubject, body: finalBody, modal: modal, btn: btn });
+    };
+    return modal;
+  };
 
   // Sorts records newest-first (optimistic TMP first, then latest dates/timestamps, then highest numeric ID)
   PDMS.sortNewestFirst = function (arr) {
@@ -2005,21 +2720,21 @@
   };
 
   // Escape HTML
-  PDMS.esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  PDMS.esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   // Table renderer
-  PDMS.renderTable = function(container, opts){
+  PDMS.renderTable = function (container, opts) {
     // opts: {columns, rows, pageSize, searchKeys, filterOptions,
     //        dateFilter:{key,label,options:[{key,label}],defaultKey}  ← adds a From/To date range}
     const hasDateOptions = Boolean(opts.dateFilter && Array.isArray(opts.dateFilter.options) && opts.dateFilter.options.length > 1);
     const initialDateKey = opts.dateKey !== undefined
       ? (opts.dateKey || '')
       : (opts.dateFilter && (opts.dateFilter.defaultKey || (!hasDateOptions ? (opts.dateFilter.key || (opts.dateFilter.options && opts.dateFilter.options[0] && opts.dateFilter.options[0].key)) : ''))) || '';
-    const state = { page:1, sortKey:opts.defaultSortKey||opts.sortKey||null, sortDir:opts.defaultSortDir||1, filter:'', filters:opts.filters||{}, dateFrom:opts.dateFrom||'', dateTo:opts.dateTo||'', dateKey:initialDateKey };
+    const state = { page: 1, sortKey: opts.defaultSortKey || opts.sortKey || null, sortDir: opts.defaultSortDir || 1, filter: '', filters: opts.filters || {}, dateFrom: opts.dateFrom || '', dateTo: opts.dateTo || '', dateKey: initialDateKey };
     const shouldPaginate = Boolean(opts.paginate && opts.pageSize);
     const pageSize = opts.pageSize || 20;
 
-    function filtered(){
+    function filtered() {
       let arr = (opts.rows || []).slice();
       if (!state.sortKey) {
         if (!opts.noDefaultSort) {
@@ -2031,18 +2746,18 @@
           });
         }
       }
-      if(state.filter){
+      if (state.filter) {
         const q = state.filter.toLowerCase();
         const normQ = q.replace(/\s*\/\s*/g, ' / ').trim();
-        arr = arr.filter(r=>(opts.searchKeys||Object.keys(r)).some(k=>{
-          const raw = String(r[k]||'').toLowerCase();
+        arr = arr.filter(r => (opts.searchKeys || Object.keys(r)).some(k => {
+          const raw = String(r[k] || '').toLowerCase();
           const normRaw = raw.replace(/\s*\/\s*/g, ' / ').trim();
           return raw.includes(q) || (normQ && normRaw.includes(normQ));
         }));
       }
-      if(opts.dateFilter && (state.dateFrom || state.dateTo) && (!hasDateOptions || state.dateKey)){
+      if (opts.dateFilter && (state.dateFrom || state.dateTo) && (!hasDateOptions || state.dateKey)) {
         const dk = state.dateKey || opts.dateFilter.key || 'start';
-        arr = arr.filter(r=>{
+        arr = arr.filter(r => {
           let dateVals = [];
           if (dk === 'actualCompletion' || dk === 'completion') {
             if (r.actualCompletion) dateVals.push(r.actualCompletion);
@@ -2087,8 +2802,8 @@
       if (typeof opts.customFilter === 'function') {
         arr = arr.filter(opts.customFilter);
       }
-      Object.keys(state.filters).forEach(k=>{
-        if(state.filters[k]) {
+      Object.keys(state.filters).forEach(k => {
+        if (state.filters[k]) {
           const filterVal = String(state.filters[k]).trim();
           arr = arr.filter(r => {
             const v = String(r[k] || '').trim();
@@ -2099,10 +2814,10 @@
 
               if (filterVal === 'In Pipeline' || filterVal === 'Active Pipeline' || filterVal === 'pipeline') {
                 const norm = PDMS.normalizeStatus ? PDMS.normalizeStatus(v) : v;
-                return ['Lead','Opportunity','Initial Proposal','Negotiation','Invoicing'].includes(norm) && r.status!=='Awaiting Sales Head Approval' && r.status!=='Awaiting Account Approval' && r.status!=='Cancelled' && r.status!=='On Hold' && r.status!=='Closed' && !isDelivery;
+                return ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing'].includes(norm) && r.status !== 'Awaiting Sales Head Approval' && r.status !== 'Awaiting Account Approval' && r.status !== 'Cancelled' && r.status !== 'On Hold' && r.status !== 'Closed' && !isDelivery;
               }
               if (filterVal === 'Ongoing') {
-                return !!dStat && !['Kickoff','Not Started','Completed','Closure','Project Closure','Closed','On Hold','Cancelled'].includes(dStat);
+                return !!dStat && !['Kickoff', 'Not Started', 'Completed', 'Closure', 'Project Closure', 'Closed', 'On Hold', 'Cancelled'].includes(dStat);
               }
               if (filterVal === 'Award/SLA') {
                 return v === 'Award/SLA' || v === 'Awaiting Account Approval';
@@ -2130,39 +2845,39 @@
           });
         }
       });
-      if(state.sortKey){
-        arr.sort((a,b)=>{
-          let va=a[state.sortKey],vb=b[state.sortKey];
-          if(state.sortKey==='workstream'){
+      if (state.sortKey) {
+        arr.sort((a, b) => {
+          let va = a[state.sortKey], vb = b[state.sortKey];
+          if (state.sortKey === 'workstream') {
             va = va || a.dept || '';
             vb = vb || b.dept || '';
           }
-          if(state.sortKey==='actualCompletion'){
+          if (state.sortKey === 'actualCompletion') {
             va = (PDMS.getActualCompletionDate ? PDMS.getActualCompletionDate(a) : (a.actualCompletion || a.completion)) || '';
             vb = (PDMS.getActualCompletionDate ? PDMS.getActualCompletionDate(b) : (b.actualCompletion || b.completion)) || '';
-          } else if(state.sortKey==='due'){
+          } else if (state.sortKey === 'due') {
             va = (PDMS.getProjectDueDate ? PDMS.getProjectDueDate(a) : (a.due || a.actualCompletion)) || '';
             vb = (PDMS.getProjectDueDate ? PDMS.getProjectDueDate(b) : (b.due || b.actualCompletion)) || '';
           }
           if (typeof va === 'string' || typeof vb === 'string') {
-            return String(va||'').localeCompare(String(vb||''), undefined, { sensitivity: 'base', numeric: true }) * state.sortDir;
+            return String(va || '').localeCompare(String(vb || ''), undefined, { sensitivity: 'base', numeric: true }) * state.sortDir;
           }
-          if(va<vb)return -1*state.sortDir; if(va>vb)return 1*state.sortDir; return 0;
+          if (va < vb) return -1 * state.sortDir; if (va > vb) return 1 * state.sortDir; return 0;
         });
       }
       return arr;
     }
 
-    function render(focusSel){
+    function render(focusSel) {
       const existingSearchInput = container.querySelector('.tt-search-input');
-      const caret = focusSel ? ((container.querySelector(focusSel)||{}).selectionStart ?? null) : null;
+      const caret = focusSel ? ((container.querySelector(focusSel) || {}).selectionStart ?? null) : null;
       const arr = filtered();
-      const totalPages = shouldPaginate ? Math.max(1,Math.ceil(arr.length/pageSize)) : 1;
-      if(state.page>totalPages) state.page=totalPages;
-      const slice = shouldPaginate ? arr.slice((state.page-1)*pageSize, state.page*pageSize) : arr;
-      const filterHtml = (opts.filterOptions||[]).map(f=>{
-        const opts2 = ['<option value="">All '+f.label+'</option>'].concat(f.options.map(o=>'<option value="'+PDMS.esc(o)+'"'+(state.filters[f.key]===o?' selected':'')+'>'+PDMS.esc(o)+'</option>'));
-        return '<div class="form-group tt-filter-group"><label>'+PDMS.esc(f.label)+'</label><select class="select tt-select" data-filter="'+f.key+'">'+opts2.join('')+'</select></div>';
+      const totalPages = shouldPaginate ? Math.max(1, Math.ceil(arr.length / pageSize)) : 1;
+      if (state.page > totalPages) state.page = totalPages;
+      const slice = shouldPaginate ? arr.slice((state.page - 1) * pageSize, state.page * pageSize) : arr;
+      const filterHtml = (opts.filterOptions || []).map(f => {
+        const opts2 = ['<option value="">All ' + f.label + '</option>'].concat(f.options.map(o => '<option value="' + PDMS.esc(o) + '"' + (state.filters[f.key] === o ? ' selected' : '') + '>' + PDMS.esc(o) + '</option>'));
+        return '<div class="form-group tt-filter-group"><label>' + PDMS.esc(f.label) + '</label><select class="select tt-select" data-filter="' + f.key + '">' + opts2.join('') + '</select></div>';
       }).join('');
       let dateHtml = '';
       if (opts.dateFilter) {
@@ -2172,12 +2887,12 @@
           : { key: opts.dateFilter.key || 'start', label: opts.dateFilter.label || 'Start Date' };
 
         const dateSelectHtml = hasOptions ? (
-          '<div class="form-group tt-filter-group">'+
-            '<label>Filter Date</label>'+
-            '<select class="select tt-select tt-date-key-select" title="Select date field to filter by">'+
-              '<option value=""'+(!state.dateKey ? ' selected' : '')+'>Select Date Option</option>'+
-              opts.dateFilter.options.map(opt => '<option value="'+PDMS.esc(opt.key)+'"'+(state.dateKey === opt.key ? ' selected' : '')+'>'+PDMS.esc(opt.label)+'</option>').join('')+
-            '</select>'+
+          '<div class="form-group tt-filter-group">' +
+          '<label>Filter Date</label>' +
+          '<select class="select tt-select tt-date-key-select" title="Select date field to filter by">' +
+          '<option value=""' + (!state.dateKey ? ' selected' : '') + '>Select Date Option</option>' +
+          opts.dateFilter.options.map(opt => '<option value="' + PDMS.esc(opt.key) + '"' + (state.dateKey === opt.key ? ' selected' : '') + '>' + PDMS.esc(opt.label) + '</option>').join('') +
+          '</select>' +
           '</div>'
         ) : '';
 
@@ -2185,160 +2900,160 @@
         const dateLabel = currentOption ? currentOption.label : 'Date';
 
         const dateRangeHtml = showDateRange ? (
-          '<div class="form-group tt-date-group">'+
-            '<label>Date Range</label>'+
-            '<div class="tt-date-range">'+
-              '<svg class="tt-cal-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'+
-              '<input type="date" class="tt-date-from" value="'+PDMS.esc(state.dateFrom)+'" title="'+PDMS.esc(dateLabel)+' from" aria-label="From date">'+
-              '<span class="tt-date-arrow">➔</span>'+
-              '<input type="date" class="tt-date-to" value="'+PDMS.esc(state.dateTo)+'" title="'+PDMS.esc(dateLabel)+' to" aria-label="To date">'+
-            '</div>'+
+          '<div class="form-group tt-date-group">' +
+          '<label>Date Range</label>' +
+          '<div class="tt-date-range">' +
+          '<svg class="tt-cal-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
+          '<input type="date" class="tt-date-from" value="' + PDMS.esc(state.dateFrom) + '" title="' + PDMS.esc(dateLabel) + ' from" aria-label="From date">' +
+          '<span class="tt-date-arrow">➔</span>' +
+          '<input type="date" class="tt-date-to" value="' + PDMS.esc(state.dateTo) + '" title="' + PDMS.esc(dateLabel) + ' to" aria-label="To date">' +
+          '</div>' +
           '</div>'
         ) : '';
 
         dateHtml = dateSelectHtml + dateRangeHtml;
       }
-      const hasActiveFilter = Boolean(state.filter || state.dateFrom || state.dateTo || (hasDateOptions && state.dateKey) || Object.keys(state.filters).some(k=>state.filters[k]));
+      const hasActiveFilter = Boolean(state.filter || state.dateFrom || state.dateTo || (hasDateOptions && state.dateKey) || Object.keys(state.filters).some(k => state.filters[k]));
       const paginationHtml = shouldPaginate ? (
-        '<div class="pagination"><div>Showing '+((state.page-1)*pageSize+1)+'-'+Math.min(state.page*pageSize,arr.length)+' of '+arr.length+'</div><div class="pages">'+
-        '<button class="page-btn" data-p="prev">‹</button>'+
-        Array.from({length:totalPages},(_,i)=>'<button class="page-btn '+(state.page===i+1?'active':'')+'" data-p="'+(i+1)+'">'+(i+1)+'</button>').slice(Math.max(0,state.page-3),state.page+2).join('')+
-        '<button class="page-btn" data-p="next">›</button>'+
+        '<div class="pagination"><div>Showing ' + ((state.page - 1) * pageSize + 1) + '-' + Math.min(state.page * pageSize, arr.length) + ' of ' + arr.length + '</div><div class="pages">' +
+        '<button class="page-btn" data-p="prev">‹</button>' +
+        Array.from({ length: totalPages }, (_, i) => '<button class="page-btn ' + (state.page === i + 1 ? 'active' : '') + '" data-p="' + (i + 1) + '">' + (i + 1) + '</button>').slice(Math.max(0, state.page - 3), state.page + 2).join('') +
+        '<button class="page-btn" data-p="next">›</button>' +
         '</div></div>'
       ) : (
-        arr.length ? '<div class="pagination" style="justify-content:flex-start"><div style="font-size:12px;color:var(--text-muted);font-weight:600">Showing '+arr.length+' of '+arr.length+'</div></div>' : ''
+        arr.length ? '<div class="pagination" style="justify-content:flex-start"><div style="font-size:12px;color:var(--text-muted);font-weight:600">Showing ' + arr.length + ' of ' + arr.length + '</div></div>' : ''
       );
       container.innerHTML =
-        '<div class="table-tools">'+
-          '<div class="tt-left">'+
-            '<div class="form-group tt-search"><label>Search</label>'+
-              '<div class="tt-search-box">'+
-                '<svg class="tt-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'+
-                '<input class="tt-search-input" placeholder="'+PDMS.esc(opts.searchPlaceholder || 'Search…')+'" value="'+PDMS.esc(state.filter)+'">'+
-                (state.filter ? '<button class="tt-search-clear" data-act="clear-search" title="Clear search">✕</button>' : '')+
-              '</div>'+
-            '</div>'+
-            filterHtml+
-            dateHtml+
-          '</div>'+
-          '<div class="tt-actions">'+
-            (hasActiveFilter ? '<button class="btn btn-clear-filters" data-act="clear" title="Reset all active filters"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Reset</button>' : '')+
-            '<div class="tt-btn-group">'+
-              '<button class="btn btn-action" data-act="export" title="Export as CSV"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV</button>'+
-              '<button class="btn btn-action" data-act="print" title="Print table"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print</button>'+
-            '</div>'+
-          '</div>'+
-        '</div>'+
-        '<div class="'+(opts.noHorizontalScroll?'tt-table-no-scroll':'')+'" style="overflow-x:'+(opts.noHorizontalScroll?'hidden':'auto')+'"><table class="data'+(opts.noHorizontalScroll?' tt-table-fit':'')+'"><thead><tr>'+
-        opts.columns.map(c=>'<th data-key="'+c.key+'">'+c.label+(state.sortKey===c.key?(state.sortDir>0?' ▲':' ▼'):'')+'</th>').join('')+
-        '</tr></thead><tbody>'+
-        (slice.length?slice.map(r=>{
-          const rowAttr = opts.rowHref ? ' style="cursor:pointer" onclick="location.href=\''+opts.rowHref(r)+'\'"' : '';
-          return '<tr'+rowAttr+'>'+opts.columns.map(c=>'<td>'+(c.render?c.render(r):PDMS.esc(r[c.key]??''))+'</td>').join('')+'</tr>';
+        '<div class="table-tools">' +
+        '<div class="tt-left">' +
+        '<div class="form-group tt-search"><label>Search</label>' +
+        '<div class="tt-search-box">' +
+        '<svg class="tt-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+        '<input class="tt-search-input" placeholder="' + PDMS.esc(opts.searchPlaceholder || 'Search…') + '" value="' + PDMS.esc(state.filter) + '">' +
+        (state.filter ? '<button class="tt-search-clear" data-act="clear-search" title="Clear search">✕</button>' : '') +
+        '</div>' +
+        '</div>' +
+        filterHtml +
+        dateHtml +
+        '</div>' +
+        '<div class="tt-actions">' +
+        (hasActiveFilter ? '<button class="btn btn-clear-filters" data-act="clear" title="Reset all active filters"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Reset</button>' : '') +
+        '<div class="tt-btn-group">' +
+        '<button class="btn btn-action" data-act="export" title="Export as CSV"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV</button>' +
+        '<button class="btn btn-action" data-act="print" title="Print table"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print</button>' +
+        '</div>' +
+        '</div>' +
+        '</div>' +
+        '<div class="' + (opts.noHorizontalScroll ? 'tt-table-no-scroll' : '') + '" style="overflow-x:' + (opts.noHorizontalScroll ? 'hidden' : 'auto') + '"><table class="data' + (opts.noHorizontalScroll ? ' tt-table-fit' : '') + '"><thead><tr>' +
+        opts.columns.map(c => '<th data-key="' + c.key + '">' + c.label + (state.sortKey === c.key ? (state.sortDir > 0 ? ' ▲' : ' ▼') : '') + '</th>').join('') +
+        '</tr></thead><tbody>' +
+        (slice.length ? slice.map(r => {
+          const rowAttr = opts.rowHref ? ' style="cursor:pointer" onclick="location.href=\'' + opts.rowHref(r) + '\'"' : '';
+          return '<tr' + rowAttr + '>' + opts.columns.map(c => '<td>' + (c.render ? c.render(r) : PDMS.esc(r[c.key] ?? '')) + '</td>').join('') + '</tr>';
         }).join('')
-          :'<tr><td colspan="'+opts.columns.length+'" class="text-muted" style="text-align:center;padding:28px">'+PDMS.emptyOrLoading('No results found')+'</td></tr>')+
-        '</tbody></table></div>'+
+          : '<tr><td colspan="' + opts.columns.length + '" class="text-muted" style="text-align:center;padding:28px">' + PDMS.emptyOrLoading('No results found') + '</td></tr>') +
+        '</tbody></table></div>' +
         paginationHtml;
 
       const replacementSearchInput = container.querySelector('.tt-search-input');
-      if(existingSearchInput && replacementSearchInput){
+      if (existingSearchInput && replacementSearchInput) {
         existingSearchInput.value = state.filter;
         replacementSearchInput.replaceWith(existingSearchInput);
       }
       const searchInput = container.querySelector('.tt-search-input');
-      if(searchInput && !searchInput.dataset.searchBound){
+      if (searchInput && !searchInput.dataset.searchBound) {
         searchInput.dataset.searchBound = 'true';
-        searchInput.addEventListener('input',e=>{state.filter=e.target.value;state.page=1;render('.tt-search-input');});
+        searchInput.addEventListener('input', e => { state.filter = e.target.value; state.page = 1; render('.tt-search-input'); });
       }
       const searchClearBtn = container.querySelector('[data-act="clear-search"]');
-      if(searchClearBtn) searchClearBtn.addEventListener('click',()=>{state.filter='';state.page=1;render();});
+      if (searchClearBtn) searchClearBtn.addEventListener('click', () => { state.filter = ''; state.page = 1; render(); });
       const dKeySelect = container.querySelector('.tt-date-key-select');
-      if(dKeySelect) dKeySelect.addEventListener('change',e=>{
-        state.dateKey=e.target.value;
+      if (dKeySelect) dKeySelect.addEventListener('change', e => {
+        state.dateKey = e.target.value;
         if (!state.dateKey) {
           state.dateFrom = '';
           state.dateTo = '';
         }
-        state.page=1;
-        if(typeof opts.onDateKeyChange === 'function') opts.onDateKeyChange(state.dateKey);
+        state.page = 1;
+        if (typeof opts.onDateKeyChange === 'function') opts.onDateKeyChange(state.dateKey);
         render();
       });
       const dFrom = container.querySelector('.tt-date-from');
-      if(dFrom) dFrom.addEventListener('change',e=>{state.dateFrom=e.target.value;state.page=1;render();});
+      if (dFrom) dFrom.addEventListener('change', e => { state.dateFrom = e.target.value; state.page = 1; render(); });
       const dTo = container.querySelector('.tt-date-to');
-      if(dTo) dTo.addEventListener('change',e=>{state.dateTo=e.target.value;state.page=1;render();});
+      if (dTo) dTo.addEventListener('change', e => { state.dateTo = e.target.value; state.page = 1; render(); });
       const clearBtn = container.querySelector('[data-act="clear"]');
-      if(clearBtn) clearBtn.addEventListener('click',()=>{
-        state.filter=''; state.dateFrom=''; state.dateTo=''; state.filters={}; state.page=1;
+      if (clearBtn) clearBtn.addEventListener('click', () => {
+        state.filter = ''; state.dateFrom = ''; state.dateTo = ''; state.filters = {}; state.page = 1;
         if (hasDateOptions) state.dateKey = '';
-        if(typeof opts.onDateKeyChange === 'function' && hasDateOptions) opts.onDateKeyChange('');
-        if(typeof opts.onFilterChange === 'function') opts.onFilterChange(state.filters);
+        if (typeof opts.onDateKeyChange === 'function' && hasDateOptions) opts.onDateKeyChange('');
+        if (typeof opts.onFilterChange === 'function') opts.onFilterChange(state.filters);
         render();
       });
-      container.querySelectorAll('th').forEach(th=>th.addEventListener('click',()=>{
-        const k=th.dataset.key;
-        if(state.sortKey===k) state.sortDir=-state.sortDir; else {state.sortKey=k;state.sortDir=1;}
+      container.querySelectorAll('th').forEach(th => th.addEventListener('click', () => {
+        const k = th.dataset.key;
+        if (state.sortKey === k) state.sortDir = -state.sortDir; else { state.sortKey = k; state.sortDir = 1; }
         render();
       }));
-      container.querySelectorAll('[data-filter]').forEach(sel=>sel.addEventListener('change',e=>{
-        state.filters[e.target.dataset.filter]=e.target.value; state.page=1;
-        if(typeof opts.onFilterChange === 'function') opts.onFilterChange(state.filters);
+      container.querySelectorAll('[data-filter]').forEach(sel => sel.addEventListener('change', e => {
+        state.filters[e.target.dataset.filter] = e.target.value; state.page = 1;
+        if (typeof opts.onFilterChange === 'function') opts.onFilterChange(state.filters);
         render();
       }));
-      container.querySelectorAll('.page-btn').forEach(b=>b.addEventListener('click',()=>{
-        const p=b.dataset.p;
-        if(p==='prev') state.page=Math.max(1,state.page-1);
-        else if(p==='next') state.page=Math.min(totalPages,state.page+1);
-        else state.page=parseInt(p);
+      container.querySelectorAll('.page-btn').forEach(b => b.addEventListener('click', () => {
+        const p = b.dataset.p;
+        if (p === 'prev') state.page = Math.max(1, state.page - 1);
+        else if (p === 'next') state.page = Math.min(totalPages, state.page + 1);
+        else state.page = parseInt(p);
         render();
       }));
-      container.querySelector('[data-act="export"]').addEventListener('click',()=>{
+      container.querySelector('[data-act="export"]').addEventListener('click', () => {
         const rows = filtered();
-        const csv = [opts.columns.map(c=>c.label).join(',')].concat(
-          rows.map(r=>opts.columns.map(c=>{
-            const v = c.exportValue?c.exportValue(r):(r[c.key]??'');
-            return '"'+String(v).replace(/"/g,'""')+'"';
+        const csv = [opts.columns.map(c => c.label).join(',')].concat(
+          rows.map(r => opts.columns.map(c => {
+            const v = c.exportValue ? c.exportValue(r) : (r[c.key] ?? '');
+            return '"' + String(v).replace(/"/g, '""') + '"';
           }).join(','))
         ).join('\n');
-        const blob = new Blob([csv],{type:'text/csv'});
-        const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='export.csv';a.click();
-        PDMS.toast('Exported','CSV downloaded','success');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'export.csv'; a.click();
+        PDMS.toast('Exported', 'CSV downloaded', 'success');
       });
-      container.querySelector('[data-act="print"]').addEventListener('click',()=>window.print());
+      container.querySelector('[data-act="print"]').addEventListener('click', () => window.print());
 
-      if(focusSel){
+      if (focusSel) {
         const el = container.querySelector(focusSel);
-        if(el){ el.focus(); if(caret!=null && el.setSelectionRange){ try{ el.setSelectionRange(caret,caret); }catch(e){} } }
+        if (el) { el.focus(); if (caret != null && el.setSelectionRange) { try { el.setSelectionRange(caret, caret); } catch (e) { } } }
       }
     }
     render();
   };
 
   // Modal
-  PDMS.modal = function(title, bodyHtml, footHtml, opts = {}){
-    const back=document.createElement('div');
-    back.className='modal-backdrop open';
+  PDMS.modal = function (title, bodyHtml, footHtml, opts = {}) {
+    const back = document.createElement('div');
+    back.className = 'modal-backdrop open';
     const mClass = opts.modalClass ? 'modal ' + opts.modalClass : 'modal';
-    back.innerHTML = '<div class="'+mClass+'"><div class="modal-head"><h3 class="card-title">'+title+'</h3>'+(opts.showCloseBtn !== false ? '<button class="btn btn-ghost btn-sm" data-close style="padding:4px 8px;font-size:16px;line-height:1;border-radius:6px" title="Close">✕</button>' : '')+'</div><div class="modal-body">'+bodyHtml+'</div>'+(footHtml?'<div class="modal-foot">'+footHtml+'</div>':'')+'</div>';
+    back.innerHTML = '<div class="' + mClass + '"><div class="modal-head"><h3 class="card-title">' + title + '</h3>' + (opts.showCloseBtn !== false ? '<button class="btn btn-ghost btn-sm" data-close style="padding:4px 8px;font-size:16px;line-height:1;border-radius:6px" title="Close">✕</button>' : '') + '</div><div class="modal-body">' + bodyHtml + '</div>' + (footHtml ? '<div class="modal-foot">' + footHtml + '</div>' : '') + '</div>';
     document.body.appendChild(back);
-    back.close = function() { back.remove(); };
-    back.addEventListener('click',e=>{ if(e.target.closest('[data-close]')) back.remove(); });
+    back.close = function () { back.remove(); };
+    back.addEventListener('click', e => { if (e.target.closest('[data-close]')) back.remove(); });
     return back;
   };
 
-  PDMS.confirm = function(title, message, onConfirm, onCancel, confirmText = 'Delete', confirmClass = 'btn-danger'){
+  PDMS.confirm = function (title, message, onConfirm, onCancel, confirmText = 'Delete', confirmClass = 'btn-danger') {
     const modal = PDMS.modal(
       title || 'Confirm Action',
       `<div style="font-size:14px;color:var(--text);line-height:1.5">${typeof message === 'string' ? message : ''}</div>`,
       `<button class="btn btn-ghost" data-close id="confirmModalCancelBtn">Cancel</button><button class="btn ${confirmClass}" id="confirmModalOkBtn">${confirmText}</button>`
     );
-    modal.querySelector('#confirmModalOkBtn').onclick = function() {
+    modal.querySelector('#confirmModalOkBtn').onclick = function () {
       modal.remove();
       if (typeof onConfirm === 'function') onConfirm();
     };
     const cancelBtn = modal.querySelector('#confirmModalCancelBtn');
     if (cancelBtn) {
-      cancelBtn.onclick = function() {
+      cancelBtn.onclick = function () {
         modal.remove();
         if (typeof onCancel === 'function') onCancel();
       };
@@ -2348,7 +3063,7 @@
 
   // Multi-step Sales Project Onboarding Wizard
   // Multi-step Sales Project Onboarding Wizard
-  PDMS.openSalesProjectWizard = function(opts = {}){
+  PDMS.openSalesProjectWizard = function (opts = {}) {
     const currentUser = PDMS.getUser();
     if (!currentUser || !currentUser.id) {
       PDMS.toast('Session expired', 'Please sign in again before creating a project.', 'error');
@@ -2544,24 +3259,24 @@
             <div class="form-row" style="grid-column:1/-1">
               <label>Opportunity Value</label>
               ${PDMS.renderCurrencyInput({
-                selectId: 'swProjCurrency',
-                customId: 'swProjCustomCurrency',
-                amountId: 'swProjPrice',
-                currency: wizardState.projForm.currency || '₦',
-                value: wizardState.projForm.price,
-                placeholder: '0.00'
-              })}
+          selectId: 'swProjCurrency',
+          customId: 'swProjCustomCurrency',
+          amountId: 'swProjPrice',
+          currency: wizardState.projForm.currency || '₦',
+          value: wizardState.projForm.price,
+          placeholder: '0.00'
+        })}
             </div>
             <div class="form-row" id="swAwardRow" style="grid-column:1/-1;${(wizardState.projForm.status === 'Award/SLA' || wizardState.projForm.status === 'SLA Signed') ? '' : 'display:none'}">
               <label>Award Value <span style="font-size:12px;color:var(--primary);font-weight:600">(Exclusive of VAT)</span></label>
               ${PDMS.renderCurrencyInput({
-                selectId: 'swProjAwardCurrency',
-                customId: 'swProjCustomAwardCurrency',
-                amountId: 'swProjAward',
-                currency: wizardState.projForm.awardCurrency || wizardState.projForm.currency || '₦',
-                value: wizardState.projForm.awardVal,
-                placeholder: '0.00'
-              })}
+          selectId: 'swProjAwardCurrency',
+          customId: 'swProjCustomAwardCurrency',
+          amountId: 'swProjAward',
+          currency: wizardState.projForm.awardCurrency || wizardState.projForm.currency || '₦',
+          value: wizardState.projForm.awardVal,
+          placeholder: '0.00'
+        })}
             </div>
           </div>
           <div class="form-row" style="margin-top:12px">
@@ -2622,7 +3337,7 @@
           renderModal();
         };
 
-        if (nextBtn) nextBtn.onclick = function() {
+        if (nextBtn) nextBtn.onclick = function () {
           const name = modalRef.querySelector('#swNewName').value.trim();
           const industry = modalRef.querySelector('#swNewIndustry').value.trim();
           const email = modalRef.querySelector('#swNewEmail').value.trim().toLowerCase();
@@ -2778,7 +3493,7 @@
           renderModal();
         };
 
-        if (submitBtn) submitBtn.onclick = function() {
+        if (submitBtn) submitBtn.onclick = function () {
           const client = wizardState.selectedClient && wizardState.selectedClient.name;
           if (!client) {
             PDMS.toast('Error', 'Client selection missing', 'error');
@@ -2884,7 +3599,7 @@
             if (opts.redirectUrl !== false && !location.pathname.endsWith('projects.html')) {
               // Navigating to the pipeline — hold the loading screen there until
               // fresh server data (with this lead) lands.
-              try { sessionStorage.setItem('pdms-await-fresh', String(Date.now())); } catch (e) {}
+              try { sessionStorage.setItem('pdms-await-fresh', String(Date.now())); } catch (e) { }
               location.href = 'projects.html#view=sales';
             } else {
               // Staying on this page — show the loader while we re-fetch so the
@@ -2912,7 +3627,7 @@
   };
 
   // Multi-step Delivery Project Onboarding Wizard
-  PDMS.openDeliveryProjectWizard = function(opts = {}){
+  PDMS.openDeliveryProjectWizard = function (opts = {}) {
     const currentUser = PDMS.getUser();
     if (!currentUser || !currentUser.id) {
       PDMS.toast('Session expired', 'Please sign in again before creating a project.', 'error');
@@ -3168,7 +3883,7 @@
           renderModal();
         };
 
-        if (nextBtn) nextBtn.onclick = function() {
+        if (nextBtn) nextBtn.onclick = function () {
           const name = modalRef.querySelector('#dwNewName').value.trim();
           const industry = modalRef.querySelector('#dwNewIndustry').value.trim();
           const email = modalRef.querySelector('#dwNewEmail').value.trim().toLowerCase();
@@ -3322,7 +4037,7 @@
           };
         }
 
-        if (submitBtn) submitBtn.onclick = function() {
+        if (submitBtn) submitBtn.onclick = function () {
           const client = wizardState.selectedClient && wizardState.selectedClient.name;
           if (!client) {
             PDMS.toast('Error', 'Client selection missing', 'error');
@@ -3402,7 +4117,7 @@
             PDMS.toast('Project created', 'New delivery project onboarded', 'success');
             PDMS.notify('Project Onboarded', `${currentUser ? currentUser.name : 'Delivery Team'} onboarded "${savedRecord.name}" for ${savedRecord.client}`, 'folder', 'project-details.html#id=' + savedRecord.id, 'COO,HTD,PM Head,PMO', '', savedRecord.id);
             if (opts.redirectUrl !== false && !location.pathname.endsWith('projects.html')) {
-              try { sessionStorage.setItem('pdms-await-fresh', String(Date.now())); } catch (e) {}
+              try { sessionStorage.setItem('pdms-await-fresh', String(Date.now())); } catch (e) { }
               location.href = 'projects.html#view=delivery';
             } else {
               PDMS.awaitFreshData('Saving your project...', 'Updating delivery projects');
@@ -3463,95 +4178,95 @@
   }
 
   PDMS.charts = {
-    line(canvas, series, labels, colors){
+    line(canvas, series, labels, colors) {
       const { ctx, W, H } = setupCanvas(canvas, 300, 200);
-      const pad = {l:36,r:12,t:12,b:24};
+      const pad = { l: 36, r: 12, t: 12, b: 24 };
       const all = series.flat();
-      const max = Math.max(...all)*1.1||1, min = 0;
-      const gw = W-pad.l-pad.r, gh = H-pad.t-pad.b;
+      const max = Math.max(...all) * 1.1 || 1, min = 0;
+      const gw = W - pad.l - pad.r, gh = H - pad.t - pad.b;
       // grid
-      ctx.strokeStyle = getCss('--border'); ctx.lineWidth=1;
-      ctx.fillStyle = getCss('--text-soft'); ctx.font='11px Inter';
-      for(let i=0;i<=4;i++){
-        const y = pad.t + gh*i/4;
-        ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();
-        ctx.fillText(Math.round(max-(max-min)*i/4),4,y+3);
+      ctx.strokeStyle = getCss('--border'); ctx.lineWidth = 1;
+      ctx.fillStyle = getCss('--text-soft'); ctx.font = '11px Inter';
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.t + gh * i / 4;
+        ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+        ctx.fillText(Math.round(max - (max - min) * i / 4), 4, y + 3);
       }
       // x labels
-      labels.forEach((l,i)=>{
-        const x = pad.l + gw*i/(labels.length-1);
-        if(i%Math.ceil(labels.length/8)===0) ctx.fillText(l,x-10,H-6);
+      labels.forEach((l, i) => {
+        const x = pad.l + gw * i / (labels.length - 1);
+        if (i % Math.ceil(labels.length / 8) === 0) ctx.fillText(l, x - 10, H - 6);
       });
-      series.forEach((s,si)=>{
-        const color = colors[si]||getCss('--primary');
+      series.forEach((s, si) => {
+        const color = colors[si] || getCss('--primary');
         // area
         ctx.beginPath();
-        s.forEach((v,i)=>{
-          const x = pad.l + gw*i/(s.length-1);
-          const y = pad.t + gh*(1-(v-min)/(max-min));
-          i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+        s.forEach((v, i) => {
+          const x = pad.l + gw * i / (s.length - 1);
+          const y = pad.t + gh * (1 - (v - min) / (max - min));
+          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
         });
-        ctx.lineTo(pad.l+gw,pad.t+gh);ctx.lineTo(pad.l,pad.t+gh);ctx.closePath();
-        const grad = ctx.createLinearGradient(0,pad.t,0,pad.t+gh);
-        grad.addColorStop(0,color+'55');grad.addColorStop(1,color+'00');
-        ctx.fillStyle=grad;ctx.fill();
+        ctx.lineTo(pad.l + gw, pad.t + gh); ctx.lineTo(pad.l, pad.t + gh); ctx.closePath();
+        const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + gh);
+        grad.addColorStop(0, color + '55'); grad.addColorStop(1, color + '00');
+        ctx.fillStyle = grad; ctx.fill();
         // line
         ctx.beginPath();
-        s.forEach((v,i)=>{
-          const x = pad.l + gw*i/(s.length-1);
-          const y = pad.t + gh*(1-(v-min)/(max-min));
-          i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+        s.forEach((v, i) => {
+          const x = pad.l + gw * i / (s.length - 1);
+          const y = pad.t + gh * (1 - (v - min) / (max - min));
+          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
         });
-        ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.stroke();
+        ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.stroke();
         // dots
-        s.forEach((v,i)=>{
-          const x = pad.l + gw*i/(s.length-1);
-          const y = pad.t + gh*(1-(v-min)/(max-min));
-          ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
+        s.forEach((v, i) => {
+          const x = pad.l + gw * i / (s.length - 1);
+          const y = pad.t + gh * (1 - (v - min) / (max - min));
+          ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
         });
       });
     },
-    bar(canvas, values, labels, color){
+    bar(canvas, values, labels, color) {
       const { ctx, W, H } = setupCanvas(canvas, 300, 200);
       const rotate = values.length > 5;
-      const pad = {l:36, r:12, t:18, b: rotate ? 80 : 28};
-      const max = Math.max(...values)*1.15||1;
-      const gw = W-pad.l-pad.r, gh = H-pad.t-pad.b;
-      ctx.strokeStyle = getCss('--border'); ctx.fillStyle=getCss('--text-soft'); ctx.font='11px Inter';
-      for(let i=0;i<=4;i++){
-        const y = pad.t + gh*i/4;
-        ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();
-        ctx.fillText(Math.round(max-max*i/4),4,y+4);
+      const pad = { l: 36, r: 12, t: 18, b: rotate ? 80 : 28 };
+      const max = Math.max(...values) * 1.15 || 1;
+      const gw = W - pad.l - pad.r, gh = H - pad.t - pad.b;
+      ctx.strokeStyle = getCss('--border'); ctx.fillStyle = getCss('--text-soft'); ctx.font = '11px Inter';
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.t + gh * i / 4;
+        ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+        ctx.fillText(Math.round(max - max * i / 4), 4, y + 4);
       }
-      const bw = Math.min(gw/values.length*0.65, 48);
-      const colors = Array.isArray(color) ? color : values.map(()=>color||getCss('--primary'));
-      values.forEach((v,i)=>{
-        const c = colors[i]||getCss('--primary');
-        const cx = pad.l + gw*(i+0.5)/values.length;
-        const x = cx - bw/2;
-        const bh = Math.max(gh*(v/max), v>0?4:0);
-        const y = pad.t+gh-bh;
-        if(bh>0){
-          const grad = ctx.createLinearGradient(0,y,0,y+bh);
-          grad.addColorStop(0,c); grad.addColorStop(1,c+'70');
-          ctx.fillStyle=grad;
-          roundRect(ctx,x,y,bw,bh,5); ctx.fill();
+      const bw = Math.min(gw / values.length * 0.65, 48);
+      const colors = Array.isArray(color) ? color : values.map(() => color || getCss('--primary'));
+      values.forEach((v, i) => {
+        const c = colors[i] || getCss('--primary');
+        const cx = pad.l + gw * (i + 0.5) / values.length;
+        const x = cx - bw / 2;
+        const bh = Math.max(gh * (v / max), v > 0 ? 4 : 0);
+        const y = pad.t + gh - bh;
+        if (bh > 0) {
+          const grad = ctx.createLinearGradient(0, y, 0, y + bh);
+          grad.addColorStop(0, c); grad.addColorStop(1, c + '70');
+          ctx.fillStyle = grad;
+          roundRect(ctx, x, y, bw, bh, 5); ctx.fill();
         }
-        if(v>0){
-          ctx.fillStyle=getCss('--text'); ctx.font='bold 11px Inter'; ctx.textAlign='center';
-          ctx.fillText(v, cx, y-5);
+        if (v > 0) {
+          ctx.fillStyle = getCss('--text'); ctx.font = 'bold 11px Inter'; ctx.textAlign = 'center';
+          ctx.fillText(v, cx, y - 5);
         }
-        ctx.fillStyle=getCss('--text-soft'); ctx.font='11px Inter'; ctx.textAlign='center';
-        if(rotate){
-          ctx.save(); ctx.translate(cx, pad.t+gh+10); ctx.rotate(-Math.PI/4);
-          ctx.textAlign='right'; ctx.fillText(labels[i]||'', 0, 0); ctx.restore();
+        ctx.fillStyle = getCss('--text-soft'); ctx.font = '11px Inter'; ctx.textAlign = 'center';
+        if (rotate) {
+          ctx.save(); ctx.translate(cx, pad.t + gh + 10); ctx.rotate(-Math.PI / 4);
+          ctx.textAlign = 'right'; ctx.fillText(labels[i] || '', 0, 0); ctx.restore();
         } else {
-          ctx.fillText(labels[i]||'', cx, H-8);
+          ctx.fillText(labels[i] || '', cx, H - 8);
         }
       });
-      ctx.textAlign='left';
+      ctx.textAlign = 'left';
     },
-    donut(canvas, values, colors, labels){
+    donut(canvas, values, colors, labels) {
       const { ctx, W, H } = setupCanvas(canvas, 180, 180);
       const cx = W / 2, cy = H / 2, r = Math.max(Math.min(W, H) / 2 - 8, 10), ir = r * 0.62;
       const realTotal = values.reduce((a, b) => a + b, 0);
@@ -3575,9 +4290,9 @@
       ctx.fillText('Total', cx, cy + 11);
     }
   };
-  function roundRect(ctx,x,y,w,h,r){
-    ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
-    ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
   }
   PDMS.formatBytes = function (bytes) {
     if (!bytes || bytes === 0) return '0 B';
@@ -4152,19 +4867,21 @@
 
   function persistLocalData() {
     if (!isLocalMode || hasRemoteBackend || !global.PDMS_DATA) return;
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
-      users: global.PDMS_DATA.users,
-      consultants: global.PDMS_DATA.consultants,
-      clients: global.PDMS_DATA.clients,
-      projects: global.PDMS_DATA.projects,
-      departments: global.PDMS_DATA.departments,
-      notifications: global.PDMS_DATA.notifications,
-      threads: global.PDMS_DATA.threads,
-      activities: global.PDMS_DATA.activities,
-      reviews: global.PDMS_DATA.reviews,
-      issues: global.PDMS_DATA.issues,
-      complaints: global.PDMS_DATA.complaints
-    }));
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
+        users: global.PDMS_DATA.users,
+        consultants: global.PDMS_DATA.consultants,
+        clients: global.PDMS_DATA.clients,
+        projects: global.PDMS_DATA.projects,
+        departments: global.PDMS_DATA.departments,
+        notifications: global.PDMS_DATA.notifications,
+        threads: global.PDMS_DATA.threads,
+        activities: global.PDMS_DATA.activities,
+        reviews: global.PDMS_DATA.reviews,
+        issues: global.PDMS_DATA.issues,
+        complaints: global.PDMS_DATA.complaints
+      }));
+    } catch (_) {}
   }
 
   function loadLocalData() {
@@ -4347,7 +5064,7 @@
               if (action === 'update') {
                 const target = list.find(item => String(item.id) === String(payload.id));
                 if (target) Object.assign(target, payload.patch, json.data);
-              } else if (action === 'create' && json.data) {
+              } else if ((action === 'create' || action === 'register') && json.data) {
                 const exists = list.find(item => String(item.id) === String(json.data.id));
                 if (!exists) list.unshift(json.data);
               } else if (action === 'remove') {
@@ -4355,7 +5072,7 @@
                 if (idx !== -1) list.splice(idx, 1);
               }
             };
-            if (action === 'create' && json.data) {
+            if ((action === 'create' || action === 'register') && json.data) {
               try {
                 const recStr = sessionStorage.getItem('pdms_recent_creates') || '{}';
                 const recs = JSON.parse(recStr);
@@ -4377,17 +5094,43 @@
             }
             if (global.PDMS_REMOTE) syncList(global.PDMS_REMOTE[resKey]);
             if (global.PDMS_DATA) syncList(global.PDMS_DATA[resKey]);
-            const cachePayload = global.PDMS_REMOTE || global.PDMS_DATA;
-            if (cachePayload) {
-              localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
-              localStorage.setItem('pdms-cache-ts', String(Date.now()));
+            try {
+              const rawCache = localStorage.getItem(CACHE_KEY);
+              if (rawCache) {
+                const parsedCache = JSON.parse(rawCache);
+                if (parsedCache && typeof parsedCache === 'object') {
+                  parsedCache[resKey] = parsedCache[resKey] || [];
+                  syncList(parsedCache[resKey]);
+                  const s = JSON.stringify(parsedCache);
+                  if (s.length < 2500000) {
+                    localStorage.setItem(CACHE_KEY, s);
+                    localStorage.setItem('pdms-cache-ts', String(Date.now()));
+                  } else {
+                    localStorage.removeItem(CACHE_KEY);
+                  }
+                }
+              } else {
+                const cachePayload = global.PDMS_REMOTE || global.PDMS_DATA;
+                if (cachePayload) {
+                  const s = JSON.stringify(cachePayload);
+                  if (s.length < 2500000) {
+                    localStorage.setItem(CACHE_KEY, s);
+                    localStorage.setItem('pdms-cache-ts', String(Date.now()));
+                  }
+                }
+              }
+            } catch (cacheErr) {
+              try {
+                localStorage.removeItem(CACHE_KEY);
+                localStorage.removeItem('pdms-cache-ts');
+              } catch (_) {}
             }
           }
         } catch (_) {}
         return json.data;
       })
       .catch(err => {
-        if (isLocalMode) {
+        if (isLocalMode && !hasRemoteBackend) {
           console.warn('Remote Apps Script endpoint returned error (' + (err.message || err) + '). Falling back to local storage.');
           return localPost(action, payload);
         }
@@ -4396,16 +5139,30 @@
   }
 
   PDMS.api = {
-    create: (resource, record) => post('create', { resource, record }),
+    create: (resource, record, meta) => {
+      const currentUser = (typeof PDMS !== 'undefined' && typeof PDMS.getUser === 'function') ? PDMS.getUser() : null;
+      const creatorName = (currentUser && currentUser.name) ? (currentUser.name + (currentUser.role ? ' (' + currentUser.role + ')' : '')) : '';
+      const appUrl = location.href.replace(/\/[^\/]*$/, '/index.html');
+      return post('create', Object.assign({ resource, record, creatorName, appUrl }, meta || {}));
+    },
     update: (resource, id, patch, meta) => {
       const currentUser = (typeof PDMS !== 'undefined' && typeof PDMS.getUser === 'function') ? PDMS.getUser() : null;
       const editorName = (currentUser && currentUser.name) ? (currentUser.name + (currentUser.role ? ' (' + currentUser.role + ')' : '')) : 'HR / Administrator';
       const appUrl = location.href.replace(/\/[^\/]*$/, '/index.html');
-      return post('update', Object.assign({ resource, id, patch, editorName, appUrl }, meta || {}));
+      const customEmail = (meta && meta.customEmail) || (patch && patch.customEmail) || null;
+      if (customEmail && patch && typeof patch === 'object') {
+        patch.customEmail = customEmail;
+      }
+      return post('update', Object.assign({ resource, id, patch, editorName, appUrl, customEmail }, meta || {}));
     },
     remove: (resource, id) => post('remove', { resource, id }),
     login: (email, password) => post('login', { email, password }),
-    register: (account) => post('register', { resource: 'users', account, appUrl: location.href.replace(/\/[^\/]*$/, '/') }),
+    register: (account, meta) => {
+      if (meta && meta.customEmail && account && typeof account === 'object') {
+        account.customEmail = meta.customEmail;
+      }
+      return post('register', Object.assign({ resource: 'users', account, appUrl: location.href.replace(/\/[^\/]*$/, '/index.html') }, meta || {}));
+    },
     forgotPassword: (email) => post('forgotpassword', { email, appUrl: location.href.replace(/\/[^\/]*$/, '/index.html') }),
     uploadDoc: (fileName, mimeType, base64) => post('uploaddoc', { fileName, mimeType, base64 })
   };
@@ -4572,9 +5329,114 @@
     const s = String(p.status || '').trim().toLowerCase();
     const closedList = ['completed', 'closed', 'closure', 'project closure'];
     if (Array.isArray(p.projectSegments) && p.projectSegments.length > 1) {
-      return closedList.includes(dStat) || closedList.includes(s);
+      return closedList.includes(dStat || String(p.deliveryStatus || s).trim().toLowerCase());
     }
-    return closedList.includes(dStat) || closedList.includes(s);
+    return closedList.includes(dStat || s);
+  };
+
+  PDMS.parseDateToMidnight = function (val) {
+    if (!val) return null;
+    if (val instanceof Date && !isNaN(val.getTime())) {
+      return new Date(val.getFullYear(), val.getMonth(), val.getDate()).getTime();
+    }
+    if (typeof val !== 'string') return null;
+    const clean = val.trim();
+    if (!clean || clean === '—' || clean === '-' || clean.toLowerCase() === 'tbd') return null;
+    const ymd = clean.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (ymd) {
+      return new Date(parseInt(ymd[1], 10), parseInt(ymd[2], 10) - 1, parseInt(ymd[3], 10)).getTime();
+    }
+    const dmy = clean.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+    if (dmy) {
+      return new Date(parseInt(dmy[3], 10), parseInt(dmy[2], 10) - 1, parseInt(dmy[1], 10)).getTime();
+    }
+    const d = new Date(clean);
+    if (isNaN(d.getTime())) return null;
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  };
+
+  PDMS.isSegmentClosed = function (seg, project, idx) {
+    if (!seg && !project) return false;
+    const closedList = ['completed', 'closure', 'project closure', 'certification & post engagement', 'closed', 'cancelled', 'rejected'];
+    const segStatus = String((seg && (seg.status || seg.deliveryStatus)) || '').trim().toLowerCase();
+    if (segStatus && closedList.includes(segStatus)) return true;
+
+    if ((idx === 0 || !seg || !segStatus) && project) {
+      const pDelivery = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(project) : project.deliveryStatus) || '').trim().toLowerCase();
+      const pStatus = String(project.status || '').trim().toLowerCase();
+      if (closedList.includes(pDelivery) || closedList.includes(pStatus)) {
+        if (!segStatus) return true;
+      }
+    }
+    return false;
+  };
+
+  PDMS.getCurrentTimelineSegmentIndex = function (projectOrSegments, optionalProject) {
+    let segments = [];
+    let project = null;
+    if (Array.isArray(projectOrSegments)) {
+      segments = projectOrSegments;
+      project = optionalProject || null;
+    } else if (projectOrSegments && typeof projectOrSegments === 'object') {
+      project = projectOrSegments;
+      segments = (Array.isArray(project.projectSegments) && project.projectSegments.length)
+        ? project.projectSegments
+        : [{ type: project.type, workstream: project.workstream || project.dept, start: project.start, due: project.due, actualCompletion: project.actualCompletion, status: project.status, deliveryStatus: project.deliveryStatus }];
+    }
+    if (!segments || !segments.length || segments.length === 1) return 0;
+
+    // A phase moves to the next phase as long as it has reached closure (closed/completed/closure)
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      if (!PDMS.isSegmentClosed(seg, project, i)) {
+        return i; // First phase that has NOT reached closure
+      }
+    }
+
+    // If all phases have reached closure, return the last phase
+    return segments.length - 1;
+  };
+
+  PDMS.isProjectActiveForUser = function (user, project) {
+    if (!user || !project) return false;
+    const s = String(project.status || '').trim().toLowerCase();
+    const dStat = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(project) : project.deliveryStatus) || '').trim().toLowerCase();
+    const globalClosedList = ['cancelled', 'rejected'];
+    if (globalClosedList.includes(s) || globalClosedList.includes(dStat)) return false;
+
+    const segments = Array.isArray(project.projectSegments) && project.projectSegments.length
+      ? project.projectSegments
+      : null;
+
+    if (segments) {
+      const userSegments = [];
+      for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i];
+        if (seg && PDMS.isUserOnSegment && PDMS.isUserOnSegment(user, seg, project, i)) {
+          userSegments.push({ seg, idx: i });
+        }
+      }
+
+      if (userSegments.length > 0) {
+        // It should ONLY be an active project for them if at least one phase they are on has not reached closure!
+        return userSegments.some(item => !PDMS.isSegmentClosed(item.seg, project, item.idx));
+      }
+
+      const isProjectLevelMember = PDMS.isUserOnProject ? PDMS.isUserOnProject(user, project) : false;
+      if (isProjectLevelMember) {
+        return segments.some((seg, idx) => !PDMS.isSegmentClosed(seg, project, idx));
+      }
+      return false;
+    }
+
+    if (PDMS.isClosedProject && PDMS.isClosedProject(project)) return false;
+    const closedList = ['completed', 'closure', 'project closure', 'certification & post engagement', 'closed', 'cancelled', 'rejected'];
+    if (closedList.includes(s) || closedList.includes(dStat)) return false;
+    return PDMS.isUserOnProject ? PDMS.isUserOnProject(user, project) : true;
+  };
+
+  PDMS.isProjectClosedForUser = function (user, project) {
+    return !PDMS.isProjectActiveForUser(user, project);
   };
 
   PDMS.getActualCompletionDate = function (project, segmentIndex) {
@@ -5031,6 +5893,7 @@
 })(window);
 /* PDMS Shell (sidebar, header, panels) */
 (function(){
+  const PDMS = window.PDMS || {};
   const I = PDMS.icon;
 
   const NAV = [
@@ -5046,7 +5909,8 @@
       {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR','HTD','PM Head','COO','System Administrator','General Admin']},
       {id:'project-managers',label:'Project Managers',icon:'user-check',href:'project-managers.html',roles:['HTD','PM Head','COO','HR','System Administrator','General Admin']},
       {id:'consultants',label:'Consultants',icon:'briefcase',href:'consultants.html',roles:['HR','COO','HTD','PM Head','PMO','Project Manager']},
-      {id:'leave-approvals',label:'Time Off Approvals',icon:'calendar',href:'leave-approvals.html',roles:['HR','System Administrator','General Admin']},
+      {id:'leaves',label:'Leave',icon:'calendar',href:'leaves.html',roles:['HR','COO','HTD','PM Head','PMO','System Administrator','General Admin']},
+      {id:'leave-approvals',label:'Time Off Approvals',icon:'check-circle',href:'leave-approvals.html',roles:['HR','System Administrator','General Admin']},
     ]},
     {section:'Community',items:[
       {id:'notifications',label:'Notifications',icon:'bell',href:'notifications.html',roles:'*'},

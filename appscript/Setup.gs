@@ -148,3 +148,17 @@ function resetDefaultUsers() {
     }
   });
 }
+
+/**
+ * Run this in Apps Script editor to authorize MailApp permissions.
+ * Click "Review Permissions" -> "Allow" when prompted.
+ */
+function testEmailPermission() {
+  var myEmail = Session.getActiveUser().getEmail();
+  if (myEmail) {
+    MailApp.sendEmail(myEmail, "PSE PDMS - Email Permissions Active", "Email permissions are successfully granted! PSE PDMS can send user onboarding and update notifications.");
+    Logger.log("Test email successfully sent to: " + myEmail);
+  } else {
+    Logger.log("Active user email not detected. Please verify your Google account session.");
+  }
+}

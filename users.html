@@ -7,28 +7,34 @@
   <title>Users — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1793649402"/>
+<link rel="stylesheet" href="css/style.css?v=1795626479"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1793649402"></script>
+  <script src="js/bundle.js?v=1795626479"></script>
   <script>
     PDMS.mountShell('users');
     const D = PDMS_DATA; const I = PDMS.icon;
 
     let selectedUserRoleFilter = '';
+    let selectedLeaveFilter = false;
 
     function initFilterFromUrl() {
       const hashParams = new URLSearchParams((location.hash || '').replace(/^#/, ''));
       const searchParams = new URLSearchParams(location.search || '');
       const role = hashParams.get('role') || searchParams.get('role') || '';
+      const leave = hashParams.get('leave') || searchParams.get('leave') || '';
       if (role) {
         selectedUserRoleFilter = role;
+      }
+      if (leave === '1' || leave === 'true' || leave === 'on-leave') {
+        selectedLeaveFilter = true;
       }
     }
     initFilterFromUrl();
 
     function selectUserRoleFilter(role) {
+      selectedLeaveFilter = false;
       if (selectedUserRoleFilter === role) {
         selectedUserRoleFilter = '';
       } else {
@@ -38,11 +44,23 @@
     }
     window.selectUserRoleFilter = selectUserRoleFilter;
 
+    function selectUserLeaveFilter() {
+      if (selectedLeaveFilter) {
+        selectedLeaveFilter = false;
+      } else {
+        selectedLeaveFilter = true;
+        selectedUserRoleFilter = '';
+      }
+      render();
+    }
+    window.selectUserLeaveFilter = selectUserLeaveFilter;
+
     function render() {
       const liveUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users;
       const totalUsers = liveUsers.length;
       const totalPMs = liveUsers.filter(u => u.role === 'PMO' || u.role === 'PM Head' || u.role === 'Project Manager').length;
       const totalConsultants = liveUsers.filter(u => u.role === 'Consultant').length;
+      const staffOnLeaveCount = liveUsers.filter(u => PDMS.isUserOnLeave ? PDMS.isUserOnLeave(u) : false).length;
 
       document.getElementById('content').innerHTML = `
   <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Users</span></div>
@@ -52,8 +70,8 @@
       <a class="btn btn-secondary" href="consultants.html">${I('briefcase')} Consultants</a>
       ${PDMS.can('Onboard User') ? `<button class="btn btn-primary" onclick="newUser()">${I('user-plus')} Add User</button>` : ''}
     </div></div>
-  <div class="grid grid-3 mb-4">
-    <div class="stat i-primary ${!selectedUserRoleFilter ? 'active-filter' : ''}" onclick="selectUserRoleFilter('')" title="Click to show all users" style="cursor:pointer">
+  <div class="grid grid-4 mb-4">
+    <div class="stat i-primary ${!selectedUserRoleFilter && !selectedLeaveFilter ? 'active-filter' : ''}" onclick="selectUserRoleFilter('')" title="Click to show all users" style="cursor:pointer">
       <div class="label">Total Users</div>
       <div class="value">${totalUsers}</div>
       <div class="delta">All system accounts</div>
@@ -71,6 +89,12 @@
       <div class="delta">Delivery specialists</div>
       <div class="icon-wrap">${I('briefcase')}</div>
     </div>
+    <div class="stat i-warn ${selectedLeaveFilter ? 'active-filter' : ''}" onclick="selectUserLeaveFilter()" title="Click to filter staff currently on leave" style="cursor:pointer">
+      <div class="label">Staff on Leave</div>
+      <div class="value" style="${staffOnLeaveCount > 0 ? 'color:var(--warn,#f59e0b)' : ''}">${staffOnLeaveCount}</div>
+      <div class="delta">${staffOnLeaveCount === 1 ? '1 currently away' : staffOnLeaveCount > 1 ? `${staffOnLeaveCount} currently away` : 'None on leave today'}</div>
+      <div class="icon-wrap">${I('calendar')}</div>
+    </div>
   </div>
   <div id="tbl" class="table-wrap"></div>
 `;
@@ -78,11 +102,19 @@
     }
     function renderUsers() {
       const rawUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users || [];
-      const liveUsers = rawUsers.slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true }));
+      let liveUsers = rawUsers.slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true }));
+      if (selectedLeaveFilter) {
+        liveUsers = liveUsers.filter(u => PDMS.isUserOnLeave ? PDMS.isUserOnLeave(u) : false);
+      }
       document.getElementById('tbl').innerHTML = '';
       PDMS.renderTable(document.getElementById('tbl'), {
         columns: [
-          { key: 'name', label: 'User', render: r => `<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.name)}</div><div><div class="font-semi">${PDMS.esc(r.name)}</div><div class="text-sm text-muted">${PDMS.esc(r.email)}</div></div></div>` },
+          { key: 'name', label: 'User', render: r => {
+              const activeLv = PDMS.getUserActiveLeave ? PDMS.getUserActiveLeave(r) : null;
+              const leaveBadge = activeLv ? ` <span class="badge badge-warn" style="font-size:10px;padding:2px 6px;margin-left:4px" title="${PDMS.esc(activeLv.category || activeLv.type || 'Leave')}: ${PDMS.esc(activeLv.startDate)} to ${PDMS.esc(activeLv.endDate)}">● On Leave</span>` : '';
+              return `<div class="flex items-center gap-2"><div class="avatar avatar-sm">${PDMS.initials(r.name)}</div><div><div class="font-semi" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">${PDMS.esc(r.name)}${leaveBadge}</div><div class="text-sm text-muted">${PDMS.esc(r.email)}</div></div></div>`;
+            }
+          },
           { key: 'role', label: 'Role', render: r => `<span class="badge badge-primary">${r.role}</span>` },
           { key: 'dept', label: 'Designation' }
         ],
@@ -92,6 +124,7 @@
         filters: selectedUserRoleFilter ? { role: selectedUserRoleFilter } : {},
         onFilterChange: (filters) => {
           selectedUserRoleFilter = filters.role || '';
+          if (selectedUserRoleFilter) selectedLeaveFilter = false;
           render();
         },
         rowHref: r => 'user-details.html#id=' + encodeURIComponent(r.id || '') + (r.email ? '&email=' + encodeURIComponent(r.email) : ''),
@@ -100,8 +133,54 @@
     }
 
     function newUser() {
-      const modal = PDMS.modal('Create User', `<div class="form-grid"><div class="form-row"><label>Full Name</label><input id="newUserName"/></div><div class="form-row"><label>Email</label><input id="newUserEmail" type="email"/></div><div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div><div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Designation</label><input id="newUserDept" type="text" placeholder="e.g. Senior Security Analyst, Solutions Architect..."/></div><div class="form-row"><label>Phone</label><input id="newUserPhone" type="text" placeholder="e.g. +1 555 123 4567"/></div><div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="text" placeholder="MM/DD"/></div><div class="form-row"><label>Date of Entry</label><input id="newUserEntry" type="date"/></div></div>`,
+      const modal = PDMS.modal('Create User', `<div class="form-grid">
+        <div class="form-row"><label>Full Name</label><input id="newUserName" placeholder="e.g. Jane Doe"/></div>
+        <div class="form-row"><label>Email</label><input id="newUserEmail" type="email" placeholder="jane.doe@pse.com"/></div>
+        <div class="form-row" style="grid-column:1/-1">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <label style="margin:0;font-weight:600">Password <span style="font-size:12px;color:var(--text-muted);font-weight:400">(initial login password)</span></label>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnGenUserPass" style="font-size:12px;padding:3px 10px;display:inline-flex;align-items:center;gap:6px;border-radius:8px;font-weight:600" title="Click repeatedly to auto-generate fresh passwords">
+              ${I('refresh')} Auto Generate
+            </button>
+          </div>
+          <div style="position:relative;display:flex;align-items:center">
+            <input id="newUserPassword" type="text" placeholder="Create or click Auto Generate" autocomplete="off" style="width:100%;padding-right:40px;font-family:inherit;font-size:13px;font-weight:600;letter-spacing:0.5px"/>
+            <button type="button" id="toggleNewPassBtn" style="position:absolute;right:10px;background:none;border:none;color:var(--text-soft);cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center" title="Toggle visibility">
+              ${I('eye')}
+            </button>
+          </div>
+        </div>
+        <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option>${r}</option>`).join('')}</select></div>
+        <div class="form-row"><label>Designation</label><input id="newUserDept" type="text" placeholder="e.g. Senior Security Analyst, Solutions Architect..."/></div>
+        <div class="form-row"><label>Phone</label><input id="newUserPhone" type="text" placeholder="e.g. +1 555 123 4567"/></div>
+        <div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="text" placeholder="MM/DD"/></div>
+        <div class="form-row"><label>Date of Entry</label><input id="newUserEntry" type="date"/></div>
+      </div>`,
         `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">Create</button>`);
+
+      const passInput = modal.querySelector('#newUserPassword');
+      const genBtn = modal.querySelector('#btnGenUserPass');
+      const toggleBtn = modal.querySelector('#toggleNewPassBtn');
+
+      if (genBtn && passInput) {
+        genBtn.onclick = function () {
+          const pwd = PDMS.generatePassword ? PDMS.generatePassword(12) : Math.random().toString(36).slice(-10);
+          passInput.value = pwd;
+          passInput.type = 'text'; // keep visible so she sees it as it is generating
+          passInput.focus();
+          passInput.select();
+          PDMS.toast('Password Generated', 'New secure password generated', 'info');
+        };
+      }
+
+      if (toggleBtn && passInput) {
+        toggleBtn.onclick = function () {
+          const isPass = passInput.type === 'password';
+          passInput.type = isPass ? 'text' : 'password';
+          toggleBtn.style.color = isPass ? 'var(--primary)' : 'var(--text-soft)';
+        };
+      }
+
       modal.querySelector('#createUserBtn').onclick = function () {
         const btn = this;
         const name = modal.querySelector('#newUserName').value.trim();
@@ -116,20 +195,57 @@
           PDMS.toast('Missing user info', 'Name, email, and password are required', 'error');
           return;
         }
+        if (!PDMS.isValidEmail(email)) {
+          PDMS.toast('Invalid Email', 'Please enter a valid email address (e.g. name@example.com) to receive credentials', 'error');
+          return;
+        }
 
-        PDMS.setButtonLoading(btn, true, 'Onboarding...');
-        const record = { name, email, password, role, dept, birthday: birthday || '', dateOfEntry: dateOfEntry || '', workload: 0, phone, joined: new Date().toISOString().slice(0, 10) };
-        PDMS.api.register(record).then(saved => {
-          D.users.unshift(saved);
-          modal.remove();
-          showNewUserPasswordNote(saved, password);
-          const creator = PDMS.getUser();
-          PDMS.notify('User Onboarded', `${creator ? creator.name : 'HR'} onboarded ${saved.name} as ${saved.role}`, 'user-plus', 'user-details.html#id='+saved.id, 'HR,System Administrator');
-          render(); // immediate local re-render, including stat cards
-          if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
-        }).catch(err => {
-          PDMS.setButtonLoading(btn, false);
-          PDMS.toast('Error', err.message || 'Could not create user', 'error');
+        // Duplicate email guard
+        if (D.users.some(u => String(u.email||'').toLowerCase() === email)) {
+          PDMS.toast('Email already in use', 'A user with this email already exists. Use a different address.', 'error');
+          return;
+        }
+
+        // Generate email draft and show editable preview before sending
+        const emailDraft = PDMS.buildWelcomeEmail({ name, email, role }, password);
+        modal.style.display = 'none';
+
+        PDMS.showEmailPreviewModal({
+          title: 'Review Welcome Email Before Sending',
+          to: email,
+          subject: emailDraft.subject,
+          body: emailDraft.body,
+          submitLabel: 'Send Email & Create User',
+          onCancel: () => {
+            modal.style.display = '';
+          },
+          onSend: ({ subject: customSubject, body: customBody, modal: previewModal, btn: sendBtn }) => {
+            PDMS.setButtonLoading(sendBtn, true, 'Sending & Creating...');
+            const record = { name, email, password, role, dept, birthday: birthday || '', dateOfEntry: dateOfEntry || '', workload: 0, phone, joined: new Date().toISOString().slice(0, 10), status: 'Active', availability: 'Available' };
+            PDMS.api.register(record, { customEmail: { subject: customSubject, body: customBody } }).then(saved => {
+              if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.users)) {
+                if (!window.PDMS_REMOTE.users.some(x => String(x.id) === String(saved.id))) {
+                  window.PDMS_REMOTE.users.unshift(saved);
+                }
+              }
+              D.users.unshift(saved);
+              previewModal.remove();
+              modal.remove();
+              showNewUserPasswordNote(saved, password);
+              const creator = PDMS.getUser();
+              PDMS.notify('User Onboarded', `${creator ? creator.name : 'HR'} onboarded ${saved.name} as ${saved.role}`, 'user-plus', 'user-details.html#id='+saved.id, 'HR,System Administrator');
+              if (saved && saved._emailSent === false && saved._emailError) {
+                PDMS.toast('User Created (Email Delivery Issue)', 'Account created, but email could not be sent: ' + saved._emailError, 'warn');
+              } else {
+                PDMS.toast('User Created', 'Account created and customized welcome email sent successfully', 'success');
+              }
+              render(); // immediate local re-render, including stat cards
+              if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+            }).catch(err => {
+              PDMS.setButtonLoading(sendBtn, false);
+              PDMS.toast('Error', err.message || 'Could not create user', 'error');
+            });
+          }
         });
       };
     }

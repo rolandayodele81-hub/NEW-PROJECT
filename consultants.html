@@ -7,11 +7,11 @@
   <title>Consultants — PSE PDMS</title>
   
   
-<link rel="stylesheet" href="css/style.css?v=1793649402"/>
+<link rel="stylesheet" href="css/style.css?v=1795626479"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1793649402"></script>
+  <script src="js/bundle.js?v=1795626479"></script>
   <script>
     PDMS.mountShell('consultants');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -22,18 +22,12 @@
 
     function isAssignedConsultant(project, user) {
       if (!user) return false;
-      const consultantNames = Array.isArray(project.consultants) ? project.consultants.map(String) : [];
-      const userName = String(user.name || '').toLowerCase();
-      const userEmail = String(user.email || '').toLowerCase();
-      return consultantNames.some(name => {
-        const value = String(name).trim().toLowerCase();
-        return value === userName || value === userEmail;
-      });
+      return PDMS.isUserOnProject ? PDMS.isUserOnProject(user, project) : false;
     }
 
     function consultantProjects(user) {
       if (!user) return [];
-      return (D.projects || []).filter(project => isAssignedConsultant(project, user));
+      return PDMS.getProjectsForUser ? PDMS.getProjectsForUser(user) : [];
     }
 
     function projectDocs(project) {
@@ -194,6 +188,16 @@
 
     let selectedConsultantFilter = '';
 
+    function initFilterFromUrl() {
+      const hashParams = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+      const searchParams = new URLSearchParams(location.search || '');
+      const filter = hashParams.get('filter') || searchParams.get('filter') || '';
+      const leave = hashParams.get('leave') || searchParams.get('leave') || '';
+      if (filter) selectedConsultantFilter = filter;
+      if (leave === '1' || leave === 'true' || leave === 'on-leave') selectedConsultantFilter = 'onLeave';
+    }
+    initFilterFromUrl();
+
     function selectConsultantFilter(filterType) {
       if (selectedConsultantFilter === filterType) {
         selectedConsultantFilter = '';
@@ -212,19 +216,19 @@
         <div class="grid grid-3 mb-4">
           <a class="stat i-primary" href="projects.html" title="View all your assigned projects">
             <div class="label">Current Projects</div>
-            <div class="value">${projects.filter(p=>p.status!=='Completed'&&p.status!=='Closed'&&p.status!=='Cancelled').length}</div>
+            <div class="value">${projects.filter(p => PDMS.isProjectActiveForUser ? PDMS.isProjectActiveForUser(user, p) : (p.status!=='Completed'&&p.status!=='Closed'&&p.status!=='Cancelled')).length}</div>
             <div class="delta">All active projects</div>
             <div class="icon-wrap">${I('folder')}</div>
           </a>
           <a class="stat i-success" href="projects.html#status=In Progress" title="Filter in-progress projects">
             <div class="label">In Progress</div>
-            <div class="value">${projects.filter(p=>p.status==='In Progress').length}</div>
+            <div class="value">${projects.filter(p => (PDMS.isProjectActiveForUser ? PDMS.isProjectActiveForUser(user, p) : true) && p.status==='In Progress').length}</div>
             <div class="delta">Active delivery</div>
             <div class="icon-wrap">${I('activity')}</div>
           </a>
           <a class="stat i-info" href="projects.html#status=Completed" title="Filter completed projects">
             <div class="label">Completed</div>
-            <div class="value">${projects.filter(p=>p.status==='Completed').length}</div>
+            <div class="value">${projects.filter(p => PDMS.isProjectClosedForUser ? PDMS.isProjectClosedForUser(user, p) : (p.status==='Completed'||p.status==='Closed')).length}</div>
             <div class="delta">Delivered</div>
             <div class="icon-wrap">${I('check')}</div>
           </a>
@@ -245,26 +249,23 @@
       const myEmail = (currentUser?.email || '').trim().toLowerCase();
       const myId = String(currentUser?.id || '').trim().toLowerCase();
 
-      const myProjects = liveProjects.filter(p => {
-        const pm = (p.pm || '').trim().toLowerCase();
-        const lead = (p.lead || '').trim().toLowerCase();
-        const consultantsList = Array.isArray(p.consultants) ? p.consultants.map(n => String(n).trim().toLowerCase()) : [];
-        const ownerId = String(p.projectOwnerId || p.onboardedById || p.createdByUserId || '').trim().toLowerCase();
-        const ownerName = String(p.projectOwnerName || p.onboardedByName || p.createdByUserName || '').trim().toLowerCase();
-        return pm === myName || pm === myEmail || lead === myName || lead === myEmail ||
-               consultantsList.includes(myName) || consultantsList.includes(myEmail) ||
-               (myId && ownerId === myId) || (myName && ownerName === myName);
-      });
+      const myProjects = liveProjects.filter(p => PDMS.isUserOnProject ? PDMS.isUserOnProject(currentUser, p) : false);
 
       const myConsultantSet = new Set();
       myProjects.forEach(p => {
-        if (Array.isArray(p.consultants)) {
-          p.consultants.forEach(c => {
-            if (c) myConsultantSet.add(String(c).trim().toLowerCase());
-          });
-        }
         if (p.lead) myConsultantSet.add(String(p.lead).trim().toLowerCase());
         if (p.pm) myConsultantSet.add(String(p.pm).trim().toLowerCase());
+        const cons = PDMS.asArray ? PDMS.asArray(p.consultants) : (Array.isArray(p.consultants) ? p.consultants : []);
+        cons.forEach(c => { if (c) myConsultantSet.add(String(c).trim().toLowerCase()); });
+        if (Array.isArray(p.projectSegments)) {
+          p.projectSegments.forEach(seg => {
+            if (!seg) return;
+            if (seg.pm) myConsultantSet.add(String(seg.pm).trim().toLowerCase());
+            if (seg.lead) myConsultantSet.add(String(seg.lead).trim().toLowerCase());
+            const segCons = PDMS.asArray ? PDMS.asArray(seg.consultants) : (Array.isArray(seg.consultants) ? seg.consultants : []);
+            segCons.forEach(c => { if (c) myConsultantSet.add(String(c).trim().toLowerCase()); });
+          });
+        }
       });
 
       const isMyConsultantFn = c => {
@@ -274,15 +275,14 @@
       };
 
       const hasProjectsFn = c => {
-        const rName = (c.name || '').toLowerCase();
-        const rEmail = (c.email || '').toLowerCase();
-        const n = liveProjects.filter(p => (p.pm || '').toLowerCase() === rName || (p.lead || '').toLowerCase() === rName || (Array.isArray(p.consultants) && p.consultants.some(x => { const val = String(x).toLowerCase(); return val === rName || val === rEmail; }))).length;
-        return n > 0;
+        if (PDMS.isUserOnLeave && PDMS.isUserOnLeave(c)) return false;
+        return liveProjects.some(p => (PDMS.isProjectActive ? PDMS.isProjectActive(p) : false) && (PDMS.isUserOnProject ? PDMS.isUserOnProject(c, p) : false));
       };
 
-      const myConsultantsCount = allConsultants.filter(c => isMyConsultantFn(c)).length;
+      const myConsultantsCount = allConsultants.filter(c => isMyConsultantFn(c) && (!PDMS.isUserOnLeave || !PDMS.isUserOnLeave(c))).length;
       const withProjCount = allConsultants.filter(c => hasProjectsFn(c)).length;
-      const withoutProjCount = allConsultants.length - withProjCount;
+      const onLeaveCount = allConsultants.filter(c => PDMS.isUserOnLeave ? PDMS.isUserOnLeave(c) : false).length;
+      const withoutProjCount = allConsultants.filter(c => (!PDMS.isUserOnLeave || !PDMS.isUserOnLeave(c)) && !hasProjectsFn(c)).length;
 
       const customFilter = selectedConsultantFilter === 'myConsultants'
         ? (c => isMyConsultantFn(c))
@@ -290,12 +290,14 @@
           ? (c => hasProjectsFn(c))
           : (selectedConsultantFilter === 'withoutProj'
             ? (c => !hasProjectsFn(c))
-            : null));
+            : (selectedConsultantFilter === 'onLeave'
+              ? (c => PDMS.isUserOnLeave ? PDMS.isUserOnLeave(c) : false)
+              : null)));
 
       document.getElementById('content').innerHTML = `
         <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Consultants</span></div>
           <h1 class="page-title">Consultants</h1><div class="page-sub">${isPMO ? 'Consultant resource directory and engagement tracking' : 'Resource pool availability and specialties'}</div></div></div>
-        <div class="grid grid-4 mb-4">
+        <div class="grid grid-5 mb-4">
           <div class="stat i-primary ${!selectedConsultantFilter ? 'active-filter' : ''}" onclick="selectConsultantFilter('')" title="Click to show all consultants" style="cursor:pointer">
             <div class="label">Total Consultants</div>
             <div class="value">${allConsultants.length}</div>
@@ -320,6 +322,12 @@
             <div class="delta">Bench / Available</div>
             <div class="icon-wrap">${I('activity')}</div>
           </div>
+          <div class="stat i-warn ${selectedConsultantFilter === 'onLeave' ? 'active-filter' : ''}" onclick="selectConsultantFilter('onLeave')" title="Click to filter consultants currently on leave" style="cursor:pointer">
+            <div class="label">Staff on Leave</div>
+            <div class="value" style="${onLeaveCount > 0 ? 'color:var(--warn,#f59e0b)' : ''}">${onLeaveCount}</div>
+            <div class="delta">${onLeaveCount === 1 ? '1 consultant away' : onLeaveCount > 1 ? `${onLeaveCount} consultants away` : 'None on leave today'}</div>
+            <div class="icon-wrap">${I('calendar')}</div>
+          </div>
         </div>
         <div id="tbl" class="table-wrap"></div>`;
       PDMS.renderTable(document.getElementById('tbl'), {
@@ -329,13 +337,14 @@
           { key: 'projects', label: 'Projects', render: r => {
             const rName = (r.name || '').toLowerCase();
             const rEmail = (r.email || '').toLowerCase();
-            const allAssigned = liveProjects.filter(p => (p.pm || '').toLowerCase() === rName || (p.lead || '').toLowerCase() === rName || (Array.isArray(p.consultants) && p.consultants.some(c => { const val = String(c).toLowerCase(); return val === rName || val === rEmail; })));
-            const myAssigned = myProjects.filter(p => (p.pm || '').toLowerCase() === rName || (p.lead || '').toLowerCase() === rName || (Array.isArray(p.consultants) && p.consultants.some(c => { const val = String(c).toLowerCase(); return val === rName || val === rEmail; })));
+            const allAssigned = liveProjects.filter(p => PDMS.isProjectActiveForUser ? PDMS.isProjectActiveForUser(r, p) : ((PDMS.isProjectActive ? PDMS.isProjectActive(p) : false) && (PDMS.isUserOnProject ? PDMS.isUserOnProject(r, p) : false)));
+            const myAssigned = myProjects.filter(p => PDMS.isProjectActiveForUser ? PDMS.isProjectActiveForUser(r, p) : ((PDMS.isProjectActive ? PDMS.isProjectActive(p) : false) && (PDMS.isUserOnProject ? PDMS.isUserOnProject(r, p) : false)));
             const activeLv = PDMS.getUserActiveLeave ? PDMS.getUserActiveLeave(r) : null;
             const n = allAssigned.length;
             const leaveBadge = activeLv ? ` <span class="badge badge-warn" style="font-size:10px;padding:2px 6px;margin-left:4px" title="${PDMS.esc(activeLv.category || 'Leave')}: ${PDMS.esc(activeLv.reason || '')}">● On Leave (until ${activeLv.endDate})</span>` : '';
-            if (n === 0) return (activeLv ? leaveBadge.trim() : '<span class="badge badge-muted">Bench / Available</span>');
-            return `<span class="badge badge-primary">${n} project${n!==1?'s':''}</span>${isPMO && myAssigned.length > 0 ? ` <span class="badge badge-purple" style="margin-left:4px;font-size:10px;padding:2px 6px">${myAssigned.length} on mine</span>` : ''}${leaveBadge}`;
+            if (activeLv) return leaveBadge.trim();
+            if (n === 0) return '<span class="badge badge-muted">Bench / Available</span>';
+            return `<span class="badge badge-primary">${n} active project${n!==1?'s':''}</span>${isPMO && myAssigned.length > 0 ? ` <span class="badge badge-purple" style="margin-left:4px;font-size:10px;padding:2px 6px">${myAssigned.length} on mine</span>` : ''}`;
           }},
           { key: 'dateOfEntry', label: 'Date of Entry', render: r => PDMS.esc(r.dateOfEntry || r.joined || '—') }
         ], rows: allConsultants, searchKeys: ['name', 'dept', 'email'],

@@ -5,9 +5,47 @@
 
   global.PDMS_API_URL = 'https://script.google.com/macros/s/AKfycbzCX2HlT7jSxaBVIo2mdXZu7mcwIUbff0EVdtjHi3jNVTQRyMRrE9ftaum1NprQS8Fp/exec';
 
-
   var CACHE_KEY = 'pdms-cache';
   var CACHE_TS_KEY = 'pdms-cache-ts';
+
+  // Storage layer resilient against QuotaExceededError and private-browsing restrictions
+  var memoryStorage = {};
+  global.PDMS_STORAGE = {
+    get: function (key) {
+      try {
+        var v = localStorage.getItem(key);
+        if (v !== null) return v;
+      } catch (_) {}
+      try {
+        var sv = sessionStorage.getItem(key);
+        if (sv !== null) return sv;
+      } catch (_) {}
+      return memoryStorage[key] !== undefined ? memoryStorage[key] : null;
+    },
+    set: function (key, val) {
+      memoryStorage[key] = String(val);
+      try {
+        localStorage.setItem(key, val);
+      } catch (err) {
+        // If quota exceeded, immediately evict large volatile caches to protect essential keys (like pdms-user)
+        try {
+          localStorage.removeItem(CACHE_KEY);
+          localStorage.removeItem(CACHE_TS_KEY);
+          localStorage.removeItem('pdms_local_db');
+          localStorage.setItem(key, val);
+          return;
+        } catch (_) {}
+        try {
+          sessionStorage.setItem(key, val);
+        } catch (_) {}
+      }
+    },
+    remove: function (key) {
+      delete memoryStorage[key];
+      try { localStorage.removeItem(key); } catch (_) {}
+      try { sessionStorage.removeItem(key); } catch (_) {}
+    }
+  };
 
   global.PDMS_DATA_LOADED = false;
   global.PDMS_IS_LOADING = true;
@@ -50,10 +88,10 @@
             Object.assign(target, patch);
             if (resKey === 'users') {
               try {
-                var currUser = JSON.parse(localStorage.getItem('pdms-user') || 'null');
+                var currUser = JSON.parse(global.PDMS_STORAGE.get('pdms-user') || 'null');
                 if (currUser && (String(currUser.id) === String(target.id) || String(currUser.email || '').toLowerCase() === String(target.email || '').toLowerCase())) {
                   Object.assign(currUser, patch);
-                  localStorage.setItem('pdms-user', JSON.stringify(currUser));
+                  global.PDMS_STORAGE.set('pdms-user', JSON.stringify(currUser));
                 }
               } catch (_) {}
             }
@@ -113,12 +151,53 @@
                 p[field] = Array.isArray(parsed) ? parsed : [];
               } catch (e) {
                 p[field] = [];
+                if (field === 'consultants' && str) {
+                  p[field] = str.includes(',') ? str.split(',').map(function (s) { return s.trim(); }).filter(Boolean) : [str];
+                } else {
+                  p[field] = [];
+                }
               }
             }
           } else if (!Array.isArray(p[field])) {
             p[field] = [];
           }
         });
+
+        if (Array.isArray(p.projectSegments)) {
+          p.projectSegments.forEach(function (seg) {
+            if (!seg || typeof seg !== 'object') return;
+            if (typeof seg.consultants === 'string') {
+              var cStr = seg.consultants.trim();
+              if (!cStr) {
+                seg.consultants = [];
+              } else {
+                try {
+                  var cParsed = JSON.parse(cStr);
+                  seg.consultants = Array.isArray(cParsed) ? cParsed : [cStr];
+                } catch (_) {
+                  seg.consultants = cStr.includes(',') ? cStr.split(',').map(function (s) { return s.trim(); }).filter(Boolean) : [cStr];
+                }
+              }
+            } else if (!Array.isArray(seg.consultants)) {
+              seg.consultants = seg.consultants ? [seg.consultants] : [];
+            }
+            if (typeof seg.consultantRoles === 'string') {
+              try {
+                seg.consultantRoles = JSON.parse(seg.consultantRoles) || {};
+              } catch (_) {
+                seg.consultantRoles = {};
+              }
+            }
+          });
+        }
+
+        if (typeof p.consultantRoles === 'string') {
+          try {
+            p.consultantRoles = JSON.parse(p.consultantRoles) || {};
+          } catch (_) {
+            p.consultantRoles = {};
+          }
+        }
 
         // Normalize milestones (supports both stage map object and legacy array)
         if (typeof p.milestones === 'string') {
@@ -257,16 +336,46 @@
       } catch (_) { }
     }
 
+    function safeCacheBootstrap(data) {
+      if (!data || typeof data !== 'object') return;
+      try {
+        var cacheData = {};
+        Object.keys(data).forEach(function (k) {
+          var val = data[k];
+          if (Array.isArray(val)) {
+            // Keep localStorage cache lean (max 100 entries for bulky logs); memory global.PDMS_REMOTE holds full dataset
+            if (val.length > 100 && (k === 'activities' || k === 'notifications' || k === 'auditLogs')) {
+              cacheData[k] = val.slice(0, 100);
+            } else {
+              cacheData[k] = val;
+            }
+          } else {
+            cacheData[k] = val;
+          }
+        });
+        var str = JSON.stringify(cacheData);
+        // Only cache locally if below 2.5MB to preserve browser quota and prevent QuotaExceededError
+        if (str.length < 2500000) {
+          localStorage.setItem(CACHE_KEY, str);
+          localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+        } else {
+          localStorage.removeItem(CACHE_KEY);
+        }
+      } catch (e) {
+        try {
+          localStorage.removeItem(CACHE_KEY);
+          localStorage.removeItem(CACHE_TS_KEY);
+        } catch (_) {}
+      }
+    }
+
     fetchWithRetry(global.PDMS_API_URL + '?action=bootstrap')
       .then(function (res) { return res.json(); })
       .then(function (json) {
         mergeRecentCreates(json.data);
         mergeRecentUpdates(json.data);
         sortAllDataNewestFirst(json.data);
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(json.data));
-          localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
-        } catch (_) { }
+        safeCacheBootstrap(json.data);
         global.PDMS_REMOTE = json.data;
         global.PDMS_DATA_LOADED = true;
         global.PDMS_IS_LOADING = false;

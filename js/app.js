@@ -1,5 +1,6 @@
 /* PDMS Shell (sidebar, header, panels) */
 (function(){
+  const PDMS = window.PDMS || {};
   const I = PDMS.icon;
 
   const NAV = [
@@ -15,7 +16,8 @@
       {id:'users',label:'Users',icon:'users',href:'users.html',roles:['HR','HTD','PM Head','COO','System Administrator','General Admin']},
       {id:'project-managers',label:'Project Managers',icon:'user-check',href:'project-managers.html',roles:['HTD','PM Head','COO','HR','System Administrator','General Admin']},
       {id:'consultants',label:'Consultants',icon:'briefcase',href:'consultants.html',roles:['HR','COO','HTD','PM Head','PMO','Project Manager']},
-      {id:'leave-approvals',label:'Time Off Approvals',icon:'calendar',href:'leave-approvals.html',roles:['HR','System Administrator','General Admin']},
+      {id:'leaves',label:'Leave',icon:'calendar',href:'leaves.html',roles:['HR','COO','HTD','PM Head','PMO','System Administrator','General Admin']},
+      {id:'leave-approvals',label:'Time Off Approvals',icon:'check-circle',href:'leave-approvals.html',roles:['HR','System Administrator','General Admin']},
     ]},
     {section:'Community',items:[
       {id:'notifications',label:'Notifications',icon:'bell',href:'notifications.html',roles:'*'},

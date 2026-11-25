@@ -5,11 +5,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Time Off Approvals — PSE PDMS</title>
-  <link rel="stylesheet" href="css/style.css?v=1793649402" />
+  <link rel="stylesheet" href="css/style.css?v=1795626479" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1793649402"></script>
+  <script src="js/bundle.js?v=1795626479"></script>
   <script>
     PDMS.mountShell('leave-approvals');
     const D = PDMS_DATA;
@@ -568,6 +568,9 @@
           const note = (confirmModal.querySelector('#approvalNoteInput')?.value || '').trim();
           confirmModal.remove();
 
+          const candidate = (D.users || []).find(u => String(u.id) === String(lv.userId)) || {};
+          const userEmail = String(lv.userEmail || candidate.email || '');
+
           const patch = {
             status: 'Approved',
             reviewNote: note || 'Approved by HR',
@@ -576,16 +579,40 @@
             reviewerRole: String(user.role || 'HR'),
             reviewedAt: new Date().toISOString()
           };
+          if (userEmail && !lv.userEmail) patch.userEmail = userEmail;
 
-          PDMS.api.update('leaveRequests', leaveId, patch).then(saved => {
-            Object.assign(lv, patch, saved || {});
-            const noteText = note ? ` Note: ${note}` : '';
-            PDMS.notify('Time-Off Request Approved', `Your request for ${lv.daysCount} off-day(s) (${lv.startDate} to ${lv.endDate}) has been approved by HR.${noteText}`, 'check', 'user-details.html#id=' + encodeURIComponent(lv.userId || ''), '', lv.userId || lv.userEmail || '', '', lv.userName || '');
-            PDMS.toast('Leave Approved', `Approved time off for ${lv.userName} (${lv.startDate} to ${lv.endDate})`, 'success');
-            render();
-            if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
-          }).catch(err => {
-            PDMS.toast('Error', err.message || 'Could not approve leave request', 'error');
+          const draft = (PDMS.buildLeaveApprovalEmail ? PDMS.buildLeaveApprovalEmail(candidate, lv, user.name, note) : {
+            subject: `PSE PDMS - Time-Off Request Approved (${lv.startDate} to ${lv.endDate})`,
+            body: `Hello ${lv.userName || 'there'},\n\nYour time-off request for ${lv.startDate} to ${lv.endDate} has been APPROVED by ${user.name || 'HR'}.\n\nBest regards,\nPSE HR Team`
+          });
+
+          PDMS.showEmailPreviewModal({
+            title: `Review Approval Email for ${lv.userName || 'Employee'}`,
+            to: userEmail || candidate.name || 'Candidate',
+            subject: draft.subject,
+            body: draft.body,
+            submitLabel: 'Send Email & Approve',
+            onSend: ({ subject: customSubject, body: customBody, modal: previewModal, btn: sendBtn }) => {
+              PDMS.setButtonLoading(sendBtn, true, 'Approving...');
+              PDMS.api.update('leaveRequests', leaveId, patch, {
+                customEmail: { subject: customSubject, body: customBody }
+              }).then(saved => {
+                Object.assign(lv, patch, saved || {});
+                const noteText = note ? ` Note: ${note}` : '';
+                PDMS.notify('Time-Off Request Approved', `Your request for ${lv.daysCount} off-day(s) (${lv.startDate} to ${lv.endDate}) has been approved by HR.${noteText}`, 'check', 'profile.html', '', lv.userId || userEmail || '', '', lv.userName || '');
+                previewModal.remove();
+                if (saved && saved._emailError) {
+                  PDMS.toast('Leave Approved (Email Issue)', `Status updated to Approved, but email failed: ${saved._emailError}`, 'warn');
+                } else {
+                  PDMS.toast('Leave Approved', `Approved time off for ${lv.userName || 'Employee'}. Confirmation email sent to ${userEmail || 'employee'}.`, 'success');
+                }
+                render();
+                if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+              }).catch(err => {
+                PDMS.setButtonLoading(sendBtn, false);
+                PDMS.toast('Error', err.message || 'Could not approve leave request', 'error');
+              });
+            }
           });
         };
       }
@@ -631,7 +658,7 @@
         <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
           <button class="btn btn-ghost" data-close>Cancel</button>
           <button class="btn btn-danger" id="confirmRejectSubmitBtn" style="background:#ef4444;border-color:#ef4444;color:#fff;font-weight:600;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(239,68,68,.3)">
-            ${I('close')} Confirm &amp; Reject
+            ${I('close')} Next: Review Email &amp; Reject
           </button>
         </div>
       `;
@@ -655,6 +682,9 @@
 
           confirmModal.remove();
 
+          const candidate = (D.users || []).find(u => String(u.id) === String(lv.userId)) || {};
+          const userEmail = String(lv.userEmail || candidate.email || '');
+
           const patch = {
             status: 'Rejected',
             reviewNote: note,
@@ -663,15 +693,39 @@
             reviewerRole: String(user.role || 'HR'),
             reviewedAt: new Date().toISOString()
           };
+          if (userEmail && !lv.userEmail) patch.userEmail = userEmail;
 
-          PDMS.api.update('leaveRequests', leaveId, patch).then(saved => {
-            Object.assign(lv, patch, saved || {});
-            PDMS.notify('Time-Off Request Rejected', `Your request for off-days (${lv.startDate} to ${lv.endDate}) was not approved. Reason: ${patch.reviewNote}`, 'alert-triangle', 'user-details.html#id=' + encodeURIComponent(lv.userId || ''), '', lv.userId || lv.userEmail || '', '', lv.userName || '');
-            PDMS.toast('Leave Rejected', `Time off request for ${lv.userName} was rejected.`, 'info');
-            render();
-            if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
-          }).catch(err => {
-            PDMS.toast('Error', err.message || 'Could not reject leave request', 'error');
+          const draft = (PDMS.buildLeaveRejectionEmail ? PDMS.buildLeaveRejectionEmail(candidate, lv, user.name, note) : {
+            subject: `PSE PDMS - Time-Off Request Update (${lv.startDate} to ${lv.endDate})`,
+            body: `Hello ${lv.userName || 'there'},\n\nYour time-off request for ${lv.startDate} to ${lv.endDate} was NOT approved.\n\nReason: ${note}\n\nBest regards,\nPSE HR Team`
+          });
+
+          PDMS.showEmailPreviewModal({
+            title: `Review Rejection Email for ${lv.userName || 'Employee'}`,
+            to: userEmail || candidate.name || 'Candidate',
+            subject: draft.subject,
+            body: draft.body,
+            submitLabel: 'Send Email & Reject',
+            onSend: ({ subject: customSubject, body: customBody, modal: previewModal, btn: sendBtn }) => {
+              PDMS.setButtonLoading(sendBtn, true, 'Rejecting...');
+              PDMS.api.update('leaveRequests', leaveId, patch, {
+                customEmail: { subject: customSubject, body: customBody }
+              }).then(saved => {
+                Object.assign(lv, patch, saved || {});
+                PDMS.notify('Time-Off Request Rejected', `Your request for off-days (${lv.startDate} to ${lv.endDate}) was not approved. Reason: ${patch.reviewNote}`, 'alert-triangle', 'profile.html', '', lv.userId || userEmail || '', '', lv.userName || '');
+                previewModal.remove();
+                if (saved && saved._emailError) {
+                  PDMS.toast('Leave Rejected (Email Issue)', `Status updated to Rejected, but email failed: ${saved._emailError}`, 'warn');
+                } else {
+                  PDMS.toast('Leave Rejected', `Time off request for ${lv.userName || 'Employee'} was rejected. Notification email sent to ${userEmail || 'employee'}.`, 'info');
+                }
+                render();
+                if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+              }).catch(err => {
+                PDMS.setButtonLoading(sendBtn, false);
+                PDMS.toast('Error', err.message || 'Could not reject leave request', 'error');
+              });
+            }
           });
         };
       }

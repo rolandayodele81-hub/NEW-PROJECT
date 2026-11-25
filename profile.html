@@ -7,11 +7,11 @@
   <title>Profile — PSE PDMS</title>
 
 
-  <link rel="stylesheet" href="css/style.css?v=1793649402" />
+  <link rel="stylesheet" href="css/style.css?v=1795626479" />
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1793649402"></script>
+  <script src="js/bundle.js?v=1795626479"></script>
   <script>
     PDMS.mountShell('profile');
     let u = PDMS.getUser(); const I = PDMS.icon;
@@ -24,26 +24,22 @@
         const liveMatch = liveUsers.find(x => String(x.id) === String(u.id) || (x.email && x.email.toLowerCase() === String(u.email || '').toLowerCase()));
         if (liveMatch) {
           u = Object.assign({}, u, liveMatch);
-          PDMS.setUser(u);
+          try { PDMS.setUser(u); } catch (_) {}
         }
       }
       const canEditProfile = u && ['HR', 'PMO', 'Project Manager', 'PM Head', 'HTD', 'COO', 'System Administrator', 'General Admin'].includes(u.role);
-      const userProjects = (D.projects || []).filter(p => {
-        if (!p || !u) return false;
-        const userId = String(u.id || '').trim().toLowerCase();
-        const userName = String(u.name || '').trim().toLowerCase();
-        const ownerIds = [
-          String(p.projectOwnerId || p.onboardedById || p.salesOwnerId || p.createdByUserId || '').trim().toLowerCase(),
-          String(p.projectOwnerName || p.onboardedByName || p.salesOwnerName || p.createdByUserName || '').trim().toLowerCase()
-        ];
-        return (p.pm === u.name || p.lead === u.name || (p.consultants || []).includes(u.name) || (userId && ownerIds.includes(userId)) || (userName && ownerIds.includes(userName)));
-      });
+      const userProjects = PDMS.getProjectsForUser ? PDMS.getProjectsForUser(u) : [];
       const isHistoryProject = p => {
         if (!p) return false;
-        const isDelivery = (PDMS.stageOf ? PDMS.stageOf(p) === 'Delivery' : p.stage === 'Delivery');
-        const isSales = (PDMS.stageOf ? PDMS.stageOf(p) === 'Sales' : p.stage === 'Sales');
+        if (PDMS.isProjectClosedForUser) {
+          return PDMS.isProjectClosedForUser(u, p);
+        }
         const dStat = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus) || '').trim();
         const s = String(p.status || '').trim();
+        if (s.toLowerCase() === 'ongoing' || dStat.toLowerCase() === 'ongoing') return false;
+        if (PDMS.isClosedProject && PDMS.isClosedProject(p)) return true;
+        const isDelivery = (PDMS.stageOf ? PDMS.stageOf(p) === 'Delivery' : p.stage === 'Delivery');
+        const isSales = (PDMS.stageOf ? PDMS.stageOf(p) === 'Sales' : p.stage === 'Sales');
 
         if (isDelivery) {
           const activeDeliveryStatuses = ['Kickoff', 'Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Internal Testing', 'Penetration Testing', 'Report Submission', 'Review', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Ongoing', 'In Progress', 'Assess', 'Target State', 'GAP', 'Roadmap', 'Tailor/Design', 'Implement', 'Capability Building', 'Post-Implementation Assess', 'Strategy', 'Governance', 'Design', 'Select/Contract', 'Transition', 'Operate', 'Monitor', 'Improve', 'Previous Findings Closure', 'Awareness', 'Management Review', 'Readiness Assessment', 'Remediation', 'Surveillance Audit', 'Requirements Gathering', 'Configuration & Design', 'Data Preparation & Migration', 'Integration', 'Testing', 'User Acceptance Testing (UAT)', 'Go-Live', 'Project Initiation & Business Case', 'Requirements & Use-Case Definition', 'Architecture & Solution Design', 'Data Readiness & Preparation', 'PoC / Prototype', 'Software Development & AI Model Build', 'System Integration', 'Testing & AI Validation', 'UAT & Business Acceptance', 'Production Deployment & Go-Live', 'Hypercare & Operational Handover', 'On Hold'];
@@ -51,7 +47,7 @@
             return false;
           }
           const deliveryDoneStatuses = ['Completed', 'Closure', 'Project Closure', 'Certification & Post Engagement', 'Closed', 'Cancelled', 'Rejected'];
-          if (deliveryDoneStatuses.some(h => h.toLowerCase() === dStat.toLowerCase())) {
+          if (deliveryDoneStatuses.some(h => h.toLowerCase() === dStat.toLowerCase() || h.toLowerCase() === s.toLowerCase())) {
             return true;
           }
           return false;
@@ -198,7 +194,7 @@
 
       PDMS.api.update('users', u.id, patch).then(saved => {
         Object.assign(u, patch, saved);
-        PDMS.setUser(u);
+        try { PDMS.setUser(u); } catch (_) {}
         const liveUsers = (window.PDMS_REMOTE && window.PDMS_REMOTE.users) || D.users || [];
         const liveMatch = liveUsers.find(x => String(x.id) === String(u.id));
         if (liveMatch) Object.assign(liveMatch, patch, saved);
@@ -332,14 +328,18 @@
           return PDMS.toast('Invalid Dates', 'End date must be on or after start date.', 'error');
         }
 
-        const btn = this;
+        const userEmail = String(u.email || (D.users && (D.users.find(x => String(x.id) === String(u.id)) || {}).email) || '');
+        const hrUsers = (D.users || []).filter(x => x && (String(x.role || '').toLowerCase() === 'hr' || String(x.role || '').toLowerCase() === 'system administrator'));
+        const hrEmails = hrUsers.map(x => (x.email || '').trim()).filter(Boolean);
+
+        const btn = document.getElementById('submitLeaveBtn');
         PDMS.setButtonLoading(btn, true, 'Submitting...');
 
         const record = {
           id: 'LV-' + Date.now(),
           userId: String(u.id || ''),
           userName: String(u.name || ''),
-          userEmail: String(u.email || ''),
+          userEmail: userEmail,
           userRole: String(u.role || ''),
           dept: String(u.dept || ''),
           startDate: startDate,
@@ -356,7 +356,9 @@
           reviewedAt: ''
         };
 
-        PDMS.api.create('leaveRequests', record).then(saved => {
+        PDMS.api.create('leaveRequests', record, {
+          hrEmails: hrEmails
+        }).then(saved => {
           const finalObj = Object.assign({}, record, saved || {});
           const syncTo = (arr) => {
             if (!Array.isArray(arr)) return;
@@ -367,10 +369,16 @@
           if (window.PDMS_DATA && window.PDMS_DATA.leaveRequests) syncTo(window.PDMS_DATA.leaveRequests);
           if (window.PDMS_REMOTE && window.PDMS_REMOTE.leaveRequests) syncTo(window.PDMS_REMOTE.leaveRequests);
 
-          PDMS.notify('New Time-Off Request', `${u.name} requested ${daysCount} off-day(s) (${startDate} to ${endDate})`, 'calendar', 'dashboard-hr.html', 'HR,System Administrator');
+          PDMS.notify('New Time-Off Request', `${u.name} requested ${daysCount} off-day(s) (${startDate} to ${endDate}) for ${type}`, 'calendar', 'leave-approvals.html', 'HR,System Administrator');
 
           modal.remove();
-          PDMS.toast('Request Submitted', `Your time off request (${daysCount} day${daysCount===1?'':'s'}) has been sent to HR for approval.`, 'success');
+          if (saved && saved._emailError) {
+            PDMS.toast('Request Submitted (Email Issue)', `Request saved, but HR email could not be sent: ${saved._emailError}`, 'warn');
+          } else if (saved && saved._sentEmails && saved._sentEmails.length) {
+            PDMS.toast('Request Submitted', `Time off request submitted. Email sent to HR: ${saved._sentEmails.join(', ')}`, 'success');
+          } else {
+            PDMS.toast('Request Submitted', `Your time off request (${daysCount} day${daysCount === 1 ? '' : 's'}) has been submitted to HR.`, 'success');
+          }
           render();
         }).catch(err => {
           PDMS.setButtonLoading(btn, false);

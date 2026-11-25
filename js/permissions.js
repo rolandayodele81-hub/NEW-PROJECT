@@ -151,9 +151,114 @@
     const s = String(p.status || '').trim().toLowerCase();
     const closedList = ['completed', 'closed', 'closure', 'project closure'];
     if (Array.isArray(p.projectSegments) && p.projectSegments.length > 1) {
-      return closedList.includes(dStat) || closedList.includes(s);
+      return closedList.includes(dStat || String(p.deliveryStatus || s).trim().toLowerCase());
     }
-    return closedList.includes(dStat) || closedList.includes(s);
+    return closedList.includes(dStat || s);
+  };
+
+  PDMS.parseDateToMidnight = function (val) {
+    if (!val) return null;
+    if (val instanceof Date && !isNaN(val.getTime())) {
+      return new Date(val.getFullYear(), val.getMonth(), val.getDate()).getTime();
+    }
+    if (typeof val !== 'string') return null;
+    const clean = val.trim();
+    if (!clean || clean === '—' || clean === '-' || clean.toLowerCase() === 'tbd') return null;
+    const ymd = clean.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (ymd) {
+      return new Date(parseInt(ymd[1], 10), parseInt(ymd[2], 10) - 1, parseInt(ymd[3], 10)).getTime();
+    }
+    const dmy = clean.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+    if (dmy) {
+      return new Date(parseInt(dmy[3], 10), parseInt(dmy[2], 10) - 1, parseInt(dmy[1], 10)).getTime();
+    }
+    const d = new Date(clean);
+    if (isNaN(d.getTime())) return null;
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  };
+
+  PDMS.isSegmentClosed = function (seg, project, idx) {
+    if (!seg && !project) return false;
+    const closedList = ['completed', 'closure', 'project closure', 'certification & post engagement', 'closed', 'cancelled', 'rejected'];
+    const segStatus = String((seg && (seg.status || seg.deliveryStatus)) || '').trim().toLowerCase();
+    if (segStatus && closedList.includes(segStatus)) return true;
+
+    if ((idx === 0 || !seg || !segStatus) && project) {
+      const pDelivery = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(project) : project.deliveryStatus) || '').trim().toLowerCase();
+      const pStatus = String(project.status || '').trim().toLowerCase();
+      if (closedList.includes(pDelivery) || closedList.includes(pStatus)) {
+        if (!segStatus) return true;
+      }
+    }
+    return false;
+  };
+
+  PDMS.getCurrentTimelineSegmentIndex = function (projectOrSegments, optionalProject) {
+    let segments = [];
+    let project = null;
+    if (Array.isArray(projectOrSegments)) {
+      segments = projectOrSegments;
+      project = optionalProject || null;
+    } else if (projectOrSegments && typeof projectOrSegments === 'object') {
+      project = projectOrSegments;
+      segments = (Array.isArray(project.projectSegments) && project.projectSegments.length)
+        ? project.projectSegments
+        : [{ type: project.type, workstream: project.workstream || project.dept, start: project.start, due: project.due, actualCompletion: project.actualCompletion, status: project.status, deliveryStatus: project.deliveryStatus }];
+    }
+    if (!segments || !segments.length || segments.length === 1) return 0;
+
+    // A phase moves to the next phase as long as it has reached closure (closed/completed/closure)
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      if (!PDMS.isSegmentClosed(seg, project, i)) {
+        return i; // First phase that has NOT reached closure
+      }
+    }
+
+    // If all phases have reached closure, return the last phase
+    return segments.length - 1;
+  };
+
+  PDMS.isProjectActiveForUser = function (user, project) {
+    if (!user || !project) return false;
+    const s = String(project.status || '').trim().toLowerCase();
+    const dStat = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(project) : project.deliveryStatus) || '').trim().toLowerCase();
+    const globalClosedList = ['cancelled', 'rejected'];
+    if (globalClosedList.includes(s) || globalClosedList.includes(dStat)) return false;
+
+    const segments = Array.isArray(project.projectSegments) && project.projectSegments.length
+      ? project.projectSegments
+      : null;
+
+    if (segments) {
+      const userSegments = [];
+      for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i];
+        if (seg && PDMS.isUserOnSegment && PDMS.isUserOnSegment(user, seg, project, i)) {
+          userSegments.push({ seg, idx: i });
+        }
+      }
+
+      if (userSegments.length > 0) {
+        // It should ONLY be an active project for them if at least one phase they are on has not reached closure!
+        return userSegments.some(item => !PDMS.isSegmentClosed(item.seg, project, item.idx));
+      }
+
+      const isProjectLevelMember = PDMS.isUserOnProject ? PDMS.isUserOnProject(user, project) : false;
+      if (isProjectLevelMember) {
+        return segments.some((seg, idx) => !PDMS.isSegmentClosed(seg, project, idx));
+      }
+      return false;
+    }
+
+    if (PDMS.isClosedProject && PDMS.isClosedProject(project)) return false;
+    const closedList = ['completed', 'closure', 'project closure', 'certification & post engagement', 'closed', 'cancelled', 'rejected'];
+    if (closedList.includes(s) || closedList.includes(dStat)) return false;
+    return PDMS.isUserOnProject ? PDMS.isUserOnProject(user, project) : true;
+  };
+
+  PDMS.isProjectClosedForUser = function (user, project) {
+    return !PDMS.isProjectActiveForUser(user, project);
   };
 
   PDMS.getActualCompletionDate = function (project, segmentIndex) {

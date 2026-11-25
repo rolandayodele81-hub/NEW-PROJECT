@@ -3,8 +3,8 @@
 <title>Project Overview — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1793649402"/></head><body>
-<script src="js/bundle.js?v=1793649402"></script>
+<link rel="stylesheet" href="css/style.css?v=1795626479"/></head><body>
+<script src="js/bundle.js?v=1795626479"></script>
 <script>
 PDMS.mountShell('timeline');
 const D = PDMS_DATA;
@@ -106,10 +106,10 @@ function render() {
 
   const workloadRows = staffMembers.length
     ? staffMembers.map(u => {
-        const assigned = allProjects.filter(p =>
+        const assigned = allProjects.filter(p => PDMS.isUserOnProject ? PDMS.isUserOnProject(u, p) : (
           p.pm === u.name || p.lead === u.name ||
           (Array.isArray(p.consultants) ? p.consultants.includes(u.name) : (p.consultants||'').split(',').map(s=>s.trim()).includes(u.name))
-        );
+        ));
         const count = assigned.length;
         return `<tr>
           <td style="padding:12px 16px">

@@ -24,19 +24,21 @@
 
   function persistLocalData() {
     if (!isLocalMode || hasRemoteBackend || !global.PDMS_DATA) return;
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
-      users: global.PDMS_DATA.users,
-      consultants: global.PDMS_DATA.consultants,
-      clients: global.PDMS_DATA.clients,
-      projects: global.PDMS_DATA.projects,
-      departments: global.PDMS_DATA.departments,
-      notifications: global.PDMS_DATA.notifications,
-      threads: global.PDMS_DATA.threads,
-      activities: global.PDMS_DATA.activities,
-      reviews: global.PDMS_DATA.reviews,
-      issues: global.PDMS_DATA.issues,
-      complaints: global.PDMS_DATA.complaints
-    }));
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
+        users: global.PDMS_DATA.users,
+        consultants: global.PDMS_DATA.consultants,
+        clients: global.PDMS_DATA.clients,
+        projects: global.PDMS_DATA.projects,
+        departments: global.PDMS_DATA.departments,
+        notifications: global.PDMS_DATA.notifications,
+        threads: global.PDMS_DATA.threads,
+        activities: global.PDMS_DATA.activities,
+        reviews: global.PDMS_DATA.reviews,
+        issues: global.PDMS_DATA.issues,
+        complaints: global.PDMS_DATA.complaints
+      }));
+    } catch (_) {}
   }
 
   function loadLocalData() {
@@ -219,7 +221,7 @@
               if (action === 'update') {
                 const target = list.find(item => String(item.id) === String(payload.id));
                 if (target) Object.assign(target, payload.patch, json.data);
-              } else if (action === 'create' && json.data) {
+              } else if ((action === 'create' || action === 'register') && json.data) {
                 const exists = list.find(item => String(item.id) === String(json.data.id));
                 if (!exists) list.unshift(json.data);
               } else if (action === 'remove') {
@@ -227,7 +229,7 @@
                 if (idx !== -1) list.splice(idx, 1);
               }
             };
-            if (action === 'create' && json.data) {
+            if ((action === 'create' || action === 'register') && json.data) {
               try {
                 const recStr = sessionStorage.getItem('pdms_recent_creates') || '{}';
                 const recs = JSON.parse(recStr);
@@ -249,17 +251,43 @@
             }
             if (global.PDMS_REMOTE) syncList(global.PDMS_REMOTE[resKey]);
             if (global.PDMS_DATA) syncList(global.PDMS_DATA[resKey]);
-            const cachePayload = global.PDMS_REMOTE || global.PDMS_DATA;
-            if (cachePayload) {
-              localStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
-              localStorage.setItem('pdms-cache-ts', String(Date.now()));
+            try {
+              const rawCache = localStorage.getItem(CACHE_KEY);
+              if (rawCache) {
+                const parsedCache = JSON.parse(rawCache);
+                if (parsedCache && typeof parsedCache === 'object') {
+                  parsedCache[resKey] = parsedCache[resKey] || [];
+                  syncList(parsedCache[resKey]);
+                  const s = JSON.stringify(parsedCache);
+                  if (s.length < 2500000) {
+                    localStorage.setItem(CACHE_KEY, s);
+                    localStorage.setItem('pdms-cache-ts', String(Date.now()));
+                  } else {
+                    localStorage.removeItem(CACHE_KEY);
+                  }
+                }
+              } else {
+                const cachePayload = global.PDMS_REMOTE || global.PDMS_DATA;
+                if (cachePayload) {
+                  const s = JSON.stringify(cachePayload);
+                  if (s.length < 2500000) {
+                    localStorage.setItem(CACHE_KEY, s);
+                    localStorage.setItem('pdms-cache-ts', String(Date.now()));
+                  }
+                }
+              }
+            } catch (cacheErr) {
+              try {
+                localStorage.removeItem(CACHE_KEY);
+                localStorage.removeItem('pdms-cache-ts');
+              } catch (_) {}
             }
           }
         } catch (_) {}
         return json.data;
       })
       .catch(err => {
-        if (isLocalMode) {
+        if (isLocalMode && !hasRemoteBackend) {
           console.warn('Remote Apps Script endpoint returned error (' + (err.message || err) + '). Falling back to local storage.');
           return localPost(action, payload);
         }
@@ -268,16 +296,30 @@
   }
 
   PDMS.api = {
-    create: (resource, record) => post('create', { resource, record }),
+    create: (resource, record, meta) => {
+      const currentUser = (typeof PDMS !== 'undefined' && typeof PDMS.getUser === 'function') ? PDMS.getUser() : null;
+      const creatorName = (currentUser && currentUser.name) ? (currentUser.name + (currentUser.role ? ' (' + currentUser.role + ')' : '')) : '';
+      const appUrl = location.href.replace(/\/[^\/]*$/, '/index.html');
+      return post('create', Object.assign({ resource, record, creatorName, appUrl }, meta || {}));
+    },
     update: (resource, id, patch, meta) => {
       const currentUser = (typeof PDMS !== 'undefined' && typeof PDMS.getUser === 'function') ? PDMS.getUser() : null;
       const editorName = (currentUser && currentUser.name) ? (currentUser.name + (currentUser.role ? ' (' + currentUser.role + ')' : '')) : 'HR / Administrator';
       const appUrl = location.href.replace(/\/[^\/]*$/, '/index.html');
-      return post('update', Object.assign({ resource, id, patch, editorName, appUrl }, meta || {}));
+      const customEmail = (meta && meta.customEmail) || (patch && patch.customEmail) || null;
+      if (customEmail && patch && typeof patch === 'object') {
+        patch.customEmail = customEmail;
+      }
+      return post('update', Object.assign({ resource, id, patch, editorName, appUrl, customEmail }, meta || {}));
     },
     remove: (resource, id) => post('remove', { resource, id }),
     login: (email, password) => post('login', { email, password }),
-    register: (account) => post('register', { resource: 'users', account, appUrl: location.href.replace(/\/[^\/]*$/, '/') }),
+    register: (account, meta) => {
+      if (meta && meta.customEmail && account && typeof account === 'object') {
+        account.customEmail = meta.customEmail;
+      }
+      return post('register', Object.assign({ resource: 'users', account, appUrl: location.href.replace(/\/[^\/]*$/, '/index.html') }, meta || {}));
+    },
     forgotPassword: (email) => post('forgotpassword', { email, appUrl: location.href.replace(/\/[^\/]*$/, '/index.html') }),
     uploadDoc: (fileName, mimeType, base64) => post('uploaddoc', { fileName, mimeType, base64 })
   };

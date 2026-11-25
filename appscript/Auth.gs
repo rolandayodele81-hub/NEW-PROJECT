@@ -39,7 +39,7 @@ var Auth = {
     return stripExcluded_(user, ['passwordHash']);
   },
 
-  register: function (account, appUrl) {
+  register: function (account, appUrl, customEmail) {
     if (findUserByEmail_(account.email)) {
       throw new Error('An account with that email already exists');
     }
@@ -47,15 +47,28 @@ var Auth = {
     var plainPassword = record.password;
     record.passwordHash = hashPassword_(plainPassword);
     delete record.password;
+    delete record.customEmail;
     record.status = record.status || 'Active';
     record.availability = record.availability || 'Available';
     record.workload = record.workload || 0;
     record.joined = record.joined || new Date().toISOString().slice(0, 10);
     var saved = Repository.insert('users', record);
     
+    // Support customEmail from argument, account payload, or JSON string
+    var emailCfg = customEmail || (account && account.customEmail) || null;
+    if (typeof emailCfg === 'string') {
+      try { emailCfg = JSON.parse(emailCfg); } catch (_) {}
+    }
+
+    var customSubj = (emailCfg && (emailCfg.subject || emailCfg.title)) ? String(emailCfg.subject || emailCfg.title).trim() : null;
+    var customMsg = (emailCfg && (emailCfg.body || emailCfg.message || emailCfg.text || emailCfg.content)) ? String(emailCfg.body || emailCfg.message || emailCfg.text || emailCfg.content).trim() : null;
+
+    var emailSent = false;
+    var emailError = null;
     try {
-      var subject = "Welcome to PSE PDMS - Your Account Details";
-      var body = "Hello " + saved.name + ",\n\n" +
+      var subject = customSubj || "Welcome to PSE PDMS - Your Account Details";
+      var body = customMsg || (
+                 "Hello " + saved.name + ",\n\n" +
                  "Your account has been successfully created on the PSE PDMS portal as a " + saved.role + ".\n\n" +
                  "Here are your login credentials:\n" +
                  "Email: " + saved.email + "\n" +
@@ -64,13 +77,16 @@ var Auth = {
                  (appUrl || "Your organization's PDMS portal URL") + "\n\n" +
                  "Please log in and update your password from your profile page as soon as possible.\n\n" +
                  "Best regards,\n" +
-                 "PSE HR Team";
+                 "PSE HR Team");
       MailApp.sendEmail(saved.email, subject, body);
+      emailSent = true;
     } catch(e) {
-      Logger.log("Failed to send welcome email to " + saved.email + ": " + e.toString());
+      emailError = e.toString();
+      Logger.log("Failed to send welcome email to " + saved.email + ": " + emailError);
     }
     
-    return stripExcluded_(saved, ['passwordHash']);
+    var cleanUser = stripExcluded_(saved, ['passwordHash']);
+    return { user: cleanUser, emailSent: emailSent, emailError: emailError };
   },
 
   forgotPassword: function (email, appUrl) {
@@ -106,97 +122,112 @@ var Auth = {
     return { email: user.email, name: user.name, sent: true };
   },
 
-  notifyProfileUpdated: function (originalUser, updatedUser, plainPassword, editorName, appUrl) {
+  notifyProfileUpdated: function (originalUser, updatedUser, plainPassword, editorName, appUrl, customEmail) {
     if (!originalUser || !updatedUser) return;
-
-    var fieldLabels = {
-      name: 'Full Name',
-      email: 'Work Email',
-      role: 'Role',
-      dept: 'Designation / Department',
-      phone: 'Phone Number',
-      birthday: 'Date of Birth',
-      dateOfEntry: 'Date of Entry',
-      status: 'Status',
-      availability: 'Availability'
-    };
-
-    var changeLines = [];
-    for (var key in fieldLabels) {
-      var oldVal = originalUser[key] != null ? String(originalUser[key]).trim() : '';
-      var newVal = updatedUser[key] != null ? String(updatedUser[key]).trim() : '';
-      if (newVal !== oldVal) {
-        if (oldVal && newVal) {
-          changeLines.push("• " + fieldLabels[key] + ": " + newVal + " (previously: " + oldVal + ")");
-        } else if (newVal) {
-          changeLines.push("• " + fieldLabels[key] + ": " + newVal);
-        } else if (oldVal) {
-          changeLines.push("• " + fieldLabels[key] + ": [Cleared] (previously: " + oldVal + ")");
-        }
-      }
-    }
 
     var targetEmail = updatedUser.email || originalUser.email;
     if (!targetEmail) return;
 
-    // Check if anything actually changed
-    if (changeLines.length === 0 && !plainPassword) return;
-
-    var editor = editorName || 'HR Team';
-    var userName = updatedUser.name || originalUser.name || 'User';
-    var loginUrl = appUrl || "Your organization's PDMS portal URL";
-
-    var subject = "";
-    var body = "";
-
-    if (plainPassword && changeLines.length === 0) {
-      // 1. Password changed ONLY
-      subject = "PSE PDMS - Your Account Password Has Been Updated";
-      body = "Hello " + userName + ",\n\n" +
-             "Your PSE PDMS account password has been updated by " + editor + ".\n\n" +
-             "Here are your new login credentials:\n" +
-             "• Email: " + targetEmail + "\n" +
-             "• New Password: " + plainPassword + "\n\n" +
-             "You can sign in to the portal here:\n" +
-             loginUrl + "\n\n" +
-             "For security, please log in and update your password from your Profile page as soon as possible.\n\n" +
-             "If you did not request or expect this change, please contact the HR / People Operations team immediately.\n\n" +
-             "Best regards,\n" +
-             "PSE HR Team";
-    } else if (plainPassword && changeLines.length > 0) {
-      // 2. Both Profile Details AND Password changed
-      subject = "PSE PDMS - Your Profile & Login Details Have Been Updated";
-      body = "Hello " + userName + ",\n\n" +
-             "Your profile details and password on the PSE PDMS portal have been updated by " + editor + ".\n\n" +
-             "Here are your new login credentials:\n" +
-             "• Email: " + targetEmail + "\n" +
-             "• New Password: " + plainPassword + "\n\n" +
-             "Summary of Profile Changes:\n" +
-             changeLines.join("\n") + "\n\n" +
-             "You can sign in to the portal and view your profile here:\n" +
-             loginUrl + "\n\n" +
-             "If you did not request or expect these changes, please contact the HR / People Operations team.\n\n" +
-             "Best regards,\n" +
-             "PSE HR Team";
-    } else {
-      // 3. Profile Details changed ONLY
-      subject = "PSE PDMS - Your Profile Details Have Been Updated";
-      body = "Hello " + userName + ",\n\n" +
-             "Your profile details on the PSE PDMS portal have been updated by " + editor + ".\n\n" +
-             "Here are the new changes:\n" +
-             changeLines.join("\n") + "\n\n" +
-             "You can sign in to the portal and view your profile here:\n" +
-             loginUrl + "\n\n" +
-             "If you did not request or expect these changes, please contact the HR / People Operations team.\n\n" +
-             "Best regards,\n" +
-             "PSE HR Team";
+    var emailCfg = customEmail || null;
+    if (typeof emailCfg === 'string') {
+      try { emailCfg = JSON.parse(emailCfg); } catch (_) {}
     }
 
+    var customSubj = (emailCfg && (emailCfg.subject || emailCfg.title)) ? String(emailCfg.subject || emailCfg.title).trim() : null;
+    var customMsg = (emailCfg && (emailCfg.body || emailCfg.message || emailCfg.text || emailCfg.content)) ? String(emailCfg.body || emailCfg.message || emailCfg.text || emailCfg.content).trim() : null;
+
+    var subject = customSubj || "";
+    var body = customMsg || "";
+
+    if (!subject || !body) {
+      var fieldLabels = {
+        name: 'Full Name',
+        email: 'Work Email',
+        role: 'Role',
+        dept: 'Designation / Department',
+        phone: 'Phone Number',
+        birthday: 'Date of Birth',
+        dateOfEntry: 'Date of Entry',
+        status: 'Status',
+        availability: 'Availability'
+      };
+
+      var changeLines = [];
+      for (var key in fieldLabels) {
+        var oldVal = originalUser[key] != null ? String(originalUser[key]).trim() : '';
+        var newVal = updatedUser[key] != null ? String(updatedUser[key]).trim() : '';
+        if (newVal !== oldVal) {
+          if (oldVal && newVal) {
+            changeLines.push("• " + fieldLabels[key] + ": " + newVal + " (previously: " + oldVal + ")");
+          } else if (newVal) {
+            changeLines.push("• " + fieldLabels[key] + ": " + newVal);
+          } else if (oldVal) {
+            changeLines.push("• " + fieldLabels[key] + ": [Cleared] (previously: " + oldVal + ")");
+          }
+        }
+      }
+
+      // Check if anything actually changed
+      if (changeLines.length === 0 && !plainPassword) return;
+
+      var editor = editorName || 'HR Team';
+      var userName = updatedUser.name || originalUser.name || 'User';
+      var loginUrl = appUrl || "Your organization's PDMS portal URL";
+
+      if (plainPassword && changeLines.length === 0) {
+        // 1. Password changed ONLY
+        subject = "PSE PDMS - Your Account Password Has Been Updated";
+        body = "Hello " + userName + ",\n\n" +
+               "Your PSE PDMS account password has been updated by " + editor + ".\n\n" +
+               "Here are your new login credentials:\n" +
+               "• Email: " + targetEmail + "\n" +
+               "• New Password: " + plainPassword + "\n\n" +
+               "You can sign in to the portal here:\n" +
+               loginUrl + "\n\n" +
+               "For security, please log in and update your password from your Profile page as soon as possible.\n\n" +
+               "If you did not request or expect this change, please contact the HR / People Operations team immediately.\n\n" +
+               "Best regards,\n" +
+               "PSE HR Team";
+      } else if (plainPassword && changeLines.length > 0) {
+        // 2. Both Profile Details AND Password changed
+        subject = "PSE PDMS - Your Profile & Login Details Have Been Updated";
+        body = "Hello " + userName + ",\n\n" +
+               "Your profile details and password on the PSE PDMS portal have been updated by " + editor + ".\n\n" +
+               "Here are your new login credentials:\n" +
+               "• Email: " + targetEmail + "\n" +
+               "• New Password: " + plainPassword + "\n\n" +
+               "Summary of Profile Changes:\n" +
+               changeLines.join("\n") + "\n\n" +
+               "You can sign in to the portal and view your profile here:\n" +
+               loginUrl + "\n\n" +
+               "If you did not request or expect these changes, please contact the HR / People Operations team.\n\n" +
+               "Best regards,\n" +
+               "PSE HR Team";
+      } else {
+        // 3. Profile Details changed ONLY
+        subject = "PSE PDMS - Your Profile Details Have Been Updated";
+        body = "Hello " + userName + ",\n\n" +
+               "Your profile details on the PSE PDMS portal have been updated by " + editor + ".\n\n" +
+               "Here are the new changes:\n" +
+               changeLines.join("\n") + "\n\n" +
+               "You can sign in to the portal and view your profile here:\n" +
+               loginUrl + "\n\n" +
+               "If you did not request or expect these changes, please contact the HR / People Operations team.\n\n" +
+               "Best regards,\n" +
+               "PSE HR Team";
+      }
+    }
+
+    var emailSent = false;
+    var emailError = null;
     try {
       MailApp.sendEmail(targetEmail, subject, body);
+      emailSent = true;
     } catch (e) {
-      Logger.log("Failed to send profile update email to " + targetEmail + ": " + e.toString());
+      emailError = e.toString();
+      Logger.log("Failed to send profile update email to " + targetEmail + ": " + emailError);
     }
+    return { emailSent: emailSent, emailError: emailError };
   }
 };
 

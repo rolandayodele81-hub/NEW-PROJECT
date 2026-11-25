@@ -6,16 +6,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Project Managers — PSE PDMS</title>
   
-  <link rel="stylesheet" href="css/style.css?v=1793649402"/>
+  <link rel="stylesheet" href="css/style.css?v=1795626479"/>
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1793649402"></script>
+  <script src="js/bundle.js?v=1795626479"></script>
   <script>
     PDMS.mountShell('project-managers');
     const D = PDMS_DATA; const I = PDMS.icon;
 
     let selectedPmFilter = '';
+
+    function initFilterFromUrl() {
+      const hashParams = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+      const searchParams = new URLSearchParams(location.search || '');
+      const filter = hashParams.get('filter') || searchParams.get('filter') || '';
+      const leave = hashParams.get('leave') || searchParams.get('leave') || '';
+      if (filter) selectedPmFilter = filter;
+      if (leave === '1' || leave === 'true' || leave === 'on-leave') selectedPmFilter = 'onLeave';
+    }
+    initFilterFromUrl();
 
     function isPmUser(u, allProjects) {
       if (!u) return false;
@@ -25,9 +35,18 @@
       if (dept.includes('project manager') || dept.includes('pmo') || dept.includes('delivery lead')) return true;
       const uName = String(u.name || '').trim().toLowerCase();
       const uEmail = String(u.email || '').trim().toLowerCase();
+      const uId = String(u.id || '').trim().toLowerCase();
+      const matches = val => {
+        const s = String(val || '').trim().toLowerCase();
+        return s && (s === uName || s === uEmail || s === uId);
+      };
       return (allProjects || []).some(p => {
-        const pm = String(p.pm || '').trim().toLowerCase();
-        return pm === uName || pm === uEmail;
+        if (!p) return false;
+        if (matches(p.pm)) return true;
+        if (Array.isArray(p.projectSegments)) {
+          return p.projectSegments.some(seg => seg && matches(seg.pm));
+        }
+        return false;
       });
     }
 
@@ -99,6 +118,8 @@
         return !projs.some(isProjectActive);
       }).length;
 
+      const onLeavePMs = pmList.filter(u => PDMS.isUserOnLeave ? PDMS.isUserOnLeave(u) : false).length;
+
       const activeManagedProjects = liveProjects.filter(p => isProjectActive(p) && p.pm).length;
 
       document.getElementById('content').innerHTML = `
@@ -115,7 +136,7 @@
     </div>
   </div>
 
-  <div class="grid grid-3 mb-4">
+  <div class="grid grid-4 mb-4">
     <div class="stat i-primary ${!selectedPmFilter ? 'active-filter' : ''}" onclick="selectPmFilter('')" title="Click to show all project managers" style="cursor:pointer">
       <div class="label">Total PMs</div>
       <div class="value">${totalPMs}</div>
@@ -133,6 +154,12 @@
       <div class="value">${availablePMs}</div>
       <div class="delta">Ready for assignment</div>
       <div class="icon-wrap">${I('check')}</div>
+    </div>
+    <div class="stat i-warn ${selectedPmFilter === 'onLeave' ? 'active-filter' : ''}" onclick="selectPmFilter('onLeave')" title="Click to filter project managers currently on leave" style="cursor:pointer">
+      <div class="label">Staff on Leave</div>
+      <div class="value" style="${onLeavePMs > 0 ? 'color:var(--warn,#f59e0b)' : ''}">${onLeavePMs}</div>
+      <div class="delta">${onLeavePMs === 1 ? '1 PM currently away' : onLeavePMs > 1 ? `${onLeavePMs} PMs currently away` : 'None on leave today'}</div>
+      <div class="icon-wrap">${I('calendar')}</div>
     </div>
   </div>
 
@@ -153,6 +180,8 @@
           const projs = getPmProjects(u, liveProjects);
           return !projs.some(isProjectActive);
         });
+      } else if (selectedPmFilter === 'onLeave') {
+        filtered = filtered.filter(u => PDMS.isUserOnLeave ? PDMS.isUserOnLeave(u) : false);
       }
 
       // Add computed metadata to each PM row and sort alphabetically
@@ -174,13 +203,17 @@
           {
             key: 'name',
             label: 'Project Manager',
-            render: r => `<div class="flex items-center gap-2">
-              <div class="avatar avatar-sm">${PDMS.initials(r.name)}</div>
-              <div>
-                <div class="font-semi">${PDMS.esc(r.name)}</div>
-                <div class="text-sm text-muted">${PDMS.esc(r.email)}</div>
-              </div>
-            </div>`
+            render: r => {
+              const activeLv = PDMS.getUserActiveLeave ? PDMS.getUserActiveLeave(r) : null;
+              const leaveBadge = activeLv ? ` <span class="badge badge-warn" style="font-size:10px;padding:2px 6px;margin-left:4px" title="${PDMS.esc(activeLv.category || activeLv.type || 'Leave')}: ${PDMS.esc(activeLv.startDate)} to ${PDMS.esc(activeLv.endDate)}">● On Leave</span>` : '';
+              return `<div class="flex items-center gap-2">
+                <div class="avatar avatar-sm">${PDMS.initials(r.name)}</div>
+                <div>
+                  <div class="font-semi" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">${PDMS.esc(r.name)}${leaveBadge}</div>
+                  <div class="text-sm text-muted">${PDMS.esc(r.email)}</div>
+                </div>
+              </div>`;
+            }
           },
           {
             key: '_activeCount',
@@ -206,7 +239,20 @@
         <div class="form-grid">
           <div class="form-row"><label>Full Name</label><input id="newPmName" placeholder="e.g. Alex Morgan"/></div>
           <div class="form-row"><label>Email</label><input id="newPmEmail" type="email" placeholder="alex@pse.com"/></div>
-          <div class="form-row"><label>Password</label><input id="newPmPassword" type="password" placeholder="Create initial password"/></div>
+          <div class="form-row" style="grid-column:1/-1">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <label style="margin:0;font-weight:600">Password <span style="font-size:12px;color:var(--text-muted);font-weight:400">(initial login password)</span></label>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnGenPmPass" style="font-size:12px;padding:3px 10px;display:inline-flex;align-items:center;gap:6px;border-radius:8px;font-weight:600" title="Click repeatedly to auto-generate fresh passwords">
+                ${I('refresh')} Auto Generate
+              </button>
+            </div>
+            <div style="position:relative;display:flex;align-items:center">
+              <input id="newPmPassword" type="text" placeholder="Create or click Auto Generate" autocomplete="off" style="width:100%;padding-right:40px;font-family:inherit;font-size:13px;font-weight:600;letter-spacing:0.5px"/>
+              <button type="button" id="togglePmPassBtn" style="position:absolute;right:10px;background:none;border:none;color:var(--text-soft);cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center" title="Toggle visibility">
+                ${I('eye')}
+              </button>
+            </div>
+          </div>
           <div class="form-row"><label>Role</label>
             <select id="newPmRole">
               <option value="PMO" selected>PMO</option>
@@ -220,6 +266,29 @@
           <div class="form-row"><label>Date of Entry</label><input id="newPmEntry" type="date"/></div>
         </div>
       `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createPmBtn">Create PM</button>`);
+
+      const passInput = modal.querySelector('#newPmPassword');
+      const genBtn = modal.querySelector('#btnGenPmPass');
+      const toggleBtn = modal.querySelector('#togglePmPassBtn');
+
+      if (genBtn && passInput) {
+        genBtn.onclick = function () {
+          const pwd = PDMS.generatePassword ? PDMS.generatePassword(12) : Math.random().toString(36).slice(-10);
+          passInput.value = pwd;
+          passInput.type = 'text';
+          passInput.focus();
+          passInput.select();
+          PDMS.toast('Password Generated', 'New secure password generated', 'info');
+        };
+      }
+
+      if (toggleBtn && passInput) {
+        toggleBtn.onclick = function () {
+          const isPass = passInput.type === 'password';
+          passInput.type = isPass ? 'text' : 'password';
+          toggleBtn.style.color = isPass ? 'var(--primary)' : 'var(--text-soft)';
+        };
+      }
 
       modal.querySelector('#createPmBtn').onclick = function () {
         const btn = this;
@@ -240,6 +309,11 @@
         PDMS.setButtonLoading(btn, true, 'Onboarding...');
         const record = { name, email, password, role, dept: dept || 'Project Management', birthday: birthday || '', dateOfEntry: dateOfEntry || '', workload: 0, phone, joined: new Date().toISOString().slice(0, 10) };
         PDMS.api.register(record).then(saved => {
+          if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.users)) {
+            if (!window.PDMS_REMOTE.users.some(x => String(x.id) === String(saved.id))) {
+              window.PDMS_REMOTE.users.unshift(saved);
+            }
+          }
           D.users.unshift(saved);
           modal.remove();
           showNewPmPasswordNote(saved, password);

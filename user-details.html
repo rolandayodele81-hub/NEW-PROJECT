@@ -1,107 +1,166 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>User Details — PSE PDMS</title>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>User Details — PSE PDMS</title>
 
 
-<link rel="stylesheet" href="css/style.css?v=1793649402"/></head><body>
-<script src="js/bundle.js?v=1793649402"></script>
-<script>
-// A hash survives any host's clean-URL rewriting untouched, since it's never
-// sent to the server — unlike ?id=, which some static hosts strip on redirect.
-window.addEventListener('hashchange', ()=>location.reload());
-PDMS.mountShell('users');
-const D = PDMS_DATA; const I = PDMS.icon;
-let u;
+  <link rel="stylesheet" href="css/style.css?v=1795626479" />
+</head>
 
-function projectOwnedByUser(project, user){
-  if(!project || !user) return false;
-  const userId = String(user.id || '').trim().toLowerCase();
-  const userName = String(user.name || '').trim().toLowerCase();
-  const ownerIds = [
-    String(project.projectOwnerId || project.onboardedById || project.salesOwnerId || project.createdByUserId || '').trim().toLowerCase(),
-    String(project.projectOwnerName || project.onboardedByName || project.salesOwnerName || project.createdByUserName || '').trim().toLowerCase()
-  ];
-  return ownerIds.includes(userId) || ownerIds.includes(userName);
-}
+<body>
+  <script src="js/bundle.js?v=1795626479"></script>
+  <script>
+    // A hash survives any host's clean-URL rewriting untouched, since it's never
+    // sent to the server — unlike ?id=, which some static hosts strip on redirect.
+    window.addEventListener('hashchange', () => location.reload());
+    PDMS.mountShell('users');
+    const D = PDMS_DATA; const I = PDMS.icon;
+    let u;
 
-function isSalesCurrentProject(project){
-  const status = String(project && project.status || '').trim();
-  return status !== 'Completed' && status !== 'Closed' && status !== 'Rejected';
-}
-
-function getRequestedUserParams() {
-  const hash = (location.hash || '').replace(/^#/, '').trim();
-  const hashParams = new URLSearchParams(hash);
-  const searchParams = new URLSearchParams(location.search || '');
-  let id = hashParams.get('id') || searchParams.get('id') || '';
-  let email = hashParams.get('email') || searchParams.get('email') || '';
-  if (!id && hash && !hash.includes('=')) {
-    id = hash;
-  }
-  return {
-    id: decodeURIComponent(String(id || '').trim()),
-    email: decodeURIComponent(String(email || '').trim())
-  };
-}
-
-function projectsFor(user){
-  const liveProjects = (window.PDMS_REMOTE && window.PDMS_REMOTE.projects) || D.projects || [];
-  if(!user) return [];
-  if(user.role === 'Sales') {
-    return liveProjects.filter(p => projectOwnedByUser(p, user));
-  }
-  return liveProjects.filter(p => p.pm===user.name || p.lead===user.name || (p.consultants||[]).includes(user.name) || projectOwnedByUser(p, user));
-}
-
-function render(){
-  const allUsers = (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.users) && window.PDMS_REMOTE.users.length)
-    ? window.PDMS_REMOTE.users
-    : ((window.PDMS_DATA && Array.isArray(window.PDMS_DATA.users)) ? window.PDMS_DATA.users : (PDMS.getUsers ? PDMS.getUsers() : []));
-
-  const params = getRequestedUserParams();
-  const reqId = params.id.toLowerCase();
-  const reqEmail = params.email.toLowerCase();
-  const currentLoggedIn = PDMS.getUser();
-
-  if (reqEmail || reqId) {
-    // 1. Match by exact email if available (guarantees unique user even if legacy IDs collided in DB)
-    if (reqEmail) {
-      u = allUsers.find(x => x && String(x.email || '').trim().toLowerCase() === reqEmail);
+    function projectOwnedByUser(project, user) {
+      if (!project || !user) return false;
+      const userId = String(user.id || '').trim().toLowerCase();
+      const userName = String(user.name || '').trim().toLowerCase();
+      const ownerIds = [
+        String(project.projectOwnerId || project.onboardedById || project.salesOwnerId || project.createdByUserId || '').trim().toLowerCase(),
+        String(project.projectOwnerName || project.onboardedByName || project.salesOwnerName || project.createdByUserName || '').trim().toLowerCase()
+      ];
+      return ownerIds.includes(userId) || ownerIds.includes(userName);
     }
-    // 2. Match by exact ID if email didn't match or wasn't provided
-    if (!u && reqId) {
-      u = allUsers.find(x => x && String(x.id || '').trim().toLowerCase() === reqId);
+
+    function isSalesCurrentProject(project) {
+      const status = String(project && project.status || '').trim();
+      return status !== 'Completed' && status !== 'Closed' && status !== 'Rejected';
     }
-    // 3. Match by email/name as fallback
-    if (!u && reqId) {
-      u = allUsers.find(x => {
-        if (!x) return false;
-        const xEmail = String(x.email || '').trim().toLowerCase();
-        const xName = String(x.name || '').trim().toLowerCase();
-        return xEmail === reqId || xName === reqId;
+
+    function getRequestedUserParams() {
+      const hash = (location.hash || '').replace(/^#/, '').trim();
+      const hashParams = new URLSearchParams(hash);
+      const searchParams = new URLSearchParams(location.search || '');
+      let id = hashParams.get('id') || searchParams.get('id') || '';
+      let email = hashParams.get('email') || searchParams.get('email') || '';
+      if (!id && hash && !hash.includes('=')) {
+        id = hash;
+      }
+      return {
+        id: decodeURIComponent(String(id || '').trim()),
+        email: decodeURIComponent(String(email || '').trim())
+      };
+    }
+
+    function projectsFor(user) {
+      const allLiveProjects = (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.projects) && window.PDMS_REMOTE.projects.length)
+        ? window.PDMS_REMOTE.projects
+        : ((window.PDMS_DATA && Array.isArray(window.PDMS_DATA.projects) && window.PDMS_DATA.projects.length) ? window.PDMS_DATA.projects : (D.projects || []));
+      return PDMS.getProjectsForUser ? PDMS.getProjectsForUser(user, allLiveProjects) : [];
+    }
+
+    function render() {
+      let recentUsers = [];
+      try {
+        const recStr = sessionStorage.getItem('pdms_recent_creates') || '{}';
+        const recs = JSON.parse(recStr);
+        if (Array.isArray(recs.users)) {
+          recentUsers = recs.users.filter(x => x && (Date.now() - (x._savedAt || 0)) < 600000);
+        }
+      } catch (_) { }
+
+      let cachedUsers = [];
+      try {
+        const cStr = localStorage.getItem('pdms-cache');
+        if (cStr) {
+          const cData = JSON.parse(cStr);
+          if (Array.isArray(cData.users)) cachedUsers = cData.users;
+        }
+      } catch (_) { }
+
+      let localDataUsers = [];
+      try {
+        const lStr = localStorage.getItem('pdms-local-data');
+        if (lStr) {
+          const lData = JSON.parse(lStr);
+          if (Array.isArray(lData.users)) localDataUsers = lData.users;
+        }
+      } catch (_) { }
+
+      const remoteUsers = (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.users)) ? window.PDMS_REMOTE.users : [];
+      const dataUsers = (window.PDMS_DATA && Array.isArray(window.PDMS_DATA.users)) ? window.PDMS_DATA.users : [];
+      const localAuthUsers = (PDMS.getLocalAuthUsers ? PDMS.getLocalAuthUsers() : []);
+      const getFnUsers = (typeof PDMS.getUsers === 'function') ? (PDMS.getUsers() || []) : [];
+
+      // Merge all sources in priority order so no newly created user is missed
+      const allUsers = [];
+      const seenIds = new Set();
+
+      [recentUsers, remoteUsers, dataUsers, cachedUsers, localDataUsers, localAuthUsers, getFnUsers].forEach(list => {
+        if (Array.isArray(list)) {
+          list.forEach(item => {
+            if (!item) return;
+            const idKey = item.id ? String(item.id).trim().toLowerCase() : null;
+            if (idKey && seenIds.has(idKey)) return;
+            if (idKey) seenIds.add(idKey);
+            allUsers.push(item);
+          });
+        }
       });
-    }
-    if (!u && typeof PDMS.getUsers === 'function') {
-      const fallbackList = PDMS.getUsers() || [];
-      if (reqEmail) u = fallbackList.find(x => x && String(x.email || '').trim().toLowerCase() === reqEmail);
-      if (!u && reqId) u = fallbackList.find(x => x && (String(x.id || '').trim().toLowerCase() === reqId || String(x.email || '').trim().toLowerCase() === reqId));
-    }
-  } else {
-    u = (currentLoggedIn ? allUsers.find(x => String(x.id).toLowerCase() === String(currentLoggedIn.id).toLowerCase() || (x.email && x.email.toLowerCase() === (currentLoggedIn.email || '').toLowerCase())) : null)
-      || currentLoggedIn
-      || allUsers[0];
-  }
 
-  if(!u){
-    if (reqId) {
-      document.getElementById('content').innerHTML = `
+      const params = getRequestedUserParams();
+      const reqId = params.id.toLowerCase();
+      const reqEmail = params.email.toLowerCase();
+      const currentLoggedIn = PDMS.getUser();
+
+      if (reqEmail || reqId) {
+        // 1. Match by exact email if available (guarantees unique user even if legacy IDs collided in DB)
+        if (reqEmail) {
+          u = allUsers.find(x => x && String(x.email || '').trim().toLowerCase() === reqEmail);
+        }
+        // 2. Match by exact ID if email didn't match or wasn't provided
+        if (!u && reqId) {
+          u = allUsers.find(x => x && String(x.id || '').trim().toLowerCase() === reqId);
+        }
+        // 3. Match by email/name as fallback
+        if (!u && reqId) {
+          u = allUsers.find(x => {
+            if (!x) return false;
+            const xEmail = String(x.email || '').trim().toLowerCase();
+            const xName = String(x.name || '').trim().toLowerCase();
+            return xEmail === reqId || xName === reqId;
+          });
+        }
+        if (!u && typeof PDMS.getUsers === 'function') {
+          const fallbackList = PDMS.getUsers() || [];
+          if (reqEmail) u = fallbackList.find(x => x && String(x.email || '').trim().toLowerCase() === reqEmail);
+          if (!u && reqId) u = fallbackList.find(x => x && (String(x.id || '').trim().toLowerCase() === reqId || String(x.email || '').trim().toLowerCase() === reqId));
+        }
+      } else {
+        u = (currentLoggedIn ? allUsers.find(x => String(x.id).toLowerCase() === String(currentLoggedIn.id).toLowerCase() || (x.email && x.email.toLowerCase() === (currentLoggedIn.email || '').toLowerCase())) : null)
+          || currentLoggedIn
+          || allUsers[0];
+      }
+
+      if (!u) {
+        // If backend data is still being retrieved or network fetch is in-flight,
+        // show clean loading state instead of prematurely claiming User Not Found
+        if (window.PDMS_IS_LOADING || !window.PDMS_DATA_LOADED) {
+          document.getElementById('content').innerHTML = `
+        <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Users</span></div>
+          <h1 class="page-title">Loading User...</h1><div class="page-sub">Fetching user profile data from database</div></div></div>
+        <div class="card"><div class="card-body pdms-loading-inline" style="padding:48px 24px;text-align:center"><span class="pdms-spinner"></span> Loading user details...</div></div>
+      `;
+          return;
+        }
+        if (reqId) {
+          document.getElementById('content').innerHTML = `
         <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Users</span></div>
           <h1 class="page-title">User Not Found</h1><div class="page-sub">Could not find a user profile matching &ldquo;${PDMS.esc(reqId)}&rdquo;.</div></div>
           <div class="flex gap-2"><a class="btn btn-primary" href="users.html">Back to Users Directory</a></div></div>
       `;
-      return;
-    }
-    document.getElementById('content').innerHTML = window.PDMS_REMOTE ? `
+          return;
+        }
+        document.getElementById('content').innerHTML = window.PDMS_REMOTE ? `
       <div class="page-head"><div><div class="breadcrumbs"><span>Home</span><span>Users</span></div>
         <h1 class="page-title">No User Data</h1><div class="page-sub">You currently do not have any user records.</div></div>
         <div class="flex gap-2"><a class="btn btn-primary" href="users.html">Open Users</a></div></div>
@@ -110,58 +169,62 @@ function render(){
         <h1 class="page-title">Loading User...</h1><div class="page-sub">Fetching user data</div></div></div>
       <div class="card"><div class="card-body pdms-loading-inline"><span class="pdms-spinner"></span>Loading...</div></div>
     `;
-    return;
-  }
-
-  const isHistoryProject = (p) => {
-    if (!p) return false;
-    const isDelivery = (PDMS.stageOf ? PDMS.stageOf(p) === 'Delivery' : p.stage === 'Delivery');
-    const isSales = (PDMS.stageOf ? PDMS.stageOf(p) === 'Sales' : p.stage === 'Sales');
-    const dStat = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus) || '').trim();
-    const s = String(p.status || '').trim();
-
-    if (isDelivery) {
-      const activeDeliveryStatuses = ['Kickoff', 'Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Internal Testing', 'Penetration Testing', 'Report Submission', 'Review', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Ongoing', 'In Progress', 'Assess', 'Target State', 'GAP', 'Roadmap', 'Tailor/Design', 'Implement', 'Capability Building', 'Post-Implementation Assess', 'Strategy', 'Governance', 'Design', 'Select/Contract', 'Transition', 'Operate', 'Monitor', 'Improve', 'Previous Findings Closure', 'Awareness', 'Management Review', 'Readiness Assessment', 'Remediation', 'Surveillance Audit', 'Requirements Gathering', 'Configuration & Design', 'Data Preparation & Migration', 'Integration', 'Testing', 'User Acceptance Testing (UAT)', 'Go-Live', 'Project Initiation & Business Case', 'Requirements & Use-Case Definition', 'Architecture & Solution Design', 'Data Readiness & Preparation', 'PoC / Prototype', 'Software Development & AI Model Build', 'System Integration', 'Testing & AI Validation', 'UAT & Business Acceptance', 'Production Deployment & Go-Live', 'Hypercare & Operational Handover', 'On Hold'];
-      if (activeDeliveryStatuses.some(a => a.toLowerCase() === dStat.toLowerCase())) {
-        return false;
+        return;
       }
-      const deliveryDoneStatuses = ['Completed', 'Closure', 'Project Closure', 'Certification & Post Engagement', 'Closed', 'Cancelled', 'Rejected'];
-      if (deliveryDoneStatuses.some(h => h.toLowerCase() === dStat.toLowerCase())) {
-        return true;
-      }
-      return false;
-    }
 
-    if (isSales) {
-      const salesHistoryStatuses = ['Cancelled', 'Rejected'];
-      return salesHistoryStatuses.some(h => h.toLowerCase() === s.toLowerCase());
-    }
+      const isHistoryProject = (p) => {
+        if (!p) return false;
+        if (PDMS.isProjectClosedForUser) {
+          return PDMS.isProjectClosedForUser(u, p);
+        }
+        const dStat = String((PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : p.deliveryStatus) || '').trim();
+        const s = String(p.status || '').trim();
+        if (s.toLowerCase() === 'ongoing' || dStat.toLowerCase() === 'ongoing') return false;
+        if (PDMS.isClosedProject && PDMS.isClosedProject(p)) return true;
+        const isDelivery = (PDMS.stageOf ? PDMS.stageOf(p) === 'Delivery' : p.stage === 'Delivery');
+        const isSales = (PDMS.stageOf ? PDMS.stageOf(p) === 'Sales' : p.stage === 'Sales');
 
-    const historyStatuses = ['Completed', 'Closure', 'Project Closure', 'Certification & Post Engagement', 'Closed', 'Rejected', 'Cancelled'];
-    return historyStatuses.some(h => h.toLowerCase() === s.toLowerCase() || (dStat && h.toLowerCase() === dStat.toLowerCase()));
-  };
+        if (isDelivery) {
+          const activeDeliveryStatuses = ['Kickoff', 'Not Started', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Internal Testing', 'Penetration Testing', 'Report Submission', 'Review', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Ongoing', 'In Progress', 'Assess', 'Target State', 'GAP', 'Roadmap', 'Tailor/Design', 'Implement', 'Capability Building', 'Post-Implementation Assess', 'Strategy', 'Governance', 'Design', 'Select/Contract', 'Transition', 'Operate', 'Monitor', 'Improve', 'Previous Findings Closure', 'Awareness', 'Management Review', 'Readiness Assessment', 'Remediation', 'Surveillance Audit', 'Requirements Gathering', 'Configuration & Design', 'Data Preparation & Migration', 'Integration', 'Testing', 'User Acceptance Testing (UAT)', 'Go-Live', 'Project Initiation & Business Case', 'Requirements & Use-Case Definition', 'Architecture & Solution Design', 'Data Readiness & Preparation', 'PoC / Prototype', 'Software Development & AI Model Build', 'System Integration', 'Testing & AI Validation', 'UAT & Business Acceptance', 'Production Deployment & Go-Live', 'Hypercare & Operational Handover', 'On Hold'];
+          if (activeDeliveryStatuses.some(a => a.toLowerCase() === dStat.toLowerCase() || a.toLowerCase() === s.toLowerCase())) {
+            return false;
+          }
+          const deliveryDoneStatuses = ['Completed', 'Closure', 'Project Closure', 'Certification & Post Engagement', 'Closed', 'Cancelled', 'Rejected'];
+          return deliveryDoneStatuses.some(status =>
+            status.toLowerCase() === (dStat || s).toLowerCase()
+          );
+        }
 
-  const userProjects = projectsFor(u);
-  const sortByClient = arr => arr.slice().sort((a, b) => {
-    const nameA = String(a.client || a.name || '').trim().toLowerCase();
-    const nameB = String(b.client || b.name || '').trim().toLowerCase();
-    return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
-  });
-  const currentProjects = sortByClient(userProjects.filter(p => !isHistoryProject(p)));
-  const previousProjects = sortByClient(userProjects.filter(p => isHistoryProject(p)));
+        if (isSales) {
+          const salesHistoryStatuses = ['Cancelled', 'Rejected'];
+          return salesHistoryStatuses.some(h => h.toLowerCase() === s.toLowerCase());
+        }
 
-  const userLeaves = PDMS.getUserLeaveHistory ? PDMS.getUserLeaveHistory(u) : [];
-  const activeLeave = PDMS.getUserActiveLeave ? PDMS.getUserActiveLeave(u) : null;
-  const currentYearStr = new Date().getFullYear().toString();
-  const approvedThisYear = userLeaves.filter(l => l.status === 'Approved' && (l.startDate || '').startsWith(currentYearStr)).reduce((sum, l) => sum + (parseInt(l.daysCount) || 1), 0);
-  const pendingCount = userLeaves.filter(l => l.status === 'Pending' || l.status === 'Pending Approval').length;
+        const historyStatuses = ['Completed', 'Closure', 'Project Closure', 'Certification & Post Engagement', 'Closed', 'Rejected', 'Cancelled'];
+        return historyStatuses.some(h => h.toLowerCase() === s.toLowerCase() || (dStat && h.toLowerCase() === dStat.toLowerCase()));
+      };
 
-  const isSelf = currentLoggedIn && u && (String(currentLoggedIn.id) === String(u.id) || (currentLoggedIn.email && String(currentLoggedIn.email).toLowerCase() === String(u.email || '').toLowerCase()));
-  const canManageLeaves = PDMS.canManageLeaveRequests ? PDMS.canManageLeaveRequests(currentLoggedIn) : (currentLoggedIn && ['HR', 'System Administrator', 'General Admin'].includes(currentLoggedIn.role));
+      const userProjects = projectsFor(u);
+      const sortByClient = arr => arr.slice().sort((a, b) => {
+        const nameA = String(a.client || a.name || '').trim().toLowerCase();
+        const nameB = String(b.client || b.name || '').trim().toLowerCase();
+        return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+      });
+      const currentProjects = sortByClient(userProjects.filter(p => !isHistoryProject(p)));
+      const previousProjects = sortByClient(userProjects.filter(p => isHistoryProject(p)));
 
-  const statusColor = u.status==='Active'?'#22c55e':u.status==='On Leave'?'#f59e0b':'#ef4444';
+      const userLeaves = PDMS.getUserLeaveHistory ? PDMS.getUserLeaveHistory(u) : [];
+      const activeLeave = PDMS.getUserActiveLeave ? PDMS.getUserActiveLeave(u) : null;
+      const currentYearStr = new Date().getFullYear().toString();
+      const approvedThisYear = userLeaves.filter(l => l.status === 'Approved' && (l.startDate || '').startsWith(currentYearStr)).reduce((sum, l) => sum + (parseInt(l.daysCount) || 1), 0);
+      const pendingCount = userLeaves.filter(l => l.status === 'Pending' || l.status === 'Pending Approval').length;
 
-  document.getElementById('content').innerHTML = `
+      const isSelf = currentLoggedIn && u && (String(currentLoggedIn.id) === String(u.id) || (currentLoggedIn.email && String(currentLoggedIn.email).toLowerCase() === String(u.email || '').toLowerCase()));
+      const canManageLeaves = PDMS.canManageLeaveRequests ? PDMS.canManageLeaveRequests(currentLoggedIn) : (currentLoggedIn && ['HR', 'System Administrator', 'General Admin'].includes(currentLoggedIn.role));
+
+      const statusColor = u.status === 'Active' ? '#22c55e' : u.status === 'On Leave' ? '#f59e0b' : '#ef4444';
+
+      document.getElementById('content').innerHTML = `
 
   <!-- ── Profile Hero ── -->
   <div style="border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(29,60,136,.18);margin-bottom:20px">
@@ -175,12 +238,12 @@ function render(){
         <div style="flex:1;min-width:160px">
           <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:6px">
             <span style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;letter-spacing:.4px">${PDMS.esc(u.role)}</span>
-            ${activeLeave 
-              ? `<span style="background:rgba(245,158,11,0.3);color:#fef08a;border:1px solid rgba(245,158,11,0.5);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:.3px">● On Leave (until ${activeLeave.endDate})</span>` 
-              : `<span style="background:rgba(34,197,94,0.25);color:#bbf7d0;border:1px solid rgba(34,197,94,0.45);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:.3px">● Available</span>`}
+            ${activeLeave
+          ? `<span style="background:rgba(245,158,11,0.3);color:#fef08a;border:1px solid rgba(245,158,11,0.5);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:.3px">● On Leave (until ${activeLeave.endDate})</span>`
+          : `<span style="background:rgba(34,197,94,0.25);color:#bbf7d0;border:1px solid rgba(34,197,94,0.45);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:.3px">● Available</span>`}
           </div>
           <div style="font-size:20px;font-weight:800;color:#fff;line-height:1.2">${PDMS.esc(u.name)}</div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px">${PDMS.esc(u.dept||'')}${u.dept&&u.email?' · ':''}${PDMS.esc(u.email||'')}</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px">${PDMS.esc(u.dept || '')}${u.dept && u.email ? ' · ' : ''}${PDMS.esc(u.email || '')}</div>
         </div>
         <!-- Stat chips -->
         <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -202,25 +265,25 @@ function render(){
 
     <!-- Actions -->
     ${(() => {
-      const canEdit = PDMS.can('Edit User') || (isSelf && ['HR', 'PMO', 'Project Manager', 'PM Head', 'HTD', 'COO', 'System Administrator', 'General Admin'].includes(currentLoggedIn.role));
-      const canDelete = PDMS.can('Delete User');
-      if (!canEdit && !canDelete) return '';
-      return `
+          const canEdit = PDMS.can('Edit User') || (isSelf && ['HR', 'PMO', 'Project Manager', 'PM Head', 'HTD', 'COO', 'System Administrator', 'General Admin'].includes(currentLoggedIn.role));
+          const canDelete = PDMS.can('Delete User');
+          if (!canEdit && !canDelete) return '';
+          return `
       <div style="display:flex;gap:10px;padding:12px 18px;background:var(--surface);border-left:1px solid var(--border);border-right:1px solid var(--border)">
         ${canEdit ? `<button class="btn btn-secondary btn-sm" onclick="editUser()">${I('settings')} Edit User</button>` : ''}
         ${canDelete ? `<button class="btn btn-secondary btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="deleteUser()">${I('close')} Delete User</button>` : ''}
       </div>`;
-    })()}
+        })()}
 
       <!-- Detail fields -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0;border:1px solid var(--border);border-radius:14px;overflow:hidden">
         ${[
-          {label:'Email',         value: u.email||'—'},
-          {label:'Phone',         value: u.phone||'—'},
-          {label:'Date of Entry', value: u.dateOfEntry||u.joined||'—'},
-          {label:'Date of Birth', value: u.birthday||'—'},
-        ].map((f,i,arr)=>`
-          <div style="padding:14px 18px;background:var(--surface-2);${i%2===0&&i<arr.length-1?'border-right:1px solid var(--border)':''};${i<2?'border-bottom:1px solid var(--border)':''}">
+          { label: 'Email', value: u.email || '—' },
+          { label: 'Phone', value: u.phone || '—' },
+          { label: 'Date of Entry', value: u.dateOfEntry || u.joined || '—' },
+          { label: 'Date of Birth', value: u.birthday || '—' },
+        ].map((f, i, arr) => `
+          <div style="padding:14px 18px;background:var(--surface-2);${i % 2 === 0 && i < arr.length - 1 ? 'border-right:1px solid var(--border)' : ''};${i < 2 ? 'border-bottom:1px solid var(--border)' : ''}">
             <div style="font-size:10px;font-weight:700;letter-spacing:.7px;color:var(--text-soft);text-transform:uppercase;margin-bottom:4px">${f.label}</div>
             <div style="font-size:13px;font-weight:600;color:var(--text)">${PDMS.esc(f.value)}</div>
           </div>`).join('')}
@@ -249,13 +312,25 @@ function render(){
             </tr>
           </thead>
           <tbody>
-            ${currentProjects.length ? currentProjects.map((p,i)=>{
-              const role = p.pm===u.name?'Project Manager':p.lead===u.name?'Project Lead':'Consultant';
-              const roleColor = p.pm===u.name?'#4f46e5':p.lead===u.name?'#7c3aed':'#059669';
-              const roleBg = p.pm===u.name?'rgba(79,70,229,.08)':p.lead===u.name?'rgba(124,58,237,.08)':'rgba(5,150,105,.08)';
-              const dispStatus = (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status)) || p.status;
-              const clientName = p.client || p.name || '—';
-              return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s" onmouseenter="this.style.background='var(--surface-2)'" onmouseleave="this.style.background='transparent'">
+            ${currentProjects.length ? currentProjects.map((p, i) => {
+          const role = PDMS.getUserProjectRole ? PDMS.getUserProjectRole(u, p) : 'Consultant';
+          const roleLower = role.toLowerCase();
+          const isPm = roleLower.includes('manager');
+          const isLead = roleLower.includes('lead') && !isPm;
+          const isSales = roleLower.includes('sales') || roleLower.includes('deal') || roleLower.includes('owner');
+          const roleColor = isPm ? '#4f46e5' : isLead ? '#7c3aed' : isSales ? '#0284c7' : '#059669';
+          const roleBg = isPm ? 'rgba(79,70,229,.08)' : isLead ? 'rgba(124,58,237,.08)' : isSales ? 'rgba(2,132,199,.08)' : 'rgba(5,150,105,.08)';
+          const userSegs = (Array.isArray(p.projectSegments) && PDMS.isUserOnSegment)
+            ? p.projectSegments.map((seg, idx) => ({ seg, idx })).filter(item => item.seg && PDMS.isUserOnSegment(u, item.seg, p, item.idx))
+            : [];
+          const activeItem = userSegs.find(item => !PDMS.isSegmentClosed || !PDMS.isSegmentClosed(item.seg, p, item.idx));
+          const matchedSeg = (activeItem ? activeItem.seg : (userSegs.length ? userSegs[userSegs.length - 1].seg : null)) || {};
+          const segType = matchedSeg.type || p.type || '—';
+          const segWorkstream = matchedSeg.workstream || matchedSeg.dept || p.workstream || p.dept || '—';
+          const dispStatus = matchedSeg.status || matchedSeg.deliveryStatus || (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status)) || p.status;
+          const clientName = p.client || p.name || '—';
+
+          return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s" onmouseenter="this.style.background='var(--surface-2)'" onmouseleave="this.style.background='transparent'">
                 <td style="padding:14px 20px">
                   <div style="display:flex;align-items:center;gap:10px">
                     <div style="width:32px;height:32px;border-radius:8px;background:rgba(99,102,241,.12);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--primary);flex-shrink:0">${PDMS.esc(clientName).charAt(0)}</div>
@@ -265,12 +340,12 @@ function render(){
                     </div>
                   </div>
                 </td>
-                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type||'—'))}</td>
-                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.workstream || p.dept || '—')}</td>
-                <td style="padding:14px 16px"><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${role}</span></td>
-                <td style="padding:14px 20px"><span class="badge badge-${D.statusColors[dispStatus]||D.statusColors[p.status]||'muted'}">${PDMS.esc(dispStatus)}</span></td>
+                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(PDMS.formatType ? PDMS.formatType(segType) : segType)}</td>
+                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(segWorkstream)}</td>
+                <td style="padding:14px 16px"><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${PDMS.esc(role)}</span></td>
+                <td style="padding:14px 20px"><span class="badge badge-${D.statusColors[dispStatus] || D.statusColors[p.status] || 'muted'}">${PDMS.esc(dispStatus)}</span></td>
               </tr>`;
-            }).join('') : `<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No current projects')}</td></tr>`}
+        }).join('') : `<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No current projects')}</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -294,13 +369,25 @@ function render(){
             </tr>
           </thead>
           <tbody>
-            ${previousProjects.length ? previousProjects.map(p=>{
-              const role = p.pm===u.name?'Project Manager':p.lead===u.name?'Project Lead':'Consultant';
-              const roleColor = p.pm===u.name?'#4f46e5':p.lead===u.name?'#7c3aed':'#059669';
-              const roleBg = p.pm===u.name?'rgba(79,70,229,.08)':p.lead===u.name?'rgba(124,58,237,.08)':'rgba(5,150,105,.08)';
-              const dispStatus = (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status)) || p.status;
-              const clientName = p.client || p.name || '—';
-              return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s" onmouseenter="this.style.background='var(--surface-2)'" onmouseleave="this.style.background='transparent'">
+            ${previousProjects.length ? previousProjects.map(p => {
+          const role = PDMS.getUserProjectRole ? PDMS.getUserProjectRole(u, p) : 'Consultant';
+          const roleLower = role.toLowerCase();
+          const isPm = roleLower.includes('manager');
+          const isLead = roleLower.includes('lead') && !isPm;
+          const isSales = roleLower.includes('sales') || roleLower.includes('deal') || roleLower.includes('owner');
+          const roleColor = isPm ? '#4f46e5' : isLead ? '#7c3aed' : isSales ? '#0284c7' : '#059669';
+          const roleBg = isPm ? 'rgba(79,70,229,.08)' : isLead ? 'rgba(124,58,237,.08)' : isSales ? 'rgba(2,132,199,.08)' : 'rgba(5,150,105,.08)';
+          const userSegs = (Array.isArray(p.projectSegments) && PDMS.isUserOnSegment)
+            ? p.projectSegments.map((seg, idx) => ({ seg, idx })).filter(item => item.seg && PDMS.isUserOnSegment(u, item.seg, p, item.idx))
+            : [];
+          const activeItem = userSegs.find(item => !PDMS.isSegmentClosed || !PDMS.isSegmentClosed(item.seg, p, item.idx));
+          const matchedSeg = (activeItem ? activeItem.seg : (userSegs.length ? userSegs[userSegs.length - 1].seg : null)) || {};
+          const segType = matchedSeg.type || p.type || '—';
+          const segWorkstream = matchedSeg.workstream || matchedSeg.dept || p.workstream || p.dept || '—';
+          const dispStatus = matchedSeg.status || matchedSeg.deliveryStatus || (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status)) || p.status;
+          const clientName = p.client || p.name || '—';
+
+          return `<tr onclick="location.href='project-details.html#id=${p.id}'" style="cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s" onmouseenter="this.style.background='var(--surface-2)'" onmouseleave="this.style.background='transparent'">
                 <td style="padding:14px 20px">
                   <div style="display:flex;align-items:center;gap:10px">
                     <div style="width:32px;height:32px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--text-muted);flex-shrink:0">${PDMS.esc(clientName).charAt(0)}</div>
@@ -310,12 +397,12 @@ function render(){
                     </div>
                   </div>
                 </td>
-                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type||'—'))}</td>
-                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(p.workstream || p.dept || '—')}</td>
-                <td style="padding:14px 16px"><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${role}</span></td>
-                <td style="padding:14px 20px"><span class="badge badge-${D.statusColors[dispStatus]||D.statusColors[p.status]||'muted'}">${PDMS.esc(dispStatus)}</span></td>
+                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(PDMS.formatType ? PDMS.formatType(segType) : segType)}</td>
+                <td style="padding:14px 16px;font-size:13px;color:var(--text-muted)">${PDMS.esc(segWorkstream)}</td>
+                <td style="padding:14px 16px"><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${PDMS.esc(role)}</span></td>
+                <td style="padding:14px 20px"><span class="badge badge-${D.statusColors[dispStatus] || D.statusColors[p.status] || 'muted'}">${PDMS.esc(dispStatus)}</span></td>
               </tr>`;
-            }).join('') : `<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No project history')}</td></tr>`}
+        }).join('') : `<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-muted);font-size:13px">${PDMS.emptyOrLoading('No project history')}</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -332,7 +419,7 @@ function render(){
           <div class="card-sub">Off-day records, time-off requests, and availability tracking</div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <span style="background:var(--surface-2);color:var(--text-soft);border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700;border:1px solid var(--border)">${userLeaves.length} record${userLeaves.length!==1?'s':''}</span>
+          <span style="background:var(--surface-2);color:var(--text-soft);border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700;border:1px solid var(--border)">${userLeaves.length} record${userLeaves.length !== 1 ? 's' : ''}</span>
           ${isSelf ? `
             <button class="btn btn-primary btn-sm" onclick="openRequestLeaveModal()" style="display:inline-flex;align-items:center;gap:6px">
               ${I('plus')} Request Off-Days
@@ -346,26 +433,26 @@ function render(){
         ${userLeaves.length ? `
           <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px">
             ${userLeaves.map(lv => {
-              const isPending = lv.status === 'Pending' || lv.status === 'Pending Approval';
-              const isApproved = lv.status === 'Approved';
-              const isRejected = lv.status === 'Rejected';
-              
-              const statusBadge = isApproved 
-                ? '<span class="badge badge-success" style="font-weight:600;padding:3px 9px;font-size:11px">Approved</span>' 
-                : isPending 
-                  ? '<span class="badge badge-warn" style="font-weight:600;padding:3px 9px;font-size:11px">Pending HR Review</span>' 
-                  : isRejected 
-                    ? '<span class="badge badge-danger" style="font-weight:600;padding:3px 9px;font-size:11px">Rejected</span>' 
-                    : '<span class="badge badge-muted" style="font-weight:600;padding:3px 9px;font-size:11px">Cancelled</span>';
+          const isPending = lv.status === 'Pending' || lv.status === 'Pending Approval';
+          const isApproved = lv.status === 'Approved';
+          const isRejected = lv.status === 'Rejected';
 
-              const catName = lv.category || lv.type || 'Leave';
-              const dCount = parseInt(lv.daysCount, 10) || 1;
-              const isSingleDay = lv.startDate && lv.endDate && lv.startDate === lv.endDate;
-              const dateDisplay = isSingleDay 
-                ? (PDMS.formatDate ? PDMS.formatDate(lv.startDate) : lv.startDate) 
-                : `${PDMS.formatDate ? PDMS.formatDate(lv.startDate) : lv.startDate} <span style="color:var(--text-soft);margin:0 4px">→</span> ${PDMS.formatDate ? PDMS.formatDate(lv.endDate) : lv.endDate}`;
+          const statusBadge = isApproved
+            ? '<span class="badge badge-success" style="font-weight:600;padding:3px 9px;font-size:11px">Approved</span>'
+            : isPending
+              ? '<span class="badge badge-warn" style="font-weight:600;padding:3px 9px;font-size:11px">Pending HR Review</span>'
+              : isRejected
+                ? '<span class="badge badge-danger" style="font-weight:600;padding:3px 9px;font-size:11px">Rejected</span>'
+                : '<span class="badge badge-muted" style="font-weight:600;padding:3px 9px;font-size:11px">Cancelled</span>';
 
-              return `
+          const catName = lv.category || lv.type || 'Leave';
+          const dCount = parseInt(lv.daysCount, 10) || 1;
+          const isSingleDay = lv.startDate && lv.endDate && lv.startDate === lv.endDate;
+          const dateDisplay = isSingleDay
+            ? (PDMS.formatDate ? PDMS.formatDate(lv.startDate) : lv.startDate)
+            : `${PDMS.formatDate ? PDMS.formatDate(lv.startDate) : lv.startDate} <span style="color:var(--text-soft);margin:0 4px">→</span> ${PDMS.formatDate ? PDMS.formatDate(lv.endDate) : lv.endDate}`;
+
+          return `
                 <div class="timeoff-card" onclick="openLeaveDetailsModal('${lv.id}')" style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;transition:all .2s ease" onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px -4px rgba(0,0,0,.08)';this.style.borderColor='var(--primary)'" onmouseleave="this.style.transform='none';this.style.boxShadow='var(--shadow-sm)';this.style.borderColor='var(--border)'">
                   <div>
                     <!-- Top Tag & Status Header -->
@@ -405,7 +492,7 @@ function render(){
 
                   <!-- Footer -->
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:12px;margin-top:10px;border-top:1px solid var(--border);font-size:11.5px;color:var(--text-muted)">
-                    <span>Submitted ${PDMS.formatDate ? PDMS.formatDate(lv.createdAt) : (lv.createdAt ? lv.createdAt.slice(0,10) : '—')}</span>
+                    <span>Submitted ${PDMS.formatDate ? PDMS.formatDate(lv.createdAt) : (lv.createdAt ? lv.createdAt.slice(0, 10) : '—')}</span>
                     <div style="display:inline-flex;align-items:center;gap:6px" onclick="event.stopPropagation()">
                       ${(isPending && canManageLeaves) ? `
                         <button class="btn btn-sm" onclick="approveLeaveRequest('${lv.id}')" style="background:#10b981;color:#fff;border:none;padding:5px 12px;font-size:11.5px;font-weight:600;border-radius:6px;display:inline-flex;align-items:center;gap:4px;cursor:pointer">
@@ -424,7 +511,7 @@ function render(){
                   </div>
                 </div>
               `;
-            }).join('')}
+        }).join('')}
           </div>
         ` : `
           <div style="text-align:center;padding:36px 20px;color:var(--text-muted);font-size:13px">
@@ -437,28 +524,28 @@ function render(){
 
   </div>
   `;
-}
+    }
 
-const LEAVE_TYPES = [
-  'Annual / Vacation Leave',
-  'Sick / Medical Leave',
-  'Personal / Family Leave',
-  'Maternity / Paternity Leave',
-  'Study / Exam Leave',
-  'Compassionate / Bereavement',
-  'Other / Unpaid Leave'
-];
+    const LEAVE_TYPES = [
+      'Annual / Vacation Leave',
+      'Sick / Medical Leave',
+      'Personal / Family Leave',
+      'Maternity / Paternity Leave',
+      'Study / Exam Leave',
+      'Compassionate / Bereavement',
+      'Other / Unpaid Leave'
+    ];
 
-window.openRequestLeaveModal = function () {
-  if (!u) return;
-  const currentLoggedIn = PDMS.getUser();
-  const isSelf = currentLoggedIn && (String(currentLoggedIn.id) === String(u.id) || (currentLoggedIn.email && String(currentLoggedIn.email).toLowerCase() === String(u.email || '').toLowerCase()));
-  if (!isSelf) {
-    return PDMS.toast('Permission Denied', 'Only the employee can submit time-off requests for their own account.', 'warn');
-  }
-  const todayStr = new Date().toISOString().slice(0, 10);
+    window.openRequestLeaveModal = function () {
+      if (!u) return;
+      const currentLoggedIn = PDMS.getUser();
+      const isSelf = currentLoggedIn && (String(currentLoggedIn.id) === String(u.id) || (currentLoggedIn.email && String(currentLoggedIn.email).toLowerCase() === String(u.email || '').toLowerCase()));
+      if (!isSelf) {
+        return PDMS.toast('Permission Denied', 'Only the employee can submit time-off requests for their own account.', 'warn');
+      }
+      const todayStr = new Date().toISOString().slice(0, 10);
 
-  const bodyHtml = `
+      const bodyHtml = `
     <div class="form-row" style="margin-bottom:14px">
       <label>Employee</label>
       <input value="${PDMS.esc(u.name)} (${PDMS.esc(u.role)})" disabled style="background:var(--surface-2);cursor:not-allowed;width:100%"/>
@@ -493,110 +580,122 @@ window.openRequestLeaveModal = function () {
     </div>
   `;
 
-  const footHtml = `
+      const footHtml = `
     <button class="btn btn-ghost" data-close>Cancel</button>
     <button class="btn btn-primary" id="submitLeaveBtn">${I('send')} ${isSelf ? 'Submit to HR' : 'Log Request'}</button>
   `;
 
-  const modal = PDMS.modal(`Request Off-Days — ${PDMS.esc(u.name)}`, bodyHtml, footHtml);
+      const modal = PDMS.modal(`Request Off-Days — ${PDMS.esc(u.name)}`, bodyHtml, footHtml);
 
-  const startInput = modal.querySelector('#leaveStartDate');
-  const endInput = modal.querySelector('#leaveEndDate');
-  const daysDisplay = modal.querySelector('#leaveDaysDisplay');
+      const startInput = modal.querySelector('#leaveStartDate');
+      const endInput = modal.querySelector('#leaveEndDate');
+      const daysDisplay = modal.querySelector('#leaveDaysDisplay');
 
-  function calculateDays() {
-    const sVal = startInput.value;
-    const eVal = endInput.value;
-    if (!sVal || !eVal) return 1;
-    const d1 = new Date(sVal);
-    const d2 = new Date(eVal);
-    const diffTime = d2.getTime() - d1.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    return diffDays > 0 ? diffDays : 0;
-  }
+      function calculateDays() {
+        const sVal = startInput.value;
+        const eVal = endInput.value;
+        if (!sVal || !eVal) return 1;
+        const d1 = new Date(sVal);
+        const d2 = new Date(eVal);
+        const diffTime = d2.getTime() - d1.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        return diffDays > 0 ? diffDays : 0;
+      }
 
-  function updateDays() {
-    const count = calculateDays();
-    if (count <= 0) {
-      daysDisplay.textContent = 'Invalid date range';
-      daysDisplay.style.color = 'var(--danger)';
-    } else {
-      daysDisplay.textContent = count === 1 ? '1 Day' : `${count} Days`;
-      daysDisplay.style.color = 'var(--primary)';
-    }
-  }
+      function updateDays() {
+        const count = calculateDays();
+        if (count <= 0) {
+          daysDisplay.textContent = 'Invalid date range';
+          daysDisplay.style.color = 'var(--danger)';
+        } else {
+          daysDisplay.textContent = count === 1 ? '1 Day' : `${count} Days`;
+          daysDisplay.style.color = 'var(--primary)';
+        }
+      }
 
-  startInput.onchange = () => {
-    if (endInput.value < startInput.value) {
-      endInput.value = startInput.value;
-    }
-    updateDays();
-  };
-  endInput.onchange = updateDays;
-
-  const submitBtn = modal.querySelector('#submitLeaveBtn');
-  submitBtn.onclick = function () {
-    const type = modal.querySelector('#leaveType').value;
-    const startDate = startInput.value;
-    const endDate = endInput.value;
-    const reason = modal.querySelector('#leaveReason').value.trim();
-    const daysCount = calculateDays();
-
-    if (!startDate || !endDate || !reason) {
-      return PDMS.toast('Missing Info', 'Please provide start date, end date, and reason.', 'error');
-    }
-    if (daysCount <= 0) {
-      return PDMS.toast('Invalid Dates', 'End date must be on or after start date.', 'error');
-    }
-
-    const btn = this;
-    PDMS.setButtonLoading(btn, true, 'Submitting...');
-
-    const record = {
-      id: 'LV-' + Date.now(),
-      userId: String(u.id || ''),
-      userName: String(u.name || ''),
-      userEmail: String(u.email || ''),
-      userRole: String(u.role || ''),
-      dept: String(u.dept || ''),
-      startDate: startDate,
-      endDate: endDate,
-      daysCount: daysCount,
-      type: type,
-      category: type,
-      reason: reason,
-      status: 'Pending Approval',
-      createdAt: new Date().toISOString(),
-      reviewerId: '',
-      reviewerName: '',
-      reviewerRole: '',
-      reviewNote: '',
-      reviewedAt: ''
-    };
-
-    PDMS.api.create('leaveRequests', record).then(saved => {
-      const finalObj = Object.assign({}, record, saved || {});
-      const syncTo = (arr) => {
-        if (!Array.isArray(arr)) return;
-        const idx = arr.findIndex(x => x && (String(x.id) === String(finalObj.id) || (record.id && String(x.id) === String(record.id))));
-        if (idx >= 0) arr[idx] = finalObj;
-        else arr.unshift(finalObj);
+      startInput.onchange = () => {
+        if (endInput.value < startInput.value) {
+          endInput.value = startInput.value;
+        }
+        updateDays();
       };
-      if (window.PDMS_DATA && window.PDMS_DATA.leaveRequests) syncTo(window.PDMS_DATA.leaveRequests);
-      if (window.PDMS_REMOTE && window.PDMS_REMOTE.leaveRequests) syncTo(window.PDMS_REMOTE.leaveRequests);
+      endInput.onchange = updateDays;
 
-      PDMS.notify('New Time-Off Request', `${u.name} requested ${daysCount} off-day(s) (${startDate} to ${endDate})`, 'calendar', 'dashboard-hr.html', 'HR,System Administrator');
+      const submitBtn = modal.querySelector('#submitLeaveBtn');
+      submitBtn.onclick = function () {
+        const type = modal.querySelector('#leaveType').value;
+        const startDate = startInput.value;
+        const endDate = endInput.value;
+        const reason = modal.querySelector('#leaveReason').value.trim();
+        const daysCount = calculateDays();
 
-      modal.remove();
-      PDMS.toast('Request Submitted', `Time off request (${daysCount} day${daysCount===1?'':'s'}) submitted.`, 'success');
-      render();
-      if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
-    }).catch(err => {
-      PDMS.setButtonLoading(btn, false);
-      PDMS.toast('Error', err.message || 'Could not submit time off request', 'error');
-    });
-  };
-};
+        if (!startDate || !endDate || !reason) {
+          return PDMS.toast('Missing Info', 'Please provide start date, end date, and reason.', 'error');
+        }
+        if (daysCount <= 0) {
+          return PDMS.toast('Invalid Dates', 'End date must be on or after start date.', 'error');
+        }
+
+        const userEmail = String(u.email || (D.users && (D.users.find(x => String(x.id) === String(u.id)) || {}).email) || '');
+        const hrUsers = (D.users || []).filter(x => x && (String(x.role || '').toLowerCase() === 'hr' || String(x.role || '').toLowerCase() === 'system administrator'));
+        const hrEmails = hrUsers.map(x => (x.email || '').trim()).filter(Boolean);
+
+        const btn = modal.querySelector('button.btn-primary');
+        PDMS.setButtonLoading(btn, true, 'Submitting...');
+
+        const record = {
+          id: 'LV-' + Date.now(),
+          userId: String(u.id || ''),
+          userName: String(u.name || ''),
+          userEmail: userEmail,
+          userRole: String(u.role || ''),
+          dept: String(u.dept || ''),
+          startDate: startDate,
+          endDate: endDate,
+          daysCount: daysCount,
+          type: type,
+          category: type,
+          reason: reason,
+          status: 'Pending Approval',
+          createdAt: new Date().toISOString(),
+          reviewerId: '',
+          reviewerName: '',
+          reviewerRole: '',
+          reviewNote: '',
+          reviewedAt: ''
+        };
+
+        PDMS.api.create('leaveRequests', record, {
+          hrEmails: hrEmails
+        }).then(saved => {
+          const finalObj = Object.assign({}, record, saved || {});
+          const syncTo = (arr) => {
+            if (!Array.isArray(arr)) return;
+            const idx = arr.findIndex(x => x && (String(x.id) === String(finalObj.id) || (record.id && String(x.id) === String(record.id))));
+            if (idx >= 0) arr[idx] = finalObj;
+            else arr.unshift(finalObj);
+          };
+          if (window.PDMS_DATA && window.PDMS_DATA.leaveRequests) syncTo(window.PDMS_DATA.leaveRequests);
+          if (window.PDMS_REMOTE && window.PDMS_REMOTE.leaveRequests) syncTo(window.PDMS_REMOTE.leaveRequests);
+
+          PDMS.notify('New Time-Off Request', `${u.name} requested ${daysCount} off-day(s) (${startDate} to ${endDate}) for ${type}`, 'calendar', 'leave-approvals.html', 'HR,System Administrator');
+
+          modal.remove();
+          if (saved && saved._emailError) {
+            PDMS.toast('Request Submitted (Email Issue)', `Request saved, but HR email could not be sent: ${saved._emailError}`, 'warn');
+          } else if (saved && saved._sentEmails && saved._sentEmails.length) {
+            PDMS.toast('Request Submitted', `Time off request submitted. Email sent to HR: ${saved._sentEmails.join(', ')}`, 'success');
+          } else {
+            PDMS.toast('Request Submitted', `Time off request (${daysCount} day${daysCount === 1 ? '' : 's'}) submitted to HR.`, 'success');
+          }
+          render();
+          if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+        }).catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not submit time off request', 'error');
+        });
+      };
+    };
 
     window.openLeaveDetailsModal = function (leaveId) {
       const list = PDMS.getAllLeaveRequests ? PDMS.getAllLeaveRequests() : (D.leaveRequests || []);
@@ -677,8 +776,8 @@ window.openRequestLeaveModal = function () {
           ` : ''}
 
           <div style="font-size:12px;color:var(--text-soft);display:flex;justify-content:space-between;padding-top:6px;border-top:1px solid var(--border)">
-            <span>Submitted: ${PDMS.formatDate ? PDMS.formatDate(lv.createdAt) : (lv.createdAt ? lv.createdAt.slice(0,10) : '—')}</span>
-            ${lv.reviewedAt ? `<span>Decision logged: ${PDMS.formatDate ? PDMS.formatDate(lv.reviewedAt) : lv.reviewedAt.slice(0,10)}</span>` : ''}
+            <span>Submitted: ${PDMS.formatDate ? PDMS.formatDate(lv.createdAt) : (lv.createdAt ? lv.createdAt.slice(0, 10) : '—')}</span>
+            ${lv.reviewedAt ? `<span>Decision logged: ${PDMS.formatDate ? PDMS.formatDate(lv.reviewedAt) : lv.reviewedAt.slice(0, 10)}</span>` : ''}
           </div>
         </div>
       `;
@@ -739,8 +838,8 @@ window.openRequestLeaveModal = function () {
 
       const days = parseInt(lv.daysCount, 10) || 1;
       const isSingleDay = lv.startDate && lv.endDate && lv.startDate === lv.endDate;
-      const dateDisplay = isSingleDay 
-        ? (PDMS.formatDate ? PDMS.formatDate(lv.startDate) : lv.startDate) 
+      const dateDisplay = isSingleDay
+        ? (PDMS.formatDate ? PDMS.formatDate(lv.startDate) : lv.startDate)
         : `${PDMS.formatDate ? PDMS.formatDate(lv.startDate) : lv.startDate} → ${PDMS.formatDate ? PDMS.formatDate(lv.endDate) : lv.endDate}`;
 
       const bodyHtml = `
@@ -783,6 +882,9 @@ window.openRequestLeaveModal = function () {
           const note = (confirmModal.querySelector('#approvalNoteInput')?.value || '').trim();
           confirmModal.remove();
 
+          const candidate = (D.users || []).find(x => String(x.id) === String(lv.userId)) || u || {};
+          const userEmail = String(lv.userEmail || candidate.email || '');
+
           const patch = {
             status: 'Approved',
             reviewNote: note || 'Approved by HR',
@@ -791,16 +893,40 @@ window.openRequestLeaveModal = function () {
             reviewerRole: String(user.role || 'HR'),
             reviewedAt: new Date().toISOString()
           };
+          if (userEmail && !lv.userEmail) patch.userEmail = userEmail;
 
-          PDMS.api.update('leaveRequests', leaveId, patch).then(saved => {
-            Object.assign(lv, patch, saved || {});
-            const noteText = note ? ` Note: ${note}` : '';
-            PDMS.notify('Time-Off Request Approved', `Your request for ${lv.daysCount} off-day(s) (${lv.startDate} to ${lv.endDate}) has been approved by HR.${noteText}`, 'check', 'user-details.html#id=' + encodeURIComponent(lv.userId || ''), '', lv.userId || lv.userEmail || '', '', lv.userName || '');
-            PDMS.toast('Leave Approved', `Approved time off for ${lv.userName} (${lv.startDate} to ${lv.endDate})`, 'success');
-            render();
-            if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
-          }).catch(err => {
-            PDMS.toast('Error', err.message || 'Could not approve leave request', 'error');
+          const draft = (PDMS.buildLeaveApprovalEmail ? PDMS.buildLeaveApprovalEmail(candidate, lv, user.name, note) : {
+            subject: `PSE PDMS - Time-Off Request Approved (${lv.startDate} to ${lv.endDate})`,
+            body: `Hello ${lv.userName || 'there'},\n\nYour time-off request for ${lv.startDate} to ${lv.endDate} has been APPROVED by ${user.name || 'HR'}.\n\nBest regards,\nPSE HR Team`
+          });
+
+          PDMS.showEmailPreviewModal({
+            title: `Review Approval Email for ${lv.userName || candidate.name || 'Employee'}`,
+            to: userEmail || candidate.name || 'Candidate',
+            subject: draft.subject,
+            body: draft.body,
+            submitLabel: 'Send Email & Approve',
+            onSend: ({ subject: customSubject, body: customBody, modal: previewModal, btn: sendBtn }) => {
+              PDMS.setButtonLoading(sendBtn, true, 'Approving...');
+              PDMS.api.update('leaveRequests', leaveId, patch, {
+                customEmail: { subject: customSubject, body: customBody }
+              }).then(saved => {
+                Object.assign(lv, patch, saved || {});
+                const noteText = note ? ` Note: ${note}` : '';
+                PDMS.notify('Time-Off Request Approved', `Your request for ${lv.daysCount} off-day(s) (${lv.startDate} to ${lv.endDate}) has been approved by HR.${noteText}`, 'check', 'profile.html', '', lv.userId || userEmail || '', '', lv.userName || candidate.name || '');
+                previewModal.remove();
+                if (saved && saved._emailError) {
+                  PDMS.toast('Leave Approved (Email Issue)', `Status updated to Approved, but email failed: ${saved._emailError}`, 'warn');
+                } else {
+                  PDMS.toast('Leave Approved', `Approved time off for ${lv.userName || candidate.name || 'Employee'}. Confirmation email sent to ${userEmail || 'employee'}.`, 'success');
+                }
+                render();
+                if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+              }).catch(err => {
+                PDMS.setButtonLoading(sendBtn, false);
+                PDMS.toast('Error', err.message || 'Could not approve leave request', 'error');
+              });
+            }
           });
         };
       }
@@ -814,8 +940,8 @@ window.openRequestLeaveModal = function () {
 
       const days = parseInt(lv.daysCount, 10) || 1;
       const isSingleDay = lv.startDate && lv.endDate && lv.startDate === lv.endDate;
-      const dateDisplay = isSingleDay 
-        ? (PDMS.formatDate ? PDMS.formatDate(lv.startDate) : lv.startDate) 
+      const dateDisplay = isSingleDay
+        ? (PDMS.formatDate ? PDMS.formatDate(lv.startDate) : lv.startDate)
         : `${PDMS.formatDate ? PDMS.formatDate(lv.startDate) : lv.startDate} → ${PDMS.formatDate ? PDMS.formatDate(lv.endDate) : lv.endDate}`;
 
       const bodyHtml = `
@@ -846,7 +972,7 @@ window.openRequestLeaveModal = function () {
         <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
           <button class="btn btn-ghost" data-close>Cancel</button>
           <button class="btn btn-danger" id="confirmRejectSubmitBtn" style="background:#ef4444;border-color:#ef4444;color:#fff;font-weight:600;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(239,68,68,.3)">
-            ${I('close')} Confirm &amp; Reject
+            ${I('close')} Next: Review Email &amp; Reject
           </button>
         </div>
       `;
@@ -870,6 +996,9 @@ window.openRequestLeaveModal = function () {
 
           confirmModal.remove();
 
+          const candidate = (D.users || []).find(x => String(x.id) === String(lv.userId)) || u || {};
+          const userEmail = String(lv.userEmail || candidate.email || '');
+
           const patch = {
             status: 'Rejected',
             reviewNote: note,
@@ -878,15 +1007,39 @@ window.openRequestLeaveModal = function () {
             reviewerRole: String(user.role || 'HR'),
             reviewedAt: new Date().toISOString()
           };
+          if (userEmail && !lv.userEmail) patch.userEmail = userEmail;
 
-          PDMS.api.update('leaveRequests', leaveId, patch).then(saved => {
-            Object.assign(lv, patch, saved || {});
-            PDMS.notify('Time-Off Request Rejected', `Your request for off-days (${lv.startDate} to ${lv.endDate}) was not approved. Reason: ${patch.reviewNote}`, 'alert-triangle', 'user-details.html#id=' + encodeURIComponent(lv.userId || ''), '', lv.userId || lv.userEmail || '', '', lv.userName || '');
-            PDMS.toast('Leave Rejected', `Time off request for ${lv.userName} was rejected.`, 'info');
-            render();
-            if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
-          }).catch(err => {
-            PDMS.toast('Error', err.message || 'Could not reject leave request', 'error');
+          const draft = (PDMS.buildLeaveRejectionEmail ? PDMS.buildLeaveRejectionEmail(candidate, lv, user.name, note) : {
+            subject: `PSE PDMS - Time-Off Request Update (${lv.startDate} to ${lv.endDate})`,
+            body: `Hello ${lv.userName || 'there'},\n\nYour time-off request for ${lv.startDate} to ${lv.endDate} was NOT approved.\n\nReason: ${note}\n\nBest regards,\nPSE HR Team`
+          });
+
+          PDMS.showEmailPreviewModal({
+            title: `Review Rejection Email for ${lv.userName || candidate.name || 'Employee'}`,
+            to: userEmail || candidate.name || 'Candidate',
+            subject: draft.subject,
+            body: draft.body,
+            submitLabel: 'Send Email & Reject',
+            onSend: ({ subject: customSubject, body: customBody, modal: previewModal, btn: sendBtn }) => {
+              PDMS.setButtonLoading(sendBtn, true, 'Rejecting...');
+              PDMS.api.update('leaveRequests', leaveId, patch, {
+                customEmail: { subject: customSubject, body: customBody }
+              }).then(saved => {
+                Object.assign(lv, patch, saved || {});
+                PDMS.notify('Time-Off Request Rejected', `Your request for off-days (${lv.startDate} to ${lv.endDate}) was not approved. Reason: ${patch.reviewNote}`, 'alert-triangle', 'profile.html', '', lv.userId || userEmail || '', '', lv.userName || candidate.name || '');
+                previewModal.remove();
+                if (saved && saved._emailError) {
+                  PDMS.toast('Leave Rejected (Email Issue)', `Status updated to Rejected, but email failed: ${saved._emailError}`, 'warn');
+                } else {
+                  PDMS.toast('Leave Rejected', `Time off request for ${lv.userName || candidate.name || 'Employee'} was rejected. Notification email sent to ${userEmail || 'employee'}.`, 'info');
+                }
+                render();
+                if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+              }).catch(err => {
+                PDMS.setButtonLoading(sendBtn, false);
+                PDMS.toast('Error', err.message || 'Could not reject leave request', 'error');
+              });
+            }
           });
         };
       }
@@ -899,8 +1052,8 @@ window.openRequestLeaveModal = function () {
 
       const days = parseInt(item.daysCount, 10) || 1;
       const isSingleDay = item.startDate && item.endDate && item.startDate === item.endDate;
-      const dateDisplay = isSingleDay 
-        ? (PDMS.formatDate ? PDMS.formatDate(item.startDate) : item.startDate) 
+      const dateDisplay = isSingleDay
+        ? (PDMS.formatDate ? PDMS.formatDate(item.startDate) : item.startDate)
         : `${PDMS.formatDate ? PDMS.formatDate(item.startDate) : item.startDate} → ${PDMS.formatDate ? PDMS.formatDate(item.endDate) : item.endDate}`;
 
       const bodyHtml = `
@@ -952,20 +1105,25 @@ window.openRequestLeaveModal = function () {
       }
     };
 
-window.editUser = function() {
-  const modal = PDMS.modal('Edit User', `
+    window.editUser = function () {
+      const modal = PDMS.modal('Edit User', `
     <div class="form-grid">
       <div class="form-row"><label>Full Name</label><input id="editUserName" value="${PDMS.esc(u.name)}"/></div>
       <div class="form-row"><label>Email</label><input id="editUserEmail" type="email" value="${PDMS.esc(u.email)}"/></div>
-      <div class="form-row"><label>Role</label><select id="editUserRole" ${!PDMS.can('Edit User') ? 'disabled title="Only HR or System Admin can change roles" style="background:var(--surface-2);opacity:.8;cursor:not-allowed"' : ''}>${D.roles.map(r => `<option ${r===u.role?'selected':''}>${r}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Designation</label><input id="editUserDept" value="${PDMS.esc(u.dept||'')}"/></div>
-      <div class="form-row"><label>Phone</label><input id="editUserPhone" value="${PDMS.esc(u.phone||'')}"/></div>
-      <div class="form-row"><label>Date of Birth</label><input id="editUserBirthday" value="${PDMS.esc(u.birthday||'')}"/></div>
-      <div class="form-row"><label>Date of Entry</label><input id="editUserEntry" type="date" value="${PDMS.esc(u.dateOfEntry||u.joined||'')}"/></div>
+      <div class="form-row"><label>Role</label><select id="editUserRole" ${!PDMS.can('Edit User') ? 'disabled title="Only HR or System Admin can change roles" style="background:var(--surface-2);opacity:.8;cursor:not-allowed"' : ''}>${D.roles.map(r => `<option ${r === u.role ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Designation</label><input id="editUserDept" value="${PDMS.esc(u.dept || '')}"/></div>
+      <div class="form-row"><label>Phone</label><input id="editUserPhone" value="${PDMS.esc(u.phone || '')}"/></div>
+      <div class="form-row"><label>Date of Birth</label><input id="editUserBirthday" value="${PDMS.esc(u.birthday || '')}"/></div>
+      <div class="form-row"><label>Date of Entry</label><input id="editUserEntry" type="date" value="${PDMS.esc(u.dateOfEntry || u.joined || '')}"/></div>
       <div class="form-row" style="grid-column:1/-1">
-        <label>Password <span style="font-size:11px;color:var(--text-soft);font-weight:400">(leave blank to retain current password)</span></label>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <label style="margin:0;font-weight:600">Password <span style="font-size:11px;color:var(--text-soft);font-weight:400">(leave blank to retain current password)</span></label>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnGenEditPassword" style="font-size:12px;padding:3px 9px;display:inline-flex;align-items:center;gap:6px;border-radius:8px;font-weight:600" title="Click repeatedly to auto-generate fresh passwords">
+            ${I('refresh')} Auto Generate
+          </button>
+        </div>
         <div style="position:relative;display:flex;align-items:center">
-          <input id="editUserPassword" type="text" value="${PDMS.esc(u.password || '')}" placeholder="Enter user password" autocomplete="off" style="width:100%;padding-right:40px;font-family:inherit;font-size:13px"/>
+          <input id="editUserPassword" type="text" value="${PDMS.esc(u.password || '')}" placeholder="Enter user password or click Auto Generate" autocomplete="off" style="width:100%;padding-right:40px;font-family:inherit;font-size:13px;font-weight:600;letter-spacing:0.5px"/>
           <button type="button" id="toggleEditPassBtn" style="position:absolute;right:10px;background:none;border:none;color:var(--text-soft);cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center" title="Toggle visibility">
             <svg id="passEyeIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
           </button>
@@ -974,48 +1132,114 @@ window.editUser = function() {
     </div>
   `, '<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveEditBtn">Save Changes</button>');
 
-  const passInput = modal.querySelector('#editUserPassword');
-  const toggleBtn = modal.querySelector('#toggleEditPassBtn');
+      const passInput = modal.querySelector('#editUserPassword');
+      const toggleBtn = modal.querySelector('#toggleEditPassBtn');
+      const genBtn = modal.querySelector('#btnGenEditPassword');
 
-  if (toggleBtn && passInput) {
-    toggleBtn.onclick = () => {
-      const isPass = passInput.type === 'password';
-      passInput.type = isPass ? 'text' : 'password';
-      toggleBtn.style.color = isPass ? 'var(--primary)' : 'var(--text-soft)';
+      if (genBtn && passInput) {
+        genBtn.onclick = () => {
+          const newPass = PDMS.generatePassword ? PDMS.generatePassword(12) : Math.random().toString(36).slice(-10);
+          passInput.value = newPass;
+          passInput.type = 'text'; // keep visible so she sees it as it is generating
+          passInput.focus();
+          passInput.select();
+          PDMS.toast('Password Generated', 'New secure password generated', 'info');
+        };
+      }
+
+      if (toggleBtn && passInput) {
+        toggleBtn.onclick = () => {
+          const isPass = passInput.type === 'password';
+          passInput.type = isPass ? 'text' : 'password';
+          toggleBtn.style.color = isPass ? 'var(--primary)' : 'var(--text-soft)';
+        };
+      }
+
+      modal.querySelector('#saveEditBtn').onclick = function () {
+        const btn = this;
+        const patch = {
+          name: modal.querySelector('#editUserName').value.trim(),
+          email: modal.querySelector('#editUserEmail').value.trim().toLowerCase(),
+          role: (modal.querySelector('#editUserRole') && !modal.querySelector('#editUserRole').disabled) ? modal.querySelector('#editUserRole').value : u.role,
+          dept: modal.querySelector('#editUserDept').value.trim(),
+          phone: modal.querySelector('#editUserPhone').value.trim(),
+          birthday: modal.querySelector('#editUserBirthday').value.trim(),
+          dateOfEntry: modal.querySelector('#editUserEntry').value
+        };
+        const newPass = modal.querySelector('#editUserPassword').value;
+        if (newPass !== undefined && newPass.trim() !== '') {
+          patch.password = newPass.trim();
+        }
+
+        if (!patch.name || !patch.email) {
+          PDMS.toast('Missing Info', 'Full Name and Email are required', 'error');
+          return;
+        }
+        if (!PDMS.isValidEmail(patch.email)) {
+          PDMS.toast('Invalid Email', 'Please enter a valid email address (e.g. name@example.com)', 'error');
+          return;
+        }
+
+        const editor = PDMS.getUser();
+        const editorName = editor ? `${editor.name} (${editor.role || 'HR'})` : 'HR Team';
+        const emailDraft = PDMS.buildUpdateEmail(u, patch, patch.password || '', editorName);
+
+        // If nothing was modified, notify HR
+        if (emailDraft.changeLines.length === 0 && !patch.password) {
+          PDMS.toast('No changes detected', 'No profile details or password were modified', 'info');
+          return;
+        }
+
+        // Show editable email preview before saving & sending
+        modal.style.display = 'none';
+
+        PDMS.showEmailPreviewModal({
+          title: 'Review Profile Update Email Before Sending',
+          to: patch.email || u.email,
+          subject: emailDraft.subject,
+          body: emailDraft.body,
+          submitLabel: 'Send Mail & Save Changes',
+          onCancel: () => {
+            modal.style.display = '';
+          },
+          onSkip: (previewModal, skipBtn) => {
+            PDMS.setButtonLoading(skipBtn, true, 'Saving...');
+            PDMS.api.update('users', u.id, patch, { notifyUser: false }).then(saved => {
+              Object.assign(u, saved);
+              previewModal.remove();
+              modal.remove();
+              PDMS.toast('Success', 'User profile updated (notification email skipped)', 'success');
+              render();
+              if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+            }).catch(err => {
+              PDMS.setButtonLoading(skipBtn, false);
+              PDMS.toast('Error', err.message, 'error');
+            });
+          },
+          onSend: ({ subject: customSubject, body: customBody, modal: previewModal, btn: sendBtn }) => {
+            PDMS.setButtonLoading(sendBtn, true, 'Saving & Sending...');
+            PDMS.api.update('users', u.id, patch, { customEmail: { subject: customSubject, body: customBody } }).then(saved => {
+              Object.assign(u, saved);
+              previewModal.remove();
+              modal.remove();
+              if (saved && saved._emailSent === false && saved._emailError) {
+                PDMS.toast('Saved (Email Delivery Issue)', 'Profile updated, but email could not be sent: ' + saved._emailError, 'warn');
+              } else {
+                PDMS.toast('Success', 'User profile updated & notification email sent successfully', 'success');
+              }
+              render();
+              if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+            }).catch(err => {
+              PDMS.setButtonLoading(sendBtn, false);
+              PDMS.toast('Error', err.message, 'error');
+            });
+          }
+        });
+      };
     };
-  }
 
-  modal.querySelector('#saveEditBtn').onclick = function() {
-    const btn = this;
-    const patch = {
-      name: modal.querySelector('#editUserName').value.trim(),
-      email: modal.querySelector('#editUserEmail').value.trim().toLowerCase(),
-      role: (modal.querySelector('#editUserRole') && !modal.querySelector('#editUserRole').disabled) ? modal.querySelector('#editUserRole').value : u.role,
-      dept: modal.querySelector('#editUserDept').value.trim(),
-      phone: modal.querySelector('#editUserPhone').value.trim(),
-      birthday: modal.querySelector('#editUserBirthday').value.trim(),
-      dateOfEntry: modal.querySelector('#editUserEntry').value
-    };
-    const newPass = modal.querySelector('#editUserPassword').value;
-    if (newPass !== undefined && newPass.trim() !== '') {
-      patch.password = newPass.trim();
-    }
-    PDMS.setButtonLoading(btn, true);
-    PDMS.api.update('users', u.id, patch).then(saved => {
-      Object.assign(u, saved);
-      modal.remove();
-      PDMS.toast('Success', 'User profile updated & notification email sent', 'success');
-      render();
-      if(typeof PDMS_REFRESH==='function') PDMS_REFRESH();
-    }).catch(err => {
-      PDMS.setButtonLoading(btn, false);
-      PDMS.toast('Error', err.message, 'error');
-    });
-  };
-};
-
-window.deleteUser = function() {
-  const modal = PDMS.modal('Delete User Account', `
+    window.deleteUser = function () {
+      const modal = PDMS.modal('Delete User Account', `
     <div style="padding:4px 0">
       <div style="display:flex;align-items:flex-start;gap:14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:16px;margin-bottom:16px">
         <div style="width:38px;height:38px;border-radius:10px;background:rgba(239,68,68,0.15);display:flex;align-items:center;justify-content:center;color:#ef4444;flex-shrink:0">
@@ -1039,25 +1263,25 @@ window.deleteUser = function() {
     <button class="btn btn-primary" id="confirmDeleteUserBtn" style="background:#ef4444;border-color:#ef4444;color:#fff">${I('trash')} Yes, Delete User</button>
   `);
 
-  modal.querySelector('#confirmDeleteUserBtn').onclick = function() {
-    const btn = this;
-    PDMS.setButtonLoading(btn, true, 'Deleting...');
-    PDMS.api.remove('users', u.id).then(() => {
-      const idx = D.users.findIndex(x => x.id === u.id);
-      if (idx > -1) D.users.splice(idx, 1);
-      modal.remove();
-      PDMS.toast('Success', `${u.name} was successfully deleted`, 'success');
-      if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
-      setTimeout(() => { location.href = 'users.html'; }, 300);
-    }).catch(err => {
-      PDMS.setButtonLoading(btn, false);
-      PDMS.toast('Error', err.message || 'Could not delete user', 'error');
-    });
-  };
-};
+      modal.querySelector('#confirmDeleteUserBtn').onclick = function () {
+        const btn = this;
+        PDMS.setButtonLoading(btn, true, 'Deleting...');
+        PDMS.api.remove('users', u.id).then(() => {
+          const idx = D.users.findIndex(x => x.id === u.id);
+          if (idx > -1) D.users.splice(idx, 1);
+          modal.remove();
+          PDMS.toast('Success', `${u.name} was successfully deleted`, 'success');
+          if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+          setTimeout(() => { location.href = 'users.html'; }, 300);
+        }).catch(err => {
+          PDMS.setButtonLoading(btn, false);
+          PDMS.toast('Error', err.message || 'Could not delete user', 'error');
+        });
+      };
+    };
 
-PDMS.onRefresh(render);
-</script>
-</body></html>
+    PDMS.onRefresh(render);
+  </script>
+</body>
 
-
+</html>

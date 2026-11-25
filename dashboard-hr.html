@@ -5,9 +5,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HR Dashboard — PSE PDMS</title>
-  
-  
-<link rel="stylesheet" href="css/style.css?v=1793649402"/>
+
+
+  <link rel="stylesheet" href="css/style.css?v=1795626479" />
   <style>
     .hr-hero {
       display: grid;
@@ -75,7 +75,7 @@
 </head>
 
 <body>
-  <script src="js/bundle.js?v=1793649402"></script>
+  <script src="js/bundle.js?v=1795626479"></script>
   <script>
     PDMS.mountShell('dashboard');
     const D = PDMS_DATA; const I = PDMS.icon;
@@ -98,7 +98,7 @@
       const allDeliveryStageProjects = deliveryProjects;
 
       // Delivery project status distribution
-      const statusColorHex = { 'Completed':'#10b981','Closure':'#10b981','Project Closure':'#10b981','On Hold':'#64748b','Gap Assessment':'#0ea5e9','Risk Assessment':'#f59e0b','Design & Documentation/Implementation':'#8b5cf6','Management System Design & Documentation/Implementation':'#8b5cf6','VAPT':'#8b5cf6','Training & Awareness':'#6366f1','Internal Audit & Management Review':'#06b6d4','Remediation & Certification Readiness':'#f59e0b','Certification Audit':'#8b5cf6','Certification & Post Engagement':'#6366f1','Certification & Post engagement':'#6366f1','Post Engagement':'#6366f1','Internal Audit':'#06b6d4','External Audit':'#f59e0b','Training':'#6366f1','Awareness':'#6366f1','Awareness & VAPT':'#8b5cf6','Testing':'#8b5cf6','Implementation':'#8b5cf6','Internal Testing':'#0ea5e9','Penetration Testing':'#8b5cf6','Report Submission':'#6366f1','Review':'#f59e0b','Requirements Gathering':'#0ea5e9','Configuration & Design':'#6366f1','Data Preparation & Migration':'#8b5cf6','Integration':'#6366f1','User Acceptance Testing (UAT)':'#f59e0b','Go-Live':'#10b981','Previous Findings Closure':'#0ea5e9','Management Review':'#8b5cf6','Readiness Assessment':'#0ea5e9','Remediation':'#f59e0b','Surveillance Audit':'#8b5cf6','Assess':'#0ea5e9','Target State':'#6366f1','GAP':'#f59e0b','Roadmap':'#06b6d4','Tailor/Design':'#8b5cf6','Implement':'#8b5cf6','Capability Building':'#6366f1','Post-Implementation Assess':'#0ea5e9','Institutionalise':'#10b981','Institutionalize':'#10b981','Strategy':'#6366f1','Governance':'#8b5cf6','Design':'#8b5cf6','Select/Contract':'#f59e0b','Transition':'#0ea5e9','Operate':'#6366f1','Monitor':'#06b6d4','Improve':'#10b981','Cancelled':'#ef4444' };
+      const statusColorHex = { 'Completed': '#10b981', 'Closure': '#10b981', 'Project Closure': '#10b981', 'On Hold': '#64748b', 'Gap Assessment': '#0ea5e9', 'Risk Assessment': '#f59e0b', 'Design & Documentation/Implementation': '#8b5cf6', 'Management System Design & Documentation/Implementation': '#8b5cf6', 'VAPT': '#8b5cf6', 'Training & Awareness': '#6366f1', 'Internal Audit & Management Review': '#06b6d4', 'Remediation & Certification Readiness': '#f59e0b', 'Certification Audit': '#8b5cf6', 'Certification & Post Engagement': '#6366f1', 'Certification & Post engagement': '#6366f1', 'Post Engagement': '#6366f1', 'Internal Audit': '#06b6d4', 'External Audit': '#f59e0b', 'Training': '#6366f1', 'Awareness': '#6366f1', 'Awareness & VAPT': '#8b5cf6', 'Testing': '#8b5cf6', 'Implementation': '#8b5cf6', 'Internal Testing': '#0ea5e9', 'Penetration Testing': '#8b5cf6', 'Report Submission': '#6366f1', 'Review': '#f59e0b', 'Requirements Gathering': '#0ea5e9', 'Configuration & Design': '#6366f1', 'Data Preparation & Migration': '#8b5cf6', 'Integration': '#6366f1', 'User Acceptance Testing (UAT)': '#f59e0b', 'Go-Live': '#10b981', 'Previous Findings Closure': '#0ea5e9', 'Management Review': '#8b5cf6', 'Readiness Assessment': '#0ea5e9', 'Remediation': '#f59e0b', 'Surveillance Audit': '#8b5cf6', 'Assess': '#0ea5e9', 'Target State': '#6366f1', 'GAP': '#f59e0b', 'Roadmap': '#06b6d4', 'Tailor/Design': '#8b5cf6', 'Implement': '#8b5cf6', 'Capability Building': '#6366f1', 'Post-Implementation Assess': '#0ea5e9', 'Institutionalise': '#10b981', 'Institutionalize': '#10b981', 'Strategy': '#6366f1', 'Governance': '#8b5cf6', 'Design': '#8b5cf6', 'Select/Contract': '#f59e0b', 'Transition': '#0ea5e9', 'Operate': '#6366f1', 'Monitor': '#06b6d4', 'Improve': '#10b981', 'Cancelled': '#ef4444' };
       const getDelivStatus = p => PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(p) : (p.deliveryStatus || p.status);
       const totalProjects = allDeliveryStageProjects.length;
       const statusCounts = D.deliveryStatuses.map(s => ({
@@ -172,7 +172,7 @@
           <div id="statusLegend" class="mt-3 flex flex-col gap-2">${statusCounts.map(s => `
             <div class="flex items-center justify-between text-sm">
               <span class="flex items-center gap-2"><span style="width:10px;height:10px;border-radius:3px;background:${s.color};display:inline-block"></span>${s.status}</span>
-              <span class="font-semi">${Math.round((s.count/Math.max(totalProjects,1))*100)}%</span>
+              <span class="font-semi">${Math.round((s.count / Math.max(totalProjects, 1)) * 100)}%</span>
             </div>`).join('') || `<div class="text-muted text-sm">${PDMS.emptyOrLoading('No projects yet')}</div>`}</div>
         </div>
       </div>
@@ -187,14 +187,14 @@
         </div>
         <div class="card-body" style="padding:8px 20px">
           ${D.users.map(u => ({
-            ...u,
-            projCount: D.projects.filter(p => p.pm===u.name||p.lead===u.name||(p.consultants||[]).includes(u.name)).length
-          })).sort((a,b) => b.projCount - a.projCount).slice(0,5).map(u => `
+        ...u,
+        projCount: D.projects.filter(p => PDMS.isUserOnProject ? PDMS.isUserOnProject(u, p) : (p.pm === u.name || p.lead === u.name || (p.consultants || []).includes(u.name))).length
+      })).sort((a, b) => b.projCount - a.projCount).slice(0, 5).map(u => `
             <div class="flex items-center gap-3" style="padding:12px 0;border-bottom:1px solid var(--border)">
               <div class="avatar avatar-sm">${PDMS.initials(u.name)}</div>
               <div style="flex:1">
                 <div class="font-semi text-sm">${PDMS.esc(u.name)}</div>
-                <div class="text-sm text-muted">${PDMS.esc(u.role)} · ${PDMS.esc(u.dept||'—')}</div>
+                <div class="text-sm text-muted">${PDMS.esc(u.role)} · ${PDMS.esc(u.dept || '—')}</div>
               </div>
               <span class="badge badge-primary">${u.projCount} project${u.projCount !== 1 ? 's' : ''}</span>
             </div>`).join('')}
@@ -215,9 +215,9 @@
               <span class="badge badge-${D.statusColors[p.status] || 'muted'} dot" style="flex-shrink:0">${PDMS.esc(p.status)}</span>
             </div>
             <div class="text-sm text-muted mb-1">Client: ${PDMS.esc(p.client || 'TBD')}</div>
-            <div class="text-sm text-muted mb-1">Workstream: ${PDMS.esc(p.workstream||p.dept||'—')}</div>
+            <div class="text-sm text-muted mb-1">Workstream: ${PDMS.esc(p.workstream || p.dept || '—')}</div>
             <div class="text-sm text-muted">Start Date: ${p.start || 'TBD'}</div>
-            ${(PDMS.isClosedProject ? PDMS.isClosedProject(p) : ['Completed','Closed','Closure','Project Closure'].includes(p.status)) ? `
+            ${(PDMS.isClosedProject ? PDMS.isClosedProject(p) : ['Completed', 'Closed', 'Closure', 'Project Closure'].includes(p.status)) ? `
             <div class="text-sm font-semi mb-3" style="color:var(--success)"><span style="margin-right:2px">✓</span>Actual Completion: ${PDMS.getActualCompletionDate ? PDMS.getActualCompletionDate(p) : (p.actualCompletion || p.completion || '—')}</div>
             ` : `
             <div class="text-sm text-muted mb-3">Planned Completion: ${p.due || 'TBD'}</div>
@@ -247,7 +247,7 @@
                 <tr>
                   <td><a href="project-details.html#id=${p.id}" class="font-semi" style="color:var(--primary)">${PDMS.esc(p.name)}</a></td>
                   <td>${PDMS.esc(p.client)}</td>
-                  <td>${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type||'—'))}</td>
+                  <td>${PDMS.esc(PDMS.formatType ? PDMS.formatType(p.type) : (p.type || '—'))}</td>
                   <td class="text-muted">${PDMS.esc(p.workstream || p.dept || '—')}</td>
                   <td><span class="badge badge-${D.statusColors[p.status] || 'muted'}">${PDMS.esc(p.status)}</span></td>
                 </tr>`).join('') || `<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No sales pipeline projects')}</td></tr>`}
@@ -278,16 +278,16 @@
               </thead>
               <tbody>
                 ${consultants.slice(0, 6).map(c => {
-                  const projCount = D.projects.filter(p => p.pm===c.name||p.lead===c.name||(p.consultants||[]).includes(c.name)).length;
-                  const activeLv = PDMS.getUserActiveLeave ? PDMS.getUserActiveLeave(c) : null;
-                  let statusBadge = `<span class="badge badge-primary">${projCount} project${projCount!==1?'s':''}</span>`;
-                  if (activeLv) {
-                    statusBadge = `<span class="badge badge-warn" title="On leave from ${activeLv.startDate} to ${activeLv.endDate}">● On Leave</span>`;
-                  } else if (projCount === 0) {
-                    statusBadge = `<span class="badge badge-success">● Available</span>`;
-                  }
+        const projCount = D.projects.filter(p => PDMS.isProjectActiveForUser ? PDMS.isProjectActiveForUser(c, p) : ((PDMS.isProjectActive ? PDMS.isProjectActive(p) : false) && (PDMS.isUserOnProject ? PDMS.isUserOnProject(c, p) : (p.pm === c.name || p.lead === c.name || (p.consultants || []).includes(c.name))))).length;
+        const activeLv = PDMS.getUserActiveLeave ? PDMS.getUserActiveLeave(c) : null;
+        let statusBadge = `<span class="badge badge-primary">${projCount} active project${projCount !== 1 ? 's' : ''}</span>`;
+        if (activeLv) {
+          statusBadge = `<span class="badge badge-warn" title="On leave from ${activeLv.startDate} to ${activeLv.endDate}">● On Leave</span>`;
+        } else if (projCount === 0) {
+          statusBadge = `<span class="badge badge-success">● Available</span>`;
+        }
 
-                  return `
+        return `
                   <tr>
                     <td>
                       <a href="user-details.html#id=${c.id}" class="flex items-center gap-2" style="color:inherit;text-decoration:none">
@@ -298,10 +298,10 @@
                         </div>
                       </a>
                     </td>
-                    <td><span class="badge badge-purple">${PDMS.esc(c.skillSet||c.dept||'—')}</span></td>
+                    <td><span class="badge badge-purple">${PDMS.esc(c.skillSet || c.dept || '—')}</span></td>
                     <td>${statusBadge}</td>
                   </tr>`;
-                }).join('') || `<tr><td colspan="3" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No consultants yet')}</td></tr>`}
+      }).join('') || `<tr><td colspan="3" class="text-muted" style="text-align:center;padding:24px">${PDMS.emptyOrLoading('No consultants yet')}</td></tr>`}
               </tbody>
             </table>
           </div>
@@ -315,32 +315,78 @@
         </div>
         <div class="card-body" style="padding: 8px 20px">
           ${(() => {
-            const notifs = (PDMS.notificationsFor ? PDMS.notificationsFor(user) : (D.notifications || [])).slice(0, 8);
-            if (!notifs.length) return `<div class="text-muted text-center" style="padding:24px 0">${PDMS.emptyOrLoading('No notifications yet')}</div>`;
-            return notifs.map(n => `
+          const notifs = (PDMS.notificationsFor ? PDMS.notificationsFor(user) : (D.notifications || [])).slice(0, 8);
+          if (!notifs.length) return `<div class="text-muted text-center" style="padding:24px 0">${PDMS.emptyOrLoading('No notifications yet')}</div>`;
+          return notifs.map(n => `
               <div class="activity">
                 <div class="a-icon" style="background:var(--primary-faint);color:var(--primary)">${I('bell')}</div>
                 <div style="flex:1;min-width:0">
-                  <div class="a-text font-semi" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(n.title||'Notification')}</div>
-                  <div class="text-sm text-muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(n.message||n.body||'')}</div>
-                  <div class="a-time">${n.time||n.createdAt||''}</div>
+                  <div class="a-text font-semi" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(n.title || 'Notification')}</div>
+                  <div class="text-sm text-muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PDMS.esc(n.message || n.body || '')}</div>
+                  <div class="a-time">${n.time || n.createdAt || ''}</div>
                 </div>
               </div>`).join('');
-          })()}
+        })()}
         </div>
       </div>
     </div>
   `;
 
       // Render project status donut chart
-      if(statusCounts.length){
-        PDMS.charts.donut(document.getElementById('statusDonut'), statusCounts.map(s=>s.count), statusCounts.map(s=>s.color));
+      if (statusCounts.length) {
+        PDMS.charts.donut(document.getElementById('statusDonut'), statusCounts.map(s => s.count), statusCounts.map(s => s.color));
       }
     }
 
     function newUser() {
-      const modal = PDMS.modal('Onboard New User', `<div class="form-grid"><div class="form-row"><label>Full Name</label><input id="newUserName"/></div><div class="form-row"><label>Email</label><input id="newUserEmail" type="email"/></div><div class="form-row"><label>Password</label><input id="newUserPassword" type="password" placeholder="Create initial password"/></div><div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option>${r}</option>`).join('')}</select></div><div class="form-row"><label>Designation</label><input id="newUserDept" type="text" placeholder="e.g. Senior Security Analyst, Solutions Architect..."/></div><div class="form-row"><label>Phone</label><input id="newUserPhone" type="text" placeholder="e.g. +1 555 123 4567"/></div><div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="text" placeholder="MM/DD"/></div><div class="form-row"><label>Date of Entry</label><input id="newUserEntry" type="date"/></div></div>`,
+      const modal = PDMS.modal('Onboard New User', `<div class="form-grid">
+        <div class="form-row"><label>Full Name</label><input id="newUserName" placeholder="e.g. Jane Doe"/></div>
+        <div class="form-row"><label>Email</label><input id="newUserEmail" type="email" placeholder="jane.doe@pse.com"/></div>
+        <div class="form-row" style="grid-column:1/-1">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <label style="margin:0;font-weight:600">Password <span style="font-size:12px;color:var(--text-muted);font-weight:400">(initial login password)</span></label>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnGenUserPass" style="font-size:12px;padding:3px 10px;display:inline-flex;align-items:center;gap:6px;border-radius:8px;font-weight:600" title="Click repeatedly to auto-generate fresh passwords">
+              ${I('refresh')} Auto Generate
+            </button>
+          </div>
+          <div style="position:relative;display:flex;align-items:center">
+            <input id="newUserPassword" type="text" placeholder="Create or click Auto Generate" autocomplete="off" style="width:100%;padding-right:40px;font-family:inherit;font-size:13px;font-weight:600;letter-spacing:0.5px"/>
+            <button type="button" id="toggleNewPassBtn" style="position:absolute;right:10px;background:none;border:none;color:var(--text-soft);cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center" title="Toggle visibility">
+              ${I('eye')}
+            </button>
+          </div>
+        </div>
+        <div class="form-row"><label>Role</label><select id="newUserRole">${D.roles.filter(r => r !== 'System Administrator').map(r => `<option>${r}</option>`).join('')}</select></div>
+        <div class="form-row"><label>Designation</label><input id="newUserDept" type="text" placeholder="e.g. Senior Security Analyst, Solutions Architect..."/></div>
+        <div class="form-row"><label>Phone</label><input id="newUserPhone" type="text" placeholder="e.g. +1 555 123 4567"/></div>
+        <div class="form-row"><label>Date of Birth</label><input id="newUserBirthday" type="text" placeholder="MM/DD"/></div>
+        <div class="form-row"><label>Date of Entry</label><input id="newUserEntry" type="date"/></div>
+      </div>`,
         `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="createUserBtn">${I('check')} Onboard</button>`);
+
+      const passInput = modal.querySelector('#newUserPassword');
+      const genBtn = modal.querySelector('#btnGenUserPass');
+      const toggleBtn = modal.querySelector('#toggleNewPassBtn');
+
+      if (genBtn && passInput) {
+        genBtn.onclick = function () {
+          const pwd = PDMS.generatePassword ? PDMS.generatePassword(12) : Math.random().toString(36).slice(-10);
+          passInput.value = pwd;
+          passInput.type = 'text'; // keep visible so she sees it as it is generating
+          passInput.focus();
+          passInput.select();
+          PDMS.toast('Password Generated', 'New secure password generated', 'info');
+        };
+      }
+
+      if (toggleBtn && passInput) {
+        toggleBtn.onclick = function () {
+          const isPass = passInput.type === 'password';
+          passInput.type = isPass ? 'text' : 'password';
+          toggleBtn.style.color = isPass ? 'var(--primary)' : 'var(--text-soft)';
+        };
+      }
+
       modal.querySelector('#createUserBtn').onclick = function () {
         const btn = this;
         const name = modal.querySelector('#newUserName').value.trim();
@@ -355,25 +401,56 @@
           PDMS.toast('Missing user info', 'Name, email, and password are required', 'error');
           return;
         }
+        if (!PDMS.isValidEmail(email)) {
+          PDMS.toast('Invalid Email', 'Please enter a valid email address (e.g. name@example.com) to receive credentials', 'error');
+          return;
+        }
         // Duplicate email guard
-        if (D.users.some(u => String(u.email||'').toLowerCase() === email)) {
+        if (D.users.some(u => String(u.email || '').toLowerCase() === email)) {
           PDMS.toast('Email already in use', 'A user with this email already exists. Use a different address.', 'error');
           return;
         }
 
-        PDMS.setButtonLoading(btn, true, 'Onboarding...');
-        const record = { name, email, password, role, dept, birthday: birthday || '', dateOfEntry: dateOfEntry || '', workload: 0, phone, joined: new Date().toISOString().slice(0, 10), status: 'Active', availability: 'Available' };
-        PDMS.api.register(record).then(saved => {
-          D.users.unshift(saved);
-          modal.remove();
-          showNewUserPasswordNote(saved, password);
-          const creator = PDMS.getUser();
-          PDMS.notify('User Onboarded', `${creator ? creator.name : 'HR'} onboarded ${saved.name} as ${saved.role}`, 'user-plus', 'user-details.html#id='+saved.id, 'HR,System Administrator');
-          render(); // immediate local re-render, including stat cards
-          if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
-        }).catch(err => {
-          PDMS.setButtonLoading(btn, false);
-          PDMS.toast('Error', err.message || 'Could not onboard user', 'error');
+        // Generate email draft and show editable preview to HR before sending
+        const emailDraft = PDMS.buildWelcomeEmail({ name, email, role }, password);
+        modal.style.display = 'none';
+
+        PDMS.showEmailPreviewModal({
+          title: 'Review Welcome Email Before Sending',
+          to: email,
+          subject: emailDraft.subject,
+          body: emailDraft.body,
+          submitLabel: 'Send Email & Onboard',
+          onCancel: () => {
+            modal.style.display = '';
+          },
+          onSend: ({ subject: customSubject, body: customBody, modal: previewModal, btn: sendBtn }) => {
+            PDMS.setButtonLoading(sendBtn, true, 'Sending & Onboarding...');
+            const record = { name, email, password, role, dept, birthday: birthday || '', dateOfEntry: dateOfEntry || '', workload: 0, phone, joined: new Date().toISOString().slice(0, 10), status: 'Active', availability: 'Available' };
+            PDMS.api.register(record, { customEmail: { subject: customSubject, body: customBody } }).then(saved => {
+              if (window.PDMS_REMOTE && Array.isArray(window.PDMS_REMOTE.users)) {
+                if (!window.PDMS_REMOTE.users.some(x => String(x.id) === String(saved.id))) {
+                  window.PDMS_REMOTE.users.unshift(saved);
+                }
+              }
+              D.users.unshift(saved);
+              previewModal.remove();
+              modal.remove();
+              showNewUserPasswordNote(saved, password);
+              const creator = PDMS.getUser();
+              PDMS.notify('User Onboarded', `${creator ? creator.name : 'HR'} onboarded ${saved.name} as ${saved.role}`, 'user-plus', 'user-details.html#id=' + saved.id, 'HR,System Administrator');
+              if (saved && saved._emailSent === false && saved._emailError) {
+                PDMS.toast('User Onboarded (Email Delivery Issue)', 'Account created, but email could not be sent: ' + saved._emailError, 'warn');
+              } else {
+                PDMS.toast('User Onboarded', 'Account created and customized welcome email sent successfully', 'success');
+              }
+              render(); // immediate local re-render, including stat cards
+              if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+            }).catch(err => {
+              PDMS.setButtonLoading(sendBtn, false);
+              PDMS.toast('Error', err.message || 'Could not onboard user', 'error');
+            });
+          }
         });
       };
     }
@@ -403,6 +480,8 @@
       const lv = list.find(l => String(l.id) === String(leaveId));
       if (!lv) return;
       const user = PDMS.getUser();
+      const candidate = (D.users || []).find(u => String(u.id) === String(lv.userId)) || {};
+      const userEmail = String(lv.userEmail || candidate.email || '');
 
       const patch = {
         status: 'Approved',
@@ -411,15 +490,39 @@
         reviewerRole: String(user.role || 'HR'),
         reviewedAt: new Date().toISOString()
       };
+      if (userEmail && !lv.userEmail) patch.userEmail = userEmail;
 
-      PDMS.api.update('leaveRequests', leaveId, patch).then(saved => {
-        Object.assign(lv, patch, saved || {});
-        PDMS.notify('Time-Off Request Approved', `Your request for ${lv.daysCount} off-day(s) (${lv.startDate} to ${lv.endDate}) has been approved by HR.`, 'check', 'profile.html', '', lv.userId || lv.userEmail || '', '', lv.userName || '');
-        PDMS.toast('Leave Approved', `Approved time off for ${lv.userName} (${lv.startDate} to ${lv.endDate})`, 'success');
-        render();
-        if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
-      }).catch(err => {
-        PDMS.toast('Error', err.message || 'Could not approve leave request', 'error');
+      const draft = (PDMS.buildLeaveApprovalEmail ? PDMS.buildLeaveApprovalEmail(candidate, lv, user.name, '') : {
+        subject: `PSE PDMS - Time-Off Request Approved (${lv.startDate} to ${lv.endDate})`,
+        body: `Hello ${lv.userName || 'there'},\n\nYour time-off request for ${lv.startDate} to ${lv.endDate} (${lv.daysCount} days) has been APPROVED by ${user.name || 'HR'}.\n\nBest regards,\nPSE HR Team`
+      });
+
+      PDMS.showEmailPreviewModal({
+        title: `Review Approval Email for ${lv.userName || 'Employee'}`,
+        to: userEmail || candidate.name || 'Candidate',
+        subject: draft.subject,
+        body: draft.body,
+        submitLabel: 'Send Email & Approve',
+        onSend: ({ subject: customSubject, body: customBody, modal: previewModal, btn: sendBtn }) => {
+          PDMS.setButtonLoading(sendBtn, true, 'Approving...');
+          PDMS.api.update('leaveRequests', leaveId, patch, {
+            customEmail: { subject: customSubject, body: customBody }
+          }).then(saved => {
+            Object.assign(lv, patch, saved || {});
+            PDMS.notify('Time-Off Request Approved', `Your request for ${lv.daysCount} off-day(s) (${lv.startDate} to ${lv.endDate}) has been approved by HR.`, 'check', 'profile.html', '', lv.userId || userEmail || '', '', lv.userName || '');
+            previewModal.remove();
+            if (saved && saved._emailError) {
+              PDMS.toast('Leave Approved (Email Issue)', `Status updated to Approved, but email failed: ${saved._emailError}`, 'warn');
+            } else {
+              PDMS.toast('Leave Approved', `Approved time off for ${lv.userName || 'Employee'}. Confirmation email sent to ${userEmail || 'employee'}.`, 'success');
+            }
+            render();
+            if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+          }).catch(err => {
+            PDMS.setButtonLoading(sendBtn, false);
+            PDMS.toast('Error', err.message || 'Could not approve leave request', 'error');
+          });
+        }
       });
     };
 
@@ -428,27 +531,54 @@
       const lv = list.find(l => String(l.id) === String(leaveId));
       if (!lv) return;
       const user = PDMS.getUser();
+      const candidate = (D.users || []).find(u => String(u.id) === String(lv.userId)) || {};
+      const userEmail = String(lv.userEmail || candidate.email || '');
 
       const note = prompt('Please provide a reason / note for rejecting this time-off request:');
       if (note === null) return; // cancelled
+      const cleanNote = note.trim() || 'Not approved by HR';
 
       const patch = {
         status: 'Rejected',
-        reviewNote: note.trim() || 'Not approved by HR',
+        reviewNote: cleanNote,
         reviewerId: String(user.id || ''),
         reviewerName: String(user.name || 'HR'),
         reviewerRole: String(user.role || 'HR'),
         reviewedAt: new Date().toISOString()
       };
+      if (userEmail && !lv.userEmail) patch.userEmail = userEmail;
 
-      PDMS.api.update('leaveRequests', leaveId, patch).then(saved => {
-        Object.assign(lv, patch, saved || {});
-        PDMS.notify('Time-Off Request Rejected', `Your request for off-days (${lv.startDate} to ${lv.endDate}) was not approved. Reason: ${patch.reviewNote}`, 'alert-triangle', 'profile.html', '', lv.userId || lv.userEmail || '', '', lv.userName || '');
-        PDMS.toast('Leave Rejected', `Time off request for ${lv.userName} was rejected.`, 'info');
-        render();
-        if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
-      }).catch(err => {
-        PDMS.toast('Error', err.message || 'Could not reject leave request', 'error');
+      const draft = (PDMS.buildLeaveRejectionEmail ? PDMS.buildLeaveRejectionEmail(candidate, lv, user.name, cleanNote) : {
+        subject: `PSE PDMS - Time-Off Request Update (${lv.startDate} to ${lv.endDate})`,
+        body: `Hello ${lv.userName || 'there'},\n\nYour time-off request for ${lv.startDate} to ${lv.endDate} was NOT approved.\n\nReason: ${cleanNote}\n\nBest regards,\nPSE HR Team`
+      });
+
+      PDMS.showEmailPreviewModal({
+        title: `Review Rejection Email for ${lv.userName || 'Employee'}`,
+        to: userEmail || candidate.name || 'Candidate',
+        subject: draft.subject,
+        body: draft.body,
+        submitLabel: 'Send Email & Reject',
+        onSend: ({ subject: customSubject, body: customBody, modal: previewModal, btn: sendBtn }) => {
+          PDMS.setButtonLoading(sendBtn, true, 'Rejecting...');
+          PDMS.api.update('leaveRequests', leaveId, patch, {
+            customEmail: { subject: customSubject, body: customBody }
+          }).then(saved => {
+            Object.assign(lv, patch, saved || {});
+            PDMS.notify('Time-Off Request Rejected', `Your request for off-days (${lv.startDate} to ${lv.endDate}) was not approved. Reason: ${patch.reviewNote}`, 'alert-triangle', 'profile.html', '', lv.userId || userEmail || '', '', lv.userName || '');
+            previewModal.remove();
+            if (saved && saved._emailError) {
+              PDMS.toast('Leave Rejected (Email Issue)', `Status updated to Rejected, but email failed: ${saved._emailError}`, 'warn');
+            } else {
+              PDMS.toast('Leave Rejected', `Time off request for ${lv.userName || 'Employee'} was rejected. Notification email sent to ${userEmail || 'employee'}.`, 'info');
+            }
+            render();
+            if (typeof PDMS_REFRESH === 'function') PDMS_REFRESH();
+          }).catch(err => {
+            PDMS.setButtonLoading(sendBtn, false);
+            PDMS.toast('Error', err.message || 'Could not reject leave request', 'error');
+          });
+        }
       });
     };
 
@@ -460,4 +590,3 @@
 </body>
 
 </html>
-
