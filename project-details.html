@@ -9,243 +9,37 @@
 
   <link rel="stylesheet" href="css/style.css?v=1795626479" />
   <style>
-    .project-meta-strip {
-      overflow: hidden
-    }
-
-    .project-meta-row {
-      display: grid;
-      grid-template-columns: repeat(var(--meta-columns), minmax(0, 1fr))
-    }
-
-    .project-meta-cell {
-      padding: 14px 12px;
-      border-right: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      min-width: 0;
-      box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-      justify-content: center
-    }
-
-    .project-meta-row {
-      position: relative;
-      cursor: pointer;
-      transition: background-color .18s ease, box-shadow .18s ease
-    }
-
-    .project-meta-row:hover {
-      background: rgba(79, 70, 229, .045)
-    }
-
-    .project-meta-row.is-selected {
-      z-index: 1;
-      background: var(--surface-2);
-      background: color-mix(in srgb, var(--primary) 10%, var(--surface));
-      box-shadow: inset 4px 0 0 var(--primary), inset 0 -1px 0 rgba(79, 70, 229, .24)
-    }
-
-    .project-meta-row.is-selected .project-meta-cell {
-      background: transparent
-    }
-
-    .project-meta-row.is-selected .project-meta-label {
-      color: var(--text-soft)
-    }
-
-    .project-meta-row.is-selected .project-meta-value {
-      color: var(--text)
-    }
-
-    .project-current-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      width: max-content;
-      margin: 0 0 7px;
-      padding: 3px 7px;
-      border: 1px solid rgba(79, 70, 229, .16);
-      border-radius: 999px;
-      background: rgba(79, 70, 229, .08);
-      color: var(--primary);
-      font-size: 9px;
-      font-weight: 800;
-      line-height: 1.2;
-      text-transform: uppercase
-    }
-
-    .project-current-badge::before {
-      content: "";
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: currentColor
-    }
-
-    .project-meta-row:focus-visible {
-      outline: 2px solid var(--primary);
-      outline-offset: -2px
-    }
-
-    .project-meta-project {
-      border-top: 1px solid var(--border);
-      background: var(--surface-2)
-    }
-
-    .project-meta-project-title {
-      padding: 10px 12px 0;
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--text-soft);
-      text-transform: uppercase
-    }
-
-    .project-meta-project-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))
-    }
-
-    .project-timeline-head {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: nowrap;
-      min-width: 0
-    }
-
-    .project-timeline-title {
-      flex: 1 1 auto;
-      min-width: 0;
-      font-size: 13px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis
-    }
-
-    .project-timeline-actions {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 8px;
-      flex: 0 0 auto;
-      flex-wrap: nowrap;
-      margin-left: auto
-    }
-
-    .project-timeline-actions .btn {
-      white-space: nowrap;
-      flex: 0 0 auto
-    }
-
-    .project-financial-band {
-      position: relative;
-      z-index: 1;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 0;
-      margin-top: 14px;
-      border: 1px solid rgba(255, 255, 255, .2);
-      border-radius: 8px;
-      background: rgba(8, 14, 36, .24);
-      backdrop-filter: blur(8px);
-      overflow: hidden
-    }
-
-    .project-financial-item {
-      padding: 9px 14px;
-      min-width: 0
-    }
-
-    .project-financial-item+.project-financial-item {
-      border-left: 1px solid rgba(255, 255, 255, .18)
-    }
-
-    .project-financial-label {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      margin-bottom: 4px;
-      color: rgba(255, 255, 255, .72);
-      font-size: 9px;
-      font-weight: 700;
-      text-transform: uppercase
-    }
-
-    .project-financial-label::before {
-      content: "";
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #93c5fd;
-      flex-shrink: 0
-    }
-
-    .project-financial-item.award .project-financial-label::before {
-      background: #6ee7b7
-    }
-
-    .project-financial-value {
-      color: #fff;
-      font-size: 16px;
-      font-weight: 750;
-      line-height: 1.25;
-      overflow-wrap: anywhere
-    }
-
-    @media(max-width:560px) {
-      .project-financial-band {
-        grid-template-columns: 1fr;
-        margin-top: 12px
-      }
-
-      .project-financial-item+.project-financial-item {
-        border-left: 0;
-        border-top: 1px solid rgba(255, 255, 255, .18)
-      }
-
-      .project-financial-item {
-        padding: 8px 12px
-      }
-
-      .project-financial-value {
-        font-size: 15px
-      }
-    }
-
-    .project-meta-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: .6px;
-      color: var(--text-soft);
-      text-transform: uppercase;
-      margin-bottom: 4px;
-      overflow-wrap: anywhere
-    }
-
-    .project-meta-value {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1.4;
-      overflow-wrap: anywhere
-    }
-
-    @media(max-width:900px) {
-      .project-meta-row {
-        grid-template-columns: repeat(3, minmax(0, 1fr))
-      }
-    }
-
-    @media(max-width:560px) {
-      .project-meta-cell {
-        padding: 11px 9px
-      }
-
-      .project-meta-row {
-        grid-template-columns: repeat(2, minmax(0, 1fr))
-      }
-    }
+    .project-meta-strip{overflow:hidden}
+    .project-meta-row{display:grid;grid-template-columns:repeat(var(--meta-columns),minmax(0,1fr))}
+    .project-meta-cell{padding:14px 12px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);min-width:0;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center}
+    .project-meta-row{position:relative;cursor:pointer;transition:background-color .18s ease,box-shadow .18s ease}
+    .project-meta-row:hover{background:rgba(79,70,229,.045)}
+    .project-meta-row.is-selected{z-index:1;background:var(--surface-2);background:color-mix(in srgb,var(--primary) 10%,var(--surface));box-shadow:inset 4px 0 0 var(--primary),inset 0 -1px 0 rgba(79,70,229,.24)}
+    .project-meta-row.is-selected .project-meta-cell{background:transparent}
+    .project-meta-row.is-selected .project-meta-label{color:var(--text-soft)}
+    .project-meta-row.is-selected .project-meta-value{color:var(--text)}
+    .project-current-badge{display:inline-flex;align-items:center;gap:5px;width:max-content;margin:0 0 7px;padding:3px 7px;border:1px solid rgba(79,70,229,.16);border-radius:999px;background:rgba(79,70,229,.08);color:var(--primary);font-size:9px;font-weight:800;line-height:1.2;text-transform:uppercase}
+    .project-current-badge::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}
+    .project-meta-row:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+    .project-meta-project{border-top:1px solid var(--border);background:var(--surface-2)}
+    .project-meta-project-title{padding:10px 12px 0;font-size:10px;font-weight:700;color:var(--text-soft);text-transform:uppercase}
+    .project-meta-project-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+    .project-timeline-head{display:flex;align-items:center;gap:12px;flex-wrap:nowrap;min-width:0}
+    .project-timeline-title{flex:1 1 auto;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .project-timeline-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;flex-wrap:nowrap;margin-left:auto}
+    .project-timeline-actions .btn{white-space:nowrap;flex:0 0 auto}
+    .project-financial-band{position:relative;z-index:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:0;margin-top:14px;border:1px solid rgba(255,255,255,.2);border-radius:8px;background:rgba(8,14,36,.24);backdrop-filter:blur(8px);overflow:hidden}
+    .project-financial-item{padding:9px 14px;min-width:0}
+    .project-financial-item+.project-financial-item{border-left:1px solid rgba(255,255,255,.18)}
+    .project-financial-label{display:flex;align-items:center;gap:7px;margin-bottom:4px;color:rgba(255,255,255,.72);font-size:9px;font-weight:700;text-transform:uppercase}
+    .project-financial-label::before{content:"";width:6px;height:6px;border-radius:50%;background:#93c5fd;flex-shrink:0}
+    .project-financial-item.award .project-financial-label::before{background:#6ee7b7}
+    .project-financial-value{color:#fff;font-size:16px;font-weight:750;line-height:1.25;overflow-wrap:anywhere}
+    @media(max-width:560px){.project-financial-band{grid-template-columns:1fr;margin-top:12px}.project-financial-item+.project-financial-item{border-left:0;border-top:1px solid rgba(255,255,255,.18)}.project-financial-item{padding:8px 12px}.project-financial-value{font-size:15px}}
+    .project-meta-label{font-size:10px;font-weight:700;letter-spacing:.6px;color:var(--text-soft);text-transform:uppercase;margin-bottom:4px;overflow-wrap:anywhere}
+    .project-meta-value{font-size:13px;font-weight:700;color:var(--text);line-height:1.4;overflow-wrap:anywhere}
+    @media(max-width:900px){.project-meta-row{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media(max-width:560px){.project-meta-cell{padding:11px 9px}.project-meta-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
 
@@ -355,7 +149,7 @@
       let statusToMatch = isSales
         ? (isPendingSalesHead ? (proj.requestedStatus || proj.targetStatus || 'Lead') : proj.status)
         : (PDMS.deliveryStatusOf ? PDMS.deliveryStatusOf(proj) : (proj.deliveryStatus || proj.status || mainSequence[0]));
-
+      
       let status = PDMS.normalizeStatus ? PDMS.normalizeStatus(statusToMatch) : statusToMatch;
       if (status === 'Completed' && !mainSequence.includes('Completed') && mainSequence.includes('Closure')) {
         status = 'Closure';
@@ -1240,43 +1034,43 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         </div>
       </div>
       ${(() => {
-            const financialFields = canSeePrice ? [
-              { label: 'Opportunity Value', value: Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '—', className: 'opportunity' },
-              ...((p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval' || p.status === 'Closed') ? [
-                { label: 'Award Value (excl. VAT)', value: Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice, p.currency) : '—', className: 'award' }
-              ] : [])
-            ] : [];
-            if (p.status === 'In Progress' && currentSubStatus) financialFields.push({ label: 'Current Phase', value: currentSubStatus, className: 'phase' });
-            return financialFields.length ? `<div class="project-financial-band">${financialFields.map(field => `<div class="project-financial-item ${field.className}"><div class="project-financial-label">${field.label}</div><div class="project-financial-value">${PDMS.esc(field.value)}</div></div>`).join('')}</div>` : '';
-          })()}
+        const financialFields = canSeePrice ? [
+          { label: 'Opportunity Value', value: Number.isFinite(Number(p.opportunityValue || p.negotiatedPrice)) && Number(p.opportunityValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.opportunityValue || p.negotiatedPrice, p.currency) : '—', className: 'opportunity' },
+          ...((p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval' || p.status === 'Closed') ? [
+            { label: 'Award Value (excl. VAT)', value: Number.isFinite(Number(p.awardValue || p.negotiatedPrice)) && Number(p.awardValue || p.negotiatedPrice) > 0 ? PDMS.currency(p.awardValue || p.negotiatedPrice, p.currency) : '—', className: 'award' }
+          ] : [])
+        ] : [];
+        if (p.status === 'In Progress' && currentSubStatus) financialFields.push({ label: 'Current Phase', value: currentSubStatus, className: 'phase' });
+        return financialFields.length ? `<div class="project-financial-band">${financialFields.map(field => `<div class="project-financial-item ${field.className}"><div class="project-financial-label">${field.label}</div><div class="project-financial-value">${PDMS.esc(field.value)}</div></div>`).join('')}</div>` : '';
+      })()}
     </div>
 
     <!-- Metadata strip -->
     <div class="project-meta-strip" style="background:var(--surface);border-top:1px solid var(--border);border-radius:0 0 16px 16px">
       ${(() => {
-            const columns = 5;
-            const currentTimelineIndex = getCurrentTimelineSegmentIndex(detailSegments, p);
-            const renderField = (field, fieldIndex, isCurrentTimeline) => `
+        const columns = 5;
+        const currentTimelineIndex = getCurrentTimelineSegmentIndex(detailSegments, p);
+        const renderField = (field, fieldIndex, isCurrentTimeline) => `
           <div class="project-meta-cell">
             <div class="project-meta-label">${field.label}</div>
             ${fieldIndex === 0 && isCurrentTimeline ? '<span class="project-current-badge">Current timeline</span>' : ''}
             <div class="project-meta-value">${PDMS.esc(field.value)}</div>
           </div>`;
-            return detailSegments.map((segment, index) => {
-              const suffix = index ? ` ${index + 1}` : '';
-              const fields = [
-                { label: `Project Type${suffix}`, value: PDMS.formatType ? PDMS.formatType(segment.type) : (segment.type || '—') },
-                { label: `Workstream${suffix}`, value: segment.workstream || '—' },
-                { label: `Start Date${suffix}`, value: segment.start || 'TBD' },
-                { label: `Planned Completion${suffix}`, value: segment.due || (index === 0 ? (p.due || 'TBD') : 'TBD') },
-                { label: `Actual Completion${suffix}`, value: segment.actualCompletion || (index === 0 ? (p.actualCompletion || '—') : '—') }
-              ];
-              const selectedClass = index === selectedSegmentIndex ? ' is-selected' : '';
-              const isSelected = index === selectedSegmentIndex;
-              const isCurrentTimeline = index === currentTimelineIndex;
-              return `<div class="project-meta-row${selectedClass}" style="--meta-columns:${columns}" role="button" tabindex="0" aria-pressed="${isSelected}" aria-label="Show ${PDMS.esc(segment.type || 'project type')} timeline" onclick="selectProjectSegment(${index})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectProjectSegment(${index})}">${fields.map((field, fieldIndex) => renderField(field, fieldIndex, isCurrentTimeline)).join('')}</div>`;
-            }).join('');
-          })()}
+        return detailSegments.map((segment, index) => {
+          const suffix = index ? ` ${index + 1}` : '';
+          const fields = [
+            { label: `Project Type${suffix}`, value: PDMS.formatType ? PDMS.formatType(segment.type) : (segment.type || '—') },
+            { label: `Workstream${suffix}`, value: segment.workstream || '—' },
+            { label: `Start Date${suffix}`, value: segment.start || 'TBD' },
+            { label: `Planned Completion${suffix}`, value: segment.due || (index === 0 ? (p.due || 'TBD') : 'TBD') },
+            { label: `Actual Completion${suffix}`, value: segment.actualCompletion || (index === 0 ? (p.actualCompletion || '—') : '—') }
+          ];
+          const selectedClass = index === selectedSegmentIndex ? ' is-selected' : '';
+          const isSelected = index === selectedSegmentIndex;
+          const isCurrentTimeline = index === currentTimelineIndex;
+          return `<div class="project-meta-row${selectedClass}" style="--meta-columns:${columns}" role="button" tabindex="0" aria-pressed="${isSelected}" aria-label="Show ${PDMS.esc(segment.type || 'project type')} timeline" onclick="selectProjectSegment(${index})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectProjectSegment(${index})}">${fields.map((field, fieldIndex) => renderField(field, fieldIndex, isCurrentTimeline)).join('')}</div>`;
+        }).join('');
+      })()}
     </div>
   </div>
 
@@ -1307,9 +1101,9 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           <div class="card-body">
             <div class="timeline">
               ${stages.map(s => {
-            const isClickable = canManageStatus && p.status !== 'Cancelled' && p.status !== 'On Hold';
-            const clickAttr = isClickable ? `onclick="openMilestoneScheduleModal('${PDMS.esc(s.label)}')" title="Click circle/stage to set Planned Completion Date, mark Due, or change status"` : '';
-            return `
+                const isClickable = canManageStatus && p.status !== 'Cancelled' && p.status !== 'On Hold';
+                const clickAttr = isClickable ? `onclick="openMilestoneScheduleModal('${PDMS.esc(s.label)}')" title="Click circle/stage to set Planned Completion Date, mark Due, or change status"` : '';
+                return `
                 <div class="tl-item ${s.state} ${isClickable ? 'selectable' : ''}" ${clickAttr}>
                   <div class="tl-title" style="display:flex;align-items:center;justify-content:space-between">
                     <span style="display:inline-flex;align-items:center;gap:6px">
@@ -1327,18 +1121,18 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
                   </div>
                   ${s.notes ? `<div style="font-size:11px;color:var(--text-soft);margin-top:2px;font-style:italic">Note: ${PDMS.esc(s.notes)}</div>` : ''}
                   ${s.label === 'In Progress' && subStatuses.length ? `<div class="tl-sub" style="margin-top:8px;margin-left:14px;padding-left:12px;border-left:2px solid var(--border);display:flex;flex-direction:column;gap:6px">${subStatuses.map((ss, idx) => {
-              const isLast = idx === subStatuses.length - 1;
-              const isOngoing = isLast && (s.state === 'active' || p.status === 'In Progress');
-              return `
+                    const isLast = idx === subStatuses.length - 1;
+                    const isOngoing = isLast && (s.state === 'active' || p.status === 'In Progress');
+                    return `
                       <div style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:2px">
                         <span style="color:${isOngoing ? '#f59e0b' : '#10b981'};font-size:14px;font-weight:bold">${isOngoing ? '●' : '✓'}</span>
                         <span style="color:var(--text);font-weight:600">${PDMS.esc(ss)}</span>
                         <span style="font-size:11px;color:var(--text-muted);font-weight:500;margin-left:6px">(${isOngoing ? 'Ongoing' : 'Completed'})</span>
                       </div>
                     `;
-            }).join('')}</div>` : ''}
+                  }).join('')}</div>` : ''}
                 </div>`;
-          }).join('')}
+              }).join('')}
             </div>
           </div>
         </div>
@@ -1446,7 +1240,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
                   try {
                     var r = JSON.parse(str);
                     if (Array.isArray(r)) return safeStr(r[0]);
-                  } catch (e) { }
+                  } catch (e) {}
                 }
                 return str;
               }
@@ -2088,12 +1882,12 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         const updatedSegments = (Array.isArray(p.projectSegments) && p.projectSegments.length
           ? p.projectSegments
           : [{
-            type: p.type || '',
-            workstream: p.workstream || p.dept || '',
-            start: p.start || '',
-            due: p.due || '',
-            actualCompletion: p.actualCompletion || ''
-          }]).map(s => Object.assign({}, s));
+              type: p.type || '',
+              workstream: p.workstream || p.dept || '',
+              start: p.start || '',
+              due: p.due || '',
+              actualCompletion: p.actualCompletion || ''
+            }]).map(s => Object.assign({}, s));
 
         while (updatedSegments.length <= selectedSegmentIndex) {
           updatedSegments.push({});
@@ -2362,9 +2156,9 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       const clientOpts = `
         ${!clientExists && currentClient ? `<option value="${PDMS.esc(currentClient)}" selected>${PDMS.esc(currentClient)}</option>` : ''}
         ${liveClients.map(c => {
-        const cName = c.name || c;
-        return `<option value="${PDMS.esc(cName)}" ${cName === currentClient ? 'selected' : ''}>${PDMS.esc(cName)}</option>`;
-      }).join('')}
+          const cName = c.name || c;
+          return `<option value="${PDMS.esc(cName)}" ${cName === currentClient ? 'selected' : ''}>${PDMS.esc(cName)}</option>`;
+        }).join('')}
       `;
       const normalizeType = value => String(value || '').toLowerCase().replace(/\s*\/\s*/g, ' / ');
       const typeOptions = selectedType => `
@@ -2459,13 +2253,13 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           <div class="np-field full">
             <label>${(p.awardValue || p.stage === 'Delivery' || p.status === 'Award/SLA' || p.status === 'Awaiting Account Approval') ? 'Award Value (Exclusive of VAT)' : 'Opportunity Value'}</label>
             ${PDMS.renderCurrencyInput({
-        selectId: 'ed-currency',
-        customId: 'ed-custom-currency',
-        amountId: 'ed-price',
-        currency: p.currency || '₦',
-        value: (p.requestedNegotiatedPrice !== undefined && p.requestedNegotiatedPrice !== null && p.requestedNegotiatedPrice !== '') ? String(p.requestedNegotiatedPrice) : ((p.awardValue !== undefined && p.awardValue !== null && p.awardValue !== '') ? String(p.awardValue) : ((p.negotiatedPrice === '' || p.negotiatedPrice === null || p.negotiatedPrice === undefined) ? '' : String(p.negotiatedPrice))),
-        disabled: priceLocked
-      })}
+              selectId: 'ed-currency',
+              customId: 'ed-custom-currency',
+              amountId: 'ed-price',
+              currency: p.currency || '₦',
+              value: (p.requestedNegotiatedPrice !== undefined && p.requestedNegotiatedPrice !== null && p.requestedNegotiatedPrice !== '') ? String(p.requestedNegotiatedPrice) : ((p.awardValue !== undefined && p.awardValue !== null && p.awardValue !== '') ? String(p.awardValue) : ((p.negotiatedPrice === '' || p.negotiatedPrice === null || p.negotiatedPrice === undefined) ? '' : String(p.negotiatedPrice))),
+              disabled: priceLocked
+            })}
             ${priceLocked ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Current Value: ${Number.isFinite(Number(p.negotiatedPrice)) && Number(p.negotiatedPrice) > 0 ? PDMS.currency(p.negotiatedPrice, p.currency) : 'Not set'}</div>` : ''}
           </div>` : ''}
           ${(!isSalesEdit && showSubStatus) ? `
@@ -2693,11 +2487,11 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       const dealOwnerOpts = `
         <option value="">— Select Sales Deal Owner —</option>
         ${salesUsers.map(u => {
-        const uName = u.name || '';
-        if (!uName) return '';
-        const isSelected = uName === currentDealOwner;
-        return `<option value="${PDMS.esc(uName)}" ${isSelected ? 'selected' : ''}>${PDMS.esc(uName)} (${PDMS.esc(u.role || 'Sales')})</option>`;
-      }).join('')}
+          const uName = u.name || '';
+          if (!uName) return '';
+          const isSelected = uName === currentDealOwner;
+          return `<option value="${PDMS.esc(uName)}" ${isSelected ? 'selected' : ''}>${PDMS.esc(uName)} (${PDMS.esc(u.role || 'Sales')})</option>`;
+        }).join('')}
       `;
 
       const clientDisplayName = p.client || p.name || 'Project';
@@ -2784,9 +2578,9 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       const clientOpts = `
         ${!clientExists && currentClient ? `<option value="${PDMS.esc(currentClient)}" selected>${PDMS.esc(currentClient)}</option>` : ''}
         ${liveClients.map(c => {
-        const cName = c.name || c;
-        return `<option value="${PDMS.esc(cName)}" ${cName === currentClient ? 'selected' : ''}>${PDMS.esc(cName)}</option>`;
-      }).join('')}
+          const cName = c.name || c;
+          return `<option value="${PDMS.esc(cName)}" ${cName === currentClient ? 'selected' : ''}>${PDMS.esc(cName)}</option>`;
+        }).join('')}
       `;
       const salesStatuses = ['Lead', 'Opportunity', 'Initial Proposal', 'Negotiation', 'Invoicing', 'Award/SLA'];
       const currentTargetStatus = p.previousStatus || p.requestedStatus || 'Lead';
@@ -2848,13 +2642,13 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           <div class="rs-field">
             <label>Opportunity Value</label>
             ${PDMS.renderCurrencyInput({
-        selectId: 'rs-currency',
-        customId: 'rs-custom-currency',
-        amountId: 'rs-price',
-        currency: p.currency || '₦',
-        value: p.opportunityValue || p.negotiatedPrice || '',
-        placeholder: 'e.g. 5000000'
-      })}
+              selectId: 'rs-currency',
+              customId: 'rs-custom-currency',
+              amountId: 'rs-price',
+              currency: p.currency || '₦',
+              value: p.opportunityValue || p.negotiatedPrice || '',
+              placeholder: 'e.g. 5000000'
+            })}
           </div>
           <div class="rs-field">
             <label>Project Type</label>
@@ -2878,7 +2672,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         </div>
       </div>
     </div>`,
-        `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="submitResendBtn" style="background:#f59e0b;border-color:#d97706;color:#fff;font-weight:700">Resend Request</button>`
+      `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="submitResendBtn" style="background:#f59e0b;border-color:#d97706;color:#fff;font-weight:700">Resend Request</button>`
       );
 
       PDMS.initCurrencyInput(modal, 'rs-currency', 'rs-custom-currency');
@@ -2936,7 +2730,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
               message: `[Resubmission Note] ${noteVal}`,
               time: new Date().toISOString()
             };
-            PDMS.api.create('issues', record).catch(() => { });
+            PDMS.api.create('issues', record).catch(() => {});
             if (D.issues) D.issues.unshift(record);
           }
           modal.remove();
@@ -2958,9 +2752,9 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       const clientOpts = `
         ${!clientExists && currentClient ? `<option value="${PDMS.esc(currentClient)}" selected>${PDMS.esc(currentClient)}</option>` : ''}
         ${liveClients.map(c => {
-        const cName = c.name || c;
-        return `<option value="${PDMS.esc(cName)}" ${cName === currentClient ? 'selected' : ''}>${PDMS.esc(cName)}</option>`;
-      }).join('')}
+          const cName = c.name || c;
+          return `<option value="${PDMS.esc(cName)}" ${cName === currentClient ? 'selected' : ''}>${PDMS.esc(cName)}</option>`;
+        }).join('')}
       `;
       const currentAwardVal = (p.awardValue !== undefined && p.awardValue !== null && p.awardValue !== '') ? p.awardValue : (p.negotiatedPrice || '');
       const rejNote = p.accountsRejectionNote || p.rejectionNote || '';
@@ -2993,14 +2787,14 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       <div class="ra-field">
         <label>Award Value (Exclusive of VAT) <span style="color:var(--danger)">*</span></label>
         ${PDMS.renderCurrencyInput({
-        selectId: 'ra-curr',
-        customId: 'ra-custom-curr',
-        amountId: 'ra-award',
-        initialCurrency: p.currency || '₦',
-        initialAmount: currentAwardVal,
-        placeholder: 'e.g. 5000000',
-        step: '0.01'
-      })}
+          selectId: 'ra-curr',
+          customId: 'ra-custom-curr',
+          amountId: 'ra-award',
+          initialCurrency: p.currency || '₦',
+          initialAmount: currentAwardVal,
+          placeholder: 'e.g. 5000000',
+          step: '0.01'
+        })}
       </div>
       <div class="ra-field">
         <label>Project Description</label>
@@ -3011,12 +2805,12 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
         <textarea id="ra-note" rows="2" placeholder="Explain what was updated or revised…"></textarea>
       </div>
       `,
-        `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="raSubmitBtn" style="background:var(--primary);border-color:var(--primary);color:#fff;font-weight:700">Resubmit to Accounts</button>`
+      `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="raSubmitBtn" style="background:var(--primary);border-color:var(--primary);color:#fff;font-weight:700">Resubmit to Accounts</button>`
       );
 
       PDMS.initCurrencyInput(modal, 'ra-curr', 'ra-custom-curr');
 
-      modal.querySelector('#raSubmitBtn').onclick = function () {
+      modal.querySelector('#raSubmitBtn').onclick = function() {
         const clientVal = modal.querySelector('#ra-client').value.trim() || p.client;
         const typeVal = modal.querySelector('#ra-type').value;
         const wsVal = modal.querySelector('#ra-ws').value.trim();
@@ -3059,7 +2853,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           if (noteVal) {
             const u = PDMS.getUser();
             const record = { id: 'tmp-' + Date.now(), author: u ? u.name : 'Sales', authorRole: u ? u.role : 'Sales', projectId: p.id, projectName: p.name, message: `[Resubmission Note] ${noteVal}`, time: new Date().toISOString() };
-            PDMS.api.create('issues', record).catch(() => { });
+            PDMS.api.create('issues', record).catch(() => {});
             if (D.issues) D.issues.unshift(record);
           }
           modal.remove();
@@ -3160,14 +2954,14 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
             <div class="form-row">
               <label>Award Value <span style="font-size:12px;color:var(--primary);font-weight:600">(Exclusive of VAT)</span> <span style="color:var(--danger)">*</span></label>
               ${PDMS.renderCurrencyInput({
-            selectId: 'awardCurrSelect',
-            customId: 'awardCustomCurr',
-            amountId: 'awardValInput',
-            initialCurrency: p.currency || '₦',
-            initialAmount: currentVal,
-            placeholder: '0.00',
-            step: '0.01'
-          })}
+                selectId: 'awardCurrSelect',
+                customId: 'awardCustomCurr',
+                amountId: 'awardValInput',
+                initialCurrency: p.currency || '₦',
+                initialAmount: currentVal,
+                placeholder: '0.00',
+                step: '0.01'
+              })}
             </div>
             <div class="form-row">
               <label>Remarks / Notes (Optional)</label>
@@ -3392,12 +3186,12 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       const allDefaultStages = isSales
         ? ['Lead', 'Opportunity', 'Initial Proposal', 'Presentation', 'Negotiation', 'Invoicing', 'Award/SLA', 'Closed']
         : ((PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(type) : null) || (window.PDMS_DATA && window.PDMS_DATA.deliveryStagesByType && (window.PDMS_DATA.deliveryStagesByType[type] || window.PDMS_DATA.deliveryStagesByType['ISO Management System'])) || ['Kickoff', 'Gap Assessment', 'Risk Assessment', 'Design & Documentation/Implementation', 'VAPT', 'Training & Awareness', 'Internal Audit & Management Review', 'Remediation & Certification Readiness', 'Certification Audit', 'Completed', 'Certification & Post Engagement', 'Closure']);
-
+      
       const rawCurrent = isSales
         ? (PDMS.salesSequenceFor ? PDMS.salesSequenceFor(p) : allDefaultStages)
         : (PDMS.deliverySequenceFor ? PDMS.deliverySequenceFor(p) : allDefaultStages);
       const currentSequence = (rawCurrent && rawCurrent.length >= 2) ? rawCurrent : allDefaultStages;
-
+      
       // Merge currentSequence with any default stages not in sequence
       const fullList = currentSequence.slice();
       allDefaultStages.forEach(stg => {
@@ -3422,9 +3216,9 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
 
         <div id="tlStageList" class="tl-sort-list">
           ${fullList.map((stg, idx) => {
-        const isChecked = currentSequence.includes(stg);
-        const isTraining = stg === 'Training' || stg === 'Training & Awareness';
-        return `
+            const isChecked = currentSequence.includes(stg);
+            const isTraining = stg === 'Training' || stg === 'Training & Awareness';
+            return `
             <div class="tl-sort-item" draggable="true" data-stage="${PDMS.esc(stg)}">
               <div class="tl-sort-handle" title="Drag to reorder">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -3443,7 +3237,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
                 <button type="button" class="tl-sort-btn btn-move-down" title="Move down">▼</button>
               </div>
             </div>`;
-      }).join('')}
+          }).join('')}
         </div>
       `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="saveTlStagesBtn">Save Stages</button>`);
 
@@ -3640,9 +3434,9 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
       const modal = PDMS.modal(`Update Stage: ${PDMS.esc(stageLabel)}`, `
         <p style="color:var(--text-soft);margin:0 0 16px;font-size:14px">
           ${isClosureStage
-          ? `Move <strong>${PDMS.esc(p.name)}</strong> to <strong style="color:var(--primary);font-size:15px">${PDMS.esc(stageLabel)}</strong> (Completed).`
-          : `Update <strong>${PDMS.esc(p.name)}</strong> timeline stage to <strong style="color:var(--primary);font-size:15px">${PDMS.esc(stageLabel)}</strong>.`
-        }
+            ? `Move <strong>${PDMS.esc(p.name)}</strong> to <strong style="color:var(--primary);font-size:15px">${PDMS.esc(stageLabel)}</strong> (Completed).`
+            : `Update <strong>${PDMS.esc(p.name)}</strong> timeline stage to <strong style="color:var(--primary);font-size:15px">${PDMS.esc(stageLabel)}</strong>.`
+          }
         </p>
 
         ${isClosureStage ? `
@@ -3750,7 +3544,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           </div>
         `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmPutOnHoldBtn" style="background:#d97706;border-color:#d97706">⏸ Put On Hold</button>`);
 
-        modal.querySelector('#confirmPutOnHoldBtn').onclick = function () {
+        modal.querySelector('#confirmPutOnHoldBtn').onclick = function() {
           const reason = modal.querySelector('#onHoldReason').value.trim();
           const btn = this;
           PDMS.setButtonLoading(btn, true, 'Updating...');
@@ -3802,7 +3596,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           </div>
         `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmResumeBtn" style="background:#10b981;border-color:#10b981">▶ Resume Project</button>`);
 
-        modal.querySelector('#confirmResumeBtn').onclick = function () {
+        modal.querySelector('#confirmResumeBtn').onclick = function() {
           const selectedStage = modal.querySelector('#resumeStageSelect').value || resumeStage;
           const btn = this;
           PDMS.setButtonLoading(btn, true, 'Resuming...');
@@ -3850,7 +3644,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           </div>
         `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmCancelLeadBtn" style="background:#ef4444;border-color:#ef4444">✕ Drop Lead</button>`);
 
-        modal.querySelector('#confirmCancelLeadBtn').onclick = function () {
+        modal.querySelector('#confirmCancelLeadBtn').onclick = function() {
           const reason = modal.querySelector('#cancelLeadReason').value.trim();
           if (!reason) {
             PDMS.toast('Reason Required', 'Please enter a reason for dropping / cancelling this lead', 'error');
@@ -3905,7 +3699,7 @@ ${(p.accountsRejectionNote || p.rejectionNote) && p.status === 'Award/SLA' ? `
           </div>
         `, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="confirmReviveLeadBtn" style="background:#10b981;border-color:#10b981">✓ Re-open Lead</button>`);
 
-        modal.querySelector('#confirmReviveLeadBtn').onclick = function () {
+        modal.querySelector('#confirmReviveLeadBtn').onclick = function() {
           const selectedStage = modal.querySelector('#resumeLeadStageSelect').value || resumeStage;
           const btn = this;
           PDMS.setButtonLoading(btn, true, 'Restoring...');
